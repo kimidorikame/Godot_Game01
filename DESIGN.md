@@ -219,15 +219,43 @@ Rumor      : id, text, effect              # 将来、在庫・客足に影響
 ## 8. 実装の初手（Claude Code への最初の指示）
 
 いきなり全部作らない。土台から小さく始める。
+本番のゲーム画面より先に「開発用 State Viewer」を作る。これがこのプロジェクトの
+最重要方針。理由は下の 8.1 を参照。
 
-1. **EventRunner を作る**：events[] を index で進め、status(PLAYING /
-   WAITING_INPUT / DONE) を自分で持つ最小実装。
-2. **検証用の最小 Day1 イベント列を数個**渡して、再生・入力待ち・完了が
-   期待通り動くか確認する。
-3. その後、GameState（enum Phase 含む）と上位フェーズ遷移を載せる。
-4. OPEN の OpenController と客ループ（EventRunner の使い回し）を載せる。
-5. Day1 の台本（本ドキュメント6章）を Event データとして流し込む。
-6. Day2 以降：buy を選択制に、customer を抽選に、満足度判定を本稼働。
+### 実装済み
+
+- **GameState**（autoload シングルトン）は実装済み。事実のみを持ち、進行度
+  （status / index / customer_step の類）は持たない。金額は apply_money(delta) を
+  唯一の入口に通す。日次リセットは reset_for_new_day()（soup / served のみクリア）。
+
+### 順序
+
+1. **開発用 State Viewer の表示部を作る**：今ある GameState の
+   `day_count / money / reputation / inventory / phase / soup / served` を
+   画面に映すだけの最小版。まだ本番のゲーム画面ではない。
+2. **デバッグボタンを置く**（この時点では押せる状態だけでよい）：
+   - EventRunner 操作：`[次のEvent] [入力完了]`
+   - フェーズ操作：`[次のPhase] / [OPENへ] [CLOSEへ] [Day +1]`
+3. **EventRunner を作る**：events[] を index で進め、status(PLAYING /
+   WAITING_INPUT / DONE) を自分で持つ最小実装。`[次のEvent]` ボタンから叩けるように。
+4. **検証用の最小 Day1 イベント列を数個**流し、Viewer 上で
+   「入力 → 状態変化」（例 money: 100 → 95, event_index: 2 → 3）が
+   目で追えることを確認する。EventRunner は Viewer を検証装置として並走させて作る。
+5. 上位フェーズ遷移（FlowController：WAKE→PREP→OPEN→CLOSE→NEXT_DAY・一方向）を載せ、
+   フェーズ操作ボタンから手で叩けるようにする。
+6. OPEN の OpenController と客ループ（EventRunner の使い回し）を載せる。
+7. Day1 の台本（本ドキュメント6章）を Event データとして流し込む。
+8. ここまで Viewer で検証できてから、本番のゲーム画面（セリフ表示・味付けUI）を作る。
+9. Day2 以降：buy を選択制に、customer を抽選に、満足度判定を本稼働。
+
+### 8.1 なぜ State Viewer を先に作るのか
+
+「AI に実装させると内部で何が動いているか分からない」問題に直接効くから。
+イベントを1つ実行するたびに状態の変化（water: 0→10 / money: 100→95 /
+event_index: 2→3 など）が画面に出れば、コードを全部読まずとも「入力 → 状態変化」の
+因果が追える。EventRunner や FlowController を実装したそばから、本番UIを作らずに
+デバッグボタンで手叩き検証できる。Viewer は「作ってから確認する」ものではなく
+「作りながら確認する」ための土台。
 
 ### Godot 実装メモ
 
@@ -241,10 +269,92 @@ Rumor      : id, text, effect              # 将来、在庫・客足に影響
 
 ---
 
+## 9. ビルド順（この順で刻む）
+
+全体を一気に作らない。下の順で1STEPずつ、各STEPの最後に「止まって理解する」。
+State基盤 → DebugPanel → WAKE → PREP → OPEN一人 → OPEN三人 → CLOSE → NEXT_DAY
+→ Day2分岐 → 本番UI。
+
+### STEP 1：State基盤（実装対象を4つに絞る）
+- GameState（実装済み）/ FlowController / EventRunner / DebugPanel の4つだけ。
+- OPEN内部の客処理・市場・料理・シナリオはまだ作らない。
+- Claude Code へはまず **Plan（最小変更案）だけ**出させ、コードは変更させない。
+  無関係なリファクタリング・追加システムは禁止。Plan確認後に実装。
+
+### STEP 1.5：Event 型を仮決めする（早めに）
+- EventRunner が処理する対象なので、EventRunner 実装と同時に型を決める。
+- 最初はこの4つだけで WAKE も PREP も組める：
+  `TEXT / PAY / ADD_ITEM / WAIT_INPUT`
+- 営業用（`CUSTOMER_ENTER / ADJUST_SOUP / SERVE / CUSTOMER_REACT`）は
+  OPEN に入る STEP 6 で足す。後付けでよい。
+- **シナリオデータと処理を分離する**（『夜湯』で特に重要・確定事項）。
+  Event はデータ（例 `{ type: PAY, amount: 20 }`）、処理はそれを受けて
+  `GameState.apply_money(-20)` を呼ぶだけ。処理をデータ側に埋め込まない。
+
+### STEP 2：開発用 DebugPanel（本番UIは作らない）
+- 8章の State Viewer。GameState と EventRunner.status を映し、デバッグボタンで叩く。
+- 白背景・Label・Button・DebugPanel で十分。絵もシナリオも無し。
+
+### STEP 3：WAKE だけ作る
+- Day1 の wake → phone → 「準備へ」の数イベントだけ。WAKE→PREP の遷移を確認。
+
+### STEP 4：PREP を作る
+- 市場→ベース購入→水場→使用料→水汲み→仕込み→OPENへ、を全部 Event で流す。
+- 「PREP という巨大なコード」を作らない。TEXT / PAY / ADD_ITEM の並びで表現。
+
+### STEP 5：PREP まで完全に理解する（一度止まる）
+- 「WAKEのeventsを処理→DONEでFlowControllerがPREPへ→PAYでmoney減→
+  ADD_ITEMでinventory増→最後のEvent後にOPENへ」を**自分の言葉で説明できる**まで。
+- できなければ Claude Code に「この操作で、どのファイルのどの処理が呼ばれ、
+  どの状態変数が変わり、次にどの処理へ進むか」を説明させる。これが「理解した」の基準。
+
+### STEP 6：OPEN は客1人だけ
+- queue = [delivery_man] のみ。GREET→ADJUST→SERVE→REACT を実装。
+- ADJUST で status=WAITING_INPUT で止まり、[卵][生姜][提供]等の入力を受ける。
+
+### STEP 7：客3人にする
+- queue = [delivery_man, thug, normal_customer]。3人が順に回り、
+  queue が空 → OPEN終了 → CLOSE を確認。
+
+### STEP 8：pay イベントを差し込む
+- チンピラの REACT 後ろに `PAY_PROTECTION_MONEY` を1つ差すだけ。
+- **チンピラ専用 State を作らない**（`THUG_PAYMENT_STATE` 等を増やさない）。
+  単なる Event として表現する＝確定事項どおり。
+
+### STEP 9：CLOSE → NEXT_DAY
+- CLOSE：売上表示→精算→本日の結果。
+- NEXT_DAY：day_count += 1、reset_for_new_day()（soup / served クリア）、
+  current_customer = null 等。→ WAKE へ。これで一日完成。
+
+### STEP 10：Day1 を一周して全状態を説明できるか（一度止まる）
+- WAKE→PREP→OPEN(客1→2→3)→CLOSE→NEXT_DAY→WAKE の全状態を自分で説明できること。
+- できてから Day2 へ。
+
+### Day2 は「分岐テスト」にする（新システムを足さない）
+- 同じ EventRunner で分岐が処理できるかだけ試す。
+- 例：Day1 で SET_FLAG した `granny_helped` を見て `if 〜 else` で Event を出し分ける。
+- これが動けば基盤が固まったと判断。
+
+### まだ作らないもの（この段階で手を出さない）
+7日分の本シナリオ / 完成版市場 / レシピシステム / スマホ画面 / 立ち絵 /
+本番UI / セーブの完全設計 / 好感度 / 評判の詳細 / 料理バランス / 複雑な分岐。
+reputation・rumors は状態として予約するだけでよく、まだ使わない。
+
+### 本番UIは最後
+- Day1 が完全に状態遷移するようになってから、
+  WAKE→自室UI / PREP→市場・水場UI / OPEN→屋台UI / CLOSE→精算UI に置き換える。
+- この順なら「UIのせいで動かない」のか「状態遷移のせいで動かない」のかを切り分けられる。
+
+---
+
 ## 設計上の確定事項（変更しないこと）
 
 - 状態は GameState（永続）と EventRunner（使い捨て）の二層。status は EventRunner 側。
 - 上位フェーズは一方向。戻らない。
 - OPEN は別階層。客ループは下位に隔離する。
 - 全イベントは共通の Event 型。Day1 と通常日で別コードを書かない。
+- Event はシナリオデータ、処理はそれを受ける側。処理をデータに埋め込まない
+  （例：`{type: PAY, amount: 20}` を受けて apply_money(-20) を呼ぶ）。
 - soup は全客で共有。NEXT_DAY でリセット。
+- 本番のゲーム画面より先に開発用 State Viewer を作る。EventRunner 等は
+  Viewer を検証装置として並走させながら実装する（8章・8.1参照）。
