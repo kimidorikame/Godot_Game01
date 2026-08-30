@@ -6,7 +6,8 @@ class_name Day1Events
 ## Event の中身はここに置く。処理（表示・入力待ち解除など）は
 ## EventRunner / DebugPanel 側で行い、ここには書かない。
 ##
-## STEP 3: WAKE のみ。STEP 4: PREP を最小構成で追加。STEP 6: OPEN の客1人分を追加。
+## STEP 3: WAKE のみ。STEP 4: PREP を最小構成で追加。
+## STEP 6: OPEN の客1人分。STEP 7: OPEN の客を3人に（キューを増やすだけで回る確認）。
 
 static func wake_events() -> Array:
 	return [
@@ -32,23 +33,40 @@ static func prep_events() -> Array:
 	]
 
 
-## OPEN の客キュー（DESIGN.md 9章 STEP 6：まず配達員1人だけ）。
-## 客が増えるのは STEP 7。ここに id を並べれば OpenController がその順で回す。
+## OPEN の客キュー（DESIGN.md 9章）。STEP 6: 配達員1人 → STEP 7: 3人。
+## ここに id を並べれば OpenController がその順で1人ずつ回す。増減はこの1行だけ。
 static func customer_queue() -> Array:
-	return ["delivery_man"]
+	return ["delivery_man", "thug", "normal_customer"]
 
 
-## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4つ（DESIGN.md 4章）。
+## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。
 ## データのみ。処理は受け側 = DebugPanel._apply_event（GREET/ADJUST/SERVE は表示だけ、
 ## REACT で仮の売上を計上）。
-## STEP 6 の割り切り:
+## STEP 7 の割り切り:
+##   - 客ごとの差は text と sale だけ（個性・調理・評価はまだ入れない）
 ##   - ADJUST はダミー素通し（WAIT_INPUT にしない。実入力＝味付けUIは次 STEP で足す）
 ##   - REACT の sale は満足度判定（DESIGN.md 7章）が入るまでの固定プレースホルダ
+##   - チンピラの場所代 PAY は STEP 8 で別 Event として足す（ここには入れない）
 ##   - 鍋の残量・濃さ・時間劣化・水（7.5章）は入れない
 static func customer_events(customer_id: String) -> Array:
+	var flavor := _customer_flavor(customer_id)
 	return [
-		{ "type": "GREET",  "customer": customer_id, "text": "配達員「いつもの。」" },
-		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）※STEP6は素通し" },
+		{ "type": "GREET",  "customer": customer_id, "text": flavor["greet"] },
+		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）※素通し" },
 		{ "type": "SERVE",  "customer": customer_id, "text": "「はいよ、お待ち。」" },
-		{ "type": "REACT",  "customer": customer_id, "text": "配達員「繁盛してるな。」", "sale": 45 },
+		{ "type": "REACT",  "customer": customer_id, "text": flavor["react"], "sale": flavor["sale"] },
 	]
+
+
+## 客ごとに変わる差分だけ（売上は DESIGN.md 6章の Day1 台本準拠：45 / 40 / 55）。
+## 未知 id は無音・売上0でフォールバック。
+static func _customer_flavor(customer_id: String) -> Dictionary:
+	match customer_id:
+		"delivery_man":
+			return { "greet": "配達員「いつもの。」", "react": "配達員「繁盛してるな。」", "sale": 45 }
+		"thug":
+			return { "greet": "チンピラ「……同じの。」", "react": "チンピラ、黙って食って出ていった。", "sale": 40 }
+		"normal_customer":
+			return { "greet": "客「適当に一杯。」", "react": "客「ごちそうさん。」", "sale": 55 }
+		_:
+			return { "greet": "客「……。」", "react": "客、無言。", "sale": 0 }
