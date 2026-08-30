@@ -13,6 +13,10 @@ extends PanelContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
 
+# OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
+# flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
+var _open: OpenController = null
+
 
 func _ready() -> void:
 	_set_runner_for_phase(GameState.phase)
@@ -43,15 +47,29 @@ func _on_phase_changed(phase: int) -> void:
 
 
 ## フェーズごとの Event 列を runner に差し込む。
-## STEP 3: WAKE / STEP 4: PREP。OPEN 以降は未実装なので空のまま（フェーズだけ進む）。
+## STEP 3: WAKE / STEP 4: PREP / STEP 6: OPEN（客キュー）。CLOSE 以降は未実装で空のまま。
 ## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
 func _set_runner_for_phase(phase: int) -> void:
-	var events: Array = []
+	_open = null   # OPEN 以外では客キューを持たない
 	if phase == GameState.Phase.WAKE:
-		events = Day1Events.wake_events()
+		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
-		events = Day1Events.prep_events()
-	flow.set_runner(events)
+		flow.set_runner(Day1Events.prep_events())
+	elif phase == GameState.Phase.OPEN:
+		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
+		_open = OpenController.new(Day1Events.customer_queue())
+		_load_current_customer()
+	else:
+		flow.set_runner([])   # CLOSE / NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
+
+
+## いま接客中の客の Event 列を flow.runner に載せる。
+## 客がいなければ空 runner（＝即 DONE）にして、OPEN を CLOSE へ進められる状態にする。
+func _load_current_customer() -> void:
+	if _open != null and _open.has_more():
+		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
+	else:
+		flow.set_runner([])
 
 
 ## [次のEvent] のハンドラ。runner を1つ進め、新しく current になった Event の効果を受ける。
@@ -65,6 +83,7 @@ func _on_next_event_pressed() -> void:
 	# index が動いたときだけ適用（WAITING_INPUT で空振りした場合などは二重適用しない）。
 	if flow.runner.index != before:
 		_apply_event(flow.runner.current())
+	_advance_open_queue_if_customer_done()
 	_refresh()
 
 
@@ -76,7 +95,19 @@ func _on_complete_input_pressed() -> void:
 	flow.runner_complete_input()
 	if flow.runner.index != before:
 		_apply_event(flow.runner.current())
+	_advance_open_queue_if_customer_done()
 	_refresh()
+
+
+## OPEN 中、今の客の接客 runner が DONE になったら次の客をロードする。
+## 全員さばき切ったら空 runner（DONE）になり、[次のPhase] で CLOSE へ進めるようになる。
+## OPEN 以外・キューが空のときは何もしない。
+func _advance_open_queue_if_customer_done() -> void:
+	if GameState.phase != GameState.Phase.OPEN or _open == null:
+		return
+	if flow.is_runner_done() and _open.has_more():
+		_open.advance_customer()
+		_load_current_customer()
 
 
 ## Event（データ）を1つ受けて、その効果を GameState に反映する「受け側」の本体。
@@ -84,9 +115,11 @@ func _on_complete_input_pressed() -> void:
 ##   PAY         … { amount } を apply_money(-amount) に渡す（支払い）
 ##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
 ##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
-##   TEXT / WAIT_INPUT … 表示だけ。状態は動かさないので何もしない
-## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP は
-## どちらも先頭が TEXT なので実害なし（先頭に効果付き Event を置くならここの見直しが要る）。
+##   REACT       … { sale } を仮の売上として apply_money(+sale) ＋ record_served（STEP 6）
+##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
+##     （ADJUST は STEP 6 では素通し。実入力＝味付けは次 STEP）
+## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
+## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
 func _apply_event(ev) -> void:
 	if not (ev is Dictionary):
 		return
@@ -97,6 +130,11 @@ func _apply_event(ev) -> void:
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"REACT":
+			# 満足度判定（DESIGN.md 7章）は未実装。sale は固定プレースホルダ。
+			var sale := int(ev.get("sale", 0))
+			GameState.apply_money(sale)
+			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale })
 
 
 func _on_runner_updated() -> void:
@@ -110,7 +148,8 @@ func _on_day_plus_pressed() -> void:
 
 func _refresh() -> void:
 	_game_state_label.text = _format_game_state()
-	_runner_label.text = _format_runner()
+	# OPEN 中は runner 表示のあとに客キューの状態も出す（OPEN 以外は空文字）。
+	_runner_label.text = _format_runner() + _format_open()
 
 
 func _format_game_state() -> String:
@@ -162,4 +201,21 @@ func _format_runner() -> String:
 		"runner_done(完了フラグ): %s" % str(flow.is_runner_done()),
 		# STEP 4: このフェーズは DONE 必須か。ブロック中なら [次のPhase] は no-op。
 		"next_phase(次へ進めるか): %s" % ("OK" if not flow.is_advance_blocked() else "ブロック中(runner未DONE)"),
+	]))
+
+
+## OPEN 中の客キュー状態（STEP 6）。OPEN 以外は空文字を返し、表示に何も足さない。
+##   queue     … キューの客数
+##   customer  … いま接客中の客 id と「何人目/全体」。全員終わっていれば (なし)
+##   open_done … 全員さばき切ったか。true で [次のPhase] → CLOSE へ進める
+func _format_open() -> String:
+	if _open == null:
+		return ""
+	var cust = _open.current_customer()
+	var cust_text := "(なし)" if cust == null else "%s (%d/%d)" % [cust, _open.index + 1, _open.queue.size()]
+	return "\n" + "\n".join(PackedStringArray([
+		"── OpenController（客キュー）──",
+		"queue(客数): %d" % _open.queue.size(),
+		"customer(接客中): %s" % cust_text,
+		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 	]))

@@ -6,7 +6,7 @@ class_name Day1Events
 ## Event の中身はここに置く。処理（表示・入力待ち解除など）は
 ## EventRunner / DebugPanel 側で行い、ここには書かない。
 ##
-## STEP 3: WAKE のみ。STEP 4: PREP を最小構成で追加。OPEN 以降はまだ作らない。
+## STEP 3: WAKE のみ。STEP 4: PREP を最小構成で追加。STEP 6: OPEN の客1人分を追加。
 
 static func wake_events() -> Array:
 	return [
@@ -29,4 +29,26 @@ static func prep_events() -> Array:
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
 		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "骨と大根を受け取った" },
 		{ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1, "text": "さて、仕込むか。鍋に放り込む" },
+	]
+
+
+## OPEN の客キュー（DESIGN.md 9章 STEP 6：まず配達員1人だけ）。
+## 客が増えるのは STEP 7。ここに id を並べれば OpenController がその順で回す。
+static func customer_queue() -> Array:
+	return ["delivery_man"]
+
+
+## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4つ（DESIGN.md 4章）。
+## データのみ。処理は受け側 = DebugPanel._apply_event（GREET/ADJUST/SERVE は表示だけ、
+## REACT で仮の売上を計上）。
+## STEP 6 の割り切り:
+##   - ADJUST はダミー素通し（WAIT_INPUT にしない。実入力＝味付けUIは次 STEP で足す）
+##   - REACT の sale は満足度判定（DESIGN.md 7章）が入るまでの固定プレースホルダ
+##   - 鍋の残量・濃さ・時間劣化・水（7.5章）は入れない
+static func customer_events(customer_id: String) -> Array:
+	return [
+		{ "type": "GREET",  "customer": customer_id, "text": "配達員「いつもの。」" },
+		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）※STEP6は素通し" },
+		{ "type": "SERVE",  "customer": customer_id, "text": "「はいよ、お待ち。」" },
+		{ "type": "REACT",  "customer": customer_id, "text": "配達員「繁盛してるな。」", "sale": 45 },
 	]
