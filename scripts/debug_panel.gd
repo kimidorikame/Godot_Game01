@@ -81,8 +81,9 @@ func _on_complete_input_pressed() -> void:
 
 ## Event（データ）を1つ受けて、その効果を GameState に反映する「受け側」の本体。
 ## type を見て振り分けるだけ。処理はデータ側に持たせない（DESIGN.md 確定事項）。
-##   PAY      … { amount } を apply_money(-amount) に渡す（支払い）
-##   ADD_ITEM … { item, amount } を add_inventory(item, amount) に渡す
+##   PAY         … { amount } を apply_money(-amount) に渡す（支払い）
+##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
+##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
 ##   TEXT / WAIT_INPUT … 表示だけ。状態は動かさないので何もしない
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP は
 ## どちらも先頭が TEXT なので実害なし（先頭に効果付き Event を置くならここの見直しが要る）。
@@ -94,6 +95,8 @@ func _apply_event(ev) -> void:
 			GameState.apply_money(-int(ev.get("amount", 0)))
 		"ADD_ITEM":
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"REMOVE_ITEM":
+			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 
 
 func _on_runner_updated() -> void:

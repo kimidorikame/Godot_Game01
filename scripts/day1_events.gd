@@ -17,15 +17,16 @@ static func wake_events() -> Array:
 
 
 ## PREP の最小構成（DESIGN.md 9章 STEP 4）。
-## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM の並びだけで表現する。
-## ここはデータのみ。PAY の amount / ADD_ITEM の item・amount が「効果」を表し、
-## 実際の処理（apply_money / add_inventory）は受け側 = DebugPanel._apply_event が行う。
-## text は表示用でしかなく、状態は動かさない。
-## 移動・水汲み・水場の使用料・仕込み演出は STEP 4 の範囲外（ここには入れない）。
+## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM / REMOVE_ITEM の並びだけで表現する。
+## ここはデータのみ。PAY の amount / ADD_ITEM・REMOVE_ITEM の item・amount が「効果」を表し、
+## 実際の処理（apply_money / add_inventory / remove_inventory）は
+## 受け側 = DebugPanel._apply_event が行う。text は表示用でしかなく、状態は動かさない。
+## 末尾の REMOVE_ITEM が「仕込み＝具材を鍋へ消費」。soup を埋める処理はまだ持たない
+## （在庫を1減らすだけ）。移動・水汲み・水場の使用料・仕込み演出は STEP 4 の範囲外。
 static func prep_events() -> Array:
 	return [
 		{ "type": "TEXT", "text": "食肉売場へ来た" },
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
 		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "骨と大根を受け取った" },
-		{ "type": "TEXT", "text": "さて、仕込むか" },
+		{ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1, "text": "さて、仕込むか。鍋に放り込む" },
 	]

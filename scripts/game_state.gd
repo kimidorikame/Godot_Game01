@@ -66,6 +66,14 @@ func add_inventory(item, count: int = 1) -> void:
 		inventory.append(item)
 
 
+## 在庫から item を count 個抜く入口。add_inventory の裏返し。
+## 該当が無い分は黙って無視する（Array.erase は未ヒットでも安全、size は負にならない）。
+## STEP 4: 「仕込み」で具材を消費するのに使う。soup を埋める処理はまだ持たない。
+func remove_inventory(item, count: int = 1) -> void:
+	for _i in count:
+		inventory.erase(item)
+
+
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。
 func record_served(record) -> void:
 	served.append(record)
