@@ -11,7 +11,11 @@ class_name FlowController
 signal phase_changed(phase: int)
 signal runner_updated()
 
-# 一方向の並び。末尾 NEXT_DAY の次は先頭 WAKE へ折り返す。
+# フェーズの並び順。advance_phase() は現在位置の +1 しか行わず、前のフェーズには戻さない。
+# 末尾 NEXT_DAY の次は先頭 WAKE へ折り返す（そこで日次リセット＋日数+1）。
+# 設計意図: この一方向性が「一日一鍋・仕込み直し不可」を構造で保証する。
+#   PREP（仕込み）を後から通り直す経路がそもそも無いので、OPEN 以降に鍋を作り直す・
+#   仕込みをやり直すといった操作は、コード上あり得ない形になる。
 var _phase_order := [
 	GameState.Phase.WAKE,
 	GameState.Phase.PREP,

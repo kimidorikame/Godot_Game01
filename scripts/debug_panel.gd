@@ -18,17 +18,27 @@ func _ready() -> void:
 	# STEP 1: runner の中身は空。フェーズ用の Event 列は STEP 3 以降で差す。
 	flow.set_runner([])
 
-	flow.phase_changed.connect(_on_phase_changed)
-	flow.runner_updated.connect(_on_runner_updated)
+	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
+	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
+	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
+	# [次のEvent] = runner_advance:
+	#   PLAYING のときだけ index を1つ進める。WAITING_INPUT / DONE では何もしない。
+	#   つまり WAIT_INPUT の Event に当たったらこのボタンでは進めなくなる（＝確実に止まる）。
 	_btn_next_event.pressed.connect(flow.runner_advance)
+	# [入力完了] = runner_complete_input:
+	#   WAITING_INPUT を PLAYING に戻してから1つ進める。「入力待ちの解除」専用。
+	#   [次のEvent] との違い: あちらは止まっている列を動かせないが、こちらは
+	#   止まっている状態を解除したうえで先へ進める。PLAYING 中に押しても無効。
 	_btn_complete_input.pressed.connect(flow.runner_complete_input)
-	_btn_next_phase.pressed.connect(flow.advance_phase)
-	_btn_day_plus.pressed.connect(_on_day_plus_pressed)
+	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
+	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
 
 	_refresh()
 
 
 func _on_phase_changed(_phase: int) -> void:
+	# TODO(STEP 3/4): PREP 以降を実装する際、ここからフェーズに応じた Event 列の
+	#   差し替え（_set_runner_for_phase 相当）を呼ぶ予定。今は表示更新のみ。
 	_refresh()
 
 
