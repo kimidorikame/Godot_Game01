@@ -160,4 +160,6 @@ func _format_runner() -> String:
 		"status(進行状態): %s (%d)" % [status_name, r.status],
 		"current(接客中の客): %s" % cur_text,
 		"runner_done(完了フラグ): %s" % str(flow.is_runner_done()),
+		# STEP 4: このフェーズは DONE 必須か。ブロック中なら [次のPhase] は no-op。
+		"next_phase(次へ進めるか): %s" % ("OK" if not flow.is_advance_blocked() else "ブロック中(runner未DONE)"),
 	]))
