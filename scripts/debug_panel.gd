@@ -15,8 +15,7 @@ extends PanelContainer
 
 
 func _ready() -> void:
-	# STEP 1: runner の中身は空。フェーズ用の Event 列は STEP 3 以降で差す。
-	flow.set_runner([])
+	_set_runner_for_phase(GameState.phase)
 
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
 	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
@@ -36,10 +35,18 @@ func _ready() -> void:
 	_refresh()
 
 
-func _on_phase_changed(_phase: int) -> void:
-	# TODO(STEP 3/4): PREP 以降を実装する際、ここからフェーズに応じた Event 列の
-	#   差し替え（_set_runner_for_phase 相当）を呼ぶ予定。今は表示更新のみ。
+func _on_phase_changed(phase: int) -> void:
+	_set_runner_for_phase(phase)
 	_refresh()
+
+
+## フェーズごとの Event 列を runner に差し込む。
+## STEP 3: WAKE のみ Day1Events.wake_events()。それ以外は空（未実装のSTEP待ち）。
+func _set_runner_for_phase(phase: int) -> void:
+	var events: Array = []
+	if phase == GameState.Phase.WAKE:
+		events = Day1Events.wake_events()
+	flow.set_runner(events)
 
 
 func _on_runner_updated() -> void:
