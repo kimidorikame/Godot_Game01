@@ -20,15 +20,17 @@ func _ready() -> void:
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
 	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
 	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
-	# [次のEvent] = runner_advance:
-	#   PLAYING のときだけ index を1つ進める。WAITING_INPUT / DONE では何もしない。
-	#   つまり WAIT_INPUT の Event に当たったらこのボタンでは進めなくなる（＝確実に止まる）。
-	_btn_next_event.pressed.connect(flow.runner_advance)
-	# [入力完了] = runner_complete_input:
-	#   WAITING_INPUT を PLAYING に戻してから1つ進める。「入力待ちの解除」専用。
-	#   [次のEvent] との違い: あちらは止まっている列を動かせないが、こちらは
-	#   止まっている状態を解除したうえで先へ進める。PLAYING 中に押しても無効。
-	_btn_complete_input.pressed.connect(flow.runner_complete_input)
+	# [次のEvent] = _on_next_event_pressed:
+	#   flow.runner_advance() で PLAYING のときだけ index を1つ進める。
+	#   WAITING_INPUT / DONE では何もしない（＝WAIT_INPUT で確実に止まる）。
+	#   STEP 4: 進んだ先の Event が PAY / ADD_ITEM なら、その効果をここで GameState に反映する。
+	_btn_next_event.pressed.connect(_on_next_event_pressed)
+	# [入力完了] = _on_complete_input_pressed:
+	#   flow.runner_complete_input() で WAITING_INPUT を PLAYING に戻してから1つ進める。
+	#   「入力待ちの解除」専用。[次のEvent] との違い: あちらは止まっている列を動かせないが、
+	#   こちらは解除したうえで先へ進める。PLAYING 中に押しても無効。
+	#   STEP 4: 進んだ先の Event の効果反映は [次のEvent] と同じ扱い。
+	_btn_complete_input.pressed.connect(_on_complete_input_pressed)
 	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
 	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
 
@@ -41,12 +43,57 @@ func _on_phase_changed(phase: int) -> void:
 
 
 ## フェーズごとの Event 列を runner に差し込む。
-## STEP 3: WAKE のみ Day1Events.wake_events()。それ以外は空（未実装のSTEP待ち）。
+## STEP 3: WAKE / STEP 4: PREP。OPEN 以降は未実装なので空のまま（フェーズだけ進む）。
+## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
 func _set_runner_for_phase(phase: int) -> void:
 	var events: Array = []
 	if phase == GameState.Phase.WAKE:
 		events = Day1Events.wake_events()
+	elif phase == GameState.Phase.PREP:
+		events = Day1Events.prep_events()
 	flow.set_runner(events)
+
+
+## [次のEvent] のハンドラ。runner を1つ進め、新しく current になった Event の効果を受ける。
+## 「Event はデータ / 処理は受け側」（DESIGN.md 確定事項）の "受け側" がここ。
+## EventRunner はカーソルを動かすだけで、PAY / ADD_ITEM の反映は一切しない。
+func _on_next_event_pressed() -> void:
+	if flow.runner == null:
+		return
+	var before: int = flow.runner.index
+	flow.runner_advance()
+	# index が動いたときだけ適用（WAITING_INPUT で空振りした場合などは二重適用しない）。
+	if flow.runner.index != before:
+		_apply_event(flow.runner.current())
+	_refresh()
+
+
+## [入力完了] のハンドラ。入力待ちを解除して1つ進め、[次のEvent] と同じく新 current を適用。
+func _on_complete_input_pressed() -> void:
+	if flow.runner == null:
+		return
+	var before: int = flow.runner.index
+	flow.runner_complete_input()
+	if flow.runner.index != before:
+		_apply_event(flow.runner.current())
+	_refresh()
+
+
+## Event（データ）を1つ受けて、その効果を GameState に反映する「受け側」の本体。
+## type を見て振り分けるだけ。処理はデータ側に持たせない（DESIGN.md 確定事項）。
+##   PAY      … { amount } を apply_money(-amount) に渡す（支払い）
+##   ADD_ITEM … { item, amount } を add_inventory(item, amount) に渡す
+##   TEXT / WAIT_INPUT … 表示だけ。状態は動かさないので何もしない
+## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP は
+## どちらも先頭が TEXT なので実害なし（先頭に効果付き Event を置くならここの見直しが要る）。
+func _apply_event(ev) -> void:
+	if not (ev is Dictionary):
+		return
+	match ev.get("type", ""):
+		"PAY":
+			GameState.apply_money(-int(ev.get("amount", 0)))
+		"ADD_ITEM":
+			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 
 
 func _on_runner_updated() -> void:

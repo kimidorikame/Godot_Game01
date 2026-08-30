@@ -57,6 +57,15 @@ func apply_money(delta: int) -> void:
 	money += delta
 
 
+## 在庫に item を count 個足す入口。ADD_ITEM Event を受けた側から呼ぶ。
+## apply_money と同じく「在庫をいじる唯一の入口」を用意し、受け側から
+## inventory 配列を直接触らせない。中身は今は id 文字列。Ingredient 型が
+## 定義されたらここと表示側だけ差し替えれば済む。
+func add_inventory(item, count: int = 1) -> void:
+	for _i in count:
+		inventory.append(item)
+
+
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。
 func record_served(record) -> void:
 	served.append(record)
