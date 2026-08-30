@@ -47,7 +47,8 @@ func _on_phase_changed(phase: int) -> void:
 
 
 ## フェーズごとの Event 列を runner に差し込む。
-## STEP 3: WAKE / STEP 4: PREP / STEP 6: OPEN（客キュー）。CLOSE 以降は未実装で空のまま。
+## STEP 3: WAKE / STEP 4: PREP / STEP 6: OPEN（客キュー）/ STEP 9: CLOSE。
+## NEXT_DAY は空のまま（日次処理は FlowController.advance_phase の折り返し側）。
 ## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
 func _set_runner_for_phase(phase: int) -> void:
 	_open = null   # OPEN 以外では客キューを持たない
@@ -59,8 +60,10 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		_open = OpenController.new(Day1Events.customer_queue())
 		_load_current_customer()
+	elif phase == GameState.Phase.CLOSE:
+		flow.set_runner(Day1Events.close_events())
 	else:
-		flow.set_runner([])   # CLOSE / NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
+		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
 
 
 ## いま接客中の客の Event 列を flow.runner に載せる。

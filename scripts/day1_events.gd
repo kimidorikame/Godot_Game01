@@ -37,6 +37,17 @@ static func prep_events() -> Array:
 	]
 
 
+## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。
+## 所持金・提供数は計器盤に出ているので、ここは「読ませて区切る」だけ。
+## 凝った売上内訳・精算演出は入れない（今ある状態を見せる最小）。
+static func close_events() -> Array:
+	return [
+		{ "type": "TEXT", "text": "看板の灯を落とす。" },
+		{ "type": "TEXT", "text": "屋台を閉める。" },
+		{ "type": "TEXT", "text": "本日の営業終了。売上と提供数は計器盤のとおり。" },
+	]
+
+
 ## OPEN の客キュー（DESIGN.md 9章）。STEP 6: 配達員1人 → STEP 7: 3人。
 ## ここに id を並べれば OpenController がその順で1人ずつ回す。増減はこの1行だけ。
 static func customer_queue() -> Array:
