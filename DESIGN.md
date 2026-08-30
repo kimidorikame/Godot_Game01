@@ -124,7 +124,7 @@ Day1 も通常日も、フェーズの中身はこの Event の配列として�
 ```
 Event
   type   : "wake" | "phone" | "buy" | "move" | "pay" | "prep"
-         | "open" | "customer" | "adjust" | "serve" | "react" | "close"
+		 | "open" | "customer" | "adjust" | "serve" | "react" | "close"
   text   : 表示するセリフ・状況
   effect : 状態変化（例 { money: -80 }）。無ければ空。
   next   : 次のイベント、または分岐条件
