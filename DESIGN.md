@@ -3,7 +3,10 @@
 サイバーパンク／九龍風スラムの屋台で、一日一鍋のスープを仕込み、客との会話から
 事情や好みを読み取りながら料理を出す「会話＋小規模経営」ゲーム。
 
-このドキュメントは Claude Code 向けの実装指示書。前提は **Godot 4 + GDScript**。
+このドキュメントは Claude Code 向けの設計・実装指示書。前提は **Godot 4 + GDScript**。
+実装済みの事実は `CURRENT_SPEC.md` とコードを正とする。STEP 1〜10 は完了済みで、
+現在の実装順は 9.5「ビルド順・第2フェーズ（STEP 11〜18）」を正とする。
+前半の将来像と現在実装が異なる場合、Claude Code は推測で統合せず差異を報告する。
 
 ---
 
@@ -31,19 +34,21 @@
 
 ```
 GameState
-  day            : int          # 日数カウント
+  day_count      : int          # 日数カウント
   money          : int          # 所持金
   reputation     : int          # 評判
   inventory[]    : Ingredient   # 初期具材・調味料・購入した食材
   rumors[]       : Rumor        # スマホで得た情報の断片
   phase          : Phase        # 今どのフェーズか（下記 enum）
-  soup           : Soup         # 今日の鍋（base + additions[]）※NEXT_DAYでリセット
+  soup           : Soup         # 今日の共有鍋（base_id + base_tags[]）※NEXT_DAYでリセット
   served[]       : ServedRecord # 今夜の提供実績          ※NEXT_DAYでリセット
 ```
 
 - `money / reputation` は支払いで減り、売上で増える。初期所持金は支払いで消え、
   売上だけが手元に残る（自転車操業感）。
 - `soup` と `served[]` は日ごとの使い捨て。**NEXT_DAY でリセットする**。
+- `soup` が表すのは全客で共有する鍋だけ。客ごとの味付けは接客中だけ生存する
+  `Bowl.additions[]` に持たせ、鍋へ混ぜない。
 
 ### EventRunner（使い捨て・使い回す部品）
 
@@ -63,7 +68,7 @@ EventRunner
 
 ### status の意味
 
-- `PLAYING`      : セリフ・演出を表示中。自動で進む。
+- `PLAYING`      : セリフ・演出を表示中。`advance()` で次へ進める状態。
 - `WAITING_INPUT`: 選択肢・味付けなどプレイヤー入力待ちで停止。
 - `DONE`         : 列を最後まで消化。上位フェーズを次へ進める合図。
 
@@ -83,7 +88,7 @@ WAKE → PREP → OPEN → CLOSE → NEXT_DAY → （WAKEへ戻る）
   - 翌日イベント生成（rumors の抽選など）
   - 在庫処理
   - reputation 反映
-  - `day += 1` してから WAKE へ
+  - `day_count += 1` してから WAKE へ
 - `phase` は「今どのフェーズか」を GameState が知るために持つ。
   「フェーズ内をどこまで再生したか」は EventRunner.status が持つ。役割を分ける。
 
@@ -101,7 +106,8 @@ OPEN だけ別階層にするのは正しい設計。
 OpenController（OPENの間だけ生存）
   customer_queue[] : Customer
   current_customer : Customer
-  soup             : GameState.soup を参照（全客で共有）
+  current_bowl     : Bowl        # 現在の客に出す椀。客が替わるたび新規作成
+  soup             : GameState.soup を参照（共有鍋）
 ```
 
 各客の接客は EventRunner で回す、以下の小さな遷移：
@@ -112,6 +118,10 @@ GREET  → ADJUST → SERVE → REACT →（次の客へ / queueが空ならOPEN
 ```
 
 - `soup` はループの外（GameState）にあり、全客で共有される。
+- `current_bowl` は現在の客だけの一時状態。客をロードしたとき空の椀を作り、
+  SERVE で内容を確定し、REACT で結果・売上とともに ServedRecord へ写す。
+  次の客へ進むとき新しい椀へ替える。
+- 椀の味付けは `current_bowl.additions[]` に入り、共有鍋の tags は変更しない。
 - チンピラの場所代は客ループを特別扱いしない。その客の REACT の後ろに
   `pay` イベントを1つ挿すだけ。
 
@@ -123,15 +133,20 @@ Day1 も通常日も、フェーズの中身はこの Event の配列として�
 
 ```
 Event
-  type   : "wake" | "phone" | "buy" | "move" | "pay" | "prep"
-		 | "open" | "customer" | "adjust" | "serve" | "react" | "close"
-  text   : 表示するセリフ・状況
-  effect : 状態変化（例 { money: -80 }）。無ければ空。
-  next   : 次のイベント、または分岐条件
+  type    : Event種別
+  text    : 表示するセリフ・状況
+  amount  : PAY / ADD_ITEM / REMOVE_ITEM などが使う量（必要な型だけ）
+  item    : 対象item id（必要な型だけ）
+  sale    : REACTで確定する売上（必要な型だけ）
+  options : ADJUSTの選択肢（STEP 13〜。必要な型だけ）
 ```
 
-- Day1 はこの配列を上から順に再生するだけ（分岐なし）。
-- 2日目以降は同じ器のまま、`buy` を自動支払いからプレイヤー選択に差し替える、
+- 現在の型は `TEXT / WAIT_INPUT / PAY / ADD_ITEM / REMOVE_ITEM /
+  GREET / ADJUST / SERVE / REACT`。STEP 12 で `SET_SOUP` を追加する。
+- Day1 はこの配列を上から順に再生するだけ（プレイヤー分岐なし）。
+- 条件分岐は EventRunner の中で行わない。GameState の事実を読んだデータ生成側が
+  再生前に平坦な Event 配列を組み立て、EventRunner は同じ方法で順に再生する。
+- 2日目以降も同じ器のまま、`buy` を自動支払いからプレイヤー選択に差し替える、
   `customer` の中身を抽選にする、といった形で使い回す。
 - 初日と通常日で別コードを書かない。
 
@@ -159,7 +174,7 @@ pay       「今月分、払っとけよ」            money -= 50
 prep      水を汲む → 仕込み（初期具材＋ベースで鍋完成）
 open      屋台を開ける
 customer  配達員「いつもの。今日は辛め」→[辛味を入れる]→ 売上 +45
-customer  チンピラ 注文→少し食う→「今月分」 money -= 150 → 売上 +40
+customer  チンピラ 注文→少し食う→売上 +40→「今月分」 money -= 150
 customer  三人目（通常）                                売上 +55
 close     閉店
 ```
@@ -167,7 +182,7 @@ close     閉店
 ### 所持金の推移（自転車操業感）
 
 開始 300 →（-80 ベース）→ 220 →（-50 水道）→ 170 →（+45 客A）→ 215
-→（-150 場所代）→ 65 →（+40 チンピラ）→ 105 →（+55 客C）→ **160**
+→（+40 チンピラ）→ 255 →（-150 場所代）→ 105 →（+55 客C）→ **160**
 
 支払いは出ていくだけ、売上だけが残る。閉店時に手元がいくら増減したかを実感させる。
 
@@ -197,21 +212,25 @@ Day1 では情報は「読むだけ」。ニュース（第八码頭のスト）
 
 ---
 
-## 7. 満足度判定（Day2 以降で本稼働）
+## 7. 満足度判定（目標像。STEP 15 は二値の試作）
 
-- 客の `prefs[]`（好みの tags）と、出した一杯の `tags`（base_tags + additions）の
+- 将来は客の `prefs[]`（好みの tags）と、出した一杯の最終 tags の
   一致度を数値化して満足度とする。
 - 満足度が売上・reputation・翌日の情報に反映される。
 - Day1 では一人目のみ固定成功。判定関数に固定フラグを渡して同じ経路を通す。
+- STEP 15 の試作では `wanted_tag` を1個だけ持ち、GOOD / MISS の二値で検証する。
+  数値化・重み・複数条件は面白さを確認した後に検討する。
 
 ### データ構造の骨組み
 
 ```
-Ingredient : id, name, cost, tags[]        # 辛/温/苦/滋養 …
-SoupBase   : id, name, base_tags[]
-Soup       : base: SoupBase, additions[]: Ingredient
-Customer   : id, name, prefs[], story_flags[], satisfaction_rule
-Rumor      : id, text, effect              # 将来、在庫・客足に影響
+Ingredient  : id, name, cost, tags[]        # 辛/温/苦/滋養 …
+SoupBase    : id, name, base_tags[]
+Soup        : base_id, base_tags[]          # 共有鍋。客ごとの additions は持たない
+Bowl        : customer_id, additions[]      # 接客中の一杯。最終tagsは必要時に算出
+Customer    : id, name, prefs[], story_flags[], satisfaction_rule
+ServedRecord: customer_id, additions[], final_tags[], result, sale
+Rumor       : id, text, effect              # 将来、在庫・客足に影響
 ```
 
 ---
@@ -272,7 +291,11 @@ Soup（目指す姿）
 ---
 
 
-## 8. 実装の初手（Claude Code への最初の指示）
+## 8. 初期実装方針（基盤部分は完了、後半は9.5へ再編）
+
+この章は基盤を作り始めたときの方針記録。現在の実装状況は `CURRENT_SPEC.md`、
+これからの実装順は 9.5 を参照する。下の順序のうち本番UI・Day2の料理選択は
+当初案から再編され、9.5 STEP 11〜18へ移動した。
 
 いきなり全部作らない。土台から小さく始める。
 本番のゲーム画面より先に「開発用 State Viewer」を作る。これがこのプロジェクトの
@@ -301,8 +324,10 @@ Soup（目指す姿）
    フェーズ操作ボタンから手で叩けるようにする。
 6. OPEN の OpenController と客ループ（EventRunner の使い回し）を載せる。
 7. Day1 の台本（本ドキュメント6章）を Event データとして流し込む。
-8. ここまで Viewer で検証できてから、本番のゲーム画面（セリフ表示・味付けUI）を作る。
-9. Day2 以降：buy を選択制に、customer を抽選に、満足度判定を本稼働。
+8. （当初案・再編済み）本番画面の前に、9.5 STEP 17で客一人のGrayboxを作る。
+   完成版UIは縦切りの検証後まで作らない。
+9. （当初案・再編済み）Day2の味付け選択と満足度判定は、9.5 STEP 14〜16で
+   最小の二択・GOOD/MISSから検証する。具材購入・客抽選はさらに後へ回す。
 
 ### 8.1 なぜ State Viewer を先に作るのか
 
@@ -325,7 +350,7 @@ event_index: 2→3 など）が画面に出れば、コードを全部読まず�
 
 ---
 
-## 9. ビルド順（この順で刻む）
+## 9. ビルド順・第1フェーズ（STEP 1〜10、完了済み）
 
 全体を一気に作らない。下の順で1STEPずつ、各STEPの最後に「止まって理解する」。
 State基盤 → DebugPanel → WAKE → PREP → OPEN一人 → OPEN三人 → CLOSE → NEXT_DAY
@@ -366,7 +391,8 @@ State基盤 → DebugPanel → WAKE → PREP → OPEN一人 → OPEN三人 → C
 
 ### STEP 6：OPEN は客1人だけ
 - queue = [delivery_man] のみ。GREET→ADJUST→SERVE→REACT を実装。
-- ADJUST で status=WAITING_INPUT で止まり、[卵][生姜][提供]等の入力を受ける。
+- この段階では客ループの確認を優先し、ADJUST はダミー素通しとした。
+  実際の入力待ちと味付けは第2フェーズ STEP 13 で追加する。
 
 ### STEP 7：客3人にする
 - queue = [delivery_man, thug, normal_customer]。3人が順に回り、
@@ -386,10 +412,105 @@ State基盤 → DebugPanel → WAKE → PREP → OPEN一人 → OPEN三人 → C
 - WAKE→PREP→OPEN(客1→2→3)→CLOSE→NEXT_DAY→WAKE の全状態を自分で説明できること。
 - できてから Day2 へ。
 
-### Day2 は「分岐テスト」にする（新システムを足さない）
-- 同じ EventRunner で分岐が処理できるかだけ試す。
-- 例：Day1 で SET_FLAG した `granny_helped` を見て `if 〜 else` で Event を出し分ける。
-- これが動けば基盤が固まったと判断。
+### Day2 の条件別 Event 生成テスト（実装済み）
+- `GameState.is_collection_day()` をデータ生成側が読み、徴収日にだけ水道代・場所代の
+  PAY Event を含める。非徴収日には含めない。
+- EventRunner 自体は分岐せず、生成済みの平坦な Event 配列を同じ方法で再生する。
+- プレイヤーの選択フラグによる物語分岐はまだ未検証。第2フェーズではまず
+  味付け選択と結果差を縦に通す。
+
+---
+
+## 9.5 ビルド順・第2フェーズ（STEP 11〜18：夜の核の縦切り）
+
+STEP 1〜10 と Day2 分岐テストで **基盤は固まった**。ここからは 7.5「夜の核」へ向かう。
+ただし 7.5 を丸ごと作らない。**面白さの検証に必要な最小の縦切りだけ**を先に通す。
+
+### この順序の考え方（重要）
+
+- **A（味の判定）と C（味付けの選択）は最小部分ではセット**。判定だけ作っても
+  「計算が動く」ことしか確認できない。プレイヤーが選んで結果が変わって初めて
+  面白いかどうかが分かる。だから縦に一本通す：
+  `会話から好みを知る → 味付けを選ぶ → 椀の tags が変わる → 判定 → 反応`
+- **水量・鍋の残量・濃さ・時間劣化は「核」ではなく「後から載せる管理圧力」**。
+  上の縦切りが面白くなければ、管理要素を足しても操作が忙しくなるだけ。7.5 の
+  この部分は STEP 18 以降に回す。
+- **外部化（データをファイルへ）は先にやらない**。Ingredient が何の項目を持つか、
+  tags を文字列にするか数値にするか、客の好みをどう表現するかが**まだ決まっていない**。
+  決まる前に外部化すると、実験のたびにデータ形式・読み込み・検証まで直すことになる。
+  2種類ほど GDScript 内で試し、必要な項目が見えてから外部化する（STEP 18）。
+  現状も会話は day1_events.gd にまとまっており、処理とは分離済み。実験には十分。
+
+### STEP 11：最小データ形と寿命を決める（コードは書かない）
+- Soup / Bowl / Ingredient / Customer の**最小の形だけ**決める。
+- 汎用クラス・外部ファイル・将来拡張は考えない。最初は Dictionary でよい。
+- `Bowl.tags[]` は保存しない。最終 tags は共有鍋の base_tags と、椀へ入れた
+  Ingredient の tags から必要時に計算し、二重の正本を作らない。
+- 共有鍋は `GameState.soup`、接客中の椀は `OpenController.current_bowl`、
+  提供後の記録は `GameState.served[]` に置く。椀は客が替わるたび新規作成する。
+
+```
+Soup      : base_id, base_tags[]
+Bowl      : customer_id, additions[]  # Ingredientの配列
+Ingredient: id, tags[]
+Customer  : id, wanted_tag
+
+椀の最終tags = Soup.base_tags + Bowl.additions内のIngredient.tags
+```
+
+### STEP 12：PREP で鍋を作り、DebugPanel に表示する
+- `REMOVE_ITEM` は在庫を減らす責任だけに保つ。その直後に `SET_SOUP` Event を置き、
+  `GameState.set_soup()` を通して、今 null の `GameState.soup` を実際に埋める。
+- Viewer に鍋の base_id と tags が出ることを確認。
+- **水量・濃さは作らない**（数値の管理はまだ持たせない）。
+- 完了条件：`inventory: [soup_base] → []`、`soup: null → {base_id, base_tags}` が
+  Eventごとに確認でき、NEXT_DAY 後に soup が null へ戻る。
+
+### STEP 13：Day1 配達員の「辛味を入れる」一操作
+- 客をロードすると `OpenController.current_bowl` に空の椀を作る。
+- ADJUST を素通しから、1操作だけの入力に変える（`[辛味を入れる]`）。
+- Eventデータが選択肢を持ち、EventRunner は WAITING_INPUT で止まるだけにする。
+  DebugPanel が押された選択肢を受け、現在の椀へ Ingredient を追加してから
+  `complete_input()` で再生を進める。EventRunner は味付け効果を処理しない。
+- Viewer で `status: WAITING_INPUT → PLAYING`、`additions: [] → [chili]`、
+  算出した最終 tags に辛味が含まれることを確認する。
+- **成否分岐は作らない**（Day1 は固定成功のチュートリアルのまま）。
+
+### STEP 14：Day2 配達員で二択を出す
+- `[辛味を入れる] / [そのまま出す]` の2択。ここで初めてプレイヤーが選ぶ。
+- **複雑な選択UIは作らない**（ボタン2つで十分）。
+- 選択結果は現在の椀だけに反映し、共有鍋と次の客の椀には残さない。
+
+### STEP 15：tags の一致だけで GOOD / MISS を判定
+- 判定は二値。`客の wanted_tag が椀の最終 tags に含まれる → GOOD / 無ければ MISS`。
+- **点数・重み・相性表は作らない**。面白いと分かってから精緻化する。
+
+### STEP 16：反応と ServedRecord を変える
+- GOOD / MISS で REACT の text と sale を変える。ServedRecord に結果を残す。
+- ServedRecord には `customer_id / additions / final_tags / result / sale` の
+  提供時点のスナップショットを残し、次の客へ進んだ後も変化しないようにする。
+- **評判・翌日への影響は作らない**。
+
+### STEP 17：客一人分だけ簡易夜営業画面（Graybox）で体験する
+- 「完成版UIは最後」は正しいが、**操作感を確かめる簡易UIまで最後にしてはいけない**。
+  会話の間・操作のテンポ・客の存在感は、このゲームの面白さの一部だから。
+- 客の姿を置く領域 / セリフ / 味付けボタン / 提供 / 反応だけの Graybox。
+- **完成UI・立ち絵は作らない**。目的は操作感の確認であって見た目ではない。
+- 最初は「今日は辛め」の明示的な注文で、操作とフィードバックが理解できるか確認する。
+  次にシステムを増やさず、好みの tag を直接言わない会話と別の Ingredient へ
+  データだけ差し替え、「会話から好みを推測する」感触も確認する。
+- STEP 18へ進む前に、少なくとも2種類の Ingredient と GOOD / MISS の両方を試す。
+
+### STEP 18：データ形が安定した部分だけ外部化
+- ここまでで実際に必要だった項目が見えている。安定した部分だけをファイルへ出す。
+- **全データの一括移行はしない**。会話・客・具材の順番を先に固定せず、
+  実際に最も安定し、編集負担が大きくなった一種類から外部化する。
+
+### STEP 18 以降（7.5 の残り）
+上の縦切りが「面白い」と確認できてから、水量・鍋の残量・濃さ・時間経過による劣化・
+水/ベースによる修復を一つずつ載せる（7.5 参照）。面白くなければ、ここは載せない
+判断もありうる。
+
 
 ### まだ作らないもの（この段階で手を出さない）
 7日分の本シナリオ / 完成版市場 / レシピシステム / スマホ画面 / 立ち絵 /
@@ -400,6 +521,9 @@ reputation・rumors は状態として予約するだけでよく、まだ使わ
 - Day1 が完全に状態遷移するようになってから、
   WAKE→自室UI / PREP→市場・水場UI / OPEN→屋台UI / CLOSE→精算UI に置き換える。
 - この順なら「UIのせいで動かない」のか「状態遷移のせいで動かない」のかを切り分けられる。
+- ただし **「完成版UI」と「操作感を確かめる簡易UI（Graybox）」は別物**。後者は
+  STEP 17 で客一人分だけ早めに作る。会話の間・テンポ・客の存在感は面白さの一部で、
+  DebugPanel のボタン連打では測れないため（9.5 STEP 17 参照）。
 
 ---
 
@@ -411,6 +535,9 @@ reputation・rumors は状態として予約するだけでよく、まだ使わ
 - 全イベントは共通の Event 型。Day1 と通常日で別コードを書かない。
 - Event はシナリオデータ、処理はそれを受ける側。処理をデータに埋め込まない
   （例：`{type: PAY, amount: 20}` を受けて apply_money(-20) を呼ぶ）。
-- soup は全客で共有。NEXT_DAY でリセット。
+- 全客で共有するのは鍋（Soup）の base_id / base_tags。客ごとの味付けは
+  Bowl.additions に持たせ、鍋へ混ぜない。Soup は NEXT_DAY でリセットする。
 - 本番のゲーム画面より先に開発用 State Viewer を作る。EventRunner 等は
   Viewer を検証装置として並走させながら実装する（8章・8.1参照）。
+- DebugPanel は当面、学習・検証装置として Event の受け側も兼任する。
+  本番UIを作る段階で処理を複製したくなったときだけ、共通Controllerへの分離を検討する。
