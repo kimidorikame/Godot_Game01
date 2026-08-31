@@ -18,23 +18,31 @@ static func wake_events() -> Array:
 	]
 
 
-## PREP の最小構成（DESIGN.md 9章 STEP 4 → STEP 9 で水道代を追加）。
-## 「PREP という巨大なコード」は作らず、TEXT / PAY×2 / ADD_ITEM / REMOVE_ITEM の並びだけで表現する。
+## PREP の最小構成（DESIGN.md 9章 STEP 4 → STEP 9 で水道代 → Day2 分岐で条件化）。
+## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM / REMOVE_ITEM の並びだけで表現する。
 ## ここはデータのみ。PAY の amount / ADD_ITEM・REMOVE_ITEM の item・amount が「効果」を表し、
 ## 実際の処理（apply_money / add_inventory / remove_inventory）は
 ## 受け側 = DebugPanel._apply_event が行う。text は表示用でしかなく、状態は動かさない。
-## 支払いは3つとも apply_money(-x) で同じ。差は text のトーンだけ:
-##   市場 -80 淡々 / 水場 -50 生活の愚痴 / 場所代 -150 理不尽（場所代は OPEN・thug 側）。
-## 末尾の REMOVE_ITEM が「仕込み＝具材を鍋へ消費」。soup を埋める処理はまだ持たない
-## （在庫を1減らすだけ）。水汲み（水の入手）・月次条件化・仕込み演出は STEP 9 の範囲外。
+## 支払いのトーン: 市場 -80 淡々（毎日）/ 水場 -50 生活の愚痴（徴収日のみ）/
+##   場所代 -150 理不尽（OPEN・thug 側、同じく徴収日のみ）。金額処理は3つとも apply_money(-x)。
+## 「水を汲む」TEXT は毎日入れる仮（状態変化なし。実際の水の入手＝7.5 の水の持ち方が
+## 決まるまで保留）。方法A: is_collection_day() を読んで配列を組み立てる。
 static func prep_events() -> Array:
-	return [
+	# 毎日の骨格。水汲み TEXT は仮（状態は動かさない）。
+	var events := [
 		{ "type": "TEXT", "text": "食肉売場へ来た" },
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
 		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "骨と大根を受け取った" },
-		{ "type": "PAY", "amount": 50, "text": "水場のポンプ番に呼び止められる。「今月分、払っとけよ」「はいはい、分かってる」" },
-		{ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1, "text": "さて、仕込むか。鍋に放り込む" },
+		{ "type": "TEXT", "text": "水場でポリタンクに水を汲む。" },
 	]
+	# 水道代は徴収日だけ。非徴収日は PAY が抜け、水汲み TEXT は残る。
+	if GameState.is_collection_day():
+		events.append({ "type": "PAY", "amount": 50,
+			"text": "水場のポンプ番に呼び止められる。「今月分、払っとけよ」「はいはい、分かってる」" })
+	# 仕込み（具材を鍋へ消費）。soup を埋める処理はまだ持たない（在庫を1減らすだけ）。
+	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
+		"text": "さて、仕込むか。鍋に放り込む" })
+	return events
 
 
 ## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。
