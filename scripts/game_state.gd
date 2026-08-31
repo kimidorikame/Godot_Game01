@@ -50,6 +50,12 @@ func advance_day() -> void:
 	day_count += 1
 
 
+## 今日が場所代（みかじめ）の徴収日か。GameState は事実だけ持つのでここに置く。
+## 7日版なので今は初日のみ。将来 day_count in [1, 7, 14] 等へ広げられる形にしておく。
+func is_collection_day() -> bool:
+	return day_count == 1
+
+
 ## 金額の増減をまとめて通す入口。
 ## 支払いも売上も同じここを通す（DESIGN.md「金額処理はすべて money -= x で同じ」）。
 ## 差はデータ側の text（トーン）で持ち、ここでは数値だけ扱う。

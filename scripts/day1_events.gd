@@ -89,17 +89,16 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。
-## STEP 8: チンピラの場所代のみ。食い終わってから切り出す理不尽を PAY の text で出す。
-##   - 金額処理は既存の DebugPanel._apply_event "PAY" 枝（apply_money(-amount)）をそのまま使う
+## STEP 8: チンピラの場所代。Day2 の分岐テスト: 「徴収日のみ」に条件化する。
+##   - 徴収日の判定は GameState.is_collection_day()（データ関数が事実を読んで出し分け。
+##     処理の埋め込みではなく「どの Event を出すか」の判断なので分離方針に反しない）
+##   - 金額処理は既存の DebugPanel._apply_event "PAY" 枝（apply_money(-amount)）のまま
 ##   - 専用 State は作らない（確定事項どおり単なる Event）
-##   - 月1回などの条件分岐は入れない＝ Day1 は場所代の日として固定（条件化は Day2 の分岐テスト）
-## 追加が無い客は空配列を返す（delivery_man / normal_customer は4イベントのまま）。
+##   - thug 以外、または徴収日でない日は空配列（4イベントのまま）
 static func _customer_extra_events(customer_id: String) -> Array:
-	match customer_id:
-		"thug":
-			return [
-				{ "type": "PAY", "customer": "thug", "amount": 150,
-					"text": "箸を置いてから、思い出したように。「あ、そうだ。今月分。」" },
-			]
-		_:
-			return []
+	if customer_id == "thug" and GameState.is_collection_day():
+		return [
+			{ "type": "PAY", "customer": "thug", "amount": 150,
+				"text": "箸を置いてから、思い出したように。「あ、そうだ。今月分。」" },
+		]
+	return []
