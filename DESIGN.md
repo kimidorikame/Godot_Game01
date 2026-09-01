@@ -218,8 +218,8 @@ Day1 では情報は「読むだけ」。ニュース（第八码頭のスト）
   一致度を数値化して満足度とする。
 - 満足度が売上・reputation・翌日の情報に反映される。
 - Day1 では一人目のみ固定成功。判定関数に固定フラグを渡して同じ経路を通す。
-- STEP 15 の試作では `wanted_tag` を1個だけ持ち、GOOD / MISS の二値で検証する。
-  数値化・重み・複数条件は面白さを確認した後に検討する。
+- STEP 15 の試作では `wanted_tags` を配列で持ち（最初は1要素）、GOOD / MISS の
+  二値で検証する。数値化・重み・点数化は面白さを確認した後に検討する。
 
 ### データ構造の骨組み
 
@@ -441,22 +441,38 @@ STEP 1〜10 と Day2 分岐テストで **基盤は固まった**。ここから
   2種類ほど GDScript 内で試し、必要な項目が見えてから外部化する（STEP 18）。
   現状も会話は day1_events.gd にまとまっており、処理とは分離済み。実験には十分。
 
-### STEP 11：最小データ形と寿命を決める（コードは書かない）
+### STEP 11：最小データ形と寿命を決める（決定済み）
 - Soup / Bowl / Ingredient / Customer の**最小の形だけ**決める。
 - 汎用クラス・外部ファイル・将来拡張は考えない。最初は Dictionary でよい。
-- `Bowl.tags[]` は保存しない。最終 tags は共有鍋の base_tags と、椀へ入れた
+- `Bowl.tags[]` は保存しない。最終 tags は共有鍋の tags と、椀へ入れた
   Ingredient の tags から必要時に計算し、二重の正本を作らない。
 - 共有鍋は `GameState.soup`、接客中の椀は `OpenController.current_bowl`、
   提供後の記録は `GameState.served[]` に置く。椀は客が替わるたび新規作成する。
+- Ingredient / Customer の定義（マスタ）の置き場所は実装時に Plan で決める。
 
 ```
-Soup      : base_id, base_tags[]
-Bowl      : customer_id, additions[]  # Ingredientの配列
-Ingredient: id, tags[]
-Customer  : id, wanted_tag
+Soup      : base_id, tags[]           # 風味のみ。骨だし=["meaty"] / 野菜くず=["vegetal"]
+Bowl      : customer_id, additions[]  # 入れた Ingredient の id。tags は持たない
+Ingredient: id, tags[]                # 例 pepper -> ["spicy"]
+Customer  : id, wanted_tags[]         # 配列だが最初は1要素
 
-椀の最終tags = Soup.base_tags + Bowl.additions内のIngredient.tags
+椀の最終tags = Soup.tags + Bowl.additions 内の Ingredient.tags
+判定        = wanted_tags の全部が 椀の最終tags に含まれるか（GOOD / MISS）
 ```
+
+**tags は文字列の配列**。強さの数値は持たない（STEP 15 が二値判定のため）。
+
+**今扱う軸は「風味」だけ**。鍋のベースは2種類を想定する：
+- 骨＆肉出汁（固定の主力）→ `["meaty"]`
+- 野菜くず（金が無い日）→ `["vegetal"]`
+
+**「濃さ」は今入れない**。将来 客の好みに使う可能性はあるが、現時点では 7.5 の
+管理要素（時間で煮詰まる・水で薄める）側の話なので STEP 18 以降に回す。
+
+**`wanted_tags` を配列にしておく理由**：判定の検証で「鍋由来の tags で判定されるか」
+「椀由来で判定されるか」「両方揃わないと GOOD にならないか」「どちらも無ければ MISS か」
+を確かめたい。1要素なら実質1つの好みとして動き、2要素入れれば「両方必須」の検証も
+判定ロジックを変えずに試せる。
 
 ### STEP 12：PREP で鍋を作り、DebugPanel に表示する
 - `REMOVE_ITEM` は在庫を減らす責任だけに保つ。その直後に `SET_SOUP` Event を置き、
@@ -482,7 +498,8 @@ Customer  : id, wanted_tag
 - 選択結果は現在の椀だけに反映し、共有鍋と次の客の椀には残さない。
 
 ### STEP 15：tags の一致だけで GOOD / MISS を判定
-- 判定は二値。`客の wanted_tag が椀の最終 tags に含まれる → GOOD / 無ければ MISS`。
+- 判定は二値。`客の wanted_tags の全部が椀の最終 tags に含まれる → GOOD / 欠ければ MISS`。
+  最初は1要素なので実質「好み1つ」として動く。
 - **点数・重み・相性表は作らない**。面白いと分かってから精緻化する。
 
 ### STEP 16：反応と ServedRecord を変える
