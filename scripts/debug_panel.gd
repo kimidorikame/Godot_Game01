@@ -118,6 +118,7 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   PAY         … { amount } を apply_money(-amount) に渡す（支払い）
 ##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
 ##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
+##   SET_SOUP    … { base_id, tags } を set_soup() に渡す（共有鍋の作成・STEP 12）
 ##   REACT       … { sale } を仮の売上として apply_money(+sale) ＋ record_served（STEP 6）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 6 では素通し。実入力＝味付けは次 STEP）
@@ -133,6 +134,9 @@ func _apply_event(ev) -> void:
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"SET_SOUP":
+			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
+			GameState.set_soup(str(ev.get("base_id", "")), ev.get("tags", []))
 		"REACT":
 			# 満足度判定（DESIGN.md 7章）は未実装。sale は固定プレースホルダ。
 			var sale := int(ev.get("sale", 0))
@@ -157,7 +161,10 @@ func _refresh() -> void:
 
 func _format_game_state() -> String:
 	var phase_name: String = GameState.Phase.keys()[GameState.phase]
-	var soup_text := "(none)" if GameState.soup == null else str(GameState.soup)
+	# soup は { base_id, tags[] }（STEP 12）。生 Dictionary は読みにくいので整形する。
+	var soup_text := "(none)"
+	if GameState.soup != null:
+		soup_text = "%s tags=%s" % [GameState.soup.get("base_id", "?"), str(GameState.soup.get("tags", []))]
 	# 表示する各項目の意味（GameState = 日をまたいで残る事実）:
 	#   day_count  … 今が何日目か。NEXT_DAYで+1
 	#   money      … 所持金。支払いで減り売上で増える

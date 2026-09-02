@@ -39,9 +39,13 @@ static func prep_events() -> Array:
 	if GameState.is_collection_day():
 		events.append({ "type": "PAY", "amount": 50,
 			"text": "水場のポンプ番に呼び止められる。「今月分、払っとけよ」「はいはい、分かってる」" })
-	# 仕込み（具材を鍋へ消費）。soup を埋める処理はまだ持たない（在庫を1減らすだけ）。
+	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
+	# 共有鍋ができる（STEP 12）。ベースは今は骨だしの1種類だけ。
+	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。水量・濃さは持たせない。
+	events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
+		"text": "骨の出汁が立ってきた。今日の鍋ができた。" })
 	return events
 
 

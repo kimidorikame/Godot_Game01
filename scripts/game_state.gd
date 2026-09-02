@@ -29,8 +29,10 @@ var phase: Phase = Phase.WAKE
 
 # --- 日ごとの使い捨て（NEXT_DAY でリセット） ---
 
-# 今日の鍋。base + additions[]。全客で共有され、OpenController からは参照される。
-# 型は Soup（後で定義）。仕込み前は null。
+# 今日の共有鍋。形は { base_id, tags[] }（STEP 11 で決定）。仕込み前は null。
+# 全客で共有され、OpenController からは参照される。客ごとの味付けはここに混ぜず、
+# 接客中の Bowl.additions に持たせる（STEP 13 以降）。
+# 水量・濃さは持たせない（7.5 の管理要素は STEP 18 以降）。
 var soup = null
 
 # 今夜の提供実績。中身の型は ServedRecord（後で定義）。
@@ -78,6 +80,15 @@ func add_inventory(item, count: int = 1) -> void:
 func remove_inventory(item, count: int = 1) -> void:
 	for _i in count:
 		inventory.erase(item)
+
+
+## 今日の共有鍋を作る入口。SET_SOUP Event を受けた側から呼ぶ（STEP 12）。
+## 形は STEP 11 で決めた { base_id, tags[] }。apply_money / add_inventory と同じく
+## 「soup をいじる唯一の入口」を用意し、受け側から soup へ直接代入させない。
+## tags は複製して持つ（データ側の配列を共有して後から書き換わるのを防ぐ）。
+## 水量・濃さは持たせない（7.5 の管理要素は STEP 18 以降）。
+func set_soup(base_id: String, tags: Array) -> void:
+	soup = { "base_id": base_id, "tags": tags.duplicate() }
 
 
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。
