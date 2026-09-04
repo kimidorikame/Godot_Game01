@@ -6,10 +6,11 @@ extends PanelContainer
 ## FlowController はこのシーンの子ノードとして持つ（autoload にはしない）。
 
 @onready var flow: FlowController = $FlowController as FlowController
-@onready var _game_state_label: Label = $Margin/VBox/GameStateLabel as Label
-@onready var _runner_label: Label = $Margin/VBox/RunnerLabel as Label
+@onready var _game_state_label: Label = $Margin/VBox/TextScroll/TextBox/GameStateLabel as Label
+@onready var _runner_label: Label = $Margin/VBox/TextScroll/TextBox/RunnerLabel as Label
 @onready var _btn_next_event: Button = $Margin/VBox/EventRow/BtnNextEvent as Button
 @onready var _btn_complete_input: Button = $Margin/VBox/EventRow/BtnCompleteInput as Button
+@onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
 
@@ -91,7 +92,25 @@ func _on_next_event_pressed() -> void:
 
 
 ## [入力完了] のハンドラ。入力待ちを解除して1つ進め、[次のEvent] と同じく新 current を適用。
+## options 付き（ADJUST など）の入力待ちは選択肢ボタン側で処理するため、
+## こちらは options を持たない入力待ち（WAKE のスマホなど）専用として残す。
 func _on_complete_input_pressed() -> void:
+	_complete_input_and_advance()
+
+
+## ADJUST などの選択肢ボタンが押されたときのハンドラ（STEP 13）。
+## 「椀へ具材を足す」のは EventRunner ではなく受け側＝ここの責務
+## （DESIGN.md 9.5 STEP 13「EventRunner は味付け効果を処理しない」）。
+## 先に椀へ反映してから、入力完了と同じ手順で1つ進める。
+func _on_option_selected(ingredient_id: String) -> void:
+	if _open != null:
+		_open.add_to_bowl(ingredient_id)
+	_complete_input_and_advance()
+
+
+## [入力完了] と選択肢ボタンの共通処理：WAITING_INPUT を解除して1つ進め、
+## 新 current の効果を適用し、OPEN の客キューを必要なら進めて再描画する。
+func _complete_input_and_advance() -> void:
 	if flow.runner == null:
 		return
 	var before: int = flow.runner.index
@@ -121,7 +140,8 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   SET_SOUP    … { base_id, tags } を set_soup() に渡す（共有鍋の作成・STEP 12）
 ##   REACT       … { sale } を仮の売上として apply_money(+sale) ＋ record_served（STEP 6）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
-##     （ADJUST は STEP 6 では素通し。実入力＝味付けは次 STEP）
+##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_option_selected が
+##     行う。ここ（_apply_event）は今も何もしない）
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
 ## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
 func _apply_event(ev) -> void:
@@ -157,6 +177,32 @@ func _refresh() -> void:
 	_game_state_label.text = _format_game_state()
 	# OPEN 中は runner 表示のあとに客キューの状態も出す（OPEN 以外は空文字）。
 	_runner_label.text = _format_runner() + _format_open()
+	_update_options_row()
+
+
+## 選択肢ボタンの描画（STEP 13）。毎回 _refresh() から呼び、状態から描き直す
+## （他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
+## - 現在の Event が "options" を持つ WAITING_INPUT のときだけボタンを並べる。
+## - それ以外（options なしの WAIT_INPUT・PLAYING・DONE）は空にする。
+## - options 付きの入力待ちでは [入力完了] を無効化する。素通りさせず、
+##   必ず選択肢ボタン経由で椀へ反映させるため。
+func _update_options_row() -> void:
+	for child in _options_row.get_children():
+		child.queue_free()
+
+	var r: EventRunner = flow.runner
+	var has_options := false
+	if r != null and r.status == EventRunner.Status.WAITING_INPUT:
+		var cur = r.current()
+		if cur is Dictionary and cur.has("options"):
+			has_options = true
+			for option in cur["options"]:
+				var btn := Button.new()
+				btn.text = str(option.get("label", option.get("id", "?")))
+				btn.pressed.connect(_on_option_selected.bind(str(option.get("id", ""))))
+				_options_row.add_child(btn)
+
+	_btn_complete_input.disabled = has_options
 
 
 func _format_game_state() -> String:
@@ -228,4 +274,17 @@ func _format_open() -> String:
 		"queue(客数): %d" % _open.queue.size(),
 		"customer(接客中): %s" % cust_text,
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
+	])) + _format_bowl()
+
+
+## 接客中の椀（STEP 13）。DESIGN.md 9.5 STEP 11「椀の最終tags = Soup.tags +
+## Bowl.additions 内の Ingredient.tags」を OpenController.bowl_final_tags() で計算して見せる。
+## 椀が無い（客がいない）ときは空文字（表示に何も足さない）。
+func _format_bowl() -> String:
+	if _open == null or not _open.current_bowl.has("customer_id"):
+		return ""
+	return "\n" + "\n".join(PackedStringArray([
+		"── Bowl（接客中の椀）──",
+		"additions(具材): %s" % str(_open.current_bowl.get("additions", [])),
+		"final_tags(最終tags): %s" % str(_open.bowl_final_tags()),
 	]))

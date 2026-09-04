@@ -71,14 +71,19 @@ static func customer_queue() -> Array:
 ## REACT で仮の売上を計上）。
 ## STEP 7/8 の割り切り:
 ##   - 4ステップ骨格は全客共通。客ごとの差は text と sale、および REACT 後ろの追加 Event だけ
-##   - ADJUST はダミー素通し（WAIT_INPUT にしない。実入力＝味付けUIは次 STEP で足す）
 ##   - REACT の sale は満足度判定（DESIGN.md 7章）が入るまでの固定プレースホルダ
 ##   - 個性・調理・評価・鍋・水（7章 / 7.5章）は入れない
+## STEP 13: ADJUST は素通しをやめ、"options" を持たせて入力待ちにする（DESIGN.md 9.5 STEP 13）。
+##   選択肢を選ぶ処理（椀へ足す）は EventRunner ではなく受け側（DebugPanel）が行う。
+##   今回は1択のみ（ナムプリックパオを入れる）。二択は STEP 14。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := [
 		{ "type": "GREET",  "customer": customer_id, "text": flavor["greet"] },
-		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）※素通し" },
+		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
+			"options": [
+				{ "id": "nam_prik_pao", "label": "ナムプリックパオを入れる" },
+			] },
 		{ "type": "SERVE",  "customer": customer_id, "text": "「はいよ、お待ち。」" },
 		{ "type": "REACT",  "customer": customer_id, "text": flavor["react"], "sale": flavor["sale"] },
 	]

@@ -26,11 +26,22 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "STATE VIEWER (STEP 1)"
 
-[node name="GameStateLabel" type="Label" parent="Margin/VBox"]
+[node name="TextScroll" type="ScrollContainer" parent="Margin/VBox"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="TextBox" type="VBoxContainer" parent="Margin/VBox/TextScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="GameStateLabel" type="Label" parent="Margin/VBox/TextScroll/TextBox"]
 layout_mode = 2
 text = "GameState:"
 
-[node name="RunnerLabel" type="Label" parent="Margin/VBox"]
+[node name="RunnerLabel" type="Label" parent="Margin/VBox/TextScroll/TextBox"]
 layout_mode = 2
 text = "EventRunner:"
 
@@ -48,6 +59,10 @@ text = "次のEvent"
 [node name="BtnCompleteInput" type="Button" parent="Margin/VBox/EventRow"]
 layout_mode = 2
 text = "入力完了"
+
+[node name="OptionsRow" type="HBoxContainer" parent="Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="PhaseRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2

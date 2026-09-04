@@ -78,5 +78,8 @@ func _status_for_index(i: int) -> Status:
 	return Status.PLAYING
 
 
+## 入力待ちの判定。type == WAIT_INPUT のほか、"options" を持つ Event
+## （ADJUST の選択肢など。STEP 13）も入力待ちとして扱う。
+## options が1個か2個か（STEP 13 の一択 / STEP 14 の二択）は関知しない。
 func _is_wait_input(ev) -> bool:
-	return ev is Dictionary and ev.get("type", "") == TYPE_WAIT_INPUT
+	return ev is Dictionary and (ev.get("type", "") == TYPE_WAIT_INPUT or ev.has("options"))
