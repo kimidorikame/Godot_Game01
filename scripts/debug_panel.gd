@@ -165,7 +165,7 @@ func _apply_event(ev) -> void:
 			# どちらの text を見せるかは表示側 _current_reaction_text() が都度選ぶ。
 			var sale := int(ev.get("sale", 0))
 			if _open != null:
-				_open.judge_bowl(ev.get("wanted_tags", []))
+				_open.judge_bowl(str(ev.get("wanted_tag", "")))
 			GameState.apply_money(sale)
 			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale })
 
@@ -303,8 +303,11 @@ func _format_bowl() -> String:
 	return "\n" + "\n".join(PackedStringArray(lines))
 
 
-## 現在の Event が REACT のときだけ、判定結果に応じた反応textを選んで返す（STEP 16）。
+## 現在の Event が REACT のときだけ、判定結果に応じた反応textを選んで返す（STEP 16・17.5）。
 ## Event（text / text_miss）は書き換えない。GOOD/未判定 → text / MISS → text_miss。
+## text / text_miss はそれぞれ2パターンの配列（STEP 17.5）。どちらを見せるかは
+## judge_bowl() が一度だけ抽選して current_bowl["reaction_variant"] に記録済みのものを使う
+## （ここで再抽選すると、再描画のたびに表示が変わってしまうため）。
 ## REACT 以外（GREET/ADJUST/SERVE など）や runner が無いときは空文字（表示に何も足さない）。
 func _current_reaction_text() -> String:
 	var r: EventRunner = flow.runner
@@ -313,6 +316,9 @@ func _current_reaction_text() -> String:
 	var cur = r.current()
 	if not (cur is Dictionary) or cur.get("type", "") != "REACT":
 		return ""
-	if _open.current_bowl.get("result", "") == "MISS":
-		return str(cur.get("text_miss", cur.get("text", "")))
-	return str(cur.get("text", ""))
+	var is_miss := _open.current_bowl.get("result", "") == "MISS"
+	var pool: Array = cur.get("text_miss", []) if is_miss else cur.get("text", [])
+	if pool.is_empty():
+		return ""
+	var variant: int = _open.current_bowl.get("reaction_variant", 0)
+	return str(pool[variant % pool.size()])

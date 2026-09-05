@@ -76,16 +76,17 @@ func bowl_final_tags() -> Array:
 	return tags
 
 
-## 現在の椀を wanted_tags で判定する（DESIGN.md 9.5 STEP 15）。
-## GOOD: wanted_tags の全部が最終tagsに含まれる / 欠ければ MISS。二値のみ、重み付けはしない。
+## 現在の椀を wanted_tag（単数）で判定する（DESIGN.md 9.5 STEP 15・17.5）。
+## GOOD: wanted_tag が最終tagsに含まれる / 無ければ MISS。二値のみ、重み付けはしない。
+## "none"（何も足さない）を選んだ場合は final_tags に調味料tagが乗らないため、
+## 自然に MISS になる（専用の分岐は不要）。
 ## 結果は current_bowl["result"] にも記録する（客が替われば新しい椀に消える一時表示用。
 ## REACT の text 自体は書き換えない。どちらを見せるかは受け側が都度選ぶ）。
-func judge_bowl(wanted_tags: Array) -> String:
+## reaction_variant: GOOD/MISSそれぞれ2パターンある反応textのうち、どちらを見せるかを
+## ここで一度だけ抽選して記録する（表示のたびに再抽選すると結果がちらつくため）。
+func judge_bowl(wanted_tag: String) -> String:
 	var final_tags := bowl_final_tags()
-	var result := "GOOD"
-	for tag in wanted_tags:
-		if not final_tags.has(tag):
-			result = "MISS"
-			break
+	var result := "GOOD" if final_tags.has(wanted_tag) else "MISS"
 	current_bowl["result"] = result
+	current_bowl["reaction_variant"] = randi() % 2
 	return result
