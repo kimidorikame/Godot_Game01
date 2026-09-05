@@ -78,6 +78,9 @@ static func customer_queue() -> Array:
 ## STEP 14: 二択にする（DESIGN.md 9.5 STEP 14）。Day1/Day2 を問わず同じ二択
 ##   （Day1 も「足す/足さない」を選べるチュートリアルとして）。"none" は
 ##   add_to_bowl 側で「何も足さない」として既に扱える（STEP 13 で用意済み）。
+## STEP 15/16: REACT に wanted_tags / text_miss を持たせる（DESIGN.md 9.5 STEP 15・16）。
+##   判定（GOOD/MISS）は受け側 = OpenController.judge_bowl が行う。text は書き換えず、
+##   どちらを見せるかは受け側が都度選ぶ（DebugPanel._current_reaction_text）。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := [
@@ -88,24 +91,37 @@ static func customer_events(customer_id: String) -> Array:
 				{ "id": "none", "label": "なにも足さない" },
 			] },
 		{ "type": "SERVE",  "customer": customer_id, "text": "「はいよ、お待ち。」" },
-		{ "type": "REACT",  "customer": customer_id, "text": flavor["react"], "sale": flavor["sale"] },
+		{ "type": "REACT",  "customer": customer_id, "text": flavor["react"],
+			"text_miss": flavor["react_miss"], "wanted_tags": flavor["wanted_tags"],
+			"sale": flavor["sale"] },
 	]
 	events.append_array(_customer_extra_events(customer_id))
 	return events
 
 
 ## 客ごとに変わる差分だけ（売上は DESIGN.md 6章の Day1 台本準拠：45 / 40 / 55）。
-## 未知 id は無音・売上0でフォールバック。
+## wanted_tags は3人とも ["spicy"]（STEP 15。好みの表現はここに足すだけでよい形）。
+## 未知 id は無音・売上0・wanted_tags なし（＝判定は常にGOOD）でフォールバック。
 static func _customer_flavor(customer_id: String) -> Dictionary:
 	match customer_id:
 		"delivery_man":
-			return { "greet": "配達員「いつもの。」", "react": "配達員「繁盛してるな。」", "sale": 45 }
+			return { "greet": "配達員「いつもの。」",
+				"react": "配達員「繁盛してるな。」",
+				"react_miss": "配達員「……辛くないな。今日はこんなもんか。」",
+				"sale": 45, "wanted_tags": ["spicy"] }
 		"thug":
-			return { "greet": "チンピラ「……同じの。」", "react": "チンピラ、黙って食い終えた。", "sale": 40 }
+			return { "greet": "チンピラ「……同じの。」",
+				"react": "チンピラ、黙って食い終えた。",
+				"react_miss": "チンピラ、無言のまま椀を置いた。",
+				"sale": 40, "wanted_tags": ["spicy"] }
 		"normal_customer":
-			return { "greet": "客「適当に一杯。」", "react": "客「ごちそうさん。」", "sale": 55 }
+			return { "greet": "客「適当に一杯。」",
+				"react": "客「ごちそうさん。」",
+				"react_miss": "客「まあ、こんなもんか。」",
+				"sale": 55, "wanted_tags": ["spicy"] }
 		_:
-			return { "greet": "客「……。」", "react": "客、無言。", "sale": 0 }
+			return { "greet": "客「……。」", "react": "客、無言。",
+				"react_miss": "客、無言。", "sale": 0, "wanted_tags": [] }
 
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。

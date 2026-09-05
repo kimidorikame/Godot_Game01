@@ -138,7 +138,8 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
 ##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
 ##   SET_SOUP    … { base_id, tags } を set_soup() に渡す（共有鍋の作成・STEP 12）
-##   REACT       … { sale } を仮の売上として apply_money(+sale) ＋ record_served（STEP 6）
+##   REACT       … judge_bowl() で GOOD/MISS を判定（STEP 15）。sale は固定のまま
+##                 apply_money(+sale) ＋ record_served（判定結果は記録しない・STEP 16は縮小版）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_option_selected が
 ##     行う。ここ（_apply_event）は今も何もしない）
@@ -158,8 +159,13 @@ func _apply_event(ev) -> void:
 			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
 			GameState.set_soup(str(ev.get("base_id", "")), ev.get("tags", []))
 		"REACT":
-			# 満足度判定（DESIGN.md 7章）は未実装。sale は固定プレースホルダ。
+			# 判定（GOOD/MISS）は OpenController.judge_bowl が行い、current_bowl["result"]
+			# に記録するだけ。Event（text / text_miss）はここでも書き換えない
+			# （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
+			# どちらの text を見せるかは表示側 _current_reaction_text() が都度選ぶ。
 			var sale := int(ev.get("sale", 0))
+			if _open != null:
+				_open.judge_bowl(ev.get("wanted_tags", []))
 			GameState.apply_money(sale)
 			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale })
 
@@ -279,12 +285,34 @@ func _format_open() -> String:
 
 ## 接客中の椀（STEP 13）。DESIGN.md 9.5 STEP 11「椀の最終tags = Soup.tags +
 ## Bowl.additions 内の Ingredient.tags」を OpenController.bowl_final_tags() で計算して見せる。
+## judge(判定) は STEP 15 の GOOD/MISS（current_bowl["result"]。REACT 適用前は(未定)）。
+## reaction(反応) は STEP 16 の反応text（_current_reaction_text() が都度選ぶ。REACT 以外は出さない）。
 ## 椀が無い（客がいない）ときは空文字（表示に何も足さない）。
 func _format_bowl() -> String:
 	if _open == null or not _open.current_bowl.has("customer_id"):
 		return ""
-	return "\n" + "\n".join(PackedStringArray([
+	var lines := [
 		"── Bowl（接客中の椀）──",
 		"additions(具材): %s" % str(_open.current_bowl.get("additions", [])),
 		"final_tags(最終tags): %s" % str(_open.bowl_final_tags()),
-	]))
+		"judge(判定): %s" % str(_open.current_bowl.get("result", "(未定)")),
+	]
+	var reaction := _current_reaction_text()
+	if reaction != "":
+		lines.append("reaction(反応): %s" % reaction)
+	return "\n" + "\n".join(PackedStringArray(lines))
+
+
+## 現在の Event が REACT のときだけ、判定結果に応じた反応textを選んで返す（STEP 16）。
+## Event（text / text_miss）は書き換えない。GOOD/未判定 → text / MISS → text_miss。
+## REACT 以外（GREET/ADJUST/SERVE など）や runner が無いときは空文字（表示に何も足さない）。
+func _current_reaction_text() -> String:
+	var r: EventRunner = flow.runner
+	if r == null or _open == null:
+		return ""
+	var cur = r.current()
+	if not (cur is Dictionary) or cur.get("type", "") != "REACT":
+		return ""
+	if _open.current_bowl.get("result", "") == "MISS":
+		return str(cur.get("text_miss", cur.get("text", "")))
+	return str(cur.get("text", ""))

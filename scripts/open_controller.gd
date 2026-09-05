@@ -74,3 +74,18 @@ func bowl_final_tags() -> Array:
 	for ingredient_id in current_bowl.get("additions", []):
 		tags.append_array(Ingredients.tags_for(str(ingredient_id)))
 	return tags
+
+
+## 現在の椀を wanted_tags で判定する（DESIGN.md 9.5 STEP 15）。
+## GOOD: wanted_tags の全部が最終tagsに含まれる / 欠ければ MISS。二値のみ、重み付けはしない。
+## 結果は current_bowl["result"] にも記録する（客が替われば新しい椀に消える一時表示用。
+## REACT の text 自体は書き換えない。どちらを見せるかは受け側が都度選ぶ）。
+func judge_bowl(wanted_tags: Array) -> String:
+	var final_tags := bowl_final_tags()
+	var result := "GOOD"
+	for tag in wanted_tags:
+		if not final_tags.has(tag):
+			result = "MISS"
+			break
+	current_bowl["result"] = result
+	return result
