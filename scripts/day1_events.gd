@@ -75,7 +75,9 @@ static func customer_queue() -> Array:
 ##   - 個性・調理・評価・鍋・水（7章 / 7.5章）は入れない
 ## STEP 13: ADJUST は素通しをやめ、"options" を持たせて入力待ちにする（DESIGN.md 9.5 STEP 13）。
 ##   選択肢を選ぶ処理（椀へ足す）は EventRunner ではなく受け側（DebugPanel）が行う。
-##   今回は1択のみ（ナムプリックパオを入れる）。二択は STEP 14。
+## STEP 14: 二択にする（DESIGN.md 9.5 STEP 14）。Day1/Day2 を問わず同じ二択
+##   （Day1 も「足す/足さない」を選べるチュートリアルとして）。"none" は
+##   add_to_bowl 側で「何も足さない」として既に扱える（STEP 13 で用意済み）。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := [
@@ -83,6 +85,7 @@ static func customer_events(customer_id: String) -> Array:
 		{ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
 			"options": [
 				{ "id": "nam_prik_pao", "label": "ナムプリックパオを入れる" },
+				{ "id": "none", "label": "なにも足さない" },
 			] },
 		{ "type": "SERVE",  "customer": customer_id, "text": "「はいよ、お待ち。」" },
 		{ "type": "REACT",  "customer": customer_id, "text": flavor["react"], "sale": flavor["sale"] },
