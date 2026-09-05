@@ -316,7 +316,7 @@ func _current_reaction_text() -> String:
 	var cur = r.current()
 	if not (cur is Dictionary) or cur.get("type", "") != "REACT":
 		return ""
-	var is_miss := _open.current_bowl.get("result", "") == "MISS"
+	var is_miss: bool = _open.current_bowl.get("result", "") == "MISS"
 	var pool: Array = cur.get("text_miss", []) if is_miss else cur.get("text", [])
 	if pool.is_empty():
 		return ""
