@@ -92,20 +92,22 @@ func _on_next_event_pressed() -> void:
 
 
 ## [入力完了] のハンドラ。入力待ちを解除して1つ進め、[次のEvent] と同じく新 current を適用。
-## options 付き（ADJUST など）の入力待ちは選択肢ボタン側で処理するため、
-## こちらは options を持たない入力待ち（WAKE のスマホなど）専用として残す。
+## STEP 17.6: ADJUST 中も含め、常にこのボタンで進める（＝「提供」を兼ねる）。
+## 具材ボタンはもう進めない（_on_ingredient_selected 側）ので、ADJUST で止まったまま
+## 何度でも具材を選び、進みたくなったらこのボタンを押す、という形になる。
 func _on_complete_input_pressed() -> void:
 	_complete_input_and_advance()
 
 
-## ADJUST などの選択肢ボタンが押されたときのハンドラ（STEP 13）。
+## ADJUST の具材ボタンが押されたときのハンドラ（STEP 17.6）。
 ## 「椀へ具材を足す」のは EventRunner ではなく受け側＝ここの責務
 ## （DESIGN.md 9.5 STEP 13「EventRunner は味付け効果を処理しない」）。
-## 先に椀へ反映してから、入力完了と同じ手順で1つ進める。
-func _on_option_selected(ingredient_id: String) -> void:
+## STEP 13/14 と違い、進めない（advanceしない）。3枠まで何度でも選べるようにするため、
+## ADJUST から進むのは [入力完了]（提供）を押したときだけにする。
+func _on_ingredient_selected(ingredient_id: String) -> void:
 	if _open != null:
 		_open.add_to_bowl(ingredient_id)
-	_complete_input_and_advance()
+	_refresh()
 
 
 ## [入力完了] と選択肢ボタンの共通処理：WAITING_INPUT を解除して1つ進め、
@@ -141,7 +143,7 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   REACT       … judge_bowl() で GOOD/MISS を判定（STEP 15）。sale は固定のまま
 ##                 apply_money(+sale) ＋ record_served（判定結果は記録しない・STEP 16は縮小版）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
-##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_option_selected が
+##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_ingredient_selected が
 ##     行う。ここ（_apply_event）は今も何もしない）
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
 ## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
@@ -186,29 +188,32 @@ func _refresh() -> void:
 	_update_options_row()
 
 
-## 選択肢ボタンの描画（STEP 13）。毎回 _refresh() から呼び、状態から描き直す
-## （他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
+## 選択肢ボタンの描画（STEP 13、STEP 17.6で挙動変更）。毎回 _refresh() から呼び、
+## 状態から描き直す（他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
 ## - 現在の Event が "options" を持つ WAITING_INPUT のときだけボタンを並べる。
 ## - それ以外（options なしの WAIT_INPUT・PLAYING・DONE）は空にする。
-## - options 付きの入力待ちでは [入力完了] を無効化する。素通りさせず、
-##   必ず選択肢ボタン経由で椀へ反映させるため。
+## - STEP 17.6: [入力完了] はもう無効化しない。ADJUST 中でも押せば提供として進める
+##   （3枠未満でも提供できる、という仕様のため）。具材が上限（MAX_ADDITIONS）に
+##   達していたら、具材ボタン側だけを無効化する（進む手段は[入力完了]のみ残す）。
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
 
 	var r: EventRunner = flow.runner
-	var has_options := false
-	if r != null and r.status == EventRunner.Status.WAITING_INPUT:
-		var cur = r.current()
-		if cur is Dictionary and cur.has("options"):
-			has_options = true
-			for option in cur["options"]:
-				var btn := Button.new()
-				btn.text = str(option.get("label", option.get("id", "?")))
-				btn.pressed.connect(_on_option_selected.bind(str(option.get("id", ""))))
-				_options_row.add_child(btn)
-
-	_btn_complete_input.disabled = has_options
+	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
+		return
+	var cur = r.current()
+	if not (cur is Dictionary) or not cur.has("options"):
+		return
+	var at_cap := false
+	if _open != null:
+		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
+	for option in cur["options"]:
+		var btn := Button.new()
+		btn.text = str(option.get("label", option.get("id", "?")))
+		btn.disabled = at_cap
+		btn.pressed.connect(_on_ingredient_selected.bind(str(option.get("id", ""))))
+		_options_row.add_child(btn)
 
 
 func _format_game_state() -> String:
@@ -287,13 +292,15 @@ func _format_open() -> String:
 ## Bowl.additions 内の Ingredient.tags」を OpenController.bowl_final_tags() で計算して見せる。
 ## judge(判定) は STEP 15 の GOOD/MISS（current_bowl["result"]。REACT 適用前は(未定)）。
 ## reaction(反応) は STEP 16 の反応text（_current_reaction_text() が都度選ぶ。REACT 以外は出さない）。
+## additions の件数表示 (n/上限) は STEP 17.6（今何個入っているか・残り枠が見えるように）。
 ## 椀が無い（客がいない）ときは空文字（表示に何も足さない）。
 func _format_bowl() -> String:
 	if _open == null or not _open.current_bowl.has("customer_id"):
 		return ""
+	var additions: Array = _open.current_bowl.get("additions", [])
 	var lines := [
 		"── Bowl（接客中の椀）──",
-		"additions(具材): %s" % str(_open.current_bowl.get("additions", [])),
+		"additions(具材): %s (%d/%d)" % [str(additions), additions.size(), OpenController.MAX_ADDITIONS],
 		"final_tags(最終tags): %s" % str(_open.bowl_final_tags()),
 		"judge(判定): %s" % str(_open.current_bowl.get("result", "(未定)")),
 	]

@@ -84,28 +84,39 @@ static func customer_queue() -> Array:
 ##   どちらを見せるかは受け側が都度選ぶ（DebugPanel._current_reaction_text）。
 ## STEP 17.5: GREET は複数行の掛け合いを1行1Eventに分けて積む（テンポを出すため。
 ##   EventRunner/受け側は無改修で動く＝WAKEの起床TEXT3連続と同じパターン）。
-##   ADJUSTは5つの調味料＋そのまま(none)の6択。wanted_tagは単数。
-##   text/text_missはそれぞれ2パターンの配列（ランダムでどちらかを表示・STEP17.5）。
+##   wanted_tagは単数。text/text_missはそれぞれ2パターンの配列（ランダム表示・STEP17.5）。
+## STEP 17.6: ADJUSTは3枠まで選べる形に変更（DESIGN.md 9.5 STEP17.6）。
+##   「そのまま出す(none)」は削除。何も足さず提供したいときは、選ばずに
+##   [入力完了]（提供）を押せばよい（DebugPanel側の変更のみで実現。ここには効果なし）。
+##   options自体は全客共通なので _adjust_options() に括り出した。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := []
 	for line in flavor["greet"]:
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
-		"options": [
-			{ "id": "nam_prik_pao", "label": "ナムプリックパオを入れる" },
-			{ "id": "coconut_milk", "label": "ココナッツミルクを入れる" },
-			{ "id": "pickled_lime", "label": "ライム漬けを入れる" },
-			{ "id": "bitter_melon", "label": "ゴーヤを入れる" },
-			{ "id": "herbal_sauce", "label": "薬膳ナンプラーだれを入れる" },
-			{ "id": "none",         "label": "そのまま出す" },
-		] })
+		"options": _adjust_options() })
 	events.append({ "type": "SERVE", "customer": customer_id, "text": "「はいよ、お待ち。」" })
 	events.append({ "type": "REACT", "customer": customer_id, "text": flavor["react"],
 		"text_miss": flavor["react_miss"], "wanted_tag": flavor["wanted_tag"],
 		"sale": flavor["sale"] })
 	events.append_array(_customer_extra_events(customer_id))
 	return events
+
+
+## ADJUSTの選択肢（DESIGN.md 9.5 STEP17.6：Day1の在庫7種。調味料3＋具材4）。
+## 全客共通なのでここに1箇所だけ置く。塩漬けライム・苦瓜はDay1の在庫に無いので含めない
+## （在庫が選択肢を決める、という方針。定義自体はIngredientsに残したまま）。
+static func _adjust_options() -> Array:
+	return [
+		{ "id": "nam_prik_pao",   "label": "ナムプリックパオを入れる" },
+		{ "id": "coconut_milk",   "label": "ココナッツミルクを入れる" },
+		{ "id": "herbal_sauce",   "label": "薬膳ナンプラーだれを入れる" },
+		{ "id": "offal",          "label": "下処理したモツを入れる" },
+		{ "id": "meat_ball",      "label": "くず肉団子を入れる" },
+		{ "id": "tofu",           "label": "豆腐を入れる" },
+		{ "id": "broken_wrapper", "label": "割れた餃子皮を入れる" },
+	]
 
 
 ## 客ごとに変わる差分だけ（売上は DESIGN.md 6章の Day1 台本準拠：45 / 40 / 55）。

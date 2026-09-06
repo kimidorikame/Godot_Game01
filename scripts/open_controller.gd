@@ -15,6 +15,9 @@ var index: int = 0         # いま何人目か（0起点）
 # 客がいない（キューが空 / さばき切った）ときは {}。
 var current_bowl: Dictionary = {}
 
+## 椀に足せる具材の上限（DESIGN.md 9.5 STEP 17.6：3枠、4枠案から縮小）。
+const MAX_ADDITIONS := 3
+
 
 func _init(customer_queue: Array = []) -> void:
 	queue = customer_queue
@@ -54,12 +57,13 @@ func _new_bowl(customer_id: Variant) -> Dictionary:
 
 
 ## 現在の椀に具材 id を1つ足す。ADJUST の選択肢を受けた側（DebugPanel）から呼ぶ。
-## "none" は「何も足さない」の合図（STEP 14 の二択で使う。STEP 13 では未使用）。
-## 椀が無い（current_bowl == {}）ときも何もしない。
+## 重複可（同じ id を複数回足せる。将来「強さ」を持たせる余地を残すため・STEP 17.6）。
+## 上限（MAX_ADDITIONS）に達している、または椀が無い（current_bowl == {}）ときは何もしない
+## （UI側でも上限に達したら選択肢を無効化するが、ここでも二重に防ぐ）。
 func add_to_bowl(ingredient_id: String) -> void:
-	if ingredient_id == "none":
-		return
 	if not current_bowl.has("additions"):
+		return
+	if current_bowl.additions.size() >= MAX_ADDITIONS:
 		return
 	current_bowl.additions.append(ingredient_id)
 
@@ -76,10 +80,11 @@ func bowl_final_tags() -> Array:
 	return tags
 
 
-## 現在の椀を wanted_tag（単数）で判定する（DESIGN.md 9.5 STEP 15・17.5）。
-## GOOD: wanted_tag が最終tagsに含まれる / 無ければ MISS。二値のみ、重み付けはしない。
-## "none"（何も足さない）を選んだ場合は final_tags に調味料tagが乗らないため、
-## 自然に MISS になる（専用の分岐は不要）。
+## 現在の椀を wanted_tag（単数）で判定する（DESIGN.md 9.5 STEP 15・17.5・17.6）。
+## GOOD: wanted_tag が最終tagsに含まれる / 無ければ MISS。二値のみ、重み付けはしない
+## （3枠分のtagsが積み上がるほど当たりやすくなるが、それは次段階の段階評価で正す）。
+## 何も足さずに提供した場合は final_tags に具材tagが乗らないため、自然に MISS になる
+## （専用の分岐は不要）。
 ## 結果は current_bowl["result"] にも記録する（客が替われば新しい椀に消える一時表示用。
 ## REACT の text 自体は書き換えない。どちらを見せるかは受け側が都度選ぶ）。
 ## reaction_variant: GOOD/MISSそれぞれ2パターンある反応textのうち、どちらを見せるかを
