@@ -2,8 +2,9 @@
 
 このドキュメントは **「今どこまで実装され、どう動いているか」の事実の記録**。
 DESIGN.md が「これから作る指示書」なのに対し、こちらは「現在の到達点」を映す。
-実装済みコードを正とする。最終更新時点で Day1 の状態遷移プロトタイプが通しで動き、
-Day2 の徴収日条件による Event 列生成まで確認済み。料理の選択・判定はまだ未実装。
+実装済みコードを正とする。最終更新時点で Day1 の状態遷移が通しで動き、
+**夜の核（会話から好みを読む → 3枠に味と具を選ぶ → 段階評価 → 反応）まで実装済み**。
+鍋の残量・水・在庫の消費・メニュー・廃棄はまだ無い。
 
 ---
 
@@ -101,8 +102,12 @@ type を見て振り分ける。処理をデータに埋め込まない。
 | PAY | 支払い | `apply_money(-amount)` |
 | ADD_ITEM | 在庫追加 | `add_inventory(item, amount)` |
 | REMOVE_ITEM | 在庫消費 | `remove_inventory(item, amount)` |
-| GREET / ADJUST / SERVE | 表示のみ（接客） | なし（ADJUST は現状ダミー素通し） |
-| REACT | 売上確定 | `apply_money(+sale)` ＋ `record_served()` |
+| SET_SOUP | 共有鍋の作成 | `set_soup(base_id, tags)` |
+| GREET / SERVE | 表示のみ（接客） | なし |
+| ADJUST | 具材の選択（入力待ち） | `options` を持つので EventRunner が停止。<br>椀への反映は受け側（選択肢ボタン） |
+| REACT | 判定＋売上確定 | `judge_bowl()` で4段階判定 ＋ `apply_money(+sale)` ＋ `record_served()` |
+
+※ `options` を持つ Event は type に関係なく入力待ちになる（個数は関知しない）。
 
 ### EventRunner の status
 - `PLAYING` … `advance()`を受け付ける状態。現状は`[次のEvent]`で index +1
@@ -130,6 +135,58 @@ FlowController（フェーズ）
 - 客がさばき切られる（runner が DONE）と、次の客をロード。
 - キューが空になると OPEN 終了 → CLOSE へ進める。
 - 接客の骨格は全客共通（4ステップ）。差は text と sale、および REACT 後の追加 Event。
+
+### 調理（ADJUST）— 3枠に味と具を選ぶ
+
+- ADJUST は `options`（7つの具材）を持つ Event。`options` を持つ Event は
+  EventRunner が入力待ちとして扱う（個数は関知しない）。
+- 具材ボタンを押すと `current_bowl.additions` に足すだけで、**runner は進まない**。
+  進むのは `[入力完了]`（提供）を押したとき。「選ぶ」と「進む」を分離している。
+- 上限3つ。**重複可**（同じ具材を複数入れられる。将来「強さ」を持たせる余地）。
+- 3つ埋まると具材ボタンを無効化。3つ未満でも提供でき、0個なら具なし。
+
+### 判定（REACT）— 一致数＋favorite で4段階
+
+```
+一致数 = 3枠の中身のtags と 客の wanted_tags の一致数
+        ※鍋(soup)のtags は数えない
+        ※wanted_tags 側をループして数えるので、具材を重複させても
+          同じtagは1回しか数えられない
+
+  0個 → BAD / 1個 → OK / 2個以上 → GOOD
+  favorite（好物の具材id）が入っていれば1段上げる（一致0には効かない）
+  → 1個+fav = GOOD / 2個以上+fav = GREAT
+```
+
+- 判定は `OpenController.judge_bowl(wanted_tags, favorite)`。結果・一致数・
+  favorite の有無・反応のランダム番号を `current_bowl` に記録する（客が替われば消える）。
+- 反応 text は Event の `reactions` 辞書（`{BAD/OK/GOOD/GREAT: [2種]}`）から
+  結果で引く。**Event データは書き換えない**（受け側が都度読んで選ぶ）。
+- 計器盤では反応行の頭に `【GOOD】` のように結果を付けて表示する（データ側には入れない）。
+
+### 味と具の軸
+
+| 味（調味料） | タグ | 具（具材） | タグ |
+|------------|------|-----------|------|
+| ナムプリックパオ | `HOT` | 下処理したモツ | `POWER` |
+| ココナッツミルク | `MELLOW` | くず肉団子 | `POWER` |
+| 薬膳ナンプラーだれ | `SAVORY` | 豆腐 | `GENTLE` |
+| 塩漬けライム | `SOUR`（Day1未使用） | 割れた餃子皮 | `FILLING` |
+| 苦瓜 | `BITTER`（Day1未使用） | | |
+
+具の軸は全5種（`FILLING / POWER / GENTLE / BITE / TREAT`）だが、Day1 の在庫は
+3軸ぶんのみ。味は舌の感覚、具は体の要求で、軸が重ならない。
+
+### Day1 の3人（wanted_tags と favorite）
+
+| 客 | wanted_tags | favorite（仮） | 好みの伝え方 |
+|----|------------|--------------|------------|
+| delivery_man | `HOT` + `POWER` | tofu | 明言する（今日は辛くしてくれ） |
+| thug | `MELLOW` + `GENTLE` | meat_ball | 遠回しに漏らす（口当たりがまろくなるやつ） |
+| granny | `SAVORY` + `FILLING` | offal | 比喩と記憶で語る（薬棚の匂い、腹の底へ残る） |
+
+favorite は本来レア食材（たまにしか売っていない／高い）にする予定だが、
+現状は検証用に Day1 の在庫から仮に割り当てている。
 
 ---
 
@@ -194,38 +251,41 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/game_state.gd` | GameState（autoload）。事実と状態変更の入口 |
 | `scripts/flow_controller.gd` | フェーズ遷移・ゲート判定 |
 | `scripts/event_runner.gd` | Event 列の再生（index / status） |
-| `scripts/open_controller.gd` | OPEN の客キュー管理 |
+| `scripts/open_controller.gd` | OPEN の客キュー管理・椀・判定（judge_bowl） |
+| `scripts/ingredients.gd` | 具材マスタ（id → tags） |
 | `scripts/day1_events.gd` | Day1 の Event データ（wake/prep/customer/close）+ 分岐 |
 | `scripts/debug_panel.gd` | State Viewer 表示 ＋ 受け側（_apply_event） |
 | `scenes/debug_panel.tscn` | DebugPanel のシーン |
+
+※ Graybox（graybox_open）は STEP 17.5 の検証後に削除した。
+具材が増えて計器盤で操作しきれなくなった段階で作り直す。
 
 ---
 
 ## 9. まだ無いもの（今後のテーマ）
 
-### A. 夜の核（次に検証する縦切り）
-- 会話から好みを知る→味付けを選ぶ→椀のtagsが変わる→GOOD/MISS判定→反応
-- 鍋と椀の二層、tags による味の表現（DESIGN.md 7.5 / 9.5）
-- 水量・鍋の残量・濃さ・時間劣化は、縦切り確認後に必要なら載せる管理圧力
-  （現状 soup は null、水は TEXT のみ）
+### A. 夜の核の残り
+- **メニュー・レシピ**（見られるようにする。指針であって縛りではない）
+- **廃棄**（作った椀を捨てる。served に記録するが廃棄フラグを残す）
+- **在庫の消費**（具材を使うと減る。市場で買い足す。favorite をレア食材にする）
+- 味を2つ重ねるときの成立表
 
-### B. データの外部化（作りやすさのインフラ）
-- 会話・客・具材・調味料をコードから別ファイルへ
-- 現状は day1_events.gd にセリフ等を直書き
-- データ形が固まる前には行わない。少なくとも2種類のIngredientで試した後、
-  安定した一種類から段階的に外部化する。
+### B. 鍋（7.5 の管理要素）
+- 残量・濃さ・時間劣化・水の量（現状 soup は base_id と tags のみ）
+- 評判 → 翌日の客数 → 鍋の配分、という連鎖
 
-### C. 選択システム（自由度）
-- 具材購入、クズ野菜漁り、味付けの選択（現状 PREP・ADJUST は一本道/素通し）
-- WAIT_INPUT で待って選ばせる仕組みの応用
+### C. データの外部化
+- 会話・客・具材をコードから別ファイルへ（データ形が安定してから）
 
 ### D. 本番UI（見た目・一番最後）
-- 絵・セリフ表示・屋台画面。動く中身ができてから被せる
-- 完成UIとは別に、客一人分の操作感を確認するGrayboxはDESIGN.md STEP 17で作る
+- 絵・セリフ表示・屋台画面
+- 選択肢は調味料と具材で表示を分ける（種類が増えると1列では探しにくい）
 
 ### その他
 - reputation / rumors は状態として予約済み・未使用
-- 7日分のシナリオ、セーブ、ボリューム（1日の密度）
+- 7日分のシナリオ（現状は Day1 の3人ぶんのみ・仮文言）
+- 提供後の会話（現状は一口目の感想で終わり、一日が短く感じる）
+- セーブ
 
 ---
 
@@ -243,21 +303,25 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 
 ---
 
-## 11. 次の開発方針（未実装）
+## 11. 次の開発方針
 
-現在の実装対象は DESIGN.md 9.5「ビルド順・第2フェーズ（STEP 11〜18）」。
-最小の縦切りを次の順で通す。
+DESIGN.md 9.5「ビルド順・第2フェーズ」の縦切りは **STEP 17.6 まで完了**。
 
 ```
-最小データ形と寿命を決める
-→ PREPで共有鍋を作る
-→ Day1で辛味を入れる一操作
-→ Day2で二択
-→ GOOD / MISS判定
-→ 反応・ServedRecord
-→ 客一人のGraybox
-→ 安定したデータだけ外部化
+[済] 最小データ形を決める（Soup / Bowl / Ingredient / Customer）
+[済] PREPで共有鍋を作る（SET_SOUP）
+[済] 辛味を入れる一操作 → 二択 → 5つの味から1つ
+[済] 3枠で味と具を選ぶ（選ぶと進むを分離・上限3・重複可）
+[済] 一致数による段階評価（BAD / OK / GOOD）
+[済] favorite でクリティカル（GREAT）
 ```
 
-水量・残量・濃さ・時間劣化、完成UI、7日分のシナリオは、この縦切りで
-面白さと操作感を確認するまで作らない。
+**次の候補**（順序は未定）：
+- 提供後の会話を厚くする（触って分かった課題。一日が短く感じる）
+- メニュー・レシピ（見られるようにする）
+- 在庫の消費と市場での買い足し（favorite をレア食材にする）
+- 廃棄
+- 7日分の会話を書く
+
+鍋（残量・濃さ・水）は、上の縦切りが面白いと確認できてから載せる。
+完成UI は最後。Graybox は具材が増えて計器盤で操作しきれなくなった段階で作り直す。
