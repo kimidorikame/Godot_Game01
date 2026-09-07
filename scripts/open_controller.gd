@@ -68,30 +68,64 @@ func add_to_bowl(ingredient_id: String) -> void:
 	current_bowl.additions.append(ingredient_id)
 
 
-## 現在の椀の最終 tags（DESIGN.md 9.5 STEP 11: Soup.tags + Bowl.additions の Ingredient.tags）。
-## GameState.soup を直接参照する（DESIGN.md 4章「soup: GameState.soup を参照」）。
-## 椀が無い / 鍋が無いときは、無い方を空として扱う（例外にしない）。
-func bowl_final_tags() -> Array:
+## 3枠に入れた具材だけの tags（DESIGN.md 9.5 STEP 17.6：判定に使うのはこちら）。
+## 鍋（soup）は含めない。鍋はその日の全客に共通で、特定の客への判断ではないため
+## 「今日の鍋がたまたま合った」という偶然を評価に混ぜない。
+func bowl_addition_tags() -> Array:
 	var tags: Array = []
-	if GameState.soup != null:
-		tags.append_array(GameState.soup.get("tags", []))
 	for ingredient_id in current_bowl.get("additions", []):
 		tags.append_array(Ingredients.tags_for(str(ingredient_id)))
 	return tags
 
 
-## 現在の椀を wanted_tag（単数）で判定する（DESIGN.md 9.5 STEP 15・17.5・17.6）。
-## GOOD: wanted_tag が最終tagsに含まれる / 無ければ MISS。二値のみ、重み付けはしない
-## （3枠分のtagsが積み上がるほど当たりやすくなるが、それは次段階の段階評価で正す）。
-## 何も足さずに提供した場合は final_tags に具材tagが乗らないため、自然に MISS になる
-## （専用の分岐は不要）。
-## 結果は current_bowl["result"] にも記録する（客が替われば新しい椀に消える一時表示用。
-## REACT の text 自体は書き換えない。どちらを見せるかは受け側が都度選ぶ）。
-## reaction_variant: GOOD/MISSそれぞれ2パターンある反応textのうち、どちらを見せるかを
-## ここで一度だけ抽選して記録する（表示のたびに再抽選すると結果がちらつくため）。
-func judge_bowl(wanted_tag: String) -> String:
-	var final_tags := bowl_final_tags()
-	var result := "GOOD" if final_tags.has(wanted_tag) else "MISS"
+## 現在の椀の最終 tags（DESIGN.md 9.5 STEP 11: Soup.tags + Bowl.additions の Ingredient.tags）。
+## GameState.soup を直接参照する（DESIGN.md 4章「soup: GameState.soup を参照」）。
+## 椀が無い / 鍋が無いときは、無い方を空として扱う（例外にしない）。
+## STEP 17.6: 判定には使わない（表示用。判定は bowl_addition_tags() 側）。
+func bowl_final_tags() -> Array:
+	var tags: Array = []
+	if GameState.soup != null:
+		tags.append_array(GameState.soup.get("tags", []))
+	tags.append_array(bowl_addition_tags())
+	return tags
+
+
+## 現在の椀を wanted_tags と favorite で判定する（DESIGN.md 9.5 STEP 17.6）。
+## 一致数による段階評価に、favorite（好物）によるクリティカルを重ねる:
+##   一致0個     → BAD（イマイチ）※favorite があっても上がらない
+##   一致1個     → OK（普通）        / favorite あり → GOOD
+##   一致2個以上 → GOOD（美味しい）  / favorite あり → GREAT（とても好み）
+## 一致0で上がらないのは、合わない一杯に好物を入れられても嬉しくないため。
+## favorite は「基本を押さえた上のボーナス」であって救済ではない（DESIGN.md）。
+##
+## 判定に使うのは bowl_addition_tags()（3枠の中身だけ）。鍋のtagsは数えない。
+## 数えるのは「wanted_tags の各要素が椀のtagsに含まれるか」＝要求側をループする形。
+## こうすると同じ具材を複数入れても（例：モツ2つ）その tag は1個としてしか数えられない。
+## favorite だけは tag ではなく具材id そのもので見る（その現物を入れたかどうか）。
+## 具材を何も入れずに提供した場合は一致0 → BAD になる（専用の分岐は不要）。
+## 結果は current_bowl に記録する（客が替われば新しい椀に消える一時表示用。
+## REACT の反応text自体は書き換えない。どれを見せるかは受け側が都度選ぶ）。
+##   result          … BAD / OK / GOOD / GREAT
+##   match_count     … 一致数（計器盤の表示用）
+##   favorite        … その客の好物id（計器盤の表示用）
+##   has_favorite    … 好物が実際に椀へ入っていたか（計器盤の表示用）
+##   reaction_variant… 各段階2パターンある反応textのどちらを見せるか。
+##                     ここで一度だけ抽選する（表示のたびに再抽選すると結果がちらつくため）
+func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
+	var tags := bowl_addition_tags()
+	var match_count := 0
+	for tag in wanted_tags:
+		if tags.has(tag):
+			match_count += 1
+	var has_favorite: bool = favorite != "" and current_bowl.get("additions", []).has(favorite)
+	var result := "BAD"
+	if match_count >= 2:
+		result = "GREAT" if has_favorite else "GOOD"
+	elif match_count == 1:
+		result = "GOOD" if has_favorite else "OK"
 	current_bowl["result"] = result
+	current_bowl["match_count"] = match_count
+	current_bowl["favorite"] = favorite
+	current_bowl["has_favorite"] = has_favorite
 	current_bowl["reaction_variant"] = randi() % 2
 	return result

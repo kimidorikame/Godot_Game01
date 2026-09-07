@@ -79,16 +79,18 @@ static func customer_queue() -> Array:
 ## STEP 14: 二択にする（DESIGN.md 9.5 STEP 14）。Day1/Day2 を問わず同じ二択
 ##   （Day1 も「足す/足さない」を選べるチュートリアルとして）。"none" は
 ##   add_to_bowl 側で「何も足さない」として既に扱える（STEP 13 で用意済み）。
-## STEP 15/16: REACT に wanted_tag / text_miss を持たせる（DESIGN.md 9.5 STEP 15・16）。
-##   判定（GOOD/MISS）は受け側 = OpenController.judge_bowl が行う。text は書き換えず、
-##   どちらを見せるかは受け側が都度選ぶ（DebugPanel._current_reaction_text）。
+## STEP 15/16: REACT に判定用のデータと反応textを持たせる（DESIGN.md 9.5 STEP 15・16）。
+##   判定は受け側 = OpenController.judge_bowl が行う。反応textは書き換えず、
+##   どれを見せるかは受け側が都度選ぶ（DebugPanel._current_reaction_text）。
 ## STEP 17.5: GREET は複数行の掛け合いを1行1Eventに分けて積む（テンポを出すため。
 ##   EventRunner/受け側は無改修で動く＝WAKEの起床TEXT3連続と同じパターン）。
-##   wanted_tagは単数。text/text_missはそれぞれ2パターンの配列（ランダム表示・STEP17.5）。
 ## STEP 17.6: ADJUSTは3枠まで選べる形に変更（DESIGN.md 9.5 STEP17.6）。
 ##   「そのまま出す(none)」は削除。何も足さず提供したいときは、選ばずに
 ##   [入力完了]（提供）を押せばよい（DebugPanel側の変更のみで実現。ここには効果なし）。
 ##   options自体は全客共通なので _adjust_options() に括り出した。
+##   判定は一致数による3段階になり、REACT は wanted_tags（配列）と
+##   reactions（結果をキーにした反応textの辞書）を持つ。段階が増えても
+##   reactions にキーを足すだけで済む形にしてある（favoriteの「とても好み」など）。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := []
@@ -97,9 +99,9 @@ static func customer_events(customer_id: String) -> Array:
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
 		"options": _adjust_options() })
 	events.append({ "type": "SERVE", "customer": customer_id, "text": "「はいよ、お待ち。」" })
-	events.append({ "type": "REACT", "customer": customer_id, "text": flavor["react"],
-		"text_miss": flavor["react_miss"], "wanted_tag": flavor["wanted_tag"],
-		"sale": flavor["sale"] })
+	events.append({ "type": "REACT", "customer": customer_id,
+		"reactions": flavor["reactions"], "wanted_tags": flavor["wanted_tags"],
+		"favorite": flavor["favorite"], "sale": flavor["sale"] })
 	events.append_array(_customer_extra_events(customer_id))
 	return events
 
@@ -120,9 +122,16 @@ static func _adjust_options() -> Array:
 
 
 ## 客ごとに変わる差分だけ（売上は DESIGN.md 6章の Day1 台本準拠：45 / 40 / 55）。
-## STEP 17.5: greetは複数行の配列、react/react_missは2パターンの配列、wanted_tagは単数。
-## greet/react/react_miss は3人とも反映済み（STEP 17.5）。
-## 未知 id は無音・売上0・wanted_tag空文字（＝一致しようがないので常にMISS）でフォールバック。
+## STEP 17.5: greetは複数行の配列。
+## STEP 17.6: wanted_tags は「味の軸＋具の軸」の2つ（DESIGN.md 9.5 STEP17.6）。
+##   会話の中に両方の手がかりを置く（例：配達員＝辛くしてくれ／疲れて眠い → HOT + POWER）。
+##   reactions は判定結果をキーにした辞書。各段階2パターンで、どちらを出すかはランダム。
+##   favorite は好物の具材id（1つ）。椀に入っていれば評価が1段上がる（クリティカル）。
+##   本来はレア食材（たまにしか売っていない／高い）にする想定だが、今は検証用に
+##   Day1の在庫から選んだ仮設定。いずれも wanted_tags と軸が重ならない具材にしてあり、
+##   一致数と favorite の効果を分けて確認できる（GREATには3枠すべてが要る）。
+##   TODO: BAD / GREAT の文言は仮。GOOD/OK は STEP17.5 の既存文言をそのまま割り当てている。
+## 未知 id は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）でフォールバック。
 static func _customer_flavor(customer_id: String) -> Dictionary:
 	match customer_id:
 		"delivery_man":
@@ -136,15 +145,25 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 					"配達員「うん。今日は遠慮なしで辛くしてくれ」",
 					"配達員「赤くて、喉が焼けるくらいのやつ。汗かいたら目も覚めるだろ」",
 				],
-				"react": [
-					"配達員「っうっま、よし！来た来た！ 腹の中で火がついた。これなら数か所行けそうだ」",
-					"配達員「これなら帰り道までは寝ずに済みそうだ」",
-				],
-				"react_miss": [
-					"配達員「うまいけど、今日はもの足りないな」",
-					"配達員「もっと一発、殴ってくるようなのが欲しかった」",
-				],
-				"sale": 45, "wanted_tag": "HOT" }
+				"reactions": {
+					"GREAT": [
+						"配達員「……なんだこれ、豆腐まで入ってる。おまえ、覚えててくれたのか」",
+						"配達員「辛いのに喉ごしが優しい。これは……今日一番の当たりだな」",
+					],
+					"GOOD": [
+						"配達員「っうっま、よし！来た来た！ 腹の中で火がついた。これなら数か所行けそうだ」",
+						"配達員「これなら帰り道までは寝ずに済みそうだ」",
+					],
+					"OK": [
+						"配達員「うまいけど、今日はもの足りないな」",
+						"配達員「もっと一発、殴ってくるようなのが欲しかった」",
+					],
+					"BAD": [
+						"配達員「……悪いな、これじゃ目が覚めねえや」",
+						"配達員「腹には入ったけど、まだ瞼が重いままだ」",
+					],
+				},
+				"sale": 45, "wanted_tags": ["HOT", "POWER"], "favorite": "tofu" }
 		"thug":
 			return { "greet": [
 					"（チンピラは腰を下ろすと、腹の辺りを押さえて小さく息を吐く）",
@@ -155,15 +174,25 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 					"チンピラ「水っぽくしろとは言ってねえ」",
 					"チンピラ「ほら………あーあれ、口当たりがまろくなるやつがあるだろ。あれを入れろ」",
 				],
-				"react": [
-					"チンピラ「……そう、これだ」",
-					"チンピラ「はー……うめ、腹に刺さらねえ」",
-				],
-				"react_miss": [
-					"チンピラ「………だから、刺激のあるのはやめろって言っただろ」",
-					"チンピラ「あー………まぁいいや」",
-				],
-				"sale": 40, "wanted_tag": "MELLOW" }
+				"reactions": {
+					"GREAT": [
+						"チンピラ「……肉団子。おまえ、俺の好きなもん覚えてやがるな」",
+						"チンピラ「……悪くねえ。今日は兄貴の話はやめておくか」",
+					],
+					"GOOD": [
+						"チンピラ「……そう、これだ」",
+						"チンピラ「はー……うめ、腹に刺さらねえ」",
+					],
+					"OK": [
+						"チンピラ「………だから、刺激のあるのはやめろって言っただろ」",
+						"チンピラ「あー………まぁいいや」",
+					],
+					"BAD": [
+						"チンピラ「……おい。胃に穴が空いたらどうしてくれる」",
+						"チンピラ、途中で箸を置いた。",
+					],
+				},
+				"sale": 40, "wanted_tags": ["MELLOW", "GENTLE"], "favorite": "meat_ball" }
 		"granny":
 			return { "greet": [
 					"（老婆は屋台の椅子にゆっくり腰を下ろし、両手を擦り合わせる）",
@@ -176,18 +205,34 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 					"老婆「薬棚みたいな匂いがして、その奥に港の塩気がある………」",
 					"老婆「ああ、水で薄めた貧乏臭いのはごめんだよ、腹の底へちゃんと残る。ああいうのがいいね」",
 				],
-				"react": [
-					"老婆「そう、これだよ。塩気の奥から、草の根の匂いが戻ってくる」",
-					"老婆「苦いだけの薬より、こっちの方がよほど身体に効くねえ」",
-				],
-				"react_miss": [
-					"老婆「これはこれで悪くない。でも、今夜欲しかったのとは違うね」",
-					"老婆「舌じゃなく、古い骨まで温めてくれる味が欲しかったんだけどね」",
-				],
-				"sale": 55, "wanted_tag": "SAVORY" }
+				"reactions": {
+					"GREAT": [
+						"老婆「……あんた、モツを入れたね。あの診療所の汁も、これが入ってたんだよ」",
+						"老婆「ああ、思い出した。この味だ。長生きしてみるもんだねえ」",
+					],
+					"GOOD": [
+						"老婆「そう、これだよ。塩気の奥から、草の根の匂いが戻ってくる」",
+						"老婆「苦いだけの薬より、こっちの方がよほど身体に効くねえ」",
+					],
+					"OK": [
+						"老婆「これはこれで悪くない。でも、今夜欲しかったのとは違うね」",
+						"老婆「舌じゃなく、古い骨まで温めてくれる味が欲しかったんだけどね」",
+					],
+					"BAD": [
+						"老婆「……年寄りの腹には、ちょいと寂しいねえ」",
+						"老婆、半分ほど残して椀を置いた。",
+					],
+				},
+				"sale": 55, "wanted_tags": ["SAVORY", "FILLING"], "favorite": "offal" }
 		_:
-			return { "greet": ["客「……。」"], "react": ["客、無言。", "客、無言。"],
-				"react_miss": ["客、無言。", "客、無言。"], "sale": 0, "wanted_tag": "" }
+			return { "greet": ["客「……。」"],
+				"reactions": {
+					"GREAT": ["客、無言。", "客、無言。"],
+					"GOOD": ["客、無言。", "客、無言。"],
+					"OK": ["客、無言。", "客、無言。"],
+					"BAD": ["客、無言。", "客、無言。"],
+				},
+				"sale": 0, "wanted_tags": [], "favorite": "" }
 
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。
@@ -197,7 +242,7 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 ##   - 金額処理は既存の DebugPanel._apply_event "PAY" 枝（apply_money(-amount)）のまま
 ##   - 専用 State は作らない（確定事項どおり単なる Event）
 ##   - thug 以外、または徴収日でない日は空配列
-## STEP 17.5: GOOD/MISSに関わらず入る掛け合い（2行）。1行目のチンピラの台詞にPAYの効果を
+## STEP 17.5: 判定結果に関わらず入る掛け合い（2行）。1行目のチンピラの台詞にPAYの効果を
 ##   乗せ、2行目の主人公の返しは効果無しのTEXTにする（GREETと同じ「1行1Event」の形）。
 static func _customer_extra_events(customer_id: String) -> Array:
 	if customer_id == "thug" and GameState.is_collection_day():
