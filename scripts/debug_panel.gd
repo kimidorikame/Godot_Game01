@@ -18,6 +18,13 @@ extends PanelContainer
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
 var _open: OpenController = null
 
+# 判定結果 → 評判の増減（DESIGN.md 7.6）。名前あり客よりモブの方が動きが小さい。
+# 「どれだけ動かすか」を決めるのは受け側＝ここ。適用は GameState.apply_reputation()。
+# sale と同じ考え方（量は受け側が決め、GameState は入口として適用するだけ）。
+# 数値は仮。触ってから調整する（DESIGN.md 7.6「評判のインフレについて」）。
+const REPUTATION_NAMED := { "GREAT": 3, "GOOD": 2, "OK": 0, "BAD": -2 }
+const REPUTATION_MOB := { "GREAT": 1, "GOOD": 1, "OK": 0, "BAD": -1 }
+
 
 func _ready() -> void:
 	_set_runner_for_phase(GameState.phase)
@@ -139,9 +146,10 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   PAY         … { amount } を apply_money(-amount) に渡す（支払い）
 ##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
 ##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
-##   SET_SOUP    … { base_id, tags } を set_soup() に渡す（共有鍋の作成・STEP 12）
-##   REACT       … judge_bowl() で BAD/OK/GOOD/GREAT を判定（STEP 17.6）。sale は固定のまま
-##                 apply_money(+sale) ＋ record_served（判定結果は記録しない・STEP 16は縮小版）
+##   SET_SOUP    … { base_id, tags, servings } を set_soup() に渡す（共有鍋の作成・STEP 12/7.6）
+##   REACT       … judge_bowl() で BAD/OK/GOOD/GREAT を判定（STEP 17.6）。
+##                 判定結果 → apply_reputation / 鍋 → consume_soup(servings) /
+##                 売上 → apply_money(+sale)（sale は 50×servings）＋ record_served（7.6）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_ingredient_selected が
 ##     行う。ここ（_apply_event）は今も何もしない）
@@ -159,17 +167,29 @@ func _apply_event(ev) -> void:
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"SET_SOUP":
 			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
-			GameState.set_soup(str(ev.get("base_id", "")), ev.get("tags", []))
+			# 7.6: servings（残量の初期値＝仕込んだ杯数）も Event から受け取る。
+			GameState.set_soup(str(ev.get("base_id", "")), ev.get("tags", []),
+				int(ev.get("servings", 0)))
 		"REACT":
 			# 判定（BAD/OK/GOOD/GREAT）は OpenController.judge_bowl が行い、current_bowl の
 			# result / match_count に記録するだけ。Event（reactions）はここでも書き換えない
 			# （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
 			# どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
+			# 7.6: 売上は 50×servings（Event が計算済みの sale を持つ）。評判は判定結果と
+			# 名前あり/モブで増減表を引き、GameState の入口を通して適用する。
+			# 鍋からは servings 分を取り分ける（consume_soup）。今は 0 未満も許す
+			# ＝尽きたときの選択（断る／薄めて出す）は後の段階。
 			var sale := int(ev.get("sale", 0))
+			var servings := int(ev.get("servings", 1))
+			var result := ""
 			if _open != null:
-				_open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+				result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+			var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
+			GameState.apply_reputation(int(table.get(result, 0)))
+			GameState.consume_soup(servings)
 			GameState.apply_money(sale)
-			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale })
+			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
+				"servings": servings })
 
 
 func _on_runner_updated() -> void:
@@ -218,19 +238,27 @@ func _update_options_row() -> void:
 
 func _format_game_state() -> String:
 	var phase_name: String = GameState.Phase.keys()[GameState.phase]
-	# soup は { base_id, tags[] }（STEP 12）。生 Dictionary は読みにくいので整形する。
+	# soup は { base_id, tags[], remaining_servings }（STEP 12 / 7.6）。生 Dictionary は
+	# 読みにくいので整形する。
 	var soup_text := "(none)"
 	if GameState.soup != null:
-		soup_text = "%s tags=%s" % [GameState.soup.get("base_id", "?"), str(GameState.soup.get("tags", []))]
+		# 7.6: 残量（あと何杯出せるか）を併記する。分母（仕込み量）は出さない
+		# ＝水やベースを足せば初期値を超えるので、比率ではなく絶対値で見る。
+		soup_text = "%s 残量%d杯 tags=%s" % [
+			GameState.soup.get("base_id", "?"),
+			int(GameState.soup.get("remaining_servings", 0)),
+			str(GameState.soup.get("tags", [])),
+		]
 	# 表示する各項目の意味（GameState = 日をまたいで残る事実）:
 	#   day_count  … 今が何日目か。NEXT_DAYで+1
 	#   money      … 所持金。支払いで減り売上で増える
-	#   reputation … 店の評判値。今は予約のみ未使用
+	#   reputation … 店の評判値。REACT の判定結果で増減する（7.6）
 	#   inventory  … 持っている具材・調味料の個数
 	#   rumors     … スマホで得た噂の件数。今は未使用
 	#   phase      … 一日のどの段階か（WAKE→PREP→OPEN→CLOSE→NEXT_DAY）
-	#   soup       … 仕込んだ鍋。仕込み前はnone。翌日リセット
-	#   served     … 今夜出した杯数。served配列のsize。翌日リセット
+	#   soup       … 仕込んだ鍋と残量。仕込み前はnone。翌日リセット
+	#   served     … 接客数（served配列のsize）と杯数（servingsの合計）。翌日リセット
+	#                 7.6 で1回の接客が複数杯になったので、両方を出さないと誤読する
 	# ラベルは「項目(意味): 値」の形。値の算出ロジックは変更していない。
 	return "\n".join(PackedStringArray([
 		"── GameState（日をまたいで残る事実）──",
@@ -241,8 +269,18 @@ func _format_game_state() -> String:
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
-		"served(提供数): %d" % GameState.served.size(),
+		"served(接客数/杯数): %d / %d" % [GameState.served.size(), _served_servings()],
 	]))
+
+
+## 今夜出した杯数の合計（ServedRecord の servings を足す）。
+## served.size() は「接客イベント数」であって杯数ではない（モブ4人＝1接客4杯）。
+func _served_servings() -> int:
+	var total := 0
+	for record in GameState.served:
+		if record is Dictionary:
+			total += int(record.get("servings", 1))
+	return total
 
 
 func _format_runner() -> String:
@@ -273,19 +311,33 @@ func _format_runner() -> String:
 
 ## OPEN 中の客キュー状態（STEP 6）。OPEN 以外は空文字を返し、表示に何も足さない。
 ##   queue     … キューの客数
-##   customer  … いま接客中の客 id と「何人目/全体」。全員終わっていれば (なし)
+##   customer  … いま接客中の客 id と「何人目/全体」、この接客で出す杯数（7.6）。
+##                全員終わっていれば (なし)
 ##   open_done … 全員さばき切ったか。true で [次のPhase] → CLOSE へ進める
 func _format_open() -> String:
 	if _open == null:
 		return ""
 	var cust = _open.current_customer()
-	var cust_text := "(なし)" if cust == null else "%s (%d/%d)" % [cust, _open.index + 1, _open.queue.size()]
+	var cust_text := "(なし)"
+	if cust != null:
+		cust_text = "%s (%d/%d) %d杯" % [cust, _open.index + 1, _open.queue.size(), _current_servings()]
 	return "\n" + "\n".join(PackedStringArray([
 		"── OpenController（客キュー）──",
 		"queue(客数): %d" % _open.queue.size(),
 		"customer(接客中): %s" % cust_text,
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 	])) + _format_bowl()
+
+
+## いま接客中の客が何杯注文しているか（7.6）。REACT がまだ current でなくても見たいので、
+## runner の Event 列から REACT を探して servings を読む（Event はデータなので読むだけ）。
+func _current_servings() -> int:
+	if flow.runner == null:
+		return 0
+	for ev in flow.runner.events:
+		if ev is Dictionary and ev.get("type", "") == "REACT":
+			return int(ev.get("servings", 1))
+	return 0
 
 
 ## 接客中の椀（STEP 13）。DESIGN.md 9.5 STEP 11「椀の最終tags = Soup.tags +

@@ -43,9 +43,12 @@ static func prep_events() -> Array:
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
 	# 共有鍋ができる（STEP 12）。ベースは今は骨だしの1種類だけ。
-	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。水量・濃さは持たせない。
+	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。濃さ・水はまだ持たせない。
+	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
+	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
 	events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
-		"text": "骨の出汁が立ってきた。今日の鍋ができた。" })
+		"servings": GameState.SERVINGS_PER_BASE,
+		"text": "骨の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
 	return events
 
 
@@ -63,8 +66,11 @@ static func close_events() -> Array:
 ## OPEN の客キュー（DESIGN.md 9章）。STEP 6: 配達員1人 → STEP 7: 3人。
 ## ここに id を並べれば OpenController がその順で1人ずつ回す。増減はこの1行だけ。
 ## STEP 17.5: normal_customer を granny（老婆）に差し替え。
+## 7.6: モブ客 dock_workers（港湾労働者の一団）を追加。
+##   チンピラと老婆を連続させ、老婆がチンピラの退店を見てから来る流れを保つ
+##   （PRICING_SPEC.md 2章の接客順）。
 static func customer_queue() -> Array:
-	return ["delivery_man", "thug", "granny"]
+	return ["delivery_man", "dock_workers", "thug", "granny"]
 
 
 ## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。
@@ -91,6 +97,10 @@ static func customer_queue() -> Array:
 ##   判定は一致数による3段階になり、REACT は wanted_tags（配列）と
 ##   reactions（結果をキーにした反応textの辞書）を持つ。段階が増えても
 ##   reactions にキーを足すだけで済む形にしてある（favoriteの「とても好み」など）。
+## 7.6: 1回の接客で複数杯出せるようにした（servings）。売上は 50×servings で、
+##   値段はデータに書かずルール（GameState.PRICE_PER_SERVING）から出す。
+##   is_mob はモブ客かどうか＝評判の増加量を受け側が切り替えるための印。
+##   一団でも調理は1回・判定も1回（DESIGN.md 7.6「モブ客の仕様」）。
 static func customer_events(customer_id: String) -> Array:
 	var flavor := _customer_flavor(customer_id)
 	var events := []
@@ -101,7 +111,9 @@ static func customer_events(customer_id: String) -> Array:
 	events.append({ "type": "SERVE", "customer": customer_id, "text": "「はいよ、お待ち。」" })
 	events.append({ "type": "REACT", "customer": customer_id,
 		"reactions": flavor["reactions"], "wanted_tags": flavor["wanted_tags"],
-		"favorite": flavor["favorite"], "sale": flavor["sale"] })
+		"favorite": flavor["favorite"], "servings": flavor["servings"],
+		"is_mob": flavor["is_mob"],
+		"sale": GameState.PRICE_PER_SERVING * int(flavor["servings"]) })
 	events.append_array(_customer_extra_events(customer_id))
 	return events
 
@@ -163,7 +175,33 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 						"配達員「腹には入ったけど、まだ瞼が重いままだ」",
 					],
 				},
-				"sale": 45, "wanted_tags": ["HOT", "POWER"], "favorite": "tofu" }
+				"servings": 3, "is_mob": false,
+				"wanted_tags": ["HOT", "POWER"], "favorite": "tofu" }
+		"dock_workers":
+			# モブ客（DESIGN.md 7.6）。一団まとめて1杯作り、判定も1回。
+			# 会話は一言の要望だけ。favorite は持たない＝GREAT は出ない
+			# （個人の好物は「その人を知っているから分かる」もので、一見の集団には無い）。
+			return { "greet": [
+					"（港湾労働者が4人、まとめて腰を下ろす）",
+					"労働者「4つ頼む。荷揚げで腕が上がらねえ」",
+					"労働者「辛いのを、力の出るやつで。景気づけだ」",
+				],
+				"reactions": {
+					"GOOD": [
+						"一団「効くなァ！ よし、もうひと踏ん張りいけるぞ」",
+						"一団、汗をかきながら黙って椀を空にした。",
+					],
+					"OK": [
+						"一団「まあ、こんなもんか」",
+						"労働者「腹には入った。次はもう少し効かせてくれ」",
+					],
+					"BAD": [
+						"労働者「……おい、これで一杯50は取りすぎだろ」",
+						"一団、顔を見合わせて半分残した。",
+					],
+				},
+				"servings": 4, "is_mob": true,
+				"wanted_tags": ["HOT", "POWER"], "favorite": "" }
 		"thug":
 			return { "greet": [
 					"（チンピラは腰を下ろすと、腹の辺りを押さえて小さく息を吐く）",
@@ -192,7 +230,8 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 						"チンピラ、途中で箸を置いた。",
 					],
 				},
-				"sale": 40, "wanted_tags": ["MELLOW", "GENTLE"], "favorite": "meat_ball" }
+				"servings": 1, "is_mob": false,
+				"wanted_tags": ["MELLOW", "GENTLE"], "favorite": "meat_ball" }
 		"granny":
 			return { "greet": [
 					"（老婆は屋台の椅子にゆっくり腰を下ろし、両手を擦り合わせる）",
@@ -223,7 +262,8 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 						"老婆、半分ほど残して椀を置いた。",
 					],
 				},
-				"sale": 55, "wanted_tags": ["SAVORY", "FILLING"], "favorite": "offal" }
+				"servings": 1, "is_mob": false,
+				"wanted_tags": ["SAVORY", "FILLING"], "favorite": "offal" }
 		_:
 			return { "greet": ["客「……。」"],
 				"reactions": {
@@ -232,7 +272,7 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 					"OK": ["客、無言。", "客、無言。"],
 					"BAD": ["客、無言。", "客、無言。"],
 				},
-				"sale": 0, "wanted_tags": [], "favorite": "" }
+				"servings": 0, "is_mob": false, "wanted_tags": [], "favorite": "" }
 
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。
