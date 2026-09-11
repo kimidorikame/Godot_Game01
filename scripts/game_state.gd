@@ -22,6 +22,14 @@ const PRICE_PER_SERVING := 50
 # 値段と同じくゲーム共通のルール。
 const SERVINGS_PER_BASE := 10
 
+# 鍋の操作の効き方（DESIGN.md 7.6「状態の変化」の表）。値をここに集約する。
+const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）
+const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）
+const WATER_DOSES_PER_NIGHT := 2   # 毎朝汲める水の回数（PRICING_SPEC 4章。持ち越さない）
+const WATER_SERVINGS := 2          # 水1回： 残量 +2 / 濃さ -1
+const BASE_SERVINGS := 2           # ベース追加：残量 +2 / 濃さ +1
+const BASE_UNITS_PER_ADD := 2      # ベース追加1回で使う単位数（1袋＝10単位）
+
 # --- 永続する事実 ---
 var day_count: int = 1
 var money: int = 300
@@ -32,6 +40,12 @@ var inventory: Array = []
 
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
 var rumors: Array = []
+
+# 追加用ベースの単位数（1袋＝10単位。DESIGN.md 7.6「ベースと水の扱い」）。
+# soup の中ではなくここに置く理由：**余った単位は翌日へ持ち越す**ので、
+# NEXT_DAY で null になる soup に入れると消えてしまうため（寿命が違う）。
+# 初期値は仮。PREP でベース2袋目を買う操作が未実装なので、最初から持たせている。
+var reserve_base_units: int = 10
 
 # 今どのフェーズか。進行度ではなく「位置」だけ。
 var phase: Phase = Phase.WAKE
@@ -102,10 +116,14 @@ func remove_inventory(item, count: int = 1) -> void:
 ## 形は STEP 11 で決めた { base_id, tags[] } ＋ 残量（7.6）。apply_money / add_inventory と
 ## 同じく「soup をいじる唯一の入口」を用意し、受け側から soup へ直接代入させない。
 ## tags は複製して持つ（データ側の配列を共有して後から書き換わるのを防ぐ）。
-## 濃さ・水はまだ持たせない（DESIGN.md 7.6 のうち今回は残量だけ）。
-func set_soup(base_id: String, tags: Array, servings: int = 0) -> void:
+## 7.6: 残量に加えて濃さ（1〜5）と、今夜使える水の回数も持つ。
+## 予備ベースは soup ではなく GameState 直下（翌日へ持ち越すため）。
+func set_soup(base_id: String, tags: Array, servings: int = 0,
+		strength: int = 3, water_doses: int = 0) -> void:
 	soup = { "base_id": base_id, "tags": tags.duplicate(),
-		"remaining_servings": servings }
+		"remaining_servings": servings,
+		"strength": clampi(strength, STRENGTH_MIN, STRENGTH_MAX),
+		"water_doses": water_doses }
 
 
 ## 鍋から取り分けた分だけ残量を減らす入口（DESIGN.md 7.6）。
@@ -117,6 +135,48 @@ func consume_soup(servings: int) -> void:
 	if soup == null:
 		return
 	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) - servings
+
+
+## 鍋を濃くする（DESIGN.md 7.6：時間帯が進むと煮詰まる）。上限で頭打ち。
+## 残量は動かさない（蒸発は入れない仕様）。
+func deepen_soup(delta: int = 1) -> void:
+	if soup == null:
+		return
+	soup["strength"] = clampi(int(soup.get("strength", 3)) + delta,
+		STRENGTH_MIN, STRENGTH_MAX)
+
+
+## 水を足せるか（鍋があり、今夜の水がまだ残っているか）。
+func can_add_water() -> bool:
+	return soup != null and int(soup.get("water_doses", 0)) > 0
+
+
+## ベースを足せるか（鍋があり、予備ベースが1回分以上あるか）。
+func can_add_base() -> bool:
+	return soup != null and reserve_base_units >= BASE_UNITS_PER_ADD
+
+
+## 水を一回足す（DESIGN.md 7.6）。残量 +2 / 濃さ -1 / 水の回数 -1。
+## apply_money のような「量は受け側が決める」形にしないのは、
+## 「資源を1つ消費する」ことと「2つの数値が動く」ことが常にセットで、
+## 分けて呼べると壊せてしまうため（複合操作を1つの入口にまとめる）。
+## 資源が足りなければ黙って何もしない（UI側でもボタンを無効化して二重に防ぐ）。
+func add_water() -> void:
+	if not can_add_water():
+		return
+	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) + WATER_SERVINGS
+	soup["strength"] = clampi(int(soup.get("strength", 3)) - 1, STRENGTH_MIN, STRENGTH_MAX)
+	soup["water_doses"] = int(soup.get("water_doses", 0)) - 1
+
+
+## ベースを足す（DESIGN.md 7.6）。残量 +2 / 濃さ +1 / 予備ベース -2単位。
+## add_water と同じく複合操作を1つの入口にまとめる。
+func add_base() -> void:
+	if not can_add_base():
+		return
+	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) + BASE_SERVINGS
+	soup["strength"] = clampi(int(soup.get("strength", 3)) + 1, STRENGTH_MIN, STRENGTH_MAX)
+	reserve_base_units -= BASE_UNITS_PER_ADD
 
 
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。

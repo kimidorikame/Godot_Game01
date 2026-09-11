@@ -46,8 +46,13 @@ static func prep_events() -> Array:
 	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。濃さ・水はまだ持たせない。
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
 	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
+	# 7.6: 濃さ（仕込み時は3＝ちょうどいい）と、今夜使える水の回数も一緒に渡す。
+	#   水は本来 PREP の「水場で汲む」TEXT で得るものだが、TEXT に効果を持たせず
+	#   ここにまとめる（水汲み自体を操作にするのは後日）。
 	events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
 		"servings": GameState.SERVINGS_PER_BASE,
+		"strength": 3,
+		"water_doses": GameState.WATER_DOSES_PER_NIGHT,
 		"text": "骨の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
 	return events
 
@@ -63,14 +68,21 @@ static func close_events() -> Array:
 	]
 
 
-## OPEN の客キュー（DESIGN.md 9章）。STEP 6: 配達員1人 → STEP 7: 3人。
-## ここに id を並べれば OpenController がその順で1人ずつ回す。増減はこの1行だけ。
+## OPEN の客の並び（DESIGN.md 9章 / 7.6）。STEP 6: 配達員1人 → STEP 7: 3人。
 ## STEP 17.5: normal_customer を granny（老婆）に差し替え。
 ## 7.6: モブ客 dock_workers（港湾労働者の一団）を追加。
 ##   チンピラと老婆を連続させ、老婆がチンピラの退店を見てから来る流れを保つ
 ##   （PRICING_SPEC.md 2章の接客順）。
-static func customer_queue() -> Array:
-	return ["delivery_man", "dock_workers", "thug", "granny"]
+## 7.6: フラットな配列をやめ、**時間帯で区切る**（宵の口 / 夜半 / 明け方）。
+##   時間帯名と客リストを1つの辞書に同居させる（名前を別配列で並行管理しない）。
+##   将来ここに「その時間帯のモブ人数」「時間帯の切り替わりテキスト」を足せる。
+##   客の増減も時間帯の増減も、この関数の中だけで済む。
+static func customer_schedule() -> Array:
+	return [
+		{ "name": "宵の口", "customers": ["delivery_man", "dock_workers"] },
+		{ "name": "夜半",   "customers": ["thug"] },
+		{ "name": "明け方", "customers": ["granny"] },
+	]
 
 
 ## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。

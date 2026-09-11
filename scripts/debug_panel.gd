@@ -10,6 +10,7 @@ extends PanelContainer
 @onready var _runner_label: Label = $Margin/VBox/TextScroll/TextBox/RunnerLabel as Label
 @onready var _btn_next_event: Button = $Margin/VBox/EventRow/BtnNextEvent as Button
 @onready var _btn_complete_input: Button = $Margin/VBox/EventRow/BtnCompleteInput as Button
+@onready var _btn_pot: Button = $Margin/VBox/EventRow/BtnPot as Button
 @onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
@@ -24,6 +25,11 @@ var _open: OpenController = null
 # 数値は仮。触ってから調整する（DESIGN.md 7.6「評判のインフレについて」）。
 const REPUTATION_NAMED := { "GREAT": 3, "GOOD": 2, "OK": 0, "BAD": -2 }
 const REPUTATION_MOB := { "GREAT": 1, "GOOD": 1, "OK": 0, "BAD": -1 }
+
+# [鍋を見る] の操作モード中か（DESIGN.md 7.6）。
+# EventRunner には一切触れない＝ index も status も動かさない。表示と操作対象を
+# 切り替えるだけなので、会話は止まったまま鍋をいじって戻れる。
+var _pot_mode := false
 
 
 func _ready() -> void:
@@ -43,6 +49,9 @@ func _ready() -> void:
 	#   こちらは解除したうえで先へ進める。PLAYING 中に押しても無効。
 	#   STEP 4: 進んだ先の Event の効果反映は [次のEvent] と同じ扱い。
 	_btn_complete_input.pressed.connect(_on_complete_input_pressed)
+	# [鍋を見る] = 鍋の操作モードに入る（7.6）。EventRunner は進めない。
+	#   ADJUST 中（3枠を選んでいる間）は押せない＝調理の途中で鍋をいじらせない。
+	_btn_pot.pressed.connect(_on_pot_pressed)
 	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
 	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
 
@@ -66,7 +75,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		flow.set_runner(Day1Events.prep_events())
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
-		_open = OpenController.new(Day1Events.customer_queue())
+		_open = OpenController.new(Day1Events.customer_schedule())
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
 		flow.set_runner(Day1Events.close_events())
@@ -117,6 +126,40 @@ func _on_ingredient_selected(ingredient_id: String) -> void:
 	_refresh()
 
 
+## [鍋を見る] のハンドラ（7.6）。モードに入るだけで、EventRunner には触れない。
+func _on_pot_pressed() -> void:
+	_pot_mode = true
+	_refresh()
+
+
+## 鍋モードの [戻る]。会話へ戻る（こちらも EventRunner には触れない）。
+func _on_pot_back_pressed() -> void:
+	_pot_mode = false
+	_refresh()
+
+
+## 鍋モードの [水を足す] / [ベースを足す]。効果は GameState の入口にまとめてある
+## （残量・濃さ・資源が同時に動くので、受け側から分けて呼べないようにしている）。
+func _on_add_water_pressed() -> void:
+	GameState.add_water()
+	_refresh()
+
+
+func _on_add_base_pressed() -> void:
+	GameState.add_base()
+	_refresh()
+
+
+## いま ADJUST で3枠を選んでいる最中か（options を持つ WAITING_INPUT）。
+## 鍋モードに入れるかの判定に使う（調理の途中で鍋をいじらせない）。
+func _is_choosing_ingredients() -> bool:
+	var r: EventRunner = flow.runner
+	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
+		return false
+	var cur = r.current()
+	return cur is Dictionary and cur.has("options")
+
+
 ## [入力完了] と選択肢ボタンの共通処理：WAITING_INPUT を解除して1つ進め、
 ## 新 current の効果を適用し、OPEN の客キューを必要なら進めて再描画する。
 func _complete_input_and_advance() -> void:
@@ -137,7 +180,10 @@ func _advance_open_queue_if_customer_done() -> void:
 	if GameState.phase != GameState.Phase.OPEN or _open == null:
 		return
 	if flow.is_runner_done() and _open.has_more():
-		_open.advance_customer()
+		# 7.6: 時間帯が変わったら鍋が煮詰まる（残量は変わらない＝蒸発なし）。
+		# 「変わったか」は OpenController が返し、鍋を動かすのは受け側のここ。
+		if _open.advance_customer():
+			GameState.deepen_soup()
 		_load_current_customer()
 
 
@@ -167,9 +213,12 @@ func _apply_event(ev) -> void:
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"SET_SOUP":
 			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
-			# 7.6: servings（残量の初期値＝仕込んだ杯数）も Event から受け取る。
+			# 7.6: servings（残量の初期値＝仕込んだ杯数）、strength（濃さ）、
+			#   water_doses（今夜使える水の回数）も Event から受け取る。
 			GameState.set_soup(str(ev.get("base_id", "")), ev.get("tags", []),
-				int(ev.get("servings", 0)))
+				int(ev.get("servings", 0)),
+				int(ev.get("strength", 3)),
+				int(ev.get("water_doses", 0)))
 		"REACT":
 			# 判定（BAD/OK/GOOD/GREAT）は OpenController.judge_bowl が行い、current_bowl の
 			# result / match_count に記録するだけ。Event（reactions）はここでも書き換えない
@@ -208,16 +257,32 @@ func _refresh() -> void:
 	_update_options_row()
 
 
-## 選択肢ボタンの描画（STEP 13、STEP 17.6で挙動変更）。毎回 _refresh() から呼び、
-## 状態から描き直す（他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
-## - 現在の Event が "options" を持つ WAITING_INPUT のときだけボタンを並べる。
-## - それ以外（options なしの WAIT_INPUT・PLAYING・DONE）は空にする。
-## - STEP 17.6: [入力完了] はもう無効化しない。ADJUST 中でも押せば提供として進める
-##   （3枠未満でも提供できる、という仕様のため）。具材が上限（MAX_ADDITIONS）に
-##   達していたら、具材ボタン側だけを無効化する（進む手段は[入力完了]のみ残す）。
+## 動的なボタン行の描画。毎回 _refresh() から呼び、状態から描き直す
+## （他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
+## 1つの行を2つの用途で使い分ける（鍋モード中は ADJUST に入れないので衝突しない）:
+##   - 鍋モード中（7.6）… [水を足す] [ベースを足す] [戻る]
+##   - それ以外        … ADJUST の具材ボタン（"options" を持つ WAITING_INPUT のときだけ）
+## STEP 17.6: [入力完了] は ADJUST 中でも押せる（3枠未満でも提供できる仕様）。
+##   具材が上限（MAX_ADDITIONS）に達したら具材ボタン側だけを無効化する。
+## 7.6: [鍋を見る] は ADJUST 中だけ無効。鍋モード中は [次のEvent]/[入力完了] を無効に
+##   して「会話が止まっている」ことを見た目にも合わせる。
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
+
+	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
+	# 鍋がまだ無い（仕込み前）ときも押せない。
+	_btn_pot.disabled = GameState.soup == null or _is_choosing_ingredients() or _pot_mode
+	_btn_next_event.disabled = _pot_mode
+	_btn_complete_input.disabled = _pot_mode
+
+	if _pot_mode:
+		_add_pot_button("水を足す（残量+%d 濃さ-1）" % GameState.WATER_SERVINGS,
+			not GameState.can_add_water(), _on_add_water_pressed)
+		_add_pot_button("ベースを足す（残量+%d 濃さ+1）" % GameState.BASE_SERVINGS,
+			not GameState.can_add_base(), _on_add_base_pressed)
+		_add_pot_button("戻る", false, _on_pot_back_pressed)
+		return
 
 	var r: EventRunner = flow.runner
 	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
@@ -236,6 +301,15 @@ func _update_options_row() -> void:
 		_options_row.add_child(btn)
 
 
+## 鍋モードのボタンを1つ並べる（資源が尽きていれば無効化して置く）。
+func _add_pot_button(label: String, is_disabled: bool, handler: Callable) -> void:
+	var btn := Button.new()
+	btn.text = label
+	btn.disabled = is_disabled
+	btn.pressed.connect(handler)
+	_options_row.add_child(btn)
+
+
 func _format_game_state() -> String:
 	var phase_name: String = GameState.Phase.keys()[GameState.phase]
 	# soup は { base_id, tags[], remaining_servings }（STEP 12 / 7.6）。生 Dictionary は
@@ -244,9 +318,11 @@ func _format_game_state() -> String:
 	if GameState.soup != null:
 		# 7.6: 残量（あと何杯出せるか）を併記する。分母（仕込み量）は出さない
 		# ＝水やベースを足せば初期値を超えるので、比率ではなく絶対値で見る。
-		soup_text = "%s 残量%d杯 tags=%s" % [
+		# 濃さは 1〜5（3がちょうどいい）。表示名（水っぽい等）はまだ付けない。
+		soup_text = "%s 残量%d杯 濃さ%d tags=%s" % [
 			GameState.soup.get("base_id", "?"),
 			int(GameState.soup.get("remaining_servings", 0)),
+			int(GameState.soup.get("strength", 0)),
 			str(GameState.soup.get("tags", [])),
 		]
 	# 表示する各項目の意味（GameState = 日をまたいで残る事実）:
@@ -256,10 +332,15 @@ func _format_game_state() -> String:
 	#   inventory  … 持っている具材・調味料の個数
 	#   rumors     … スマホで得た噂の件数。今は未使用
 	#   phase      … 一日のどの段階か（WAKE→PREP→OPEN→CLOSE→NEXT_DAY）
-	#   soup       … 仕込んだ鍋と残量。仕込み前はnone。翌日リセット
+	#   soup       … 仕込んだ鍋と残量・濃さ。仕込み前はnone。翌日リセット
+	#   pot        … 鍋に足せる資源。水は今夜だけ（soupの中）、予備ベースは翌日へ持ち越す
+	#                 （GameState直下）。寿命が違うので soup とは行を分けている
 	#   served     … 接客数（served配列のsize）と杯数（servingsの合計）。翌日リセット
 	#                 7.6 で1回の接客が複数杯になったので、両方を出さないと誤読する
 	# ラベルは「項目(意味): 値」の形。値の算出ロジックは変更していない。
+	var water_doses := 0
+	if GameState.soup != null:
+		water_doses = int(GameState.soup.get("water_doses", 0))
 	return "\n".join(PackedStringArray([
 		"── GameState（日をまたいで残る事実）──",
 		"day_count(日数): %d" % GameState.day_count,
@@ -269,6 +350,7 @@ func _format_game_state() -> String:
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
+		"pot(鍋の資源): 水%d回 / 予備ベース%d単位" % [water_doses, GameState.reserve_base_units],
 		"served(接客数/杯数): %d / %d" % [GameState.served.size(), _served_servings()],
 	]))
 
@@ -310,20 +392,28 @@ func _format_runner() -> String:
 
 
 ## OPEN 中の客キュー状態（STEP 6）。OPEN 以外は空文字を返し、表示に何も足さない。
-##   queue     … キューの客数
-##   customer  … いま接客中の客 id と「何人目/全体」、この接客で出す杯数（7.6）。
-##                全員終わっていれば (なし)
-##   open_done … 全員さばき切ったか。true で [次のPhase] → CLOSE へ進める
+##   時間帯   … いまの時間帯名と「何番目/全体」（7.6）。使い切っていれば (終了)
+##   queue    … **その時間帯の**客数（7.6 で1日の総数から意味が変わった）
+##   customer … いま接客中の客 id と「その時間帯の中で何人目/その時間帯の人数」、
+##              この接客で出す杯数。全員終わっていれば (なし)
+##   open_done … 全時間帯をさばき切ったか。true で [次のPhase] → CLOSE へ進める
 func _format_open() -> String:
 	if _open == null:
 		return ""
+	var slot_customers: Array = _open.current_slot_customers()
+	var slot_text := "(終了)"
+	if _open.current_slot_name() != "":
+		slot_text = "%s (%d/%d)" % [
+			_open.current_slot_name(), _open.slot_index + 1, _open.schedule.size()]
 	var cust = _open.current_customer()
 	var cust_text := "(なし)"
 	if cust != null:
-		cust_text = "%s (%d/%d) %d杯" % [cust, _open.index + 1, _open.queue.size(), _current_servings()]
+		cust_text = "%s (%d/%d) %d杯" % [
+			cust, _open.index + 1, slot_customers.size(), _current_servings()]
 	return "\n" + "\n".join(PackedStringArray([
 		"── OpenController（客キュー）──",
-		"queue(客数): %d" % _open.queue.size(),
+		"時間帯: %s" % slot_text,
+		"queue(この時間帯の客数): %d" % slot_customers.size(),
 		"customer(接客中): %s" % cust_text,
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 	])) + _format_bowl()

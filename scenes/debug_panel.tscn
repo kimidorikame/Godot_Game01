@@ -62,6 +62,10 @@ text = "次のEvent"
 layout_mode = 2
 text = "入力完了"
 
+[node name="BtnPot" type="Button" parent="Margin/VBox/EventRow"]
+layout_mode = 2
+text = "鍋を見る"
+
 [node name="OptionsRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8

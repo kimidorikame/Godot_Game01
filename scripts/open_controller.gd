@@ -6,8 +6,12 @@ class_name OpenController
 ## 接客そのものの再生は、客ごとの EventRunner（DebugPanel が flow.runner に載せる）に任せる。
 ## OPEN が終われば捨てる（RefCounted なので参照が切れれば解放される）。
 
-var queue: Array = []      # 客 id の並び（STEP 6 は ["delivery_man"] の1人）
-var index: int = 0         # いま何人目か（0起点）
+# 時間帯ごとに区切った客の並び（DESIGN.md 7.6）。形は
+#   [ { "name": "宵の口", "customers": ["delivery_man", ...] }, ... ]
+# 位置は「何番目の時間帯か（slot_index）」と「その中の何人目か（index）」の2つで持つ。
+var schedule: Array = []   # 時間帯の並び
+var slot_index: int = 0    # いま何番目の時間帯か（0起点）
+var index: int = 0         # その時間帯の中で何人目か（0起点）
 
 # 現在の客に出す椀。形は { customer_id, additions[] }（DESIGN.md 9.5 STEP 11）。
 # tags は持たない＝二重の正本を作らず、必要時に bowl_final_tags() で計算する。
@@ -19,34 +23,75 @@ var current_bowl: Dictionary = {}
 const MAX_ADDITIONS := 3
 
 
-func _init(customer_queue: Array = []) -> void:
-	queue = customer_queue
+func _init(customer_schedule: Array = []) -> void:
+	schedule = customer_schedule
+	slot_index = 0
 	index = 0
+	_skip_finished_slots()   # 先頭が空の時間帯でも詰まらないように
 	current_bowl = _new_bowl(current_customer())
 
 
-## いま接客中の客 id。キューを超えていたら null。
+## いま接客中の客 id。時間帯もキューも尽きていたら null。
 func current_customer() -> Variant:
-	if index < 0 or index >= queue.size():
+	var customers := current_slot_customers()
+	if index < 0 or index >= customers.size():
 		return null
-	return queue[index]
+	return customers[index]
 
 
-## まだ接客すべき客が残っているか。
+## いまの時間帯の客リスト。時間帯を使い切っていれば空配列。
+func current_slot_customers() -> Array:
+	if slot_index < 0 or slot_index >= schedule.size():
+		return []
+	var slot = schedule[slot_index]
+	if not (slot is Dictionary):
+		return []
+	return slot.get("customers", [])
+
+
+## いまの時間帯の名前（「宵の口」など）。使い切っていれば空文字。
+func current_slot_name() -> String:
+	if slot_index < 0 or slot_index >= schedule.size():
+		return ""
+	var slot = schedule[slot_index]
+	if not (slot is Dictionary):
+		return ""
+	return str(slot.get("name", ""))
+
+
+## OPEN 全体でまだ接客すべき客が残っているか（時間帯をまたいで見る）。
 func has_more() -> bool:
-	return index < queue.size()
+	return current_customer() != null
 
 
 ## 次の客へ。呼び出し側は「今の客の runner が DONE」を確認してから呼ぶこと。
+## その時間帯を終えていたら、次の時間帯の先頭へ送る（受け側は時間帯を意識しなくてよい）。
 ## 椀もここで新規に作り直す（前の客の additions を持ち越さない）。
-func advance_customer() -> void:
+##
+## 戻り値: **新しい時間帯に入ったか**（7.6）。時間帯が進むと鍋が煮詰まるので、
+## その合図として受け側へ返す。OpenController 自身は GameState を書き換えない
+## （ここは客の並びを管理する部品で、鍋を動かすのは受け側の仕事）。
+## 最後の客を終えて OPEN 自体が終わるときは false ＝ 夜が明けた後に濃くならない。
+func advance_customer() -> bool:
+	var before_slot := slot_index
 	index += 1
+	_skip_finished_slots()
 	current_bowl = _new_bowl(current_customer())
+	return slot_index != before_slot and slot_index < schedule.size()
 
 
-## キューを全員さばき切ったか（OPEN を終えて CLOSE へ進んでよい合図）。
+## 全時間帯をさばき切ったか（OPEN を終えて CLOSE へ進んでよい合図）。
 func is_open_done() -> bool:
-	return index >= queue.size()
+	return current_customer() == null
+
+
+## いまの時間帯を使い切っていたら次の時間帯の先頭へ進める。
+## 客のいない時間帯は読み飛ばす（将来モブ0人の時間帯があり得るため）。
+## 全部使い切ったら slot_index が schedule の外に出て、current_customer() が null になる。
+func _skip_finished_slots() -> void:
+	while slot_index < schedule.size() and index >= current_slot_customers().size():
+		slot_index += 1
+		index = 0
 
 
 ## 客 id から空の椀を作る。客がいなければ {}（current_bowl の「なし」状態）。
