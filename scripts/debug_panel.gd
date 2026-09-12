@@ -19,6 +19,10 @@ extends PanelContainer
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
 var _open: OpenController = null
 
+# 自動閉店（DESIGN.md 7.6）で CLOSE に飛ばすときだけ使う、先頭に差し込む理由テキスト。
+# _set_runner_for_phase(CLOSE) が読んで消費する（読んだら空文字に戻す＝一度きり）。
+var _closed_early_reason := ""
+
 # 判定結果 → 評判の増減（DESIGN.md 7.6）。名前あり客よりモブの方が動きが小さい。
 # 「どれだけ動かすか」を決めるのは受け側＝ここ。適用は GameState.apply_reputation()。
 # sale と同じ考え方（量は受け側が決め、GameState は入口として適用するだけ）。
@@ -78,7 +82,13 @@ func _set_runner_for_phase(phase: int) -> void:
 		_open = OpenController.new(Day1Events.customer_schedule())
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
-		flow.set_runner(Day1Events.close_events())
+		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
+		# 読んだら消費する（次に通常経路でCLOSEへ来たときに残っていないように）。
+		var events := Day1Events.close_events()
+		if _closed_early_reason != "":
+			events = [{ "type": "TEXT", "text": _closed_early_reason }] + events
+			_closed_early_reason = ""
+		flow.set_runner(events)
 	else:
 		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
 
@@ -226,10 +236,19 @@ func _apply_event(ev) -> void:
 			# どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
 			# 7.6: 売上は 50×servings（Event が計算済みの sale を持つ）。評判は判定結果と
 			# 名前あり/モブで増減表を引き、GameState の入口を通して適用する。
-			# 鍋からは servings 分を取り分ける（consume_soup）。今は 0 未満も許す
-			# ＝尽きたときの選択（断る／薄めて出す）は後の段階。
+			# 鍋からは servings 分を取り分ける（consume_soup）。
+			#
+			# 7.6: 提供しようとした時点で残量が足りず、かつ「名前あり客がもう残っていない」
+			# 「水もベースも無い」の両方を満たすときだけ、自動的に閉店へ飛ばす。
+			# 片方でも欠けていれば今まで通り（薄めて出す＝残量が0未満になることを許す）。
 			var sale := int(ev.get("sale", 0))
 			var servings := int(ev.get("servings", 1))
+			var available := 0
+			if GameState.soup != null:
+				available = int(GameState.soup.get("remaining_servings", 0))
+			if available < servings and _should_auto_close():
+				_auto_close_kitchen()
+				return
 			var result := ""
 			if _open != null:
 				result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
@@ -239,6 +258,41 @@ func _apply_event(ev) -> void:
 			GameState.apply_money(sale)
 			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
 				"servings": servings })
+
+
+## 自動閉店の条件（DESIGN.md 7.6）。両方満たすときだけ true。
+##   1. 名前あり客が全員済んでいる（_no_named_customers_remaining）
+##   2. 水もベースも無い（can_add_water / can_add_base が両方 false）
+func _should_auto_close() -> bool:
+	return _no_named_customers_remaining() and not GameState.can_add_water() and not GameState.can_add_base()
+
+
+## 現在の客（含む）から OPEN 終了まで、名前あり客がもう出てこないか。
+## 今の客自身が名前あり客なら、その客はまだ「済んでいない」ので false になる
+## （＝名前あり客のREACT中に自動閉店の分岐1が成立することはない）。
+func _no_named_customers_remaining() -> bool:
+	if _open == null:
+		return true
+	var customers := _open.current_slot_customers()
+	for i in range(_open.index, customers.size()):
+		if not Day1Events.is_mob_customer(customers[i]):
+			return false
+	for s in range(_open.slot_index + 1, _open.schedule.size()):
+		var slot = _open.schedule[s]
+		if slot is Dictionary:
+			for cid in slot.get("customers", []):
+				if not Day1Events.is_mob_customer(cid):
+					return false
+	return true
+
+
+## 鍋が尽きて自動的に閉店する（DESIGN.md 7.6）。判定・売上・評判・鍋の消費は
+## 一切行わない（この客には出せなかった、という扱い）。反応・セリフは最小の仮テキストのみ。
+## FlowController.force_phase() でゲートを通さず CLOSE へ飛ばす
+## （_open は _set_runner_for_phase(CLOSE) が既存の「OPEN以外ではnull」処理で片付ける）。
+func _auto_close_kitchen() -> void:
+	_closed_early_reason = "（鍋が尽きた。今日はもう終いだ。）"
+	flow.force_phase(GameState.Phase.CLOSE)
 
 
 func _on_runner_updated() -> void:
@@ -438,7 +492,8 @@ func _current_servings() -> int:
 ##   final_tags … 鍋込みの椀の最終tags（表示用。判定には使っていない）
 ##   favorite   … その客の好物idと、実際に入っていたか（判定後だけ出す。ADJUST中に
 ##                出すと「会話から推測する」検証にならないため）
-##   judge      … BAD/OK/GOOD/GREAT と一致数（REACT 適用前は「(未定)」）
+##   judge      … BAD/OK/GOOD/GREAT と一致数（REACT 適用前は「(未定)」）。
+##                濃さ1/5で1段下げたときは、その旨を付け足す（7.6）
 ##   reaction   … 反応text。判定結果は【】でここ（表示側）が付ける。
 ##                データ（reactions の文言）には入れない＝本番UIでは付けなければよい
 ## 椀が無い（客がいない）ときは空文字（表示に何も足さない）。
@@ -449,10 +504,15 @@ func _format_bowl() -> String:
 	var result: String = str(_open.current_bowl.get("result", ""))
 	var judge_text := "(未定)"
 	if result != "":
-		judge_text = "%s (一致%d%s)" % [
+		var base_result: String = str(_open.current_bowl.get("base_result", result))
+		var penalty_suffix := ""
+		if base_result != result:
+			penalty_suffix = " → 濃さ%dで1段下げ" % int(_open.current_bowl.get("strength_at_judge", 0))
+		judge_text = "%s (一致%d%s%s)" % [
 			result,
 			int(_open.current_bowl.get("match_count", 0)),
 			" + favorite" if _open.current_bowl.get("has_favorite", false) else "",
+			penalty_suffix,
 		]
 	var lines := [
 		"── Bowl（接客中の椀）──",

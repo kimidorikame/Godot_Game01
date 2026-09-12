@@ -85,6 +85,12 @@ static func customer_schedule() -> Array:
 	]
 
 
+## id がモブ客か（DESIGN.md 7.6）。自動閉店の判定などで、受け側が
+## 「これより後に名前あり客が残っているか」を問い合わせるために公開する。
+static func is_mob_customer(customer_id: String) -> bool:
+	return bool(_customer_flavor(customer_id).get("is_mob", false))
+
+
 ## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。
 ## データのみ。処理は受け側 = DebugPanel._apply_event（GREET/ADJUST/SERVE は表示だけ、
 ## REACT で仮の売上を計上）。

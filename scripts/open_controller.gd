@@ -22,6 +22,9 @@ var current_bowl: Dictionary = {}
 ## 椀に足せる具材の上限（DESIGN.md 9.5 STEP 17.6：3枠、4枠案から縮小）。
 const MAX_ADDITIONS := 3
 
+## 評価の並び（低い順）。濃さペナルティは「この並びで1つ下げる」形で実装する（7.6）。
+const RESULT_ORDER := ["BAD", "OK", "GOOD", "GREAT"]
+
 
 func _init(customer_schedule: Array = []) -> void:
 	schedule = customer_schedule
@@ -135,27 +138,38 @@ func bowl_final_tags() -> Array:
 	return tags
 
 
-## 現在の椀を wanted_tags と favorite で判定する（DESIGN.md 9.5 STEP 17.6）。
-## 一致数による段階評価に、favorite（好物）によるクリティカルを重ねる:
+## 現在の椀を wanted_tags と favorite で判定する（DESIGN.md 9.5 STEP 17.6 / 7.6）。
+## 一致数による段階評価に、favorite（好物）によるクリティカルを重ね、
+## 最後に鍋の濃さで下げる補正をかける。順序は「一致数 → favoriteで上げる → 濃さで下げる」:
 ##   一致0個     → BAD（イマイチ）※favorite があっても上がらない
 ##   一致1個     → OK（普通）        / favorite あり → GOOD
 ##   一致2個以上 → GOOD（美味しい）  / favorite あり → GREAT（とても好み）
+##   濃さ 1 または 5 → ここで求めた評価をさらに1段下げる（GREAT→GOOD→OK→BAD）
 ## 一致0で上がらないのは、合わない一杯に好物を入れられても嬉しくないため。
 ## favorite は「基本を押さえた上のボーナス」であって救済ではない（DESIGN.md）。
+## **鍋の状態で評価を上げることはしない**。濃さ2〜4は影響なし、1と5だけが足を引っ張る。
+## favorite の後に濃さを適用するので、濃さの悪さは favorite でも取り返せない。
 ##
 ## 判定に使うのは bowl_addition_tags()（3枠の中身だけ）。鍋のtagsは数えない。
 ## 数えるのは「wanted_tags の各要素が椀のtagsに含まれるか」＝要求側をループする形。
 ## こうすると同じ具材を複数入れても（例：モツ2つ）その tag は1個としてしか数えられない。
 ## favorite だけは tag ではなく具材id そのもので見る（その現物を入れたかどうか）。
 ## 具材を何も入れずに提供した場合は一致0 → BAD になる（専用の分岐は不要）。
+##
+## 濃さは GameState.soup から直接読む（引数にしない）。bowl_final_tags() が
+## GameState.soup を直接参照するのと同じ流儀＝判定側が鍋の状態を直接見に行く。
+##
 ## 結果は current_bowl に記録する（客が替われば新しい椀に消える一時表示用。
 ## REACT の反応text自体は書き換えない。どれを見せるかは受け側が都度選ぶ）。
-##   result          … BAD / OK / GOOD / GREAT
-##   match_count     … 一致数（計器盤の表示用）
-##   favorite        … その客の好物id（計器盤の表示用）
-##   has_favorite    … 好物が実際に椀へ入っていたか（計器盤の表示用）
-##   reaction_variant… 各段階2パターンある反応textのどちらを見せるか。
-##                     ここで一度だけ抽選する（表示のたびに再抽選すると結果がちらつくため）
+##   result           … 濃さ補正後の最終評価。BAD / OK / GOOD / GREAT
+##   base_result      … 濃さ補正前の評価（計器盤の表示用）
+##   strength_at_judge… 判定した瞬間の濃さ（計器盤の表示用。判定後に鍋をいじっても
+##                      ここは動かない。reaction_variant と同じく一度だけ固定する）
+##   match_count      … 一致数（計器盤の表示用）
+##   favorite         … その客の好物id（計器盤の表示用）
+##   has_favorite     … 好物が実際に椀へ入っていたか（計器盤の表示用）
+##   reaction_variant … 各段階2パターンある反応textのどちらを見せるか。
+##                      ここで一度だけ抽選する（表示のたびに再抽選すると結果がちらつくため）
 func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 	var tags := bowl_addition_tags()
 	var match_count := 0
@@ -163,12 +177,23 @@ func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 		if tags.has(tag):
 			match_count += 1
 	var has_favorite: bool = favorite != "" and current_bowl.get("additions", []).has(favorite)
-	var result := "BAD"
+	var base_result := "BAD"
 	if match_count >= 2:
-		result = "GREAT" if has_favorite else "GOOD"
+		base_result = "GREAT" if has_favorite else "GOOD"
 	elif match_count == 1:
-		result = "GOOD" if has_favorite else "OK"
+		base_result = "GOOD" if has_favorite else "OK"
+
+	var strength := 3
+	if GameState.soup != null:
+		strength = int(GameState.soup.get("strength", 3))
+	var result := base_result
+	if strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX:
+		var idx: int = maxi(RESULT_ORDER.find(base_result) - 1, 0)
+		result = RESULT_ORDER[idx]
+
 	current_bowl["result"] = result
+	current_bowl["base_result"] = base_result
+	current_bowl["strength_at_judge"] = strength
 	current_bowl["match_count"] = match_count
 	current_bowl["favorite"] = favorite
 	current_bowl["has_favorite"] = has_favorite

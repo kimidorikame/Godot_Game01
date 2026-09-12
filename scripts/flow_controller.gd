@@ -68,6 +68,16 @@ func advance_phase() -> void:
 	phase_changed.emit(next_phase)
 
 
+## 通常の一方向進行（advance_phase）から外れて、任意のフェーズへ強制的に進める
+## （DESIGN.md 7.6：鍋が尽きたときの自動閉店）。is_advance_blocked() のゲートは
+## 通さない（runnerが未DONEでも構わず飛ばす）。一方向性（前に戻さない）を
+## 壊さない使い方をするのは呼び出し側の責任。日次処理（NEXT_DAY折り返し）も
+## ここでは行わない＝OPEN→CLOSEのような前方スキップ専用。
+func force_phase(phase) -> void:
+	GameState.phase = phase
+	phase_changed.emit(phase)
+
+
 ## 現フェーズの Event 列を差し込む。STEP 1 では空配列で可。
 func set_runner(events: Array = []) -> void:
 	runner = EventRunner.new(events)
