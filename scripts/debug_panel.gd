@@ -11,6 +11,7 @@ extends PanelContainer
 @onready var _btn_next_event: Button = $Margin/VBox/EventRow/BtnNextEvent as Button
 @onready var _btn_complete_input: Button = $Margin/VBox/EventRow/BtnCompleteInput as Button
 @onready var _btn_pot: Button = $Margin/VBox/EventRow/BtnPot as Button
+@onready var _btn_close: Button = $Margin/VBox/EventRow/BtnClose as Button
 @onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
@@ -35,6 +36,15 @@ const REPUTATION_MOB := { "GREAT": 1, "GOOD": 1, "OK": 0, "BAD": -1 }
 # 切り替えるだけなので、会話は止まったまま鍋をいじって戻れる。
 var _pot_mode := false
 
+# 鍋が尽きて「作り直すか閉店するか」の選択待ちのとき、保留中のREACT Eventを持つ。
+# null なら選択待ちではない（DESIGN.md 7.6：条件1・2のどちらか一方だけ成立したとき）。
+# 判定・売上・鍋の消費はまだ行っていない状態＝[戻る]で初めて _serve_customer() が動く。
+var _pending_shortage_ev = null
+
+# 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れるまでの間だけ true。
+# _on_pot_pressed() で毎回リセットする。
+var _pot_water_added := false
+
 
 func _ready() -> void:
 	_set_runner_for_phase(GameState.phase)
@@ -56,6 +66,8 @@ func _ready() -> void:
 	# [鍋を見る] = 鍋の操作モードに入る（7.6）。EventRunner は進めない。
 	#   ADJUST 中（3枠を選んでいる間）は押せない＝調理の途中で鍋をいじらせない。
 	_btn_pot.pressed.connect(_on_pot_pressed)
+	# [閉店] = 鍋が尽きて選択待ちのときだけ押せる（7.6）。保留中のREACTは適用しない。
+	_btn_close.pressed.connect(_on_close_pressed)
 	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
 	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
 
@@ -73,6 +85,10 @@ func _on_phase_changed(phase: int) -> void:
 ## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
 func _set_runner_for_phase(phase: int) -> void:
 	_open = null   # OPEN 以外では客キューを持たない
+	# 7.6: 鍋の選択待ち・鍋モードも OPEN 以外には持ち越さない（防御的リセット）。
+	_pending_shortage_ev = null
+	_pot_mode = false
+	_pot_water_added = false
 	if phase == GameState.Phase.WAKE:
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
@@ -137,14 +153,35 @@ func _on_ingredient_selected(ingredient_id: String) -> void:
 
 
 ## [鍋を見る] のハンドラ（7.6）。モードに入るだけで、EventRunner には触れない。
+## 鍋モードに入るたびに「水を入れたか」をリセットする（_pot_locked_until_water 用）。
 func _on_pot_pressed() -> void:
 	_pot_mode = true
+	_pot_water_added = false
 	_refresh()
 
 
 ## 鍋モードの [戻る]。会話へ戻る（こちらも EventRunner には触れない）。
+## 7.6: 鍋が尽きての選択待ち中だった場合、ここで初めて保留中のREACTを適用する
+## （＝「営業を続ける」を選んだことになる）。作り直しが実際に足りているかは
+## 再チェックしない（一度決めたら、その結果のまま提供する）。
 func _on_pot_back_pressed() -> void:
 	_pot_mode = false
+	if _pending_shortage_ev != null:
+		var ev = _pending_shortage_ev
+		_pending_shortage_ev = null
+		_serve_customer(ev)
+	_refresh()
+
+
+## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのときだけ押せる。保留中のREACTは
+## 適用しない（この客には出せなかった扱い）。理由テキストを添えてCLOSEへ飛ばす。
+func _on_close_pressed() -> void:
+	if _pending_shortage_ev == null:
+		return
+	_pending_shortage_ev = null
+	_pot_mode = false
+	_closed_early_reason = "（今日はここで店じまいにする。）"
+	flow.force_phase(GameState.Phase.CLOSE)
 	_refresh()
 
 
@@ -152,6 +189,7 @@ func _on_pot_back_pressed() -> void:
 ## （残量・濃さ・資源が同時に動くので、受け側から分けて呼べないようにしている）。
 func _on_add_water_pressed() -> void:
 	GameState.add_water()
+	_pot_water_added = true
 	_refresh()
 
 
@@ -168,6 +206,16 @@ func _is_choosing_ingredients() -> bool:
 		return false
 	var cur = r.current()
 	return cur is Dictionary and cur.has("options")
+
+
+## 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れる（_pot_water_added）
+## までの間だけ true（DESIGN.md 7.6：ベースだけ入れても煮出す水が無く意味をなさない）。
+## "どうやって鍋モードに入ったか" ではなく "残量が実際に空かどうか" で判定するので、
+## 選択待ち経由でも普段の任意タイミングでの訪問でも同じルールが自然にかかる。
+func _pot_locked_until_water() -> bool:
+	if _pot_water_added:
+		return false
+	return GameState.soup != null and int(GameState.soup.get("remaining_servings", 0)) <= 0
 
 
 ## [入力完了] と選択肢ボタンの共通処理：WAITING_INPUT を解除して1つ進め、
@@ -203,9 +251,9 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   ADD_ITEM    … { item, amount } を add_inventory(item, amount) に渡す
 ##   REMOVE_ITEM … { item, amount } を remove_inventory(item, amount) に渡す（仕込みでの消費）
 ##   SET_SOUP    … { base_id, tags, servings } を set_soup() に渡す（共有鍋の作成・STEP 12/7.6）
-##   REACT       … judge_bowl() で BAD/OK/GOOD/GREAT を判定（STEP 17.6）。
-##                 判定結果 → apply_reputation / 鍋 → consume_soup(servings) /
-##                 売上 → apply_money(+sale)（sale は 50×servings）＋ record_served（7.6）
+##   REACT       … 残量が足りれば _serve_customer() で判定・評判・鍋消費・売上・記録
+##                 （STEP 17.6・7.6）。足りないときは条件次第で自動閉店／選択待ち／
+##                 そのまま提供に分かれる（7.6。詳細はこのcase内のコメント参照）
 ##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_ingredient_selected が
 ##     行う。ここ（_apply_event）は今も何もしない）
@@ -230,41 +278,52 @@ func _apply_event(ev) -> void:
 				int(ev.get("strength", 3)),
 				int(ev.get("water_doses", 0)))
 		"REACT":
-			# 判定（BAD/OK/GOOD/GREAT）は OpenController.judge_bowl が行い、current_bowl の
-			# result / match_count に記録するだけ。Event（reactions）はここでも書き換えない
-			# （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
-			# どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
-			# 7.6: 売上は 50×servings（Event が計算済みの sale を持つ）。評判は判定結果と
-			# 名前あり/モブで増減表を引き、GameState の入口を通して適用する。
-			# 鍋からは servings 分を取り分ける（consume_soup）。
-			#
-			# 7.6: 提供しようとした時点で残量が足りず、かつ「名前あり客がもう残っていない」
-			# 「水もベースも無い」の両方を満たすときだけ、自動的に閉店へ飛ばす。
-			# 片方でも欠けていれば今まで通り（薄めて出す＝残量が0未満になることを許す）。
-			var sale := int(ev.get("sale", 0))
+			# 7.6: 提供しようとした時点で残量が servings に足りないとき、
+			# 条件1（名前あり客がもう残っていない）と条件2（水もベースも無い）の
+			# 成立具合で3通りに分かれる：
+			#   両方成立     → 自動的に閉店（_auto_close_kitchen。選ぶ余地が無い）
+			#   片方だけ成立 → 保留してプレイヤーに選ばせる（_pending_shortage_ev。
+			#                  [鍋を見る]で作り直すか[閉店]するか）
+			#   どちらも不成立 → 今まで通り提供（薄めて出す＝残量が0未満になることを許す）
+			# 効果の適用自体は _serve_customer() に切り出した（[戻る]からも呼ぶ共通処理）。
 			var servings := int(ev.get("servings", 1))
 			var available := 0
 			if GameState.soup != null:
 				available = int(GameState.soup.get("remaining_servings", 0))
-			if available < servings and _should_auto_close():
-				_auto_close_kitchen()
-				return
-			var result := ""
-			if _open != null:
-				result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
-			var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
-			GameState.apply_reputation(int(table.get(result, 0)))
-			GameState.consume_soup(servings)
-			GameState.apply_money(sale)
-			GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
-				"servings": servings })
+			if available < servings:
+				var named_done := _no_named_customers_remaining()
+				var resources_gone := _no_resources_left()
+				if named_done and resources_gone:
+					_auto_close_kitchen()
+					return
+				elif named_done or resources_gone:
+					_pending_shortage_ev = ev
+					return
+			_serve_customer(ev)
 
 
-## 自動閉店の条件（DESIGN.md 7.6）。両方満たすときだけ true。
-##   1. 名前あり客が全員済んでいる（_no_named_customers_remaining）
-##   2. 水もベースも無い（can_add_water / can_add_base が両方 false）
-func _should_auto_close() -> bool:
-	return _no_named_customers_remaining() and not GameState.can_add_water() and not GameState.can_add_base()
+## REACT の効果を実際に適用する（判定→評判→鍋の消費→売上→記録）。
+## 通常の提供（_apply_event から）と、鍋を作り直した後の [戻る]（_on_pot_back_pressed）
+## の両方から呼ばれる共通処理。Event（reactions）は書き換えない
+## （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
+## どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
+func _serve_customer(ev: Dictionary) -> void:
+	var sale := int(ev.get("sale", 0))
+	var servings := int(ev.get("servings", 1))
+	var result := ""
+	if _open != null:
+		result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+	var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
+	GameState.apply_reputation(int(table.get(result, 0)))
+	GameState.consume_soup(servings)
+	GameState.apply_money(sale)
+	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
+		"servings": servings })
+
+
+## 水もベースも無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
+func _no_resources_left() -> bool:
+	return not GameState.can_add_water() and not GameState.can_add_base()
 
 
 ## 現在の客（含む）から OPEN 終了まで、名前あり客がもう出てこないか。
@@ -320,22 +379,31 @@ func _refresh() -> void:
 ##   具材が上限（MAX_ADDITIONS）に達したら具材ボタン側だけを無効化する。
 ## 7.6: [鍋を見る] は ADJUST 中だけ無効。鍋モード中は [次のEvent]/[入力完了] を無効に
 ##   して「会話が止まっている」ことを見た目にも合わせる。
+## 7.6: 鍋が尽きて選択待ち（_pending_shortage_ev != null）のときは、それに加えて
+##   [次のEvent]/[入力完了]も無効（保留を解決するまで進めない）。[鍋を見る]は
+##   選択待ち中だけ「水かベースが残っているか」も条件に足す（無ければ作り直しようが
+##   ないので、実質[閉店]しか選べない状態にする）。[閉店]は選択待ち中だけ有効。
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
 
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
-	_btn_pot.disabled = GameState.soup == null or _is_choosing_ingredients() or _pot_mode
-	_btn_next_event.disabled = _pot_mode
-	_btn_complete_input.disabled = _pot_mode
+	var pot_disabled := GameState.soup == null or _is_choosing_ingredients() or _pot_mode
+	if _pending_shortage_ev != null:
+		pot_disabled = pot_disabled or _no_resources_left()
+	_btn_pot.disabled = pot_disabled
+	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null
+	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null
+	_btn_close.disabled = _pending_shortage_ev == null
 
 	if _pot_mode:
+		var locked := _pot_locked_until_water()
 		_add_pot_button("水を足す（残量+%d 濃さ-1）" % GameState.WATER_SERVINGS,
 			not GameState.can_add_water(), _on_add_water_pressed)
 		_add_pot_button("ベースを足す（残量+%d 濃さ+1）" % GameState.BASE_SERVINGS,
-			not GameState.can_add_base(), _on_add_base_pressed)
-		_add_pot_button("戻る", false, _on_pot_back_pressed)
+			not GameState.can_add_base() or locked, _on_add_base_pressed)
+		_add_pot_button("戻る", locked, _on_pot_back_pressed)
 		return
 
 	var r: EventRunner = flow.runner
@@ -451,6 +519,7 @@ func _format_runner() -> String:
 ##   customer … いま接客中の客 id と「その時間帯の中で何人目/その時間帯の人数」、
 ##              この接客で出す杯数。全員終わっていれば (なし)
 ##   open_done … 全時間帯をさばき切ったか。true で [次のPhase] → CLOSE へ進める
+##   pending   … 鍋が尽きて[鍋を見る]/[閉店]の選択待ちか（7.6）
 func _format_open() -> String:
 	if _open == null:
 		return ""
@@ -470,6 +539,7 @@ func _format_open() -> String:
 		"queue(この時間帯の客数): %d" % slot_customers.size(),
 		"customer(接客中): %s" % cust_text,
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
+		"pending(鍋の選択待ち): %s" % ("はい" if _pending_shortage_ev != null else "いいえ"),
 	])) + _format_bowl()
 
 
