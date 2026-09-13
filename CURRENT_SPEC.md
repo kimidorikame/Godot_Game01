@@ -48,7 +48,7 @@ DESIGN.md が「これから作る指示書」なのに対し、こちらは「�
 day_count   : int   = 1     # 何日目か。NEXT_DAY で +1
 money       : int   = 300   # 所持金。支払いで減り売上で増える
 reputation  : int   = 0     # 評判（予約のみ・未使用）
-inventory   : Array = []    # 具材・調味料の id 文字列（型は将来 Ingredient へ）
+inventory   : Dictionary = {} # { id: 個数 }。市場での複数購入に対応（7.7）
 rumors      : Array = []    # スマホ情報（予約のみ・未使用）
 phase       : Phase = WAKE  # 今どのフェーズか
 soup        : null          # 今日の鍋（未実装・仕込み前は null）※日次リセット対象
@@ -58,8 +58,9 @@ served      : Array = []    # 今夜の提供実績 ※日次リセット対象
 ### 状態変更の入口（受け側はここだけを通す）
 - `apply_money(delta)` … 支払いも売上も全部ここ。差はデータ側の text（トーン）
 - `apply_reputation(delta)` … 評判の増減。増減量を決めるのは受け側
-- `add_inventory(item, count)` … 在庫を足す唯一の入口
-- `remove_inventory(item, count)` … 在庫を減らす（仕込みでの消費）
+- `add_inventory(item, count)` … 在庫を足す唯一の入口（`inventory[item] += count`）
+- `remove_inventory(item, count)` … 在庫を減らす。0以下になったキーは削除する
+  （「持っていない」を辞書に無い状態で表現。引きすぎても負の値にはならない）
 - `set_soup(base_id, tags, servings, strength, water_doses)` … 今日の鍋を作る
 - `consume_soup(servings)` … 鍋から取り分けた分だけ残量を減らす
 - `deepen_soup(delta)` … 時間帯が進んだとき濃さを上げる
@@ -115,6 +116,7 @@ type を見て振り分ける。処理をデータに埋め込まない。
 | SET_SOUP | 共有鍋の作成 | `set_soup(base_id, tags)` |
 | GREET / SERVE | 表示のみ（接客） | なし |
 | ADJUST | 具材の選択（入力待ち） | `options` を持つので EventRunner が停止。<br>椀への反映は受け側（選択肢ボタン） |
+| MARKET | 市場の店選び（入力待ち） | `options`（7店舗）を持つので停止。店を選ぶ処理・<br>水道代の支払いは受け側。「市場を出る」で先へ |
 | REACT | 判定＋売上確定 | `judge_bowl()` で4段階判定 ＋ `apply_money(+sale)` ＋ `record_served()` |
 
 ※ `options` を持つ Event は type に関係なく入力待ちになる（個数は関知しない）。
@@ -408,15 +410,31 @@ pot(鍋の資源): 水2回 / 予備ベース10単位
 ### WAKE
 起床 TEXT → スマホ（WAIT_INPUT で停止）→「準備へ」TEXT
 
-### PREP（水道代は徴収日のみ・水汲みは毎日）
+### PREP（市場を経由する形に変更・7.7）
+
 ```
 食肉売場へ来た（TEXT）
-ベース代 -80（PAY）
-ベース受け取り（ADD_ITEM soup_base）
-水を汲む（TEXT・仮。実際の水入手は未実装）
-水道代 -50（PAY）※徴収日のみ
+ベース代 -80（PAY）・ベース受け取り（ADD_ITEM soup_base）… 食肉仲卸。自動で通過
+MARKET（options=7店舗）… ここで止まる（WAITING_INPUT）
+  食肉仲卸／青果／乾物調味料／豆腐麺／海鮮／端材半端物 … Day1はグレーアウト
+  水場 … 押せる。押すと水道代PAY(-50・徴収日のみ)、訪問済みフラグが立つ
+  [市場を出る]（OptionsRow内の専用ボタン）… 押すと退出
 仕込み（REMOVE_ITEM soup_base）
+SET_SOUP
 ```
+
+- `[市場を出る]`は常に押せる。**水場に未訪問なら自動で水場処理をしてから**
+  仕込みへ進む（水道代を払わずに素通りする抜け道を作らない）。
+- MARKET中は `[次のEvent]` / `[入力完了]` を無効化する。抜ける経路を
+  `[市場を出る]`だけに絞り、自動訪問の安全策を必ず通す。
+- MARKETは新しい Event type だが、EventRunnerは無改修（`options`を持つ
+  Eventは型を問わず入力待ちになる、というSTEP17.6の一般化ルールに乗っている）。
+- 水場の処理（水道代PAY）はEventRunnerの流れの外で行う。`[鍋を見る]`中の
+  `[水を足す]`と同じ構造（受け側が直接GameStateを呼ぶ、状態が止まったまま操作できる）。
+- 各店の `enabled`（今日押せるか）はデータ側が持つ（day1_events.gd）。
+  「今日どの店が開いているか」は日ごとに変わる事実なので、is_mob や favorite と
+  同じ扱い。
+- 青果・乾物調味料・豆腐麺・海鮮・端材半端物での実際の購入は未実装（Day2以降）。
 
 ### OPEN（客3人）
 ```
@@ -544,9 +562,14 @@ DESIGN.md 9.5「ビルド順・第2フェーズ」の縦切りは **STEP 17.6 �
 [済] 濃さが評価に影響する（favoriteの後に適用、取り返せない）
 [済] 鍋が尽きたときの自動閉店（名前あり客が全員済み かつ 水・ベースも無い）
 [済] 鍋が尽きたときのプレイヤーの選択（片方だけ成立のとき、作り直すか閉店か）
+[済] 在庫を数量辞書に変更（{ id: 個数 }。市場での複数購入に対応）
+[済] 市場の骨格（Day1）：MARKET Event、7店舗の選択肢、食肉仲卸は自動、
+     水場だけ押せる、[市場を出る]専用ボタン、未訪問なら自動で水場に寄る
 ```
 
-**DESIGN.md 7.6（鍋とモブ客）は一通り実装が完了**。数値は仮のまま
+**DESIGN.md 7.6（鍋とモブ客）は一通り実装が完了**。
+**DESIGN.md 7.7（市場）は骨格のみ実装済み**。他5店（青果・乾物調味料・
+豆腐麺・海鮮・端材半端物）での実際の購入はまだ無い。数値は仮のまま
 （触って調整する前提）。
 
 **次の候補**（順序は未定）：
