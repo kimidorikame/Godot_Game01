@@ -32,7 +32,7 @@ static func prep_events() -> Array:
 	var events := [
 		{ "type": "TEXT", "text": "食肉売場へ来た" },
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
-		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "骨と大根を受け取った" },
+		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
 		{ "type": "TEXT", "text": "水場でポリタンクに水を汲む。" },
 	]
 	# 水道代は徴収日だけ。非徴収日は PAY が抜け、水汲み TEXT は残る。
@@ -42,7 +42,8 @@ static func prep_events() -> Array:
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
-	# 共有鍋ができる（STEP 12）。ベースは今は骨だしの1種類だけ。
+	# 共有鍋ができる（STEP 12）。ベースは今は鶏がらだしの1種類だけ（DESIGN.md 7.7：
+	# 「骨と大根」から「鶏骨＋手羽端」に変更。IDはbone_broth/soup_baseのまま据え置き）。
 	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。濃さ・水はまだ持たせない。
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
 	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
@@ -53,7 +54,7 @@ static func prep_events() -> Array:
 		"servings": GameState.SERVINGS_PER_BASE,
 		"strength": 3,
 		"water_doses": GameState.WATER_DOSES_PER_NIGHT,
-		"text": "骨の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
+		"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
 	return events
 
 
