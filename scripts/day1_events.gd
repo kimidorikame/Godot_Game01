@@ -19,26 +19,25 @@ static func wake_events() -> Array:
 
 
 ## PREP の最小構成（DESIGN.md 9章 STEP 4 → STEP 9 で水道代 → Day2 分岐で条件化）。
-## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM / REMOVE_ITEM の並びだけで表現する。
-## ここはデータのみ。PAY の amount / ADD_ITEM・REMOVE_ITEM の item・amount が「効果」を表し、
-## 実際の処理（apply_money / add_inventory / remove_inventory）は
-## 受け側 = DebugPanel._apply_event が行う。text は表示用でしかなく、状態は動かさない。
+## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM / MARKET / REMOVE_ITEM の
+## 並びだけで表現する。ここはデータのみ。PAY の amount / ADD_ITEM・REMOVE_ITEM の
+## item・amount が「効果」を表し、実際の処理（apply_money / add_inventory /
+## remove_inventory）は受け側 = DebugPanel._apply_event が行う。
+## text は表示用でしかなく、状態は動かさない。
 ## 支払いのトーン: 市場 -80 淡々（毎日）/ 水場 -50 生活の愚痴（徴収日のみ）/
 ##   場所代 -150 理不尽（OPEN・thug 側、同じく徴収日のみ）。金額処理は3つとも apply_money(-x)。
-## 「水を汲む」TEXT は毎日入れる仮（状態変化なし。実際の水の入手＝7.5 の水の持ち方が
-## 決まるまで保留）。方法A: is_collection_day() を読んで配列を組み立てる。
+## DESIGN.md 7.7: 市場を MARKET Event（"options" を持つ。ADJUSTと同じくEventRunnerは
+##   型を問わずWAITING_INPUTで止まる）として挟む。食肉仲卸は今まで通り自動
+##   （TEXT→PAY→ADD_ITEMがMARKETの前に並ぶだけ）。水場は市場滞在中に押せる
+##   選択肢の1つになり、TEXTとしては並べない（受け側が直接処理する。詳細は
+##   DebugPanel._visit_water_stall / _on_market_exit_pressed）。
 static func prep_events() -> Array:
-	# 毎日の骨格。水汲み TEXT は仮（状態は動かさない）。
 	var events := [
 		{ "type": "TEXT", "text": "食肉売場へ来た" },
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
 		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
-		{ "type": "TEXT", "text": "水場でポリタンクに水を汲む。" },
+		{ "type": "MARKET", "text": "（市場をぶらつく）", "options": _market_options() },
 	]
-	# 水道代は徴収日だけ。非徴収日は PAY が抜け、水汲み TEXT は残る。
-	if GameState.is_collection_day():
-		events.append({ "type": "PAY", "amount": 50,
-			"text": "水場のポンプ番に呼び止められる。「今月分、払っとけよ」「はいはい、分かってる」" })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
@@ -48,14 +47,34 @@ static func prep_events() -> Array:
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
 	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
 	# 7.6: 濃さ（仕込み時は3＝ちょうどいい）と、今夜使える水の回数も一緒に渡す。
-	#   水は本来 PREP の「水場で汲む」TEXT で得るものだが、TEXT に効果を持たせず
-	#   ここにまとめる（水汲み自体を操作にするのは後日）。
+	#   水の回数自体は市場（水場）に行ったかとは無関係に毎朝2回分（GameState定数）。
+	#   水場で払うのは水道代（徴収日のみ）で、回数を増やす効果ではない。
 	events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
 		"servings": GameState.SERVINGS_PER_BASE,
 		"strength": 3,
 		"water_doses": GameState.WATER_DOSES_PER_NIGHT,
 		"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
 	return events
+
+
+## 市場の選択肢（DESIGN.md 7.7）。"enabled" で今日押せるかをデータ側に持たせる
+## （「今日どの店が開いているか」は日ごとに変わる事実なので、is_mob等と同じくデータ側）。
+## Day1: 食肉仲卸は自動で済んでいる（PREPの先頭で既にTEXT→PAY→ADD_ITEM済み）ので
+##   常に無効。青果〜端材半端物は購入を未実装なので常に無効。水場だけ押せる。
+## "text" は訪問時のセリフ（DESIGN.md 7.7「支払いのトーン」表：水場＝生活の愚痴混じり）。
+##   水場は市場外のEventとしては並べないので、この text をDebugPanel側が読んで表示する
+##   （_visit_water_stall 参照）。
+static func _market_options() -> Array:
+	return [
+		{ "id": "meat_wholesale", "label": "食肉仲卸（訪問済み）", "enabled": false },
+		{ "id": "produce",        "label": "青果",       "enabled": false },
+		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": false },
+		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": false },
+		{ "id": "seafood",        "label": "海鮮",       "enabled": false },
+		{ "id": "scraps",         "label": "端材半端物", "enabled": false },
+		{ "id": "water",          "label": "水場",       "enabled": true,
+			"text": "「今月分、払っとけよ」「はいはい、分かってる」" },
+	]
 
 
 ## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。

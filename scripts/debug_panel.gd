@@ -45,6 +45,13 @@ var _pending_shortage_ev = null
 # _on_pot_pressed() で毎回リセットする。
 var _pot_water_added := false
 
+# 市場（DESIGN.md 7.7）で水場に寄ったか。PREPに入るたびリセットする。
+var _market_visited_water := false
+
+# 直前に訪れた市場の店のセリフ（DESIGN.md 7.7「支払いのトーン」）。PREPに入るたび
+# リセットする。水場のように専用Eventを持たない店の text を表示するための一時状態。
+var _market_last_text := ""
+
 
 func _ready() -> void:
 	_set_runner_for_phase(GameState.phase)
@@ -89,6 +96,9 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pending_shortage_ev = null
 	_pot_mode = false
 	_pot_water_added = false
+	# 7.7: 市場の水場訪問フラグ・直前のセリフも PREP に入るたびリセットする。
+	_market_visited_water = false
+	_market_last_text = ""
 	if phase == GameState.Phase.WAKE:
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
@@ -198,6 +208,62 @@ func _on_add_base_pressed() -> void:
 	_refresh()
 
 
+## 市場の店ボタンが押されたときのハンドラ（DESIGN.md 7.7）。ADJUSTの具材ボタンと同じく
+## 進めない（EventRunnerには触れない）。青果〜端材半端物は購入を未実装なので、
+## 押せる状態にならない限りここには来ない（data側の"enabled"で塞いである）。
+func _on_market_stall_selected(id: String) -> void:
+	match id:
+		"water":
+			_visit_water_stall()
+		_:
+			pass  # 対象外（青果・乾物調味料・豆腐麺・海鮮・端材半端物はDay2以降）
+	_refresh()
+
+
+## 水場を訪れる（水道代の支払い＋水汲みの効果）。市場中の[水場]ボタンからも、
+## 未訪問のまま[市場を出る]で抜けようとしたときの自動訪問からも呼ばれる。
+func _visit_water_stall() -> void:
+	if GameState.is_collection_day():
+		GameState.apply_money(-50)
+	_market_visited_water = true
+	_market_last_text = _market_option_text("water")
+
+
+## 今の MARKET Event の options から、id に対応する "text"（セリフ）を探す。
+## 専用Eventを持たない店の会話を表示するために使う（例: 水場。_visit_water_stall 参照）。
+## 見つからなければ空文字（"text" を持たない店もあるので、その場合は何も表示しない）。
+func _market_option_text(id: String) -> String:
+	var r: EventRunner = flow.runner
+	if r == null:
+		return ""
+	var cur = r.current()
+	if not (cur is Dictionary):
+		return ""
+	for option in cur.get("options", []):
+		if str(option.get("id", "")) == id:
+			return str(option.get("text", ""))
+	return ""
+
+
+## [市場を出る] のハンドラ（DESIGN.md 7.7）。水場に未訪問なら自動で訪れてから、
+## [入力完了]と同じ手順（WAITING_INPUT解除→1つ進める→効果適用）で仕込みへ進む。
+## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
+func _on_market_exit_pressed() -> void:
+	if not _market_visited_water:
+		_visit_water_stall()
+	_complete_input_and_advance()
+
+
+## いま MARKET が現在の Event か（options を持つ WAITING_INPUT の一種）。
+## [次のEvent]/[入力完了] を無効化する判定に使う（抜ける経路を[市場を出る]だけにする）。
+func _is_in_market() -> bool:
+	var r: EventRunner = flow.runner
+	if r == null:
+		return false
+	var cur = r.current()
+	return cur is Dictionary and cur.get("type", "") == "MARKET"
+
+
 ## いま ADJUST で3枠を選んでいる最中か（options を持つ WAITING_INPUT）。
 ## 鍋モードに入れるかの判定に使う（調理の途中で鍋をいじらせない）。
 func _is_choosing_ingredients() -> bool:
@@ -254,9 +320,10 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   REACT       … 残量が足りれば _serve_customer() で判定・評判・鍋消費・売上・記録
 ##                 （STEP 17.6・7.6）。足りないときは条件次第で自動閉店／選択待ち／
 ##                 そのまま提供に分かれる（7.6。詳細はこのcase内のコメント参照）
-##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE … 表示だけ。状態は動かさない
+##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE / MARKET … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_ingredient_selected が
-##     行う。ここ（_apply_event）は今も何もしない）
+##     行う。MARKET（7.7）も同様に、水場の効果は _on_market_stall_selected /
+##     _on_market_exit_pressed が行う。ここ（_apply_event）はどちらも何もしない）
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
 ## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
 func _apply_event(ev) -> void:
@@ -365,16 +432,18 @@ func _on_day_plus_pressed() -> void:
 
 func _refresh() -> void:
 	_game_state_label.text = _format_game_state()
-	# OPEN 中は runner 表示のあとに客キューの状態も出す（OPEN 以外は空文字）。
-	_runner_label.text = _format_runner() + _format_open()
+	# OPEN 中は runner 表示のあとに客キューの状態も出す。PREP 中は市場の状態を出す
+	# （どちらも対象外のフェーズでは空文字なので、両方繋げても実害はない）。
+	_runner_label.text = _format_runner() + _format_open() + _format_market()
 	_update_options_row()
 
 
 ## 動的なボタン行の描画。毎回 _refresh() から呼び、状態から描き直す
 ## （他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
-## 1つの行を2つの用途で使い分ける（鍋モード中は ADJUST に入れないので衝突しない）:
+## 1つの行を3つの用途で使い分ける（各モードは互いに排他なので衝突しない）:
 ##   - 鍋モード中（7.6）… [水を足す] [ベースを足す] [戻る]
-##   - それ以外        … ADJUST の具材ボタン（"options" を持つ WAITING_INPUT のときだけ）
+##   - MARKET中（7.7）  … 7店舗のボタン ＋ [市場を出る]
+##   - それ以外          … ADJUST の具材ボタン（"options" を持つ WAITING_INPUT のときだけ）
 ## STEP 17.6: [入力完了] は ADJUST 中でも押せる（3枠未満でも提供できる仕様）。
 ##   具材が上限（MAX_ADDITIONS）に達したら具材ボタン側だけを無効化する。
 ## 7.6: [鍋を見る] は ADJUST 中だけ無効。鍋モード中は [次のEvent]/[入力完了] を無効に
@@ -383,6 +452,8 @@ func _refresh() -> void:
 ##   [次のEvent]/[入力完了]も無効（保留を解決するまで進めない）。[鍋を見る]は
 ##   選択待ち中だけ「水かベースが残っているか」も条件に足す（無ければ作り直しようが
 ##   ないので、実質[閉店]しか選べない状態にする）。[閉店]は選択待ち中だけ有効。
+## 7.7: MARKET中も [次のEvent]/[入力完了] を無効化する。抜ける経路を[市場を出る]
+##   （水場未訪問なら自動で訪れる安全策を持つ）だけに絞るため。
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
@@ -393,8 +464,8 @@ func _update_options_row() -> void:
 	if _pending_shortage_ev != null:
 		pot_disabled = pot_disabled or _no_resources_left()
 	_btn_pot.disabled = pot_disabled
-	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null
-	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null
+	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
+	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
 	_btn_close.disabled = _pending_shortage_ev == null
 
 	if _pot_mode:
@@ -412,6 +483,18 @@ func _update_options_row() -> void:
 	var cur = r.current()
 	if not (cur is Dictionary) or not cur.has("options"):
 		return
+
+	if cur.get("type", "") == "MARKET":
+		for option in cur.get("options", []):
+			var id: String = str(option.get("id", ""))
+			var disabled: bool = not bool(option.get("enabled", true))
+			if id == "water" and _market_visited_water:
+				disabled = true
+			_add_pot_button(str(option.get("label", id)), disabled,
+				_on_market_stall_selected.bind(id))
+		_add_pot_button("市場を出る", false, _on_market_exit_pressed)
+		return
+
 	var at_cap := false
 	if _open != null:
 		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
@@ -423,7 +506,7 @@ func _update_options_row() -> void:
 		_options_row.add_child(btn)
 
 
-## 鍋モードのボタンを1つ並べる（資源が尽きていれば無効化して置く）。
+## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。
 func _add_pot_button(label: String, is_disabled: bool, handler: Callable) -> void:
 	var btn := Button.new()
 	btn.text = label
@@ -550,6 +633,21 @@ func _format_open() -> String:
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 		"pending(鍋の選択待ち): %s" % ("はい" if _pending_shortage_ev != null else "いいえ"),
 	])) + _format_bowl()
+
+
+## PREP中の市場の状態（DESIGN.md 7.7）。PREP以外は空文字（表示に何も足さない）。
+func _format_market() -> String:
+	if GameState.phase != GameState.Phase.PREP:
+		return ""
+	var lines := PackedStringArray([
+		"── 市場（7.7）──",
+		"water(水場訪問済み): %s" % ("はい" if _market_visited_water else "いいえ"),
+	])
+	# 専用Eventを持たない店（水場等）のセリフはここでしか表示されないので、
+	# 空文字でなければ出す（訪問前は _market_last_text が空のまま＝何も足さない）。
+	if _market_last_text != "":
+		lines.append("last(直前の会話): %s" % _market_last_text)
+	return "\n" + "\n".join(lines)
 
 
 ## いま接客中の客が何杯注文しているか（7.6）。REACT がまだ current でなくても見たいので、
