@@ -451,7 +451,7 @@ func _format_game_state() -> String:
 	#   day_count  … 今が何日目か。NEXT_DAYで+1
 	#   money      … 所持金。支払いで減り売上で増える
 	#   reputation … 店の評判値。REACT の判定結果で増減する（7.6）
-	#   inventory  … 持っている具材・調味料の個数
+	#   inventory  … 持っている具材・調味料の合計個数（辞書 { id: 個数 } の値を合計。7.7）
 	#   rumors     … スマホで得た噂の件数。今は未使用
 	#   phase      … 一日のどの段階か（WAKE→PREP→OPEN→CLOSE→NEXT_DAY）
 	#   soup       … 仕込んだ鍋と残量・濃さ。仕込み前はnone。翌日リセット
@@ -468,7 +468,7 @@ func _format_game_state() -> String:
 		"day_count(日数): %d" % GameState.day_count,
 		"money(所持金): %d" % GameState.money,
 		"reputation(評判): %d" % GameState.reputation,
-		"inventory(在庫数): %d 個" % GameState.inventory.size(),
+		"inventory(在庫数): %d 個" % _inventory_total(),
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
@@ -484,6 +484,15 @@ func _served_servings() -> int:
 	for record in GameState.served:
 		if record is Dictionary:
 			total += int(record.get("servings", 1))
+	return total
+
+
+## 在庫の合計個数（GameState.inventory は { id: 個数 } の辞書なので、
+## 値を合計して出す。STEP 4当時のArray.size()と同じ「持っている総数」を保つ・7.7）。
+func _inventory_total() -> int:
+	var total := 0
+	for count in GameState.inventory.values():
+		total += int(count)
 	return total
 
 

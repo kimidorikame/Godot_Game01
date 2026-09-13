@@ -35,8 +35,10 @@ var day_count: int = 1
 var money: int = 300
 var reputation: int = 0
 
-# 初期具材・調味料・購入した食材。中身の型は Ingredient（後で定義）。
-var inventory: Array = []
+# 初期具材・調味料・購入した食材。{ id: 個数 } の辞書（DESIGN.md 7.7：
+# 市場での複数購入を表すため、文字列配列から数量辞書に変更）。
+# 個数が0になったキーは削除する＝「持っていない」を辞書に無い状態で表現する。
+var inventory: Dictionary = {}
 
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
 var rumors: Array = []
@@ -97,19 +99,22 @@ func apply_reputation(delta: int) -> void:
 
 ## 在庫に item を count 個足す入口。ADD_ITEM Event を受けた側から呼ぶ。
 ## apply_money と同じく「在庫をいじる唯一の入口」を用意し、受け側から
-## inventory 配列を直接触らせない。中身は今は id 文字列。Ingredient 型が
-## 定義されたらここと表示側だけ差し替えれば済む。
+## inventory 辞書を直接触らせない。
 func add_inventory(item, count: int = 1) -> void:
-	for _i in count:
-		inventory.append(item)
+	inventory[item] = int(inventory.get(item, 0)) + count
 
 
 ## 在庫から item を count 個抜く入口。add_inventory の裏返し。
-## 該当が無い分は黙って無視する（Array.erase は未ヒットでも安全、size は負にならない）。
+## 個数が0以下になったらキーごと削除する（「持っていない」を無い状態で表現する）。
+## 該当が無い分・引きすぎた分は黙って0扱いにする（負の在庫は持たない。
+## 旧・配列版の「Array.erase は未ヒットでも安全」と同じ安全性を保つ）。
 ## STEP 4: 「仕込み」で具材を消費するのに使う。soup を埋める処理はまだ持たない。
 func remove_inventory(item, count: int = 1) -> void:
-	for _i in count:
+	var remaining: int = int(inventory.get(item, 0)) - count
+	if remaining <= 0:
 		inventory.erase(item)
+	else:
+		inventory[item] = remaining
 
 
 ## 今日の共有鍋を作る入口。SET_SOUP Event を受けた側から呼ぶ（STEP 12）。
