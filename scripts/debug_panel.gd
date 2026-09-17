@@ -57,6 +57,11 @@ var _market_last_text := ""
 # PREPに入るたびリセットする。
 var _market_shop := ""
 
+# 今の客の椀を何回廃棄したか（[廃棄する]で作り直すたびに+1）。客が替わる
+# （_load_current_customer）たびにリセットする一時状態。現在の椀自体はリセットで
+# 消えてしまうので、廃棄したという事実を別に持っておかないと計器盤から見えなくなる。
+var _bowl_discard_count := 0
+
 
 func _ready() -> void:
 	# DESIGN.md 7.7: ADJUSTが在庫連動になったので、ゲーム開始時に1回だけ初期在庫を積む。
@@ -134,6 +139,7 @@ func _set_runner_for_phase(phase: int) -> void:
 ## いま接客中の客の Event 列を flow.runner に載せる。
 ## 客がいなければ空 runner（＝即 DONE）にして、OPEN を CLOSE へ進められる状態にする。
 func _load_current_customer() -> void:
+	_bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	if _open != null and _open.has_more():
 		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
 	else:
@@ -168,13 +174,34 @@ func _on_complete_input_pressed() -> void:
 ## （DESIGN.md 9.5 STEP 13「EventRunner は味付け効果を処理しない」）。
 ## STEP 13/14 と違い、進めない（advanceしない）。3枠まで何度でも選べるようにするため、
 ## ADJUST から進むのは [入力完了]（提供）を押したときだけにする。
-## 7.7: 選ぶたびに在庫を1減らす。在庫切れ（ボタン側で無効化済みだが二重に防ぐ）なら何もしない。
+## 7.7: 選ぶたびに在庫を servings 分減らす（DESIGN.md 7.6「モブ客の仕様」：
+## 「鍋 −人数分 / 具材 −人数分」。1つの椀で servings 人分をまとめて作る以上、
+## 具材も鍋（consume_soup）と同じく人数分＝1人前の名前あり客なら1個のまま）。
+## 在庫切れ（ボタン側で無効化済みだが二重に防ぐ）なら何もしない。
 func _on_ingredient_selected(ingredient_id: String) -> void:
-	if int(GameState.inventory.get(ingredient_id, 0)) <= 0:
+	var servings := _current_servings()
+	if int(GameState.inventory.get(ingredient_id, 0)) < servings:
 		return
 	if _open != null:
 		_open.add_to_bowl(ingredient_id)
-	GameState.remove_inventory(ingredient_id, 1)
+	GameState.remove_inventory(ingredient_id, servings)
+	_refresh()
+
+
+## [廃棄する] のハンドラ。取り分けた一杯を無駄にしてから、**同じ客への椀を作り直す**
+## （客を進めない＝EventRunnerはADJUSTに留まったまま。SERVE/REACTには一切触れない
+## ので、EventRunnerの「optionsを持つEventは入力待ちで止まる」ルールは無傷）。
+## 判定・売上・評判は発生しない：judge_bowlを呼んでいない＝判定自体が無いため。
+## servingsは _current_servings()（REACTをまだ経由せず先読みする既存の仕組み）を使う。
+func _on_discard_pressed() -> void:
+	if _open == null:
+		return
+	var servings := _current_servings()
+	GameState.consume_soup(servings)
+	GameState.record_served({ "customer": str(_open.current_customer()), "sale": 0,
+		"servings": servings, "discarded": true })
+	_bowl_discard_count += 1
+	_open.reset_bowl()
 	_refresh()
 
 
@@ -554,17 +581,24 @@ func _update_options_row() -> void:
 	var at_cap := false
 	if _open != null:
 		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
+	var servings := _current_servings()
 	for option in cur["options"]:
 		var opt_id: String = str(option.get("id", ""))
 		# 7.7: options は接客開始時に1回だけ組み立てた在庫のスナップショット（MARKETの
 		# enabledと同じく読むだけで書き換えない）。同じ接客中に選び尽くして0になる分は
 		# ここでライブの在庫数を見て無効化し直す（水場ボタンと同じ形）。
-		var out_of_stock: bool = int(GameState.inventory.get(opt_id, 0)) <= 0
+		# DESIGN.md 7.6「具材 −人数分」：1回選ぶと servings 個消費するので、
+		# servings に満たない残りしか無ければ押せない（黙って端数だけ消費させない）。
+		var out_of_stock: bool = int(GameState.inventory.get(opt_id, 0)) < servings
 		var btn := Button.new()
 		btn.text = str(option.get("label", opt_id if opt_id != "" else "?"))
 		btn.disabled = at_cap or out_of_stock
 		btn.pressed.connect(_on_ingredient_selected.bind(opt_id))
 		_options_row.add_child(btn)
+	# [廃棄する]：ADJUST中は常に押せる（枠が0〜3個どの状態でも／at_cap・在庫切れに
+	# 関係なく）。鍋モードの[戻る]・MARKETの[市場を出る]と同じ「今のモードに常駐する
+	# 専用ボタン」の扱い。
+	_add_pot_button("廃棄する", false, _on_discard_pressed)
 
 
 ## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。
@@ -603,8 +637,10 @@ func _format_game_state() -> String:
 	#   soup       … 仕込んだ鍋と残量・濃さ。仕込み前はnone。翌日リセット
 	#   pot        … 鍋に足せる資源。水は今夜だけ（soupの中）、予備ベースは翌日へ持ち越す
 	#                 （GameState直下）。寿命が違うので soup とは行を分けている
-	#   served     … 接客数（served配列のsize）と杯数（servingsの合計）。翌日リセット
-	#                 7.6 で1回の接客が複数杯になったので、両方を出さないと誤読する
+	#   served     … 接客数と杯数（servingsの合計）。翌日リセット。どちらも廃棄
+	#                 （discarded:true）を除く＝客に何も出していないので混ぜない
+	#   discarded  … 廃棄した件数（廃棄機能の追加時に新設。servedとは別枠で見せる）
+	#                 7.6 で1回の接客が複数杯になったので、接客数と杯数は両方出さないと誤読する
 	# ラベルは「項目(意味): 値」の形。値の算出ロジックは変更していない。
 	var water_doses := 0
 	if GameState.soup != null:
@@ -620,18 +656,37 @@ func _format_game_state() -> String:
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
 		"pot(鍋の資源): 水%d回 / 予備ベース%d単位" % [water_doses, GameState.reserve_base_units],
-		"served(接客数/杯数): %d / %d" % [GameState.served.size(), _served_servings()],
+		"served(接客数/杯数): %d / %d" % [_served_count(), _served_servings()],
+		"discarded(廃棄数): %d 件" % _discarded_count(),
 	]))
 
 
-## 今夜出した杯数の合計（ServedRecord の servings を足す）。
-## served.size() は「接客イベント数」であって杯数ではない（モブ4人＝1接客4杯）。
+## 今夜出した接客数（served配列のうち discarded ではないものの件数）。
+func _served_count() -> int:
+	var count := 0
+	for record in GameState.served:
+		if record is Dictionary and not bool(record.get("discarded", false)):
+			count += 1
+	return count
+
+
+## 今夜出した杯数の合計（ServedRecord の servings を足す）。discarded は除く
+## （客に何も出していないので、sale・servingsの集計に混ぜない）。
 func _served_servings() -> int:
 	var total := 0
 	for record in GameState.served:
-		if record is Dictionary:
+		if record is Dictionary and not bool(record.get("discarded", false)):
 			total += int(record.get("servings", 1))
 	return total
+
+
+## 廃棄した件数（served配列のうち discarded:true のものの件数）。
+func _discarded_count() -> int:
+	var count := 0
+	for record in GameState.served:
+		if record is Dictionary and bool(record.get("discarded", false)):
+			count += 1
+	return count
 
 
 ## 在庫の合計個数（GameState.inventory は { id: 個数 } の辞書なので、
@@ -779,6 +834,10 @@ func _format_bowl() -> String:
 		var in_bowl: bool = _open.current_bowl.get("has_favorite", false)
 		lines.append("favorite(好物): %s → %s" % [favorite, "入っている" if in_bowl else "入っていない"])
 	lines.append("judge(判定): %s" % judge_text)
+	# 廃棄回数（0回なら出さない）。椀自体は廃棄のたびに作り直されて消えるので、
+	# 「この客で何回作り直したか」は current_bowl とは別に _bowl_discard_count で持つ。
+	if _bowl_discard_count > 0:
+		lines.append("discard_count(この客での廃棄回数): %d回" % _bowl_discard_count)
 	var reaction := _current_reaction_text()
 	if reaction != "":
 		lines.append("reaction(反応): 【%s】%s" % [result, reaction])

@@ -138,13 +138,13 @@ func set_soup(base_id: String, tags: Array, servings: int = 0,
 
 ## 鍋から取り分けた分だけ残量を減らす入口（DESIGN.md 7.6）。
 ## apply_money と同じ方針で、受け側から soup を直接触らせない。
-## 今の段階では 0 未満にもなる。尽きたときの選択（断る／薄めて出す）は後の段階なので、
-## ここでは止めない。負の値が出れば「足りないのに出した」と計器盤で見えるので、
-## 次の段階を作るときの入口としてむしろ有用。
+## 0未満にはならないようクランプする（廃棄機能の追加時に決定：「残量-2杯」のような
+## 見た目の不自然さを避けるため。尽きた後に何度でも廃棄できてしまう点はあえて許容する
+## ＝稀なケースなので今は気にしない、という判断）。
 func consume_soup(servings: int) -> void:
 	if soup == null:
 		return
-	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) - servings
+	soup["remaining_servings"] = maxi(int(soup.get("remaining_servings", 0)) - servings, 0)
 
 
 ## 鍋を濃くする（DESIGN.md 7.6：時間帯が進むと煮詰まる）。上限で頭打ち。

@@ -116,6 +116,14 @@ func add_to_bowl(ingredient_id: String) -> void:
 	current_bowl.additions.append(ingredient_id)
 
 
+## 椀を作り直す（[廃棄する]の後、同じ客へ再挑戦するため）。additionsを空にした
+## 新しい椀に差し替えるだけ＝_new_bowl()をそのまま使う。judge_bowlの結果（result等）も
+## 新しい椀には無いので、自動的に「判定前」の状態へ戻る。鍋の消費・記録は受け側
+## （DebugPanel._on_discard_pressed）が椀を作り直す前に済ませる。
+func reset_bowl() -> void:
+	current_bowl = _new_bowl(current_customer())
+
+
 ## 3枠に入れた具材だけの tags（DESIGN.md 9.5 STEP 17.6：判定に使うのはこちら）。
 ## 鍋（soup）は含めない。鍋はその日の全客に共通で、特定の客への判断ではないため
 ## 「今日の鍋がたまたま合った」という偶然を評価に混ぜない。
