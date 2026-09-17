@@ -52,8 +52,19 @@ var _market_visited_water := false
 # リセットする。水場のように専用Eventを持たない店の text を表示するための一時状態。
 var _market_last_text := ""
 
+# 今どの店の中にいるか（例: "produce"）。空文字なら市場のトップ（7店舗選択）にいる。
+# 鍋モード（_pot_mode）と同じ「EventRunnerには触れないUIだけの入れ子」。
+# PREPに入るたびリセットする。
+var _market_shop := ""
+
 
 func _ready() -> void:
+	# DESIGN.md 7.7: ADJUSTが在庫連動になったので、ゲーム開始時に1回だけ初期在庫を積む。
+	# is_empty()でガード＝シーン再読み込み等で_ready()が二度走っても二重に積まない。
+	if GameState.inventory.is_empty():
+		var starting: Dictionary = Day1Events.initial_inventory()
+		for id in starting:
+			GameState.add_inventory(id, int(starting[id]))
 	_set_runner_for_phase(GameState.phase)
 
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
@@ -96,9 +107,10 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pending_shortage_ev = null
 	_pot_mode = false
 	_pot_water_added = false
-	# 7.7: 市場の水場訪問フラグ・直前のセリフも PREP に入るたびリセットする。
+	# 7.7: 市場の水場訪問フラグ・直前のセリフ・店の中にいるかも PREP に入るたびリセットする。
 	_market_visited_water = false
 	_market_last_text = ""
+	_market_shop = ""
 	if phase == GameState.Phase.WAKE:
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
@@ -151,14 +163,18 @@ func _on_complete_input_pressed() -> void:
 	_complete_input_and_advance()
 
 
-## ADJUST の具材ボタンが押されたときのハンドラ（STEP 17.6）。
+## ADJUST の具材ボタンが押されたときのハンドラ（STEP 17.6 → 7.7で在庫連動）。
 ## 「椀へ具材を足す」のは EventRunner ではなく受け側＝ここの責務
 ## （DESIGN.md 9.5 STEP 13「EventRunner は味付け効果を処理しない」）。
 ## STEP 13/14 と違い、進めない（advanceしない）。3枠まで何度でも選べるようにするため、
 ## ADJUST から進むのは [入力完了]（提供）を押したときだけにする。
+## 7.7: 選ぶたびに在庫を1減らす。在庫切れ（ボタン側で無効化済みだが二重に防ぐ）なら何もしない。
 func _on_ingredient_selected(ingredient_id: String) -> void:
+	if int(GameState.inventory.get(ingredient_id, 0)) <= 0:
+		return
 	if _open != null:
 		_open.add_to_bowl(ingredient_id)
+	GameState.remove_inventory(ingredient_id, 1)
 	_refresh()
 
 
@@ -209,14 +225,46 @@ func _on_add_base_pressed() -> void:
 
 
 ## 市場の店ボタンが押されたときのハンドラ（DESIGN.md 7.7）。ADJUSTの具材ボタンと同じく
-## 進めない（EventRunnerには触れない）。青果〜端材半端物は購入を未実装なので、
+## 進めない（EventRunnerには触れない）。乾物調味料〜端材半端物は購入を未実装なので、
 ## 押せる状態にならない限りここには来ない（data側の"enabled"で塞いである）。
 func _on_market_stall_selected(id: String) -> void:
 	match id:
 		"water":
 			_visit_water_stall()
+		"produce":
+			_market_shop = "produce"  # 永順青果の店内へ（鍋モードと同じ、UIだけの入れ子）
 		_:
-			pass  # 対象外（青果・乾物調味料・豆腐麺・海鮮・端材半端物はDay2以降）
+			pass  # 対象外（乾物調味料・豆腐麺・海鮮・端材半端物はまだ中身が無い）
+	_refresh()
+
+
+## 店名から、その店の商品リストを引く。店ごとの商品データは day1_events.gd 側
+## （"today's shop"の事実として、enabledと同じ置き場所）。未実装の店は空配列。
+func _shop_goods(shop: String) -> Array:
+	match shop:
+		"produce":
+			return Day1Events.produce_goods()
+		_:
+			return []
+
+
+## 店の商品ボタンが押されたときのハンドラ（DESIGN.md 7.7）。店を出ずその場に留まる
+## （何度でも買える）。所持金が足りない商品はボタン側で無効化済みなので、ここでは
+## 二重チェックだけ（防御的）。
+func _on_shop_item_selected(shop: String, id: String) -> void:
+	for good in _shop_goods(shop):
+		if str(good.get("id", "")) == id:
+			var price: int = int(good.get("price", 0))
+			if GameState.money >= price:
+				GameState.apply_money(-price)
+				GameState.add_inventory(id, GameState.INGREDIENT_SERVINGS_PER_PURCHASE)
+			break
+	_refresh()
+
+
+## [市場に戻る]（店から出る）。鍋モードの[戻る]と同じくEventRunnerには触れない。
+func _on_shop_exit_pressed() -> void:
+	_market_shop = ""
 	_refresh()
 
 
@@ -485,6 +533,14 @@ func _update_options_row() -> void:
 		return
 
 	if cur.get("type", "") == "MARKET":
+		if _market_shop != "":
+			for good in _shop_goods(_market_shop):
+				var gid: String = str(good.get("id", ""))
+				var price: int = int(good.get("price", 0))
+				_add_pot_button("%s（-%d）" % [str(good.get("label", gid)), price],
+					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid))
+			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
+			return
 		for option in cur.get("options", []):
 			var id: String = str(option.get("id", ""))
 			var disabled: bool = not bool(option.get("enabled", true))
@@ -499,10 +555,15 @@ func _update_options_row() -> void:
 	if _open != null:
 		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
 	for option in cur["options"]:
+		var opt_id: String = str(option.get("id", ""))
+		# 7.7: options は接客開始時に1回だけ組み立てた在庫のスナップショット（MARKETの
+		# enabledと同じく読むだけで書き換えない）。同じ接客中に選び尽くして0になる分は
+		# ここでライブの在庫数を見て無効化し直す（水場ボタンと同じ形）。
+		var out_of_stock: bool = int(GameState.inventory.get(opt_id, 0)) <= 0
 		var btn := Button.new()
-		btn.text = str(option.get("label", option.get("id", "?")))
-		btn.disabled = at_cap
-		btn.pressed.connect(_on_ingredient_selected.bind(str(option.get("id", ""))))
+		btn.text = str(option.get("label", opt_id if opt_id != "" else "?"))
+		btn.disabled = at_cap or out_of_stock
+		btn.pressed.connect(_on_ingredient_selected.bind(opt_id))
 		_options_row.add_child(btn)
 
 
@@ -535,6 +596,8 @@ func _format_game_state() -> String:
 	#   money      … 所持金。支払いで減り売上で増える
 	#   reputation … 店の評判値。REACT の判定結果で増減する（7.6）
 	#   inventory  … 持っている具材・調味料の合計個数（辞書 { id: 個数 } の値を合計。7.7）
+	#   inventory_detail … 品目ごとの内訳（7.7：市場で複数品目を買うと合計数だけでは
+	#                 「何が増えたか」が分からないため、id:個数の一覧を別行で出す）
 	#   rumors     … スマホで得た噂の件数。今は未使用
 	#   phase      … 一日のどの段階か（WAKE→PREP→OPEN→CLOSE→NEXT_DAY）
 	#   soup       … 仕込んだ鍋と残量・濃さ。仕込み前はnone。翌日リセット
@@ -552,6 +615,7 @@ func _format_game_state() -> String:
 		"money(所持金): %d" % GameState.money,
 		"reputation(評判): %d" % GameState.reputation,
 		"inventory(在庫数): %d 個" % _inventory_total(),
+		"inventory_detail(内訳): %s" % _format_inventory_detail(),
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
@@ -577,6 +641,18 @@ func _inventory_total() -> int:
 	for count in GameState.inventory.values():
 		total += int(count)
 	return total
+
+
+## 在庫の品目別内訳（7.7：市場で何を買ったかを目で確認できるようにするため）。
+## 例: "winter_melon:5 bitter_melon:13"。空なら "(なし)"。
+## キーの並びはDictionaryの挿入順（買った順）でよい・ソートはしない。
+func _format_inventory_detail() -> String:
+	if GameState.inventory.is_empty():
+		return "(なし)"
+	var parts := PackedStringArray()
+	for id in GameState.inventory:
+		parts.append("%s:%d" % [str(id), int(GameState.inventory[id])])
+	return " ".join(parts)
 
 
 func _format_runner() -> String:

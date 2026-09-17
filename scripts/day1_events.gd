@@ -59,21 +59,41 @@ static func prep_events() -> Array:
 
 ## 市場の選択肢（DESIGN.md 7.7）。"enabled" で今日押せるかをデータ側に持たせる
 ## （「今日どの店が開いているか」は日ごとに変わる事実なので、is_mob等と同じくデータ側）。
-## Day1: 食肉仲卸は自動で済んでいる（PREPの先頭で既にTEXT→PAY→ADD_ITEM済み）ので
-##   常に無効。青果〜端材半端物は購入を未実装なので常に無効。水場だけ押せる。
+## 食肉仲卸は自動で済んでいる（PREPの先頭で既にTEXT→PAY→ADD_ITEM済み）ので常に無効。
+## 青果〜端材半端物は2日目から解禁（DESIGN.md 7.7「他の区画は2日目から解禁」）。
+##   青果（永順青果）だけ実際に買える（produce_goods参照）。他4店はまだ中身が無い
+##   （押せるようになるだけで、選んでも何も起きない）。
+##   >= 2 なので3日目以降も開いたまま（店ごとに解禁日を変える仕組みは対象外）。
+## 水場は初日から常に押せる。
 ## "text" は訪問時のセリフ（DESIGN.md 7.7「支払いのトーン」表：水場＝生活の愚痴混じり）。
 ##   水場は市場外のEventとしては並べないので、この text をDebugPanel側が読んで表示する
 ##   （_visit_water_stall 参照）。
+## 注意: この enabled は prep_events() が呼ばれた瞬間（＝PREPに入った瞬間）に固定される。
+##   Event データは読むだけで書き換えない原則のため、MARKET画面を表示したまま
+##   day_count が変わっても、その場では反映されない（次にPREPへ入り直すまで）。
 static func _market_options() -> Array:
+	var day2_unlocked: bool = GameState.day_count >= 2
 	return [
 		{ "id": "meat_wholesale", "label": "食肉仲卸（訪問済み）", "enabled": false },
-		{ "id": "produce",        "label": "青果",       "enabled": false },
-		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": false },
-		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": false },
-		{ "id": "seafood",        "label": "海鮮",       "enabled": false },
-		{ "id": "scraps",         "label": "端材半端物", "enabled": false },
+		{ "id": "produce",        "label": "青果",       "enabled": day2_unlocked },
+		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": day2_unlocked },
+		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": day2_unlocked },
+		{ "id": "seafood",        "label": "海鮮",       "enabled": day2_unlocked },
+		{ "id": "scraps",         "label": "端材半端物", "enabled": day2_unlocked },
 		{ "id": "water",          "label": "水場",       "enabled": true,
 			"text": "「今月分、払っとけよ」「はいはい、分かってる」" },
+	]
+
+
+## 永順青果の商品（DESIGN.md 7.7）。1回選ぶと1袋＝GameState.INGREDIENT_SERVINGS_PER_PURCHASE
+## 杯分を買える（何度でも買える。所持金が足りなければ受け側がボタンを無効化する）。
+## 価格はPRICING_SPEC.md 6章「安い例」の冬瓜=20を基準。苦瓜はPRICING_SPEC.md 7章では
+## 調味料10杯分25だが、ここでは冬瓜と揃えて5杯分梱包に変更したための仮の半額（13）。
+## §7の「10杯分」表記との食い違いはPRICING_SPEC.md側の追記が別途必要（今は保留）。
+static func produce_goods() -> Array:
+	return [
+		{ "id": "winter_melon", "label": "冬瓜", "price": 20 },
+		{ "id": "bitter_melon", "label": "苦瓜", "price": 13 },
 	]
 
 
@@ -156,19 +176,43 @@ static func customer_events(customer_id: String) -> Array:
 	return events
 
 
-## ADJUSTの選択肢（DESIGN.md 9.5 STEP17.6：Day1の在庫7種。調味料3＋具材4）。
-## 全客共通なのでここに1箇所だけ置く。塩漬けライム・苦瓜はDay1の在庫に無いので含めない
-## （在庫が選択肢を決める、という方針。定義自体はIngredientsに残したまま）。
+## Day1開始時の初期在庫（DESIGN.md 7.7）。塩漬けライム・苦瓜は含めない
+## （苦瓜は市場で買って初めて手に入る、という導線を保つため。定義自体はIngredientsに残したまま）。
+## 調味料3種と具材4種で数量に差をつける：
+##   調味料（少量で効く・味付け的な使い方）は多め＝各10個
+##   具材（実際の食材として消費される）は少なめ＝各4個。初日から在庫を気にする場面を作る
+## soup_base（食肉仲卸のベース）はここに含めない＝ADJUSTの対象外の別枠。
+static func initial_inventory() -> Dictionary:
+	return {
+		"nam_prik_pao": 10, "coconut_milk": 10, "herbal_sauce": 10,
+		"offal": 4, "meat_ball": 4, "tofu": 4, "broken_wrapper": 4,
+	}
+
+
+## ADJUSTボタンの表示文言（「を入れる」action framing）。id→ラベルのみで、
+## 在庫の有無・個数は _adjust_options() 側（GameState.inventory）が決める。
+## pickled_lime・bitter_meronのように今は初期在庫に無い（＝市場等で買わないと出てこない）
+## idの分も、買った瞬間ラベル無しにならないよう先に用意しておく。
+const _ADJUST_LABELS := {
+	"nam_prik_pao": "ナムプリックパオを入れる", "coconut_milk": "ココナッツミルクを入れる",
+	"pickled_lime": "塩漬けライムを入れる", "herbal_sauce": "薬膳ナンプラーだれを入れる",
+	"bitter_melon": "苦瓜を入れる", "offal": "下処理したモツを入れる",
+	"meat_ball": "くず肉団子を入れる", "tofu": "豆腐を入れる",
+	"broken_wrapper": "割れた餃子皮を入れる", "winter_melon": "冬瓜を入れる",
+}
+
+
+## ADJUSTの選択肢（DESIGN.md 9.5 STEP17.6 → 7.7で在庫連動に変更）。
+## 全客共通なのでここに1箇所だけ置く。GameState.inventory にある id だけを出す
+## （＝在庫が選択肢を決める）。remove_inventory は0以下でキーごと削除する仕様なので、
+## 辞書に残っている＝在庫1個以上、のチェックは不要。
 static func _adjust_options() -> Array:
-	return [
-		{ "id": "nam_prik_pao",   "label": "ナムプリックパオを入れる" },
-		{ "id": "coconut_milk",   "label": "ココナッツミルクを入れる" },
-		{ "id": "herbal_sauce",   "label": "薬膳ナンプラーだれを入れる" },
-		{ "id": "offal",          "label": "下処理したモツを入れる" },
-		{ "id": "meat_ball",      "label": "くず肉団子を入れる" },
-		{ "id": "tofu",           "label": "豆腐を入れる" },
-		{ "id": "broken_wrapper", "label": "割れた餃子皮を入れる" },
-	]
+	var options := []
+	for id in GameState.inventory:
+		if id == "soup_base":   # 鍋のベースはADJUSTの対象外
+			continue
+		options.append({ "id": id, "label": _ADJUST_LABELS.get(id, str(id)) })
+	return options
 
 
 ## 客ごとに変わる差分だけ（売上は DESIGN.md 6章の Day1 台本準拠：45 / 40 / 55）。

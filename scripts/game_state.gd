@@ -22,6 +22,11 @@ const PRICE_PER_SERVING := 50
 # 値段と同じくゲーム共通のルール。
 const SERVINGS_PER_BASE := 10
 
+# 市場で具材を1回買うと足される杯数（DESIGN.md 7.7：具材は5杯分の小分けで販売）。
+# ベースと違い袋／単位の2段管理はしない。inventoryの個数＝そのまま使える杯数として持つ
+# （将来ADJUSTで消費するとき remove_inventory(id, 1) するだけで済む形にしておく）。
+const INGREDIENT_SERVINGS_PER_PURCHASE := 5
+
 # 鍋の操作の効き方（DESIGN.md 7.6「状態の変化」の表）。値をここに集約する。
 const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）
 const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）

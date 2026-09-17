@@ -10,8 +10,10 @@ class_name Ingredients
 ## STEP 17.5: 5つの味（調味料）を用意。tagsは1個ずつ、大文字（HOT等）で統一
 ## （鍋のbase_tagsは"meaty"等の小文字のままで別の名前空間。衝突しない）。
 ## STEP 17.6: 具材4種を追加。味とは別軸（POWER/GENTLE/FILLING等、DESIGN.md 9.5 STEP17.6）。
-## Day1の在庫はこのうち7種（調味料3＋具材4）。pickled_lime/bitter_meronは
-## 定義のみでDay1では使わない（在庫が選択肢を決める＝day1_events.gd側で絞る）。
+## Day1の在庫はこのうち7種（調味料3＋具材4）。pickled_limeは定義のみで未使用
+## （在庫が選択肢を決める＝day1_events.gd側で絞る）。
+## DESIGN.md 7.7: 永順青果の商品として winter_melon（冬瓜）を追加。bitter_melon（苦瓜）は
+## STEP17.6で定義済みだったものを購入対象として使い始める（tagsの定義自体は変更なし）。
 
 const _TAGS := {
 	"nam_prik_pao": ["HOT"],
@@ -23,6 +25,7 @@ const _TAGS := {
 	"meat_ball": ["POWER"],
 	"tofu": ["GENTLE"],
 	"broken_wrapper": ["FILLING"],
+	"winter_melon": ["GENTLE"],
 }
 
 
