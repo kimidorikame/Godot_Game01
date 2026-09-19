@@ -29,6 +29,25 @@ const _TAGS := {
 }
 
 
+# 腐る品目（腐敗管理の対象）。調味料の一部・冬瓜・ベースは腐らない。
+const _PERISHABLE := ["coconut_milk", "offal", "meat_ball", "tofu", "broken_wrapper", "bitter_melon"]
+
+# 通知テキスト用の日本語名（「〜を入れる」ではない名詞形）。腐る品目の分だけ持つ。
+const _NAMES := {
+	"coconut_milk": "ココナッツミルク", "offal": "モツ", "meat_ball": "くず肉団子",
+	"tofu": "豆腐", "broken_wrapper": "割れた餃子皮", "bitter_melon": "苦瓜",
+}
+
+
+static func is_perishable(id: String) -> bool:
+	return _PERISHABLE.has(id)
+
+
+## id から日本語名を引く。未知 id はそのまま id を返す。
+static func name_for(id: String) -> String:
+	return _NAMES.get(id, id)
+
+
 ## id から tags[] を引く。未知 id は空配列（フォールバック）。
 ## 呼び出し側が配列を書き換えても _TAGS 本体に影響しないよう複製して返す。
 static func tags_for(id: String) -> Array:

@@ -22,10 +22,24 @@ const PRICE_PER_SERVING := 50
 # 値段と同じくゲーム共通のルール。
 const SERVINGS_PER_BASE := 10
 
+# 評判 → その日のモブ人数（DESIGN.md 7.6「評判→翌日のモブ客数」）。ゲーム共通のルール。
+# [評判の下限, 人数の上限] を大きい順に並べ、最初に当たった行を使う。人数は1〜上限の乱数。
+# 評判が0未満なら0人（テーブルの外）。数値は仮。上限・逓減の調整は今回は対象外。
+const MOB_COUNT_TABLE := [[80, 8], [50, 6], [20, 4], [0, 3]]
+
+# Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない）。
+const DAY1_MOB_COUNT := 4
+
 # 市場で具材を1回買うと足される杯数（DESIGN.md 7.7：具材は5杯分の小分けで販売）。
 # ベースと違い袋／単位の2段管理はしない。inventoryの個数＝そのまま使える杯数として持つ
 # （将来ADJUSTで消費するとき remove_inventory(id, 1) するだけで済む形にしておく）。
 const INGREDIENT_SERVINGS_PER_PURCHASE := 5
+
+# 具材の腐敗（購入日を1日目に数える経過日数。どの品目が腐るかは Ingredients.is_perishable）。
+#   1〜2日目 … 新鮮／3日目 … 傷んでいる（使えるが判定が-1段階）／4日目以降 … 自動破棄
+# 腐敗の速度は全品目一律（品目ごとに変える仕組みは対象外）。
+const SPOIL_DAMAGED_DAY := 3
+const SPOIL_DISCARD_DAY := 4
 
 # 鍋の操作の効き方（DESIGN.md 7.6「状態の変化」の表）。値をここに集約する。
 const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）
@@ -44,6 +58,11 @@ var reputation: int = 0
 # 市場での複数購入を表すため、文字列配列から数量辞書に変更）。
 # 個数が0になったキーは削除する＝「持っていない」を辞書に無い状態で表現する。
 var inventory: Dictionary = {}
+
+# 品目ごとの「最後に補充した日」{ id: day_count }。腐敗の経過日数の基準（簡易版）。
+# 個別ロットは持たない＝買い足すと品目全体が新しい扱いになる。inventory と同じ寿命で、
+# 個数0でキーが消えるときは一緒に消す。経過日数は保存せず都度計算する（age_of）。
+var stocked_day: Dictionary = {}
 
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
 var rumors: Array = []
@@ -88,6 +107,25 @@ func is_collection_day() -> bool:
 	return day_count == 1
 
 
+## 評判からその日のモブ人数を決める（乱数を引くので呼ぶたびに値が変わり得る）。
+## 呼び出し側は「その日のEvent列を作る時点で1回だけ」呼んで、結果を使い回すこと。
+func mob_count_for_reputation(rep: int) -> int:
+	if rep < 0:
+		return 0
+	for row in MOB_COUNT_TABLE:
+		if rep >= int(row[0]):
+			return randi_range(1, int(row[1]))
+	return 0
+
+
+## 今日のモブ人数。Day1は固定、Day2以降は評判で決まる（is_collection_day() と同じく
+## 「今日が何日目か」というルールなので GameState に置く）。
+func mob_count_today() -> int:
+	if day_count == 1:
+		return DAY1_MOB_COUNT
+	return mob_count_for_reputation(reputation)
+
+
 ## 金額の増減をまとめて通す入口。
 ## 支払いも売上も同じここを通す（DESIGN.md「金額処理はすべて money -= x で同じ」）。
 ## 差はデータ側の text（トーン）で持ち、ここでは数値だけ扱う。
@@ -105,8 +143,10 @@ func apply_reputation(delta: int) -> void:
 ## 在庫に item を count 個足す入口。ADD_ITEM Event を受けた側から呼ぶ。
 ## apply_money と同じく「在庫をいじる唯一の入口」を用意し、受け側から
 ## inventory 辞書を直接触らせない。
+## 腐敗の基準日として、補充した日（day_count）を品目ごとに記録する。
 func add_inventory(item, count: int = 1) -> void:
 	inventory[item] = int(inventory.get(item, 0)) + count
+	stocked_day[item] = day_count
 
 
 ## 在庫から item を count 個抜く入口。add_inventory の裏返し。
@@ -118,8 +158,33 @@ func remove_inventory(item, count: int = 1) -> void:
 	var remaining: int = int(inventory.get(item, 0)) - count
 	if remaining <= 0:
 		inventory.erase(item)
+		stocked_day.erase(item)
 	else:
 		inventory[item] = remaining
+
+
+## 品目の経過日数（補充した日を1日目とする）。在庫が無い・記録が無ければ0。
+func age_of(item) -> int:
+	if not stocked_day.has(item):
+		return 0
+	return day_count - int(stocked_day[item]) + 1
+
+
+## 傷んでいる状態か（腐る品目で、ちょうど3日目）。使えるが判定で-1段階。
+func is_damaged(item) -> bool:
+	return Ingredients.is_perishable(str(item)) and age_of(item) == SPOIL_DAMAGED_DAY
+
+
+## 腐りきった品目（4日目以降）を在庫から個数ごと消し、消した id の配列を返す。
+## 呼び出し側（PREPに入る瞬間）が1回だけ呼び、返り値を通知テキストに使う。
+func discard_spoiled_inventory() -> Array:
+	var discarded := []
+	for item in inventory.keys():
+		if Ingredients.is_perishable(str(item)) and age_of(item) >= SPOIL_DISCARD_DAY:
+			inventory.erase(item)
+			stocked_day.erase(item)
+			discarded.append(item)
+	return discarded
 
 
 ## 今日の共有鍋を作る入口。SET_SOUP Event を受けた側から呼ぶ（STEP 12）。

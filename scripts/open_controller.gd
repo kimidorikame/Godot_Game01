@@ -108,12 +108,17 @@ func _new_bowl(customer_id: Variant) -> Dictionary:
 ## 重複可（同じ id を複数回足せる。将来「強さ」を持たせる余地を残すため・STEP 17.6）。
 ## 上限（MAX_ADDITIONS）に達している、または椀が無い（current_bowl == {}）ときは何もしない
 ## （UI側でも上限に達したら選択肢を無効化するが、ここでも二重に防ぐ）。
-func add_to_bowl(ingredient_id: String) -> void:
+## spoiled: 選んだ時点でその具材が傷んでいたか（腐敗・3日目）。判定時まで待たないのは、
+## 選んで在庫が0になるとキーが消え、状態を引けなくなるため。1つでも傷んだ具材を入れたら
+## used_spoiled を立てる（作り直し reset_bowl で新しい椀になれば自然に消える）。
+func add_to_bowl(ingredient_id: String, spoiled: bool = false) -> void:
 	if not current_bowl.has("additions"):
 		return
 	if current_bowl.additions.size() >= MAX_ADDITIONS:
 		return
 	current_bowl.additions.append(ingredient_id)
+	if spoiled:
+		current_bowl["used_spoiled"] = true
 
 
 ## 椀を作り直す（[廃棄する]の後、同じ客へ再挑戦するため）。additionsを空にした
@@ -152,7 +157,8 @@ func bowl_final_tags() -> Array:
 ##   一致0個     → BAD（イマイチ）※favorite があっても上がらない
 ##   一致1個     → OK（普通）        / favorite あり → GOOD
 ##   一致2個以上 → GOOD（美味しい）  / favorite あり → GREAT（とても好み）
-##   濃さ 1 または 5 → ここで求めた評価をさらに1段下げる（GREAT→GOOD→OK→BAD）
+##   濃さ 1 または 5、または傷んだ具材を使った → ここで求めた評価をさらに1段下げる
+##     （GREAT→GOOD→OK→BAD）。両方成立しても下げるのは1段階だけ
 ## 一致0で上がらないのは、合わない一杯に好物を入れられても嬉しくないため。
 ## favorite は「基本を押さえた上のボーナス」であって救済ではない（DESIGN.md）。
 ## **鍋の状態で評価を上げることはしない**。濃さ2〜4は影響なし、1と5だけが足を引っ張る。
@@ -195,10 +201,16 @@ func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 	if GameState.soup != null:
 		strength = int(GameState.soup.get("strength", 3))
 	var result := base_result
-	if strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX:
+	# 下げる条件は「濃さが1か5」または「傷んだ具材を使った」。どちらか片方でも両方でも
+	# 下げるのは1段階だけ（重ねて-2にはしない）。
+	var bad_strength: bool = strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX
+	var used_spoiled: bool = bool(current_bowl.get("used_spoiled", false))
+	if bad_strength or used_spoiled:
 		var idx: int = maxi(RESULT_ORDER.find(base_result) - 1, 0)
 		result = RESULT_ORDER[idx]
 
+	current_bowl["penalty_strength"] = bad_strength
+	current_bowl["penalty_spoiled"] = used_spoiled
 	current_bowl["result"] = result
 	current_bowl["base_result"] = base_result
 	current_bowl["strength_at_judge"] = strength

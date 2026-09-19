@@ -31,13 +31,23 @@ static func wake_events() -> Array:
 ##   （TEXT→PAY→ADD_ITEMがMARKETの前に並ぶだけ）。水場は市場滞在中に押せる
 ##   選択肢の1つになり、TEXTとしては並べない（受け側が直接処理する。詳細は
 ##   DebugPanel._visit_water_stall / _on_market_exit_pressed）。
-static func prep_events() -> Array:
-	var events := [
+## 具材の腐敗: spoiled は今朝PREPに入った瞬間に破棄された品目 id の配列（受け側が
+##   GameState.discard_spoiled_inventory() で先に消して渡す）。あれば先頭に一言テキストを
+##   1つ足す（データのみ。破棄自体はここでは行わない）。
+static func prep_events(spoiled: Array = []) -> Array:
+	var events := []
+	if not spoiled.is_empty():
+		var names := PackedStringArray()
+		for id in spoiled:
+			names.append(Ingredients.name_for(str(id)))
+		events.append({ "type": "TEXT",
+			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
+	events.append_array([
 		{ "type": "TEXT", "text": "食肉売場へ来た" },
 		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
 		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
 		{ "type": "MARKET", "text": "（市場をぶらつく）", "options": _market_options() },
-	]
+	])
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
@@ -117,9 +127,14 @@ static func close_events() -> Array:
 ##   時間帯名と客リストを1つの辞書に同居させる（名前を別配列で並行管理しない）。
 ##   将来ここに「その時間帯のモブ人数」「時間帯の切り替わりテキスト」を足せる。
 ##   客の増減も時間帯の増減も、この関数の中だけで済む。
-static func customer_schedule() -> Array:
+## 7.6: mob_count（その日のモブ人数。呼び出し側がOPEN開始時に1回だけ引いた値）が0なら
+##   宵の口に dock_workers 自体を出さない（配達員は必ず出る＝スロットが空になることはない）。
+static func customer_schedule(mob_count: int) -> Array:
+	var evening := ["delivery_man"]
+	if mob_count > 0:
+		evening.append("dock_workers")
 	return [
-		{ "name": "宵の口", "customers": ["delivery_man", "dock_workers"] },
+		{ "name": "宵の口", "customers": evening },
 		{ "name": "夜半",   "customers": ["thug"] },
 		{ "name": "明け方", "customers": ["granny"] },
 	]
@@ -159,8 +174,10 @@ static func is_mob_customer(customer_id: String) -> bool:
 ##   値段はデータに書かずルール（GameState.PRICE_PER_SERVING）から出す。
 ##   is_mob はモブ客かどうか＝評判の増加量を受け側が切り替えるための印。
 ##   一団でも調理は1回・判定も1回（DESIGN.md 7.6「モブ客の仕様」）。
-static func customer_events(customer_id: String) -> Array:
-	var flavor := _customer_flavor(customer_id)
+## 7.6: mob_count は dock_workers の人数（servings・台詞）にだけ使う。乱数は引かない
+##   （引くのはOPEN開始時の1回だけ。ここで引くと customer_schedule と食い違う）。
+static func customer_events(customer_id: String, mob_count: int = 0) -> Array:
+	var flavor := _customer_flavor(customer_id, mob_count)
 	var events := []
 	for line in flavor["greet"]:
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
@@ -189,16 +206,17 @@ static func initial_inventory() -> Dictionary:
 	}
 
 
-## ADJUSTボタンの表示文言（「を入れる」action framing）。id→ラベルのみで、
+## ADJUSTボタンの表示文言。id→ラベルのみで、
 ## 在庫の有無・個数は _adjust_options() 側（GameState.inventory）が決める。
+## OptionsRow（横並び）に収まるよう、「を入れる」は付けず名前だけにしている。
 ## pickled_lime・bitter_meronのように今は初期在庫に無い（＝市場等で買わないと出てこない）
 ## idの分も、買った瞬間ラベル無しにならないよう先に用意しておく。
 const _ADJUST_LABELS := {
-	"nam_prik_pao": "ナムプリックパオを入れる", "coconut_milk": "ココナッツミルクを入れる",
-	"pickled_lime": "塩漬けライムを入れる", "herbal_sauce": "薬膳ナンプラーだれを入れる",
-	"bitter_melon": "苦瓜を入れる", "offal": "下処理したモツを入れる",
-	"meat_ball": "くず肉団子を入れる", "tofu": "豆腐を入れる",
-	"broken_wrapper": "割れた餃子皮を入れる", "winter_melon": "冬瓜を入れる",
+	"nam_prik_pao": "ナムプリックパオ", "coconut_milk": "ココナッツミルク",
+	"pickled_lime": "塩漬けライム", "herbal_sauce": "薬膳ナンプラーだれ",
+	"bitter_melon": "苦瓜", "offal": "下処理したモツ",
+	"meat_ball": "くず肉団子", "tofu": "豆腐",
+	"broken_wrapper": "割れた餃子皮", "winter_melon": "冬瓜",
 }
 
 
@@ -211,7 +229,12 @@ static func _adjust_options() -> Array:
 	for id in GameState.inventory:
 		if id == "soup_base":   # 鍋のベースはADJUSTの対象外
 			continue
-		options.append({ "id": id, "label": _ADJUST_LABELS.get(id, str(id)) })
+		# 腐敗: 3日目の傷んだ具材は注記を付ける（使えるが判定で-1段階）。
+		# 日数は夜の間に変わらないので、接客開始時に組み立てる既存の扱いのままでよい。
+		var label: String = _ADJUST_LABELS.get(id, str(id))
+		if GameState.is_damaged(id):
+			label += "(傷)"
+		options.append({ "id": id, "label": label })
 	return options
 
 
@@ -226,7 +249,9 @@ static func _adjust_options() -> Array:
 ##   一致数と favorite の効果を分けて確認できる（GREATには3枠すべてが要る）。
 ##   TODO: BAD / GREAT の文言は仮。GOOD/OK は STEP17.5 の既存文言をそのまま割り当てている。
 ## 未知 id は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）でフォールバック。
-static func _customer_flavor(customer_id: String) -> Dictionary:
+## mob_count は dock_workers の人数だけに効く（is_mob_customer のように is_mob しか
+## 読まない呼び出しは省略してよい）。
+static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Dictionary:
 	match customer_id:
 		"delivery_man":
 			return { "greet": [
@@ -264,8 +289,8 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 			# 会話は一言の要望だけ。favorite は持たない＝GREAT は出ない
 			# （個人の好物は「その人を知っているから分かる」もので、一見の集団には無い）。
 			return { "greet": [
-					"（港湾労働者が4人、まとめて腰を下ろす）",
-					"労働者「4つ頼む。荷揚げで腕が上がらねえ」",
+					"（港湾労働者が%d人、まとめて腰を下ろす）" % mob_count,
+					"労働者「%dつ頼む。荷揚げで腕が上がらねえ」" % mob_count,
 					"労働者「辛いのを、力の出るやつで。景気づけだ」",
 				],
 				"reactions": {
@@ -282,7 +307,7 @@ static func _customer_flavor(customer_id: String) -> Dictionary:
 						"一団、顔を見合わせて半分残した。",
 					],
 				},
-				"servings": 4, "is_mob": true,
+				"servings": mob_count, "is_mob": true,
 				"wanted_tags": ["HOT", "POWER"], "favorite": "" }
 		"thug":
 			return { "greet": [

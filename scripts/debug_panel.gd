@@ -62,6 +62,10 @@ var _market_shop := ""
 # 消えてしまうので、廃棄したという事実を別に持っておかないと計器盤から見えなくなる。
 var _bowl_discard_count := 0
 
+# 今日のモブ人数（DESIGN.md 7.6）。OPENに入る瞬間に1回だけ引いて、スケジュール作成と
+# 客ごとのEvent生成の両方で使い回す（呼ぶたびに乱数を引くと食い違うため）。
+var _mob_count := 0
+
 
 func _ready() -> void:
 	# DESIGN.md 7.7: ADJUSTが在庫連動になったので、ゲーム開始時に1回だけ初期在庫を積む。
@@ -119,10 +123,13 @@ func _set_runner_for_phase(phase: int) -> void:
 	if phase == GameState.Phase.WAKE:
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
-		flow.set_runner(Day1Events.prep_events())
+		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
+		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
+		flow.set_runner(Day1Events.prep_events(GameState.discard_spoiled_inventory()))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
-		_open = OpenController.new(Day1Events.customer_schedule())
+		_mob_count = GameState.mob_count_today()
+		_open = OpenController.new(Day1Events.customer_schedule(_mob_count))
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
@@ -141,7 +148,7 @@ func _set_runner_for_phase(phase: int) -> void:
 func _load_current_customer() -> void:
 	_bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	if _open != null and _open.has_more():
-		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
+		flow.set_runner(Day1Events.customer_events(str(_open.current_customer()), _mob_count))
 	else:
 		flow.set_runner([])
 
@@ -182,8 +189,10 @@ func _on_ingredient_selected(ingredient_id: String) -> void:
 	var servings := _current_servings()
 	if int(GameState.inventory.get(ingredient_id, 0)) < servings:
 		return
+	# 傷み判定は在庫を減らす前に取る（0になると stocked_day ごと消えて引けなくなる）。
+	var spoiled := GameState.is_damaged(ingredient_id)
 	if _open != null:
-		_open.add_to_bowl(ingredient_id)
+		_open.add_to_bowl(ingredient_id, spoiled)
 	GameState.remove_inventory(ingredient_id, servings)
 	_refresh()
 
@@ -699,14 +708,18 @@ func _inventory_total() -> int:
 
 
 ## 在庫の品目別内訳（7.7：市場で何を買ったかを目で確認できるようにするため）。
-## 例: "winter_melon:5 bitter_melon:13"。空なら "(なし)"。
+## 例: "winter_melon:5 tofu:4(3日目・傷)"。空なら "(なし)"。
+## 腐る品目だけ経過日数を添える（3日目は「傷」＝使えるが判定-1段階）。
 ## キーの並びはDictionaryの挿入順（買った順）でよい・ソートはしない。
 func _format_inventory_detail() -> String:
 	if GameState.inventory.is_empty():
 		return "(なし)"
 	var parts := PackedStringArray()
 	for id in GameState.inventory:
-		parts.append("%s:%d" % [str(id), int(GameState.inventory[id])])
+		var entry := "%s:%d" % [str(id), int(GameState.inventory[id])]
+		if Ingredients.is_perishable(str(id)):
+			entry += "(%d日目%s)" % [GameState.age_of(id), "・傷" if GameState.is_damaged(id) else ""]
+		parts.append(entry)
 	return " ".join(parts)
 
 
@@ -815,7 +828,13 @@ func _format_bowl() -> String:
 		var base_result: String = str(_open.current_bowl.get("base_result", result))
 		var penalty_suffix := ""
 		if base_result != result:
-			penalty_suffix = " → 濃さ%dで1段下げ" % int(_open.current_bowl.get("strength_at_judge", 0))
+			# 下げる理由を併記する（両方成立しても下げるのは1段階だけ）。
+			var reasons := PackedStringArray()
+			if _open.current_bowl.get("penalty_strength", false):
+				reasons.append("濃さ%d" % int(_open.current_bowl.get("strength_at_judge", 0)))
+			if _open.current_bowl.get("penalty_spoiled", false):
+				reasons.append("傷んだ具材")
+			penalty_suffix = " → %sで1段下げ" % "・".join(reasons)
 		judge_text = "%s (一致%d%s%s)" % [
 			result,
 			int(_open.current_bowl.get("match_count", 0)),
