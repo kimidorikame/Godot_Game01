@@ -15,6 +15,8 @@ extends PanelContainer
 @onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
+@onready var _btn_money_minus: Button = $Margin/VBox/PhaseRow/BtnMoneyMinus as Button
+@onready var _btn_money_plus: Button = $Margin/VBox/PhaseRow/BtnMoneyPlus as Button
 
 # OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
@@ -23,6 +25,10 @@ var _open: OpenController = null
 # 自動閉店（DESIGN.md 7.6）で CLOSE に飛ばすときだけ使う、先頭に差し込む理由テキスト。
 # _set_runner_for_phase(CLOSE) が読んで消費する（読んだら空文字に戻す＝一度きり）。
 var _closed_early_reason := ""
+
+# ゲームオーバーの理由テキスト。_set_runner_for_phase(GAME_OVER) が読んで消費する
+# （_closed_early_reason と同じく一度きり）。
+var _game_over_reason := ""
 
 # 判定結果 → 評判の増減（DESIGN.md 7.6）。名前あり客よりモブの方が動きが小さい。
 # 「どれだけ動かすか」を決めるのは受け側＝ここ。適用は GameState.apply_reputation()。
@@ -66,17 +72,18 @@ var _bowl_discard_count := 0
 # 客ごとのEvent生成の両方で使い回す（呼ぶたびに乱数を引くと食い違うため）。
 var _mob_count := 0
 
+# 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
+# 1回だけ決めて、prep_events と計器盤の両方で使い回す（_mob_count と同じ形）。
+var _scraps_base := false
+
 
 func _ready() -> void:
-	# DESIGN.md 7.7: ADJUSTが在庫連動になったので、ゲーム開始時に1回だけ初期在庫を積む。
-	# is_empty()でガード＝シーン再読み込み等で_ready()が二度走っても二重に積まない。
-	if GameState.inventory.is_empty():
-		var starting: Dictionary = Day1Events.initial_inventory()
-		for id in starting:
-			GameState.add_inventory(id, int(starting[id]))
+	_seed_initial_inventory()
 	_set_runner_for_phase(GameState.phase)
 
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
+	# 最終日の翌朝の巻き戻し後に、初期在庫を積み直す（reset → 積み直し → phase_changed の順）。
+	flow.game_restarted.connect(_seed_initial_inventory)
 	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
 	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
 	# [次のEvent] = _on_next_event_pressed:
@@ -97,8 +104,23 @@ func _ready() -> void:
 	_btn_close.pressed.connect(_on_close_pressed)
 	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
 	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
+	# [所持金 ±50] = 所持金だけ動かす（デバッグ用。クズ野菜ベースやゲームオーバーの確認に使う）。
+	_btn_money_minus.pressed.connect(_on_money_debug_pressed.bind(-50))
+	_btn_money_plus.pressed.connect(_on_money_debug_pressed.bind(50))
 
 	_refresh()
+
+
+## Day1開始時の初期在庫を積む（DESIGN.md 7.7）。ゲーム開始時（_ready）と、最終日の翌朝の
+## 新規ゲームへの巻き戻し後（game_restarted）の両方から呼ぶ。
+## is_empty()でガード＝シーン再読み込み等で二度走っても二重に積まない。
+## 巻き戻しでは day_count が1に戻った後に呼ばれるので、stocked_day も1日目で記録される。
+func _seed_initial_inventory() -> void:
+	if not GameState.inventory.is_empty():
+		return
+	var starting: Dictionary = Day1Events.initial_inventory()
+	for id in starting:
+		GameState.add_inventory(id, int(starting[id]))
 
 
 func _on_phase_changed(phase: int) -> void:
@@ -125,7 +147,9 @@ func _set_runner_for_phase(phase: int) -> void:
 	elif phase == GameState.Phase.PREP:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
-		flow.set_runner(Day1Events.prep_events(GameState.discard_spoiled_inventory()))
+		# クズ野菜ベース: 所持金がベース代に満たなければ食肉仲卸ではなく端材屋へ回る（自動）。
+		_scraps_base = GameState.money < GameState.BASE_PRICE
+		flow.set_runner(Day1Events.prep_events(GameState.discard_spoiled_inventory(), _scraps_base))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		_mob_count = GameState.mob_count_today()
@@ -139,6 +163,14 @@ func _set_runner_for_phase(phase: int) -> void:
 			events = [{ "type": "TEXT", "text": _closed_early_reason }] + events
 			_closed_early_reason = ""
 		flow.set_runner(events)
+	elif phase == GameState.Phase.GAME_OVER:
+		# 最小実装：理由と「（ゲームオーバー）」を出すだけ。以後フェーズは進まない
+		# （FlowController.advance_phase が止める）。演出・タイトルへの導線・復帰は対象外。
+		flow.set_runner([
+			{ "type": "TEXT", "text": _game_over_reason },
+			{ "type": "TEXT", "text": "（ゲームオーバー）" },
+		])
+		_game_over_reason = ""
 	else:
 		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
 
@@ -306,11 +338,14 @@ func _on_shop_exit_pressed() -> void:
 
 ## 水場を訪れる（水道代の支払い＋水汲みの効果）。市場中の[水場]ボタンからも、
 ## 未訪問のまま[市場を出る]で抜けようとしたときの自動訪問からも呼ばれる。
-func _visit_water_stall() -> void:
+## 水道代が払えずゲームオーバーになったら false（呼び出し元は先へ進めないこと）。
+func _visit_water_stall() -> bool:
 	if GameState.is_collection_day():
-		GameState.apply_money(-50)
+		if not _pay_or_game_over(50):
+			return false
 	_market_visited_water = true
 	_market_last_text = _market_option_text("water")
+	return true
 
 
 ## 今の MARKET Event の options から、id に対応する "text"（セリフ）を探す。
@@ -334,7 +369,9 @@ func _market_option_text(id: String) -> String:
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
 func _on_market_exit_pressed() -> void:
 	if not _market_visited_water:
-		_visit_water_stall()
+		# 水道代が払えずゲームオーバーになったら、仕込みへ進まずここで止まる。
+		if not _visit_water_stall():
+			return
 	_complete_input_and_advance()
 
 
@@ -415,7 +452,9 @@ func _apply_event(ev) -> void:
 		return
 	match ev.get("type", ""):
 		"PAY":
-			GameState.apply_money(-int(ev.get("amount", 0)))
+			# 払えなければ実行せずゲームオーバー（水道代・場所代）。ベース代も同じ経路だが、
+			# 払える所持金のときしかイベント自体が組まれない（クズ野菜ベースへ自動で切り替わる）。
+			_pay_or_game_over(int(ev.get("amount", 0)))
 		"ADD_ITEM":
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
@@ -496,6 +535,22 @@ func _no_named_customers_remaining() -> bool:
 	return true
 
 
+## 義務的な支払い（水道代・場所代）。払えれば true。払えなければ支払いを実行せず
+## （所持金はマイナスにならない）ゲームオーバーにして false を返す。
+func _pay_or_game_over(amount: int) -> bool:
+	if GameState.try_pay(amount):
+		return true
+	_game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
+	return false
+
+
+## ゲームオーバーにする。自動閉店（_auto_close_kitchen）と同じく force_phase で終端フェーズへ
+## 飛ばす（_set_runner_for_phase の冒頭リセットで、OPEN・市場の途中状態も片付く）。
+func _game_over(reason: String) -> void:
+	_game_over_reason = reason
+	flow.force_phase(GameState.Phase.GAME_OVER)
+
+
 ## 鍋が尽きて自動的に閉店する（DESIGN.md 7.6）。判定・売上・評判・鍋の消費は
 ## 一切行わない（この客には出せなかった、という扱い）。反応・セリフは最小の仮テキストのみ。
 ## FlowController.force_phase() でゲートを通さず CLOSE へ飛ばす
@@ -511,6 +566,15 @@ func _on_runner_updated() -> void:
 
 func _on_day_plus_pressed() -> void:
 	GameState.advance_day()
+	_refresh()
+
+
+## デバッグ用：所持金を delta だけ動かす（apply_money を通す＝本番と同じ入口）。
+## 下限は設けない（マイナスにもなる＝ゲームオーバー系の確認にも使える）。
+## PREPのベース分岐はPREPに入る瞬間に固定されるので、確認するときは PREP に入る前
+## （WAKE中など）に押すこと。
+func _on_money_debug_pressed(delta: int) -> void:
+	GameState.apply_money(delta)
 	_refresh()
 
 
@@ -544,7 +608,9 @@ func _update_options_row() -> void:
 
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
-	var pot_disabled := GameState.soup == null or _is_choosing_ingredients() or _pot_mode
+	# ゲームオーバー後は、OPENで止まって鍋が残っていても鍋を触らせない。
+	var pot_disabled := GameState.soup == null or _is_choosing_ingredients() or _pot_mode \
+			or GameState.phase == GameState.Phase.GAME_OVER
 	if _pending_shortage_ev != null:
 		pot_disabled = pot_disabled or _no_resources_left()
 	_btn_pot.disabled = pot_disabled
@@ -785,6 +851,7 @@ func _format_market() -> String:
 		return ""
 	var lines := PackedStringArray([
 		"── 市場（7.7）──",
+		"base(今日のベース): %s" % ("端材屋のクズ野菜（濃さ1スタート）" if _scraps_base else "食肉仲卸"),
 		"water(水場訪問済み): %s" % ("はい" if _market_visited_water else "いいえ"),
 	])
 	# 専用Eventを持たない店（水場等）のセリフはここでしか表示されないので、

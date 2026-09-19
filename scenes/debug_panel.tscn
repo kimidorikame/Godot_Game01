@@ -86,5 +86,13 @@ text = "次のPhase"
 layout_mode = 2
 text = "Day +1"
 
+[node name="BtnMoneyMinus" type="Button" parent="Margin/VBox/PhaseRow"]
+layout_mode = 2
+text = "所持金 -50"
+
+[node name="BtnMoneyPlus" type="Button" parent="Margin/VBox/PhaseRow"]
+layout_mode = 2
+text = "所持金 +50"
+
 [node name="FlowController" type="Node" parent="."]
 script = ExtResource("2")

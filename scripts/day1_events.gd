@@ -34,7 +34,12 @@ static func wake_events() -> Array:
 ## 具材の腐敗: spoiled は今朝PREPに入った瞬間に破棄された品目 id の配列（受け側が
 ##   GameState.discard_spoiled_inventory() で先に消して渡す）。あれば先頭に一言テキストを
 ##   1つ足す（データのみ。破棄自体はここでは行わない）。
-static func prep_events(spoiled: Array = []) -> Array:
+## クズ野菜ベース: scraps_base は「ベース代（GameState.BASE_PRICE）を払えない」ので
+##   食肉仲卸ではなく端材屋へ回る日か。受け側がPREPに入る瞬間に所持金を見て1回だけ決め、
+##   ここへは引数で渡す（計器盤にも同じ値を出すため。ここで money を読むと、PREPの途中で
+##   所持金が変わったときに表示とずれる）。違うのは冒頭の3つ（TEXT・会話・ADD_ITEM。
+##   PAYなし）と、SET_SOUP の濃さ（1スタート）だけ。杯数・仕込みの流れは同じ。
+static func prep_events(spoiled: Array = [], scraps_base: bool = false) -> Array:
 	var events := []
 	if not spoiled.is_empty():
 		var names := PackedStringArray()
@@ -42,28 +47,47 @@ static func prep_events(spoiled: Array = []) -> Array:
 			names.append(Ingredients.name_for(str(id)))
 		events.append({ "type": "TEXT",
 			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
-	events.append_array([
-		{ "type": "TEXT", "text": "食肉売場へ来た" },
-		{ "type": "PAY", "amount": 80, "text": "「いつもの。80だ」" },
-		{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
-		{ "type": "MARKET", "text": "（市場をぶらつく）", "options": _market_options() },
-	])
+	if scraps_base:
+		# 値切る／譲ってもらう。食肉仲卸の「いつもの。80だ」の淡々としたトーンと対比させる。
+		events.append_array([
+			{ "type": "TEXT", "text": "荷捌き裏通りへ回る。半端市「拾味」。今日は財布が軽い" },
+			{ "type": "TEXT", "text": "「すまん、持ち合わせが足りねえ」「……野菜くずなら持ってきな。金はいい」" },
+			{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "萎れた野菜くずをひと抱え、譲ってもらった" },
+		])
+	else:
+		events.append_array([
+			{ "type": "TEXT", "text": "食肉売場へ来た" },
+			{ "type": "PAY", "amount": GameState.BASE_PRICE,
+				"text": "「いつもの。%dだ」" % GameState.BASE_PRICE },
+			{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
+		])
+	events.append({ "type": "MARKET", "text": "（市場をぶらつく）",
+		"options": _market_options(scraps_base) })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
 	# 共有鍋ができる（STEP 12）。ベースは今は鶏がらだしの1種類だけ（DESIGN.md 7.7：
 	# 「骨と大根」から「鶏骨＋手羽端」に変更。IDはbone_broth/soup_baseのまま据え置き）。
-	# 野菜くず ["vegetal"] は金が無い日の分岐として後日。濃さ・水はまだ持たせない。
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
 	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
 	# 7.6: 濃さ（仕込み時は3＝ちょうどいい）と、今夜使える水の回数も一緒に渡す。
 	#   水の回数自体は市場（水場）に行ったかとは無関係に毎朝2回分（GameState定数）。
 	#   水場で払うのは水道代（徴収日のみ）で、回数を増やす効果ではない。
-	events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
-		"servings": GameState.SERVINGS_PER_BASE,
-		"strength": 3,
-		"water_doses": GameState.WATER_DOSES_PER_NIGHT,
-		"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
+	# クズ野菜ベース: 濃さ1スタート（既存の濃さ1のペナルティがそのまま効く）。base_id・tags は
+	#   veg_scrap_broth / ["vegetal"] にして、計器盤の soup 行で1日中「クズ野菜の日」と読めるようにする
+	#   （soupのtagsは判定に使っていない＝表示用。効果は濃さだけ）。
+	if scraps_base:
+		events.append({ "type": "SET_SOUP", "base_id": "veg_scrap_broth", "tags": ["vegetal"],
+			"servings": GameState.SERVINGS_PER_BASE,
+			"strength": 1,
+			"water_doses": GameState.WATER_DOSES_PER_NIGHT,
+			"text": "野菜くずを煮出した。薄い……。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
+	else:
+		events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
+			"servings": GameState.SERVINGS_PER_BASE,
+			"strength": 3,
+			"water_doses": GameState.WATER_DOSES_PER_NIGHT,
+			"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
 	return events
 
 
@@ -81,15 +105,19 @@ static func prep_events(spoiled: Array = []) -> Array:
 ## 注意: この enabled は prep_events() が呼ばれた瞬間（＝PREPに入った瞬間）に固定される。
 ##   Event データは読むだけで書き換えない原則のため、MARKET画面を表示したまま
 ##   day_count が変わっても、その場では反映されない（次にPREPへ入り直すまで）。
-static func _market_options() -> Array:
+## クズ野菜ベースの日（scraps_base）は、自動で済んでいる店が食肉仲卸ではなく端材半端物
+##   なので、「訪問済み」の表示をそちらへ入れ替える（どちらもグレーのまま）。
+static func _market_options(scraps_base: bool = false) -> Array:
 	var day2_unlocked: bool = GameState.day_count >= 2
+	var meat_label := "食肉仲卸" if scraps_base else "食肉仲卸（訪問済み）"
+	var scraps_label := "端材半端物（訪問済み）" if scraps_base else "端材半端物"
 	return [
-		{ "id": "meat_wholesale", "label": "食肉仲卸（訪問済み）", "enabled": false },
+		{ "id": "meat_wholesale", "label": meat_label, "enabled": false },
 		{ "id": "produce",        "label": "青果",       "enabled": day2_unlocked },
 		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": day2_unlocked },
 		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": day2_unlocked },
 		{ "id": "seafood",        "label": "海鮮",       "enabled": day2_unlocked },
-		{ "id": "scraps",         "label": "端材半端物", "enabled": day2_unlocked },
+		{ "id": "scraps",         "label": scraps_label, "enabled": day2_unlocked and not scraps_base },
 		{ "id": "water",          "label": "水場",       "enabled": true,
 			"text": "「今月分、払っとけよ」「はいはい、分かってる」" },
 	]
@@ -110,12 +138,17 @@ static func produce_goods() -> Array:
 ## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。
 ## 所持金・提供数は計器盤に出ているので、ここは「読ませて区切る」だけ。
 ## 凝った売上内訳・精算演出は入れない（今ある状態を見せる最小）。
+## 最終日（体験版の終了日）だけ、末尾に「（終了）」を1つ足す。条件は GameState.is_final_day()
+## を中で読む（水道代の条件化・_market_options の day_count 判定と同じ既存パターン）。
 static func close_events() -> Array:
-	return [
+	var events := [
 		{ "type": "TEXT", "text": "看板の灯を落とす。" },
 		{ "type": "TEXT", "text": "屋台を閉める。" },
 		{ "type": "TEXT", "text": "本日の営業終了。売上と提供数は計器盤のとおり。" },
 	]
+	if GameState.is_final_day():
+		events.append({ "type": "TEXT", "text": "（終了）" })
+	return events
 
 
 ## OPEN の客の並び（DESIGN.md 9章 / 7.6）。STEP 6: 配達員1人 → STEP 7: 3人。

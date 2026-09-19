@@ -11,7 +11,9 @@ extends Node
 ## それらは進行を司る側（EventRunner 等）が持つ。
 
 # --- フェーズ（今どのフェーズか、を GameState が知るためだけに持つ） ---
-enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY }
+# GAME_OVER は末尾に足す（既存の0〜4の値は変えない）。水道代・場所代が払えないときに
+# force_phase で飛ぶ終端フェーズで、ここからはどこへも進まない。
+enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 
 # 一杯の売価（PRICING_SPEC.md：内容にかかわらず50固定）。
 # 客ごとのデータではなくゲーム共通のルールなのでここに置く（is_collection_day() と同じ扱い）。
@@ -21,6 +23,19 @@ const PRICE_PER_SERVING := 50
 # ベース1袋で作れる杯数（PRICING_SPEC.md 5章：1袋80＝10杯分）。
 # 値段と同じくゲーム共通のルール。
 const SERVINGS_PER_BASE := 10
+
+# ベース1袋の値段（PRICING_SPEC.md 5章）。食肉仲卸での支払いと、所持金がこれに満たない
+# ときにクズ野菜ベースへ切り替える閾値の両方で使う（別々の数字にならないよう1箇所に置く）。
+const BASE_PRICE := 80
+
+# 体験版としての最終日（DESIGN.md/CURRENT_SPEC：3日で終了して1日目に戻る）。
+# 本番（7日）に戻すときはここを直接 7 にする（切り替えUIは対象外）。
+const FINAL_DAY := 3
+
+# 新規ゲーム開始時の初期値。変数宣言と reset_for_new_game() の両方で使う
+# （別々の数字にならないよう1箇所に置く）。
+const INITIAL_MONEY := 300
+const INITIAL_RESERVE_BASE_UNITS := 10
 
 # 評判 → その日のモブ人数（DESIGN.md 7.6「評判→翌日のモブ客数」）。ゲーム共通のルール。
 # [評判の下限, 人数の上限] を大きい順に並べ、最初に当たった行を使う。人数は1〜上限の乱数。
@@ -51,7 +66,7 @@ const BASE_UNITS_PER_ADD := 2      # ベース追加1回で使う単位数（1�
 
 # --- 永続する事実 ---
 var day_count: int = 1
-var money: int = 300
+var money: int = INITIAL_MONEY
 var reputation: int = 0
 
 # 初期具材・調味料・購入した食材。{ id: 個数 } の辞書（DESIGN.md 7.7：
@@ -71,7 +86,7 @@ var rumors: Array = []
 # soup の中ではなくここに置く理由：**余った単位は翌日へ持ち越す**ので、
 # NEXT_DAY で null になる soup に入れると消えてしまうため（寿命が違う）。
 # 初期値は仮。PREP でベース2袋目を買う操作が未実装なので、最初から持たせている。
-var reserve_base_units: int = 10
+var reserve_base_units: int = INITIAL_RESERVE_BASE_UNITS
 
 # 今どのフェーズか。進行度ではなく「位置」だけ。
 var phase: Phase = Phase.WAKE
@@ -99,6 +114,30 @@ func reset_for_new_day() -> void:
 ## 日を1つ進める。reset_for_new_day() の後に呼ぶ想定。
 func advance_day() -> void:
 	day_count += 1
+
+
+## 最終日か。>= なので、デバッグの [Day+1] で最終日を飛び越えても最終日扱いのまま
+## （is_collection_day() と同じく「今日が何日目か」というルールなのでここに置く）。
+func is_final_day() -> bool:
+	return day_count >= FINAL_DAY
+
+
+## 新規ゲームの状態へ戻す（最終日の翌朝に、すべてを1日目に巻き戻す）。
+## 「日をまたいで残る事実」は全部ここで初期化する。日ごとの使い捨て（soup・served）は
+## 既存の reset_for_new_day() に任せる。
+## inventory は空にするだけ。Day1の初期在庫は台本データ（Day1Events.initial_inventory）
+## なので、積み直しは受け側（DebugPanel）が game_restarted を受けて行う
+## （GameState から台本データへ依存させない）。
+func reset_for_new_game() -> void:
+	day_count = 1
+	money = INITIAL_MONEY
+	reputation = 0
+	inventory.clear()
+	stocked_day.clear()
+	rumors.clear()
+	reserve_base_units = INITIAL_RESERVE_BASE_UNITS
+	phase = Phase.WAKE
+	reset_for_new_day()
 
 
 ## 今日が場所代（みかじめ）の徴収日か。GameState は事実だけ持つのでここに置く。
@@ -131,6 +170,17 @@ func mob_count_today() -> int:
 ## 差はデータ側の text（トーン）で持ち、ここでは数値だけ扱う。
 func apply_money(delta: int) -> void:
 	money += delta
+
+
+## 払えなければ実行しない支払いの入口（水道代・場所代など、払えない＝ゲームオーバーになる
+## 義務的な支払い用）。払えたら true、足りなければ何もせず false（所持金はマイナスにならない）。
+## apply_money に残高チェックを持たせないのは、apply_money が売上（+）・青果の購入・
+## デバッグの所持金操作など、負の値でも通ってよい場面と共用の入口だから。
+func try_pay(amount: int) -> bool:
+	if money < amount:
+		return false
+	apply_money(-amount)
+	return true
 
 
 ## 評判の増減をまとめて通す入口（DESIGN.md 7.6）。apply_money と同じ役割で、

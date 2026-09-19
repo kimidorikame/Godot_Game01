@@ -10,6 +10,9 @@ class_name FlowController
 
 signal phase_changed(phase: int)
 signal runner_updated()
+# 最終日の翌朝に新規ゲームの状態へ戻したとき（GameState.reset_for_new_game() の直後、
+# phase_changed の前）に発火する。受け側が Day1 の初期在庫を積み直すための合図。
+signal game_restarted()
 
 # フェーズの並び順。advance_phase() は現在位置の +1 しか行わず、前のフェーズには戻さない。
 # 末尾 NEXT_DAY の次は先頭 WAKE へ折り返す（そこで日次リセット＋日数+1）。
@@ -50,10 +53,15 @@ func is_advance_blocked() -> bool:
 	return not _phase_can_skip.get(GameState.phase, true) and not is_runner_done()
 
 
-## 次のフェーズへ進める。NEXT_DAY→WAKE の折り返し時だけ日次処理を挟む。
+## 次のフェーズへ進める。NEXT_DAY→WAKE の折り返し時だけ日次処理を挟む
+## （最終日なら日次処理の代わりに新規ゲームへの巻き戻し）。
 ## DONE 必須フェーズで runner が未 DONE のときは、何もせず return（phase も
 ## runner も日次処理も一切動かさない）。
 func advance_phase() -> void:
+	# ゲームオーバーは終端。_phase_order に無いので、ここで止めないと find が -1 になって
+	# PREP へ進んでしまう。
+	if GameState.phase == GameState.Phase.GAME_OVER:
+		return
 	if is_advance_blocked():
 		return
 	var i := _phase_order.find(GameState.phase)
@@ -62,8 +70,13 @@ func advance_phase() -> void:
 	var wrapping := (GameState.phase == GameState.Phase.NEXT_DAY)
 	var next_phase = _phase_order[(i + 1) % _phase_order.size()]
 	if wrapping:
-		GameState.reset_for_new_day()
-		GameState.advance_day()
+		if GameState.is_final_day():
+			# 最終日は次の日へ進まず、すべてを初期化して1日目に戻る。
+			GameState.reset_for_new_game()
+			game_restarted.emit()
+		else:
+			GameState.reset_for_new_day()
+			GameState.advance_day()
 	GameState.phase = next_phase
 	phase_changed.emit(next_phase)
 
