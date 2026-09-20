@@ -217,15 +217,18 @@ func _on_complete_input_pressed() -> void:
 ## 「鍋 −人数分 / 具材 −人数分」。1つの椀で servings 人分をまとめて作る以上、
 ## 具材も鍋（consume_soup）と同じく人数分＝1人前の名前あり客なら1個のまま）。
 ## 在庫切れ（ボタン側で無効化済みだが二重に防ぐ）なら何もしない。
+## フェーズ1 ステップ3：在庫を減らすのは add_to_bowl() が実際に椀へ足せたとき（戻り値
+## true）だけにする。上限（3枠）に達している・椀が無いときに add_to_bowl() が
+## 何もせず false を返すケースで、椀には入らないのに在庫だけ減る不具合があったため。
 func _on_ingredient_selected(ingredient_id: String) -> void:
 	var servings := _current_servings()
 	if int(GameState.inventory.get(ingredient_id, 0)) < servings:
 		return
 	# 傷み判定は在庫を減らす前に取る（0になると stocked_day ごと消えて引けなくなる）。
 	var spoiled := GameState.is_damaged(ingredient_id)
-	if _open != null:
-		_open.add_to_bowl(ingredient_id, spoiled)
-	GameState.remove_inventory(ingredient_id, servings)
+	var added := _open != null and _open.add_to_bowl(ingredient_id, spoiled)
+	if added:
+		GameState.remove_inventory(ingredient_id, servings)
 	_refresh()
 
 
@@ -980,10 +983,14 @@ func _format_bowl() -> String:
 			if _open.current_bowl.get("penalty_spoiled", false):
 				reasons.append("傷んだ具材")
 			penalty_suffix = " → %sで1段下げ" % "・".join(reasons)
-		judge_text = "%s (一致%d%s%s)" % [
+		# 具なし（フェーズ1 ステップ3）で強制BADになった場合、一致数だけ見ると
+		# なぜBADなのか分からないので理由を併記する。
+		var no_topping_suffix := "・具なし" if _open.current_bowl.get("no_topping", false) else ""
+		judge_text = "%s (一致%d%s%s%s)" % [
 			result,
 			int(_open.current_bowl.get("match_count", 0)),
 			" + favorite" if _open.current_bowl.get("has_favorite", false) else "",
+			no_topping_suffix,
 			penalty_suffix,
 		]
 	var lines := [

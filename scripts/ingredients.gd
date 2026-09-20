@@ -14,6 +14,11 @@ class_name Ingredients
 ## （在庫が選択肢を決める＝day1_events.gd側で絞る）。
 ## DESIGN.md 7.7: 永順青果の商品として winter_melon（冬瓜）を追加。bitter_melon（苦瓜）は
 ## STEP17.6で定義済みだったものを購入対象として使い始める（tagsの定義自体は変更なし）。
+##
+## タグは2つの軸に分かれる（フェーズ1 ステップ3で「具」側を判定に使うため明文化）：
+##   調味料（味）… HOT / MELLOW / SOUR / BITTER / SAVORY
+##   具材（具）  … POWER / GENTLE / FILLING / BITE / TREAT
+## 苦瓜（bitter_melon）は BITTER のみ＝味の素材なので「具」には数えない（is_topping参照）。
 
 const _TAGS := {
 	"nam_prik_pao": ["HOT"],
@@ -54,6 +59,20 @@ const _NAMES := {
 
 static func is_perishable(id: String) -> bool:
 	return _PERISHABLE.has(id)
+
+
+# 「具」側の軸（上のコメント参照）。judge_bowl の具なし判定（フェーズ1 ステップ3）で使う。
+const _TOPPING_TAGS := ["POWER", "GENTLE", "FILLING", "BITE", "TREAT"]
+
+
+## id が「具材」（具の軸のタグを1つでも持つ品目）かどうか。調味料（味の軸のみ）や
+## タグ未定義の id は false。DESIGN.md「具なしの椀は常に最低評価」の判定に使う
+## （OpenController.judge_bowl から呼ぶ）。
+static func is_topping(id: String) -> bool:
+	for tag in tags_for(id):
+		if _TOPPING_TAGS.has(tag):
+			return true
+	return false
 
 
 ## id から日本語名を引く。未知 id はそのまま id を返す。

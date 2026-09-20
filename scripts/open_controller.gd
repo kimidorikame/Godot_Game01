@@ -111,14 +111,18 @@ func _new_bowl(customer_id: Variant) -> Dictionary:
 ## spoiled: 選んだ時点でその具材が傷んでいたか（腐敗・3日目）。判定時まで待たないのは、
 ## 選んで在庫が0になるとキーが消え、状態を引けなくなるため。1つでも傷んだ具材を入れたら
 ## used_spoiled を立てる（作り直し reset_bowl で新しい椀になれば自然に消える）。
-func add_to_bowl(ingredient_id: String, spoiled: bool = false) -> void:
+## 戻り値：実際に additions へ足せたら true、何もしなかったら false（呼び出し側はこれを
+## 見て、足せたときだけ在庫を減らす。フェーズ1 ステップ3「追加が成功したときだけ在庫を
+## 減らす」の直し方）。
+func add_to_bowl(ingredient_id: String, spoiled: bool = false) -> bool:
 	if not current_bowl.has("additions"):
-		return
+		return false
 	if current_bowl.additions.size() >= MAX_ADDITIONS:
-		return
+		return false
 	current_bowl.additions.append(ingredient_id)
 	if spoiled:
 		current_bowl["used_spoiled"] = true
+	return true
 
 
 ## 椀を作り直す（[廃棄する]の後、同じ客へ再挑戦するため）。additionsを空にした
@@ -168,7 +172,9 @@ func bowl_final_tags() -> Array:
 ## 数えるのは「wanted_tags の各要素が椀のtagsに含まれるか」＝要求側をループする形。
 ## こうすると同じ具材を複数入れても（例：モツ2つ）その tag は1個としてしか数えられない。
 ## favorite だけは tag ではなく具材id そのもので見る（その現物を入れたかどうか）。
-## 具材を何も入れずに提供した場合は一致0 → BAD になる（専用の分岐は不要）。
+## 具材を何も入れずに提供した場合、または調味料だけで具（Ingredients.is_topping）を
+## 1つも入れていない場合は、一致数に関係なく常にBAD（フェーズ1 ステップ3。
+## DESIGN.md「具なしの椀は常に最低評価」）。
 ##
 ## 濃さは GameState.soup から直接読む（引数にしない）。bowl_final_tags() が
 ## GameState.soup を直接参照するのと同じ流儀＝判定側が鍋の状態を直接見に行く。
@@ -179,9 +185,12 @@ func bowl_final_tags() -> Array:
 ##   base_result      … 濃さ補正前の評価（計器盤の表示用）
 ##   strength_at_judge… 判定した瞬間の濃さ（計器盤の表示用。判定後に鍋をいじっても
 ##                      ここは動かない。reaction_variant と同じく一度だけ固定する）
-##   match_count      … 一致数（計器盤の表示用）
+##   match_count      … 一致数（計器盤の表示用。具なしで強制BADになっても、実際に
+##                      何個一致していたかが分かるよう、そのまま記録する）
 ##   favorite         … その客の好物id（計器盤の表示用）
 ##   has_favorite     … 好物が実際に椀へ入っていたか（計器盤の表示用）
+##   no_topping       … 具（Ingredients.is_topping）を1つも入れていないか（計器盤の表示用。
+##                      フェーズ1 ステップ3）
 ##   reaction_variant … 各段階2パターンある反応textのどちらを見せるか。
 ##                      ここで一度だけ抽選する（表示のたびに再抽選すると結果がちらつくため）
 func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
@@ -191,8 +200,15 @@ func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 		if tags.has(tag):
 			match_count += 1
 	var has_favorite: bool = favorite != "" and current_bowl.get("additions", []).has(favorite)
+	var no_topping := true
+	for ingredient_id in current_bowl.get("additions", []):
+		if Ingredients.is_topping(str(ingredient_id)):
+			no_topping = false
+			break
 	var base_result := "BAD"
-	if match_count >= 2:
+	if no_topping:
+		base_result = "BAD"
+	elif match_count >= 2:
 		base_result = "GREAT" if has_favorite else "GOOD"
 	elif match_count == 1:
 		base_result = "GOOD" if has_favorite else "OK"
@@ -202,7 +218,8 @@ func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 		strength = int(GameState.soup.get("strength", 3))
 	var result := base_result
 	# 下げる条件は「濃さが1か5」または「傷んだ具材を使った」。どちらか片方でも両方でも
-	# 下げるのは1段階だけ（重ねて-2にはしない）。
+	# 下げるのは1段階だけ（重ねて-2にはしない）。具なしで既にBAD（下限）のときは
+	# これ以上下がらない。
 	var bad_strength: bool = strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX
 	var used_spoiled: bool = bool(current_bowl.get("used_spoiled", false))
 	if bad_strength or used_spoiled:
@@ -217,5 +234,6 @@ func judge_bowl(wanted_tags: Array, favorite: String = "") -> String:
 	current_bowl["match_count"] = match_count
 	current_bowl["favorite"] = favorite
 	current_bowl["has_favorite"] = has_favorite
+	current_bowl["no_topping"] = no_topping
 	current_bowl["reaction_variant"] = randi() % 2
 	return result
