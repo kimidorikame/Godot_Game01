@@ -939,8 +939,7 @@ GameState.try_pay(amount) -> bool
      ゲームオーバーにならない。
 - **実装中に見つかった不具合（別件・修正済み）**：`[鍋を見る]`の条件式に改行が
   文字として紛れ込んでおり、Godotが読み込めない状態になっていたため修正した。
-- **場所代の特別請求（`_reason_after_collecting_rent`）はGodotでの動作確認がまだ**
-  （実装のみ完了）。確認する手順の例：
+- **場所代の特別請求（`_reason_after_collecting_rent`）も動作確認済み**（Godot実機で確認）：
   1. Day1で、配達員のADJUST中に鍋を空にして閉店（チンピラより前）→ 所持金が
      150減り、閉店の理由テキストに一言添えられる。
   2. 1の直前に所持金を150未満へ下げてから閉店 → 場所代が払えずゲームオーバーになる。
@@ -1213,7 +1212,7 @@ OpenController を維持する。
 - **現象**：徴収日（Day1）に、場所代（チンピラのPAY）より前で閉店すると、場所代を
   払わずに済んでいた。保留中の閉店と、ADJUST中の「鍋が足りず水も無い」ときの閉店の
   両方で起きる（閉店で現在の客の後ろのEventが飛ぶため）。
-- **直し方（実装済み・Godotでの動作確認はまだ）**：`GameState`に`RENT_PRICE`定数と
+- **直し方（実装済み・確認済み）**：`GameState`に`RENT_PRICE`定数と
   `rent_paid_today`（日次リセット）・`mark_rent_paid()`を追加。チンピラのPAY Event
   に`"kind": "rent"`の印を付け、実際に払えたときだけ`mark_rent_paid()`を呼ぶ。
   `debug_panel.gd`の`_reason_after_collecting_rent()`が、`_on_close_pressed()`
