@@ -26,16 +26,29 @@ const _TAGS := {
 	"tofu": ["GENTLE"],
 	"broken_wrapper": ["FILLING"],
 	"winter_melon": ["GENTLE"],
+	# 市場の残り店で買える新しい品目（DESIGN.md 7.7）。BITE・TREAT は新しい軸。
+	"cartilage": ["BITE"],
+	"tendon_meat": ["BITE"],
+	"dried_wood_ear": ["BITE"],
+	"rice_noodle": ["FILLING"],
+	"shrimp": ["TREAT"],
+	"clam": ["TREAT"],
+	"fish_maw": ["TREAT"],
 }
 
 
-# 腐る品目（腐敗管理の対象）。調味料の一部・冬瓜・ベースは腐らない。
-const _PERISHABLE := ["coconut_milk", "offal", "meat_ball", "tofu", "broken_wrapper", "bitter_melon"]
+# 腐る品目（腐敗管理の対象）。調味料の一部・冬瓜・乾燥きくらげ・米麺・ベースは腐らない。
+const _PERISHABLE := [
+	"coconut_milk", "offal", "meat_ball", "tofu", "broken_wrapper", "bitter_melon",
+	"cartilage", "tendon_meat", "shrimp", "clam", "fish_maw",
+]
 
 # 通知テキスト用の日本語名（「〜を入れる」ではない名詞形）。腐る品目の分だけ持つ。
 const _NAMES := {
 	"coconut_milk": "ココナッツミルク", "offal": "モツ", "meat_ball": "くず肉団子",
 	"tofu": "豆腐", "broken_wrapper": "割れた餃子皮", "bitter_melon": "苦瓜",
+	"cartilage": "軟骨", "tendon_meat": "すじ肉", "shrimp": "海老", "clam": "貝",
+	"fish_maw": "魚の浮き袋",
 }
 
 

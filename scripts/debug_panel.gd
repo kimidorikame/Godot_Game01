@@ -293,16 +293,16 @@ func _on_add_base_pressed() -> void:
 
 
 ## 市場の店ボタンが押されたときのハンドラ（DESIGN.md 7.7）。ADJUSTの具材ボタンと同じく
-## 進めない（EventRunnerには触れない）。乾物調味料〜端材半端物は購入を未実装なので、
+## 進めない（EventRunnerには触れない）。押せない店（Day1の食肉仲卸など）は
 ## 押せる状態にならない限りここには来ない（data側の"enabled"で塞いである）。
 func _on_market_stall_selected(id: String) -> void:
 	match id:
 		"water":
 			_visit_water_stall()
-		"produce":
-			_market_shop = "produce"  # 永順青果の店内へ（鍋モードと同じ、UIだけの入れ子）
+		"produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps":
+			_market_shop = id  # 店内へ（鍋モードと同じ、UIだけの入れ子）
 		_:
-			pass  # 対象外（乾物調味料・豆腐麺・海鮮・端材半端物はまだ中身が無い）
+			pass
 	_refresh()
 
 
@@ -312,6 +312,16 @@ func _shop_goods(shop: String) -> Array:
 	match shop:
 		"produce":
 			return Day1Events.produce_goods()
+		"meat_wholesale":
+			return Day1Events.meat_wholesale_goods()
+		"dry_goods":
+			return Day1Events.dry_goods_goods()
+		"tofu_noodles":
+			return Day1Events.tofu_noodles_goods()
+		"seafood":
+			return Day1Events.seafood_goods()
+		"scraps":
+			return Day1Events.scraps_goods()
 		_:
 			return []
 

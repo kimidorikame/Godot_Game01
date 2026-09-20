@@ -93,10 +93,9 @@ static func prep_events(spoiled: Array = [], scraps_base: bool = false) -> Array
 
 ## 市場の選択肢（DESIGN.md 7.7）。"enabled" で今日押せるかをデータ側に持たせる
 ## （「今日どの店が開いているか」は日ごとに変わる事実なので、is_mob等と同じくデータ側）。
-## 食肉仲卸は自動で済んでいる（PREPの先頭で既にTEXT→PAY→ADD_ITEM済み）ので常に無効。
-## 青果〜端材半端物は2日目から解禁（DESIGN.md 7.7「他の区画は2日目から解禁」）。
-##   青果（永順青果）だけ実際に買える（produce_goods参照）。他4店はまだ中身が無い
-##   （押せるようになるだけで、選んでも何も起きない）。
+## 食肉仲卸・青果〜端材半端物の6店は2日目から解禁（DESIGN.md 7.7「他の区画は2日目から解禁」）。
+##   どの店も実際に買える（各店の商品は produce_goods など <店のid>_goods 参照）。
+##   食肉仲卸のベース購入はPREPの先頭で自動で済むが、ここでは追加購入の店として入れる。
 ##   >= 2 なので3日目以降も開いたまま（店ごとに解禁日を変える仕組みは対象外）。
 ## 水場は初日から常に押せる。
 ## "text" は訪問時のセリフ（DESIGN.md 7.7「支払いのトーン」表：水場＝生活の愚痴混じり）。
@@ -105,19 +104,27 @@ static func prep_events(spoiled: Array = [], scraps_base: bool = false) -> Array
 ## 注意: この enabled は prep_events() が呼ばれた瞬間（＝PREPに入った瞬間）に固定される。
 ##   Event データは読むだけで書き換えない原則のため、MARKET画面を表示したまま
 ##   day_count が変わっても、その場では反映されない（次にPREPへ入り直すまで）。
-## クズ野菜ベースの日（scraps_base）は、自動で済んでいる店が食肉仲卸ではなく端材半端物
-##   なので、「訪問済み」の表示をそちらへ入れ替える（どちらもグレーのまま）。
+## クズ野菜ベースの日（scraps_base）は、Day1だけ「訪問済み」の表示が食肉仲卸ではなく
+##   端材半端物の側に付く（自動で済んだ店がグレーで押せない説明のため）。2日目以降は影響なし。
 static func _market_options(scraps_base: bool = false) -> Array:
 	var day2_unlocked: bool = GameState.day_count >= 2
-	var meat_label := "食肉仲卸" if scraps_base else "食肉仲卸（訪問済み）"
-	var scraps_label := "端材半端物（訪問済み）" if scraps_base else "端材半端物"
+	# 「（訪問済み）」は、Day1に自動で済んだ店が押せない理由の説明にだけ付ける。
+	# 2日目以降は6店とも買い物のできる店なので、クズ野菜の日でも付けず、押せる
+	# （貧しい日こそ端材屋の安い商品が要る。店には何度でも入れる）。
+	var meat_label := "食肉仲卸"
+	var scraps_label := "端材半端物"
+	if not day2_unlocked:
+		if scraps_base:
+			scraps_label += "（訪問済み）"
+		else:
+			meat_label += "（訪問済み）"
 	return [
-		{ "id": "meat_wholesale", "label": meat_label, "enabled": false },
+		{ "id": "meat_wholesale", "label": meat_label, "enabled": day2_unlocked },
 		{ "id": "produce",        "label": "青果",       "enabled": day2_unlocked },
 		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": day2_unlocked },
 		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": day2_unlocked },
 		{ "id": "seafood",        "label": "海鮮",       "enabled": day2_unlocked },
-		{ "id": "scraps",         "label": scraps_label, "enabled": day2_unlocked and not scraps_base },
+		{ "id": "scraps",         "label": scraps_label, "enabled": day2_unlocked },
 		{ "id": "water",          "label": "水場",       "enabled": true,
 			"text": "「今月分、払っとけよ」「はいはい、分かってる」" },
 	]
@@ -135,10 +142,55 @@ static func produce_goods() -> Array:
 	]
 
 
+## 残りの店の商品（DESIGN.md 7.7）。<店のid>_goods の名前で produce_goods に揃える
+## （DebugPanel._shop_goods の match のキーと一対一）。1回選ぶと INGREDIENT_SERVINGS_PER_PURCHASE
+## 杯分を買える。価格は仮（PRICING_SPEC.md §6・§7の例とは食い違う決定値。ドキュメント側の追記は別途）。
+## 「既存id」は初期在庫と同じ id で、市場での補充経路が増えるだけ（買い足すと品目全体の
+## 補充日が更新される簡易仕様）。
+static func meat_wholesale_goods() -> Array:
+	return [
+		{ "id": "offal",       "label": "モツ",   "price": 35 },
+		{ "id": "cartilage",   "label": "軟骨",   "price": 40 },
+		{ "id": "tendon_meat", "label": "すじ肉", "price": 40 },
+	]
+
+
+static func dry_goods_goods() -> Array:
+	return [
+		{ "id": "nam_prik_pao",   "label": "ナムプリックパオ",   "price": 25 },
+		{ "id": "coconut_milk",   "label": "ココナッツミルク",   "price": 25 },
+		{ "id": "herbal_sauce",   "label": "薬膳ナンプラーだれ", "price": 25 },
+		{ "id": "pickled_lime",   "label": "塩漬けライム",       "price": 20 },
+		{ "id": "dried_wood_ear", "label": "乾燥きくらげ",       "price": 30 },
+	]
+
+
+static func tofu_noodles_goods() -> Array:
+	return [
+		{ "id": "tofu",       "label": "豆腐", "price": 20 },
+		{ "id": "rice_noodle", "label": "米麺", "price": 15 },
+	]
+
+
+static func seafood_goods() -> Array:
+	return [
+		{ "id": "shrimp",  "label": "海老",         "price": 60 },
+		{ "id": "clam",    "label": "貝",           "price": 55 },
+		{ "id": "fish_maw", "label": "魚の浮き袋", "price": 75 },
+	]
+
+
+static func scraps_goods() -> Array:
+	return [
+		{ "id": "broken_wrapper", "label": "割れた餃子皮", "price": 10 },
+		{ "id": "meat_ball",      "label": "くず肉団子",   "price": 15 },
+	]
+
+
 ## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。
 ## 所持金・提供数は計器盤に出ているので、ここは「読ませて区切る」だけ。
 ## 凝った売上内訳・精算演出は入れない（今ある状態を見せる最小）。
-## 最終日（体験版の終了日）だけ、末尾に「（終了）」を1つ足す。条件は GameState.is_final_day()
+## 最終日（GameState.FINAL_DAY）だけ、末尾に「（終了）」を1つ足す。条件は GameState.is_final_day()
 ## を中で読む（水道代の条件化・_market_options の day_count 判定と同じ既存パターン）。
 static func close_events() -> Array:
 	var events := [
@@ -250,6 +302,8 @@ const _ADJUST_LABELS := {
 	"bitter_melon": "苦瓜", "offal": "下処理したモツ",
 	"meat_ball": "くず肉団子", "tofu": "豆腐",
 	"broken_wrapper": "割れた餃子皮", "winter_melon": "冬瓜",
+	"cartilage": "軟骨", "tendon_meat": "すじ肉", "dried_wood_ear": "乾燥きくらげ",
+	"rice_noodle": "米麺", "shrimp": "海老", "clam": "貝", "fish_maw": "魚の浮き袋",
 }
 
 
