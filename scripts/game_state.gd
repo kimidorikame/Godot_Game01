@@ -28,6 +28,11 @@ const SERVINGS_PER_BASE := 10
 # ときにクズ野菜ベースへ切り替える閾値の両方で使う（別々の数字にならないよう1箇所に置く）。
 const BASE_PRICE := 80
 
+# 場所代（みかじめ・PRICING_SPEC.md 4章）。徴収日のみ。チンピラのPAY Eventの金額と、
+# 未払いのまま閉店したときの特別請求（CURRENT_SPEC.md §11「未解決」の直し方）の
+# 両方で使う（別々の数字にならないよう1箇所に置く）。
+const RENT_PRICE := 150
+
 # 最終日（DESIGN.md/CURRENT_SPEC：7日目のCLOSE後に「（終了）」を出し、翌朝1日目へ巻き戻す）。
 # 体験版では 3 にして使っていた。日数を変えるときはここを直接書き換える（切り替えUIは対象外）。
 const FINAL_DAY := 7
@@ -103,12 +108,21 @@ var soup = null
 # 提供人数は served.size() で出す（カウンタは別に持たない）。
 var served: Array = []
 
+# 今日の場所代（RENT_PRICE）をもう払ったか（徴収日のみ意味を持つ）。チンピラのPAY
+# Event（kind:"rent"）が実際に適用されたときだけ true になる。日ごとの使い捨てで、
+# soup/served と同じく reset_for_new_day() でリセットする。
+# 用途：徴収日に、チンピラの番より前で閉店（保留中・鍋不足・鍋が尽きての自動閉店）
+# すると場所代の支払いEventごと消えてしまう抜け道があったため、閉店の直前に
+# 「まだ払っていなければ特別請求する」判定に使う（CURRENT_SPEC.md §11「未解決」参照）。
+var rent_paid_today: bool = false
+
 
 ## 日次リセット。NEXT_DAY フェーズの処理から呼ぶ。
-## soup と served だけをクリアする。money/reputation/inventory は残す。
+## soup・served・rent_paid_today だけをクリアする。money/reputation/inventory は残す。
 func reset_for_new_day() -> void:
 	soup = null
 	served.clear()
+	rent_paid_today = false
 
 
 ## 日を1つ進める。reset_for_new_day() の後に呼ぶ想定。
@@ -307,3 +321,10 @@ func add_base() -> void:
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。
 func record_served(record) -> void:
 	served.append(record)
+
+
+## 今日の場所代を払い終えたと記録する入口（apply_money 等と同じく、受け側から
+## rent_paid_today を直接代入させない）。チンピラのPAY Event（kind:"rent"）が
+## 実際に適用されたときと、閉店直前の特別請求が通ったときの両方から呼ぶ。
+func mark_rent_paid() -> void:
+	rent_paid_today = true

@@ -271,12 +271,17 @@ func _on_pot_back_pressed() -> void:
 ## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのとき、またはADJUST中に鍋が足りず水も
 ## 無いときだけ押せる（_can_close_now）。保留中のREACTは適用しない（この客には出せなかった
 ## 扱い）。理由テキストを添えてCLOSEへ飛ばす。評判・売上の扱いは変えない。
+## 場所代が未払いなら、CLOSEへ飛ばす前に特別請求する（§11「未解決」の直し方の実装。
+## _reason_after_collecting_rent参照）。払えずゲームオーバーになったらCLOSEへは進まない。
 func _on_close_pressed() -> void:
 	if not _can_close_now():
 		return
+	var reason := _reason_after_collecting_rent("（今日はここで店じまいにする。）")
+	if reason == "":
+		return
 	_pending_shortage_ev = null
 	_pot_mode = false
-	_closed_early_reason = "（今日はここで店じまいにする。）"
+	_closed_early_reason = reason
 	flow.force_phase(GameState.Phase.CLOSE)
 	_refresh()
 
@@ -466,7 +471,10 @@ func _apply_event(ev) -> void:
 		"PAY":
 			# 払えなければ実行せずゲームオーバー（水道代・場所代）。ベース代も同じ経路だが、
 			# 払える所持金のときしかイベント自体が組まれない（クズ野菜ベースへ自動で切り替わる）。
-			_pay_or_game_over(int(ev.get("amount", 0)))
+			# kind:"rent"（チンピラの場所代）が実際に払えたときだけ、払い終えた印を付ける
+			# （閉店直前の特別請求が二重にならないようにするため。§11「未解決」の直し方）。
+			if _pay_or_game_over(int(ev.get("amount", 0))) and ev.get("kind", "") == "rent":
+				GameState.mark_rent_paid()
 		"ADD_ITEM":
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
@@ -591,9 +599,30 @@ func _game_over(reason: String) -> void:
 ## 一切行わない（この客には出せなかった、という扱い）。反応・セリフは最小の仮テキストのみ。
 ## FlowController.force_phase() でゲートを通さず CLOSE へ飛ばす
 ## （_open は _set_runner_for_phase(CLOSE) が既存の「OPEN以外ではnull」処理で片付ける）。
+## _on_close_pressed と同じく、場所代が未払いならCLOSEへ飛ばす前に特別請求する。
 func _auto_close_kitchen() -> void:
-	_closed_early_reason = "（鍋が尽きた。今日はもう終いだ。）"
+	var reason := _reason_after_collecting_rent("（鍋が尽きた。今日はもう終いだ。）")
+	if reason == "":
+		return
+	_closed_early_reason = reason
 	flow.force_phase(GameState.Phase.CLOSE)
+
+
+## 未払いの場所代（徴収日のみ）があれば、閉店の直前に特別請求する共通処理
+## （§11「未解決：閉店で場所代を避けられる」の直し方。手動閉店[_on_close_pressed]・
+## 自動閉店[_auto_close_kitchen]の両方から呼ぶ）。
+## 徴収日でない、またはもう払っている（GameState.rent_paid_today）ならbase_reasonを
+## そのまま返す。未払いなら _pay_or_game_over(RENT_PRICE) で請求し、払えなければ
+## 既存の水道代・場所代と同じくゲームオーバーへ飛ばして空文字を返す（呼び出し側は
+## 空文字を見てCLOSEへ進まない・base_reasonが空文字になることは無いので安全に判別できる）。
+## 払えたら、その旨を一言添えた理由テキストを返す。
+func _reason_after_collecting_rent(base_reason: String) -> String:
+	if not GameState.is_collection_day() or GameState.rent_paid_today:
+		return base_reason
+	if not _pay_or_game_over(GameState.RENT_PRICE):
+		return ""
+	GameState.mark_rent_paid()
+	return base_reason + "（今月の場所代は、閉店前にきっちり払わせてもらった。）"
 
 
 func _on_runner_updated() -> void:

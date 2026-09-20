@@ -478,10 +478,13 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Diction
 ##   - thug 以外、または徴収日でない日は空配列
 ## STEP 17.5: 判定結果に関わらず入る掛け合い（2行）。1行目のチンピラの台詞にPAYの効果を
 ##   乗せ、2行目の主人公の返しは効果無しのTEXTにする（GREETと同じ「1行1Event」の形）。
+## "kind": "rent" は、この PAY が場所代であることを示す印（DebugPanel._apply_event が
+##   GameState.mark_rent_paid() を呼ぶかどうかの判定に使う。CURRENT_SPEC.md §11
+##   「未解決：閉店で場所代を避けられる」の直し方の一部）。
 static func _customer_extra_events(customer_id: String) -> Array:
 	if customer_id == "thug" and GameState.is_collection_day():
 		return [
-			{ "type": "PAY", "customer": "thug", "amount": 150,
+			{ "type": "PAY", "customer": "thug", "amount": GameState.RENT_PRICE, "kind": "rent",
 				"text": "チンピラ「あ、そうだ。今月分」" },
 			{ "type": "TEXT", "text": "主人公「食い終わってから言うなよ」" },
 		]
