@@ -415,6 +415,21 @@ func _is_choosing_ingredients() -> bool:
 	return cur is Dictionary and cur.has("options")
 
 
+## いま SERVE（[入力完了]で椀を確定した直後、まだ判定[REACT]が適用される前）か。
+## フェーズ1 ステップ4：judge_bowl は REACT が適用される瞬間に鍋の濃さをその場で
+## 読みに行くため、椀の中身（additions）は確定済みなのに、SERVEで足踏みしている間だけ
+## 鍋を触って濃さを変えられると判定が後から変わってしまう（廃棄する・閉店はこの状態では
+## 元々出せない／押せないので、塞ぐ必要があるのは鍋モードだけ）。REACT はEventが
+## current になった瞬間に同じ処理内で即座に適用される実装なので、SERVEさえ塞げば
+## 判定前に鍋をいじれる隙間は無くなる。
+func _is_awaiting_react() -> bool:
+	var r: EventRunner = flow.runner
+	if r == null:
+		return false
+	var cur = r.current()
+	return cur is Dictionary and cur.get("type", "") == "SERVE"
+
+
 ## 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れる（_pot_water_added）
 ## までの間だけ true（DESIGN.md 7.6：ベースだけ入れても煮出す水が無く意味をなさない）。
 ## "どうやって鍋モードに入ったか" ではなく "残量が実際に空かどうか" で判定するので、
@@ -670,6 +685,10 @@ func _refresh() -> void:
 ##   ないので、実質[閉店]しか選べない状態にする）。[閉店]は選択待ち中だけ有効。
 ## 7.7: MARKET中も [次のEvent]/[入力完了] を無効化する。抜ける経路を[市場を出る]
 ##   （水場未訪問なら自動で訪れる安全策を持つ）だけに絞るため。
+## フェーズ1 ステップ4: [鍋を見る] は SERVE 中（[入力完了]で椀を確定した直後、
+##   まだ判定[REACT]が適用される前）も無効にする。椀の中身は確定済みなのに、
+##   ここで鍋の濃さを変えられると judge_bowl の結果が後から変わってしまうため
+##   （_is_awaiting_react 参照）。
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
@@ -681,6 +700,8 @@ func _update_options_row() -> void:
 	# 触れる（水を足して足りれば提供できる）。足せるものが無いときは入れない（入っても出口が
 	# 無くなるため）。不足を埋められるのは水だけなので、不足の文脈（保留中・ADJUSTで不足）では
 	# 水の有無を、それ以外（濃さの調整）では水かベースがあるかを見る。
+	# SERVE中（_is_awaiting_react）は不足の文脈になり得ない（ADJUSTの[入力完了]は不足時
+	# 押せないので、無事SERVEまで来た時点で足りている）ため、無条件で塞いでよい。
 	var shortage_context := _pending_shortage_ev != null or _is_short_in_adjust()
 	var nothing_to_add: bool
 	if shortage_context:
@@ -689,6 +710,7 @@ func _update_options_row() -> void:
 		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_base()
 	var pot_disabled := GameState.soup == null or _pot_mode \
 			or (_is_choosing_ingredients() and not _is_short_now()) \
+			or _is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled
 	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
