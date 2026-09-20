@@ -235,7 +235,8 @@ func _on_ingredient_selected(ingredient_id: String) -> void:
 ## 判定・売上・評判は発生しない：judge_bowlを呼んでいない＝判定自体が無いため。
 ## servingsは _current_servings()（REACTをまだ経由せず先読みする既存の仕組み）を使う。
 func _on_discard_pressed() -> void:
-	if _open == null:
+	# 残量が servings に満たないときは廃棄できない（ボタン側でも無効化済みだが二重に防ぐ）。
+	if _open == null or _is_short_now():
 		return
 	var servings := _current_servings()
 	GameState.consume_soup(servings)
@@ -267,10 +268,11 @@ func _on_pot_back_pressed() -> void:
 	_refresh()
 
 
-## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのときだけ押せる。保留中のREACTは
-## 適用しない（この客には出せなかった扱い）。理由テキストを添えてCLOSEへ飛ばす。
+## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのとき、またはADJUST中に鍋が足りず水も
+## 無いときだけ押せる（_can_close_now）。保留中のREACTは適用しない（この客には出せなかった
+## 扱い）。理由テキストを添えてCLOSEへ飛ばす。評判・売上の扱いは変えない。
 func _on_close_pressed() -> void:
-	if _pending_shortage_ev == null:
+	if not _can_close_now():
 		return
 	_pending_shortage_ev = null
 	_pot_mode = false
@@ -479,12 +481,13 @@ func _apply_event(ev) -> void:
 				int(ev.get("water_doses", 0)))
 		"REACT":
 			# 7.6: 提供しようとした時点で残量が servings に足りないとき、
-			# 条件1（名前あり客がもう残っていない）と条件2（水もベースも無い）の
-			# 成立具合で3通りに分かれる：
+			# 条件1（名前あり客がもう残っていない）と条件2（水が無い）の成立具合で分かれる：
 			#   両方成立     → 自動的に閉店（_auto_close_kitchen。選ぶ余地が無い）
-			#   片方だけ成立 → 保留してプレイヤーに選ばせる（_pending_shortage_ev。
+			#   それ以外     → 保留してプレイヤーに選ばせる（_pending_shortage_ev。
 			#                  [鍋を見る]で作り直すか[閉店]するか）
-			#   どちらも不成立 → 今まで通り提供（薄めて出す＝残量が0未満になることを許す）
+			# 「残量 ≥ servings のときだけ提供できる」ルールで、ADJUSTの[入力完了]が不足時は
+			# 押せないので、通常ここには足りているときしか来ない。不足で来てしまった場合の
+			# 保険として、薄めて満額で出す道は無くし、必ず保留に落とす。
 			# 効果の適用自体は _serve_customer() に切り出した（[戻る]からも呼ぶ共通処理）。
 			var servings := int(ev.get("servings", 1))
 			var available := 0
@@ -496,9 +499,8 @@ func _apply_event(ev) -> void:
 				if named_done and resources_gone:
 					_auto_close_kitchen()
 					return
-				elif named_done or resources_gone:
-					_pending_shortage_ev = ev
-					return
+				_pending_shortage_ev = ev
+				return
 			_serve_customer(ev)
 
 
@@ -521,9 +523,33 @@ func _serve_customer(ev: Dictionary) -> void:
 		"servings": servings })
 
 
-## 水もベースも無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
+## もう水が無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
+## 残量を増やせるのは水だけ（ベースは濃さを上げるだけで、量は増やさない）ので、
+## 不足を埋められるかの判定は水の有無だけを見る。
 func _no_resources_left() -> bool:
-	return not GameState.can_add_water() and not GameState.can_add_base()
+	return not GameState.can_add_water()
+
+
+## 今の客の注文（servings）に、鍋の残量が足りないか。ADJUST中の提供・廃棄の共通ルール：
+## 残量 ≥ servings のときだけ提供も廃棄もできる（取り分けられる一杯が無ければ、
+## 出すことも無駄にすることもできない）。客がいない・鍋が無いときは false。
+func _is_short_now() -> bool:
+	if _open == null or GameState.soup == null:
+		return false
+	return int(GameState.soup.get("remaining_servings", 0)) < _current_servings()
+
+
+## ADJUST中（椀を作っている最中）で、鍋が足りないか。[入力完了]を止め、
+## [鍋を見る]・[閉店]を出す条件に使う。
+func _is_short_in_adjust() -> bool:
+	return _is_choosing_ingredients() and _is_short_now()
+
+
+## [閉店]を押せるか。鍋不足の保留中、または「ADJUST中で不足、かつ水が無い」
+## （足せなければ閉店）。どちらも、その客には出せなかった扱いで CLOSE へ進む。
+func _can_close_now() -> bool:
+	return _pending_shortage_ev != null \
+			or (_is_short_in_adjust() and _no_resources_left())
 
 
 ## 現在の客（含む）から OPEN 終了まで、名前あり客がもう出てこないか。
@@ -619,22 +645,35 @@ func _update_options_row() -> void:
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
 	# ゲームオーバー後は、OPENで止まって鍋が残っていても鍋を触らせない。
-	var pot_disabled := GameState.soup == null or _is_choosing_ingredients() or _pot_mode \
-			or GameState.phase == GameState.Phase.GAME_OVER
-	if _pending_shortage_ev != null:
-		pot_disabled = pot_disabled or _no_resources_left()
+	# [鍋を見る]：ADJUST中は原則触れない（作っている椀があるため）が、鍋が足りないときだけ
+	# 触れる（水を足して足りれば提供できる）。足せるものが無いときは入れない（入っても出口が
+	# 無くなるため）。不足を埋められるのは水だけなので、不足の文脈（保留中・ADJUSTで不足）では
+	# 水の有無を、それ以外（濃さの調整）では水かベースがあるかを見る。
+	var shortage_context := _pending_shortage_ev != null or _is_short_in_adjust()
+	var nothing_to_add: bool
+	if shortage_context:
+		nothing_to_add = _no_resources_left()
+	else:
+		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_base()
+	var pot_disabled := GameState.soup == null or _pot_mode \
+			or (_is_choosing_ingredients() and not _is_short_now()) \
+			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled
 	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
-	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
-	_btn_close.disabled = _pending_shortage_ev == null
+	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
+	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
+			or _is_in_market() or _is_short_in_adjust()
+	_btn_close.disabled = not _can_close_now()
 
 	if _pot_mode:
 		var locked := _pot_locked_until_water()
 		_add_pot_button("水を足す（残量+%d 濃さ-1）" % GameState.WATER_SERVINGS,
 			not GameState.can_add_water(), _on_add_water_pressed)
-		_add_pot_button("ベースを足す（残量+%d 濃さ+1）" % GameState.BASE_SERVINGS,
+		_add_pot_button("ベースを足す（濃さ+1）",
 			not GameState.can_add_base() or locked, _on_add_base_pressed)
-		_add_pot_button("戻る", locked, _on_pot_back_pressed)
+		# 水待ちで[戻る]を塞ぐのは、[水を足す]で解ける（水がある）ときだけ。
+		# 水が無ければ塞がない＝鍋モードには必ず出口がある。
+		_add_pot_button("戻る", locked and GameState.can_add_water(), _on_pot_back_pressed)
 		return
 
 	var r: EventRunner = flow.runner
@@ -680,10 +719,10 @@ func _update_options_row() -> void:
 		btn.disabled = at_cap or out_of_stock
 		btn.pressed.connect(_on_ingredient_selected.bind(opt_id))
 		_options_row.add_child(btn)
-	# [廃棄する]：ADJUST中は常に押せる（枠が0〜3個どの状態でも／at_cap・在庫切れに
-	# 関係なく）。鍋モードの[戻る]・MARKETの[市場を出る]と同じ「今のモードに常駐する
-	# 専用ボタン」の扱い。
-	_add_pot_button("廃棄する", false, _on_discard_pressed)
+	# [廃棄する]：枠が0〜3個どの状態でも／at_cap・在庫切れに関係なく押せるが、鍋の残量が
+	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
+	# MARKETの[市場を出る]と同じ「今のモードに常駐する専用ボタン」の扱い。
+	_add_pot_button("廃棄する", _is_short_now(), _on_discard_pressed)
 
 
 ## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。

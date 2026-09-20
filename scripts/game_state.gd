@@ -61,7 +61,7 @@ const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）
 const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）
 const WATER_DOSES_PER_NIGHT := 2   # 毎朝汲める水の回数（PRICING_SPEC 4章。持ち越さない）
 const WATER_SERVINGS := 2          # 水1回： 残量 +2 / 濃さ -1
-const BASE_SERVINGS := 2           # ベース追加：残量 +2 / 濃さ +1
+# ベース追加は残量を増やさず、濃さだけ +1（かさ増しは水の役。DESIGN.md 7.6「味が戻る」）。
 const BASE_UNITS_PER_ADD := 2      # ベース追加1回で使う単位数（1袋＝10単位）
 
 # --- 永続する事実 ---
@@ -294,12 +294,12 @@ func add_water() -> void:
 	soup["water_doses"] = int(soup.get("water_doses", 0)) - 1
 
 
-## ベースを足す（DESIGN.md 7.6）。残量 +2 / 濃さ +1 / 予備ベース -2単位。
+## ベースを足す（DESIGN.md 7.6）。**残量は変えず**濃さ +1 / 予備ベース -2単位。
+## 出汁の素を足しても量は増えない（増やせるのは水だけ）。
 ## add_water と同じく複合操作を1つの入口にまとめる。
 func add_base() -> void:
 	if not can_add_base():
 		return
-	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) + BASE_SERVINGS
 	soup["strength"] = clampi(int(soup.get("strength", 3)) + 1, STRENGTH_MIN, STRENGTH_MAX)
 	reserve_base_units -= BASE_UNITS_PER_ADD
 
