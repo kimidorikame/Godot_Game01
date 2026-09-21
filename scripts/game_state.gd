@@ -67,6 +67,7 @@ const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）
 const WATER_DOSES_PER_NIGHT := 2   # 毎朝汲める水の回数（PRICING_SPEC 4章。持ち越さない）
 const WATER_SERVINGS := 2          # 水1回： 残量 +2 / 濃さ -1
 # ベース追加は残量を増やさず、濃さだけ +1（かさ増しは水の役。DESIGN.md 7.6「味が戻る」）。
+const RESERVE_BASE_PURCHASE_UNITS := 10   # 予備ベース1袋の購入で増える単位数（価格は BASE_PRICE）
 const BASE_UNITS_PER_ADD := 2      # ベース追加1回で使う単位数（1袋＝10単位）
 
 # --- 永続する事実 ---
@@ -92,6 +93,14 @@ var rumors: Array = []
 # NEXT_DAY で null になる soup に入れると消えてしまうため（寿命が違う）。
 # 初期値は仮。PREP でベース2袋目を買う操作が未実装なので、最初から持たせている。
 var reserve_base_units: int = INITIAL_RESERVE_BASE_UNITS
+
+# 予備ベースの購入（食肉仲卸。1周1回）。購入した分だけに期限がある（初期分は対象外）。
+# inventory / stocked_day は再利用しない（予備ベースは在庫の品目ではなく、期限の日数の
+# 数え方だけ食材と揃える）。reserve_base_units は「初期分＋購入分」の合計のまま残す。
+# purchased は破棄されても true のまま（1周1回の上限）。remaining は購入分のうち未使用の単位数。
+var reserve_base_purchased: bool = false
+var reserve_base_purchase_remaining: int = 0
+var reserve_base_purchase_day: int = 0
 
 # 今どのフェーズか。進行度ではなく「位置」だけ。
 var phase: Phase = Phase.WAKE
@@ -150,6 +159,9 @@ func reset_for_new_game() -> void:
 	stocked_day.clear()
 	rumors.clear()
 	reserve_base_units = INITIAL_RESERVE_BASE_UNITS
+	reserve_base_purchased = false
+	reserve_base_purchase_remaining = 0
+	reserve_base_purchase_day = 0
 	phase = Phase.WAKE
 	reset_for_new_day()
 
@@ -251,6 +263,40 @@ func discard_spoiled_inventory() -> Array:
 	return discarded
 
 
+## 予備ベースを1袋買った効果だけを適用する（支払いは呼び出し側）。購入済みなら何もせず false。
+func buy_reserve_base() -> bool:
+	if reserve_base_purchased:
+		return false
+	reserve_base_purchased = true
+	reserve_base_units += RESERVE_BASE_PURCHASE_UNITS
+	reserve_base_purchase_remaining = RESERVE_BASE_PURCHASE_UNITS
+	reserve_base_purchase_day = day_count
+	return true
+
+
+## 購入日を1日目とした経過日数（age_of と同じ数え方）。
+func _reserve_base_age() -> int:
+	return day_count - reserve_base_purchase_day + 1
+
+
+## 購入分が「傷んでいる」日か（表示のみ。判定には効かない）。
+func is_reserve_base_damaged() -> bool:
+	if reserve_base_purchase_remaining <= 0:
+		return false
+	var age := _reserve_base_age()
+	return age >= SPOIL_DAMAGED_DAY and age < SPOIL_DISCARD_DAY
+
+
+## 購入分の未使用の残りが腐りきっていれば捨てる（初期分は残す）。捨てたら true。
+## discard_spoiled_inventory() と同じく、PREPに入る瞬間に1回だけ呼ぶ。
+func discard_spoiled_reserve_base() -> bool:
+	if reserve_base_purchase_remaining <= 0 or _reserve_base_age() < SPOIL_DISCARD_DAY:
+		return false
+	reserve_base_units = maxi(reserve_base_units - reserve_base_purchase_remaining, 0)
+	reserve_base_purchase_remaining = 0
+	return true
+
+
 ## 今日の共有鍋を作る入口。SET_SOUP Event を受けた側から呼ぶ（STEP 12）。
 ## 形は STEP 11 で決めた { base_id, tags[] } ＋ 残量（7.6）。apply_money / add_inventory と
 ## 同じく「soup をいじる唯一の入口」を用意し、受け側から soup へ直接代入させない。
@@ -315,6 +361,9 @@ func add_base() -> void:
 	if not can_add_base():
 		return
 	soup["strength"] = clampi(int(soup.get("strength", 3)) + 1, STRENGTH_MIN, STRENGTH_MAX)
+	# 古い（初期）分から先に使い、購入分（期限つき）は最後まで残す。
+	if reserve_base_units - reserve_base_purchase_remaining < BASE_UNITS_PER_ADD:
+		reserve_base_purchase_remaining -= BASE_UNITS_PER_ADD - (reserve_base_units - reserve_base_purchase_remaining)
 	reserve_base_units -= BASE_UNITS_PER_ADD
 
 

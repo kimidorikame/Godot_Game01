@@ -39,8 +39,11 @@ static func wake_events() -> Array:
 ##   ここへは引数で渡す（計器盤にも同じ値を出すため。ここで money を読むと、PREPの途中で
 ##   所持金が変わったときに表示とずれる）。違うのは冒頭の3つ（TEXT・会話・ADD_ITEM。
 ##   PAYなし）と、SET_SOUP の濃さ（1スタート）だけ。杯数・仕込みの流れは同じ。
-static func prep_events(spoiled: Array = [], scraps_base: bool = false) -> Array:
+static func prep_events(spoiled: Array = [], scraps_base: bool = false, reserve_lost: bool = false) -> Array:
 	var events := []
+	# 予備ベースの購入分が腐りきって捨てられた朝は、一言足す（破棄は受け側が先に行う）。
+	if reserve_lost:
+		events.append({ "type": "TEXT", "text": "予備ベースの購入分は傷みきったので捨てた。" })
 	if not spoiled.is_empty():
 		var names := PackedStringArray()
 		for id in spoiled:
@@ -157,6 +160,9 @@ static func meat_wholesale_goods() -> Array:
 		{ "id": "offal",       "label": "モツ",   "price": 35 },
 		{ "id": "cartilage",   "label": "軟骨",   "price": 40 },
 		{ "id": "tendon_meat", "label": "すじ肉", "price": 40 },
+		# 予備ベース（1周1回・購入分だけ期限あり）。在庫（inventory）には入れず、
+		# 受け側が GameState.buy_reserve_base() で処理する。Day2から（市場の解禁と同じ）。
+		{ "id": "reserve_base", "label": "予備ベース(1袋)", "price": GameState.BASE_PRICE },
 	]
 
 

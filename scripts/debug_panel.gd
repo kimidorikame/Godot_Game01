@@ -161,7 +161,10 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
 		# クズ野菜ベース: 所持金がベース代に満たなければ食肉仲卸ではなく端材屋へ回る（自動）。
 		_scraps_base = GameState.money < GameState.BASE_PRICE
-		flow.set_runner(Day1Events.prep_events(GameState.discard_spoiled_inventory(), _scraps_base))
+		# 予備ベースの購入分も同じ瞬間に1回だけ判定し、捨てたら一言足す。
+		var spoiled := GameState.discard_spoiled_inventory()
+		var reserve_lost := GameState.discard_spoiled_reserve_base()
+		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base, reserve_lost))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		_mob_count = GameState.mob_count_today()
@@ -355,7 +358,11 @@ func _on_shop_item_selected(shop: String, id: String) -> void:
 	for good in _shop_goods(shop):
 		if str(good.get("id", "")) == id:
 			var price: int = int(good.get("price", 0))
-			if GameState.money >= price:
+			if id == "reserve_base":
+				if GameState.money >= price and not GameState.reserve_base_purchased:
+					GameState.apply_money(-price)
+					GameState.buy_reserve_base()
+			elif GameState.money >= price:
 				GameState.apply_money(-price)
 				GameState.add_inventory(id, GameState.INGREDIENT_SERVINGS_PER_PURCHASE)
 			break
@@ -809,8 +816,9 @@ func _update_options_row() -> void:
 			for good in _shop_goods(_market_shop):
 				var gid: String = str(good.get("id", ""))
 				var price: int = int(good.get("price", 0))
-				_add_pot_button("%s（-%d）" % [str(good.get("label", gid)), price],
-					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid))
+				var bought: bool = gid == "reserve_base" and GameState.reserve_base_purchased
+				_add_pot_button("%s（-%d）%s" % [str(good.get("label", gid)), price, "（購入済み）" if bought else ""],
+					GameState.money < price or bought, _on_shop_item_selected.bind(_market_shop, gid))
 			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
 			return
 		for option in cur.get("options", []):
@@ -900,7 +908,8 @@ func _format_game_state() -> String:
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
-		"pot(鍋の資源): 水%d回 / 予備ベース%d単位" % [water_doses, GameState.reserve_base_units],
+		"pot(鍋の資源): 水%d回 / 予備ベース%d単位%s" % [water_doses, GameState.reserve_base_units,
+			"（購入分%d単位は傷んでいる）" % GameState.reserve_base_purchase_remaining if GameState.is_reserve_base_damaged() else ""],
 		"served(接客数/杯数): %d / %d" % [_served_count(), _served_servings()],
 		"discarded(廃棄数): %d 件" % _discarded_count(),
 	]))
