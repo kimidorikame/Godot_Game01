@@ -17,6 +17,7 @@ extends PanelContainer
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
 @onready var _btn_money_minus: Button = $Margin/VBox/PhaseRow/BtnMoneyMinus as Button
 @onready var _btn_money_plus: Button = $Margin/VBox/PhaseRow/BtnMoneyPlus as Button
+@onready var _btn_mob_debug: Button = $Margin/VBox/PhaseRow/BtnMobDebug as Button
 
 # OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
@@ -81,6 +82,11 @@ var _visit_tally := {}
 # 客ごとのEvent生成の両方で使い回す（呼ぶたびに乱数を引くと食い違うため）。
 var _mob_count := 0
 
+# デバッグ用：今夜のモブ人数の強制指定（-1＝自動＝GameState.mob_count_today()）。OPENに入る
+# 瞬間に読まれるので、変えるなら OPEN に入る前（WAKE・PREP中）に押すこと。GameState には持たせない
+# （本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
+var _debug_mob_count := -1
+
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_mob_count と同じ形）。
 var _scraps_base := false
@@ -116,6 +122,8 @@ func _ready() -> void:
 	# [所持金 ±50] = 所持金だけ動かす（デバッグ用。クズ野菜ベースやゲームオーバーの確認に使う）。
 	_btn_money_minus.pressed.connect(_on_money_debug_pressed.bind(-50))
 	_btn_money_plus.pressed.connect(_on_money_debug_pressed.bind(50))
+	# [モブ人数] = 今夜のモブ人数を 自動→1→2→3→4→自動… と切り替える（デバッグ用）。
+	_btn_mob_debug.pressed.connect(_on_mob_debug_pressed)
 
 	_refresh()
 
@@ -123,7 +131,7 @@ func _ready() -> void:
 ## Day1開始時の初期在庫を積む（DESIGN.md 7.7）。ゲーム開始時（_ready）と、最終日の翌朝の
 ## 新規ゲームへの巻き戻し後（game_restarted）の両方から呼ぶ。
 ## is_empty()でガード＝シーン再読み込み等で二度走っても二重に積まない。
-## 巻き戻しでは day_count が1に戻った後に呼ばれるので、stocked_day も1日目で記録される。
+## 巻き戻しでは day_count が1に戻った後に呼ばれるので、購入日別のバッチも1日目で記録される。
 func _seed_initial_inventory() -> void:
 	if not GameState.inventory.is_empty():
 		return
@@ -167,7 +175,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base, reserve_lost))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
-		_mob_count = GameState.mob_count_today()
+		_mob_count = _debug_mob_count if _debug_mob_count >= 0 else GameState.mob_count_today()
 		_open = OpenController.new(Day1Events.customer_schedule(_mob_count))
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
@@ -235,15 +243,20 @@ func _on_complete_input_pressed() -> void:
 ## フェーズ1 ステップ3：在庫を減らすのは add_to_bowl() が実際に椀へ足せたとき（戻り値
 ## true）だけにする。上限（3枠）に達している・椀が無いときに add_to_bowl() が
 ## 何もせず false を返すケースで、椀には入らないのに在庫だけ減る不具合があったため。
-func _on_ingredient_selected(ingredient_id: String) -> void:
+## 鮮度: 傷み判定は「どちらのボタンを押したか」だけで決める（damaged＝傷んだボタン）。
+## 押した側の在庫が足りなくても、合計が servings 以上なら、もう一方から補って人数分まとめて
+## 引く（押した側に1個以上あることはボタン側で保証。二重にここでも見る）。
+func _on_ingredient_selected(ingredient_id: String, damaged: bool = false) -> void:
 	var servings := _current_servings()
-	if int(GameState.inventory.get(ingredient_id, 0)) < servings:
+	var own: int = GameState.damaged_count(ingredient_id) if damaged else GameState.fresh_count(ingredient_id)
+	if own < 1 or GameState.fresh_count(ingredient_id) + GameState.damaged_count(ingredient_id) < servings:
 		return
-	# 傷み判定は在庫を減らす前に取る（0になると stocked_day ごと消えて引けなくなる）。
-	var spoiled := GameState.is_damaged(ingredient_id)
-	var added := _open != null and _open.add_to_bowl(ingredient_id, spoiled)
+	var added := _open != null and _open.add_to_bowl(ingredient_id, damaged)
 	if added:
-		GameState.remove_inventory(ingredient_id, servings)
+		if damaged:
+			GameState.remove_inventory_damaged(ingredient_id, servings)
+		else:
+			GameState.remove_inventory_fresh(ingredient_id, servings)
 	_refresh()
 
 
@@ -726,6 +739,15 @@ func _on_day_plus_pressed() -> void:
 	_refresh()
 
 
+## デバッグ用：モブ人数の強制指定を 自動→1→2→3→4→自動 と回す。次に OPEN に入るときから効く。
+func _on_mob_debug_pressed() -> void:
+	_debug_mob_count = _debug_mob_count + 1 if _debug_mob_count < 4 else -1
+	if _debug_mob_count == 0:
+		_debug_mob_count = 1
+	_btn_mob_debug.text = "モブ人数: %s" % ("自動" if _debug_mob_count < 0 else str(_debug_mob_count))
+	_refresh()
+
+
 ## デバッグ用：所持金を delta だけ動かす（apply_money を通す＝本番と同じ入口）。
 ## 下限は設けない（マイナスにもなる＝ゲームオーバー系の確認にも使える）。
 ## PREPのベース分岐はPREPに入る瞬間に固定されるので、確認するときは PREP に入る前
@@ -842,11 +864,16 @@ func _update_options_row() -> void:
 		# ここでライブの在庫数を見て無効化し直す（水場ボタンと同じ形）。
 		# DESIGN.md 7.6「具材 −人数分」：1回選ぶと servings 個消費するので、
 		# servings に満たない残りしか無ければ押せない（黙って端数だけ消費させない）。
-		var out_of_stock: bool = int(GameState.inventory.get(opt_id, 0)) < servings
+		# 鮮度: 押した側のバケツが1個以上あり、かつ両バケツの合計が servings 以上なら押せる
+		# （不足はもう一方で補う。押した側が空のボタンで傷みの有無を選び直せないようにする）。
+		var opt_damaged: bool = bool(option.get("damaged", false))
+		var own: int = GameState.damaged_count(opt_id) if opt_damaged else GameState.fresh_count(opt_id)
+		var out_of_stock: bool = own < 1 \
+			or GameState.fresh_count(opt_id) + GameState.damaged_count(opt_id) < servings
 		var btn := Button.new()
 		btn.text = str(option.get("label", opt_id if opt_id != "" else "?"))
 		btn.disabled = at_cap or out_of_stock
-		btn.pressed.connect(_on_ingredient_selected.bind(opt_id))
+		btn.pressed.connect(_on_ingredient_selected.bind(opt_id, opt_damaged))
 		_options_row.add_child(btn)
 	# [廃棄する]：枠が0〜3個どの状態でも／at_cap・在庫切れに関係なく押せるが、鍋の残量が
 	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
@@ -953,8 +980,8 @@ func _inventory_total() -> int:
 
 
 ## 在庫の品目別内訳（7.7：市場で何を買ったかを目で確認できるようにするため）。
-## 例: "winter_melon:5 tofu:4(3日目・傷)"。空なら "(なし)"。
-## 腐る品目だけ経過日数を添える（3日目は「傷」＝使えるが判定-1段階）。
+## 例: "winter_melon:5 tofu:4(新鮮3・傷1)"。空なら "(なし)"。
+## 腐る品目だけ、傷んだ分があるときに内訳を添える（傷＝使えるが判定-1段階）。
 ## キーの並びはDictionaryの挿入順（買った順）でよい・ソートはしない。
 func _format_inventory_detail() -> String:
 	if GameState.inventory.is_empty():
@@ -963,7 +990,9 @@ func _format_inventory_detail() -> String:
 	for id in GameState.inventory:
 		var entry := "%s:%d" % [str(id), int(GameState.inventory[id])]
 		if Ingredients.is_perishable(str(id)):
-			entry += "(%d日目%s)" % [GameState.age_of(id), "・傷" if GameState.is_damaged(id) else ""]
+			var bad := GameState.damaged_count(id)
+			if bad > 0:
+				entry += "(新鮮%d・傷%d)" % [GameState.fresh_count(id), bad]
 		parts.append(entry)
 	return " ".join(parts)
 

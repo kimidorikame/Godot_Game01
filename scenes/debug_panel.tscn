@@ -94,5 +94,9 @@ text = "所持金 -50"
 layout_mode = 2
 text = "所持金 +50"
 
+[node name="BtnMobDebug" type="Button" parent="Margin/VBox/PhaseRow"]
+layout_mode = 2
+text = "モブ人数: 自動"
+
 [node name="FlowController" type="Node" parent="."]
 script = ExtResource("2")

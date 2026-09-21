@@ -80,10 +80,11 @@ var reputation: int = 0
 # 個数が0になったキーは削除する＝「持っていない」を辞書に無い状態で表現する。
 var inventory: Dictionary = {}
 
-# 品目ごとの「最後に補充した日」{ id: day_count }。腐敗の経過日数の基準（簡易版）。
-# 個別ロットは持たない＝買い足すと品目全体が新しい扱いになる。inventory と同じ寿命で、
-# 個数0でキーが消えるときは一緒に消す。経過日数は保存せず都度計算する（age_of）。
-var stocked_day: Dictionary = {}
+# 腐る品目（Ingredients.is_perishable）の購入日別の内訳 { id: [ { "day": 購入日, "count": 個数 }, ... ] }。
+# 配列は購入日が早い順（day_count は増える一方なので、末尾へ足すだけで古い順が保たれる）。
+# 個数の合計は常に inventory[id] と一致させる。個数0のバッチは取り除き、品目の合計が0に
+# なったらキーごと消す。腐らない品目・soup_base は登場しない。経過日数は保存せず都度計算する。
+var perishable_batches: Dictionary = {}
 
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
 var rumors: Array = []
@@ -95,7 +96,7 @@ var rumors: Array = []
 var reserve_base_units: int = INITIAL_RESERVE_BASE_UNITS
 
 # 予備ベースの購入（食肉仲卸。1周1回）。購入した分だけに期限がある（初期分は対象外）。
-# inventory / stocked_day は再利用しない（予備ベースは在庫の品目ではなく、期限の日数の
+# inventory / perishable_batches は再利用しない（予備ベースは在庫の品目ではなく、期限の日数の
 # 数え方だけ食材と揃える）。reserve_base_units は「初期分＋購入分」の合計のまま残す。
 # purchased は破棄されても true のまま（1周1回の上限）。remaining は購入分のうち未使用の単位数。
 var reserve_base_purchased: bool = false
@@ -156,7 +157,7 @@ func reset_for_new_game() -> void:
 	money = INITIAL_MONEY
 	reputation = 0
 	inventory.clear()
-	stocked_day.clear()
+	perishable_batches.clear()
 	rumors.clear()
 	reserve_base_units = INITIAL_RESERVE_BASE_UNITS
 	reserve_base_purchased = false
@@ -219,10 +220,16 @@ func apply_reputation(delta: int) -> void:
 ## 在庫に item を count 個足す入口。ADD_ITEM Event を受けた側から呼ぶ。
 ## apply_money と同じく「在庫をいじる唯一の入口」を用意し、受け側から
 ## inventory 辞書を直接触らせない。
-## 腐敗の基準日として、補充した日（day_count）を品目ごとに記録する。
+## 腐る品目は、購入日別のバッチ（perishable_batches）にも足す（同じ日なら末尾へ合算）。
 func add_inventory(item, count: int = 1) -> void:
 	inventory[item] = int(inventory.get(item, 0)) + count
-	stocked_day[item] = day_count
+	if Ingredients.is_perishable(str(item)) and count > 0:
+		var batches: Array = perishable_batches.get(item, [])
+		if not batches.is_empty() and int(batches[-1]["day"]) == day_count:
+			batches[-1]["count"] = int(batches[-1]["count"]) + count
+		else:
+			batches.append({ "day": day_count, "count": count })
+		perishable_batches[item] = batches
 
 
 ## 在庫から item を count 個抜く入口。add_inventory の裏返し。
@@ -230,35 +237,109 @@ func add_inventory(item, count: int = 1) -> void:
 ## 該当が無い分・引きすぎた分は黙って0扱いにする（負の在庫は持たない。
 ## 旧・配列版の「Array.erase は未ヒットでも安全」と同じ安全性を保つ）。
 ## STEP 4: 「仕込み」で具材を消費するのに使う。soup を埋める処理はまだ持たない。
+## 腐る品目はバッチと整合させるため remove_inventory_fresh（古い順）へ委譲する
+## （呼び出し元は今 soup_base の仕込み消費だけ＝腐らない品目）。
 func remove_inventory(item, count: int = 1) -> void:
+	if Ingredients.is_perishable(str(item)):
+		remove_inventory_fresh(item, count)
+		return
 	var remaining: int = int(inventory.get(item, 0)) - count
 	if remaining <= 0:
 		inventory.erase(item)
-		stocked_day.erase(item)
 	else:
 		inventory[item] = remaining
 
 
-## 品目の経過日数（補充した日を1日目とする）。在庫が無い・記録が無ければ0。
-func age_of(item) -> int:
-	if not stocked_day.has(item):
+## バッチの経過日数（購入日を1日目とする）。
+func _batch_age(batch: Dictionary) -> int:
+	return day_count - int(batch["day"]) + 1
+
+
+## 傷んでいない在庫数。腐らない品目は在庫の全量。
+func fresh_count(item) -> int:
+	if not Ingredients.is_perishable(str(item)):
+		return int(inventory.get(item, 0))
+	var total := 0
+	for batch in perishable_batches.get(item, []):
+		if _batch_age(batch) < SPOIL_DAMAGED_DAY:
+			total += int(batch["count"])
+	return total
+
+
+## 傷んだ在庫数（3日目以降。4日目以降は本来PREPで破棄済みだが、残っていても傷んだ側に数える）。
+## 腐らない品目は常に0。
+func damaged_count(item) -> int:
+	if not Ingredients.is_perishable(str(item)):
 		return 0
-	return day_count - int(stocked_day[item]) + 1
+	var total := 0
+	for batch in perishable_batches.get(item, []):
+		if _batch_age(batch) >= SPOIL_DAMAGED_DAY:
+			total += int(batch["count"])
+	return total
 
 
-## 傷んでいる状態か（腐る品目で、ちょうど3日目）。使えるが判定で-1段階。
-func is_damaged(item) -> bool:
-	return Ingredients.is_perishable(str(item)) and age_of(item) == SPOIL_DAMAGED_DAY
+## 傷んでいない分から古い順に count 個引く。足りなければ傷んだ分で補う。
+## どちらのボタンを押したか（判定）は呼び出し側が決める。ここは在庫を引くだけ。
+func remove_inventory_fresh(item, count: int = 1) -> void:
+	_take_from_batches(item, count, false)
 
 
-## 腐りきった品目（4日目以降）を在庫から個数ごと消し、消した id の配列を返す。
+## 傷んだ分から count 個引く。足りなければ傷んでいない分（古い順）で補う。
+func remove_inventory_damaged(item, count: int = 1) -> void:
+	_take_from_batches(item, count, true)
+
+
+## バッチを指定の優先順で count 個引き、inventory と整合させる。腐らない品目は素の減算。
+## 引きすぎた分は黙って捨てる（remove_inventory と同じ安全設計。負の在庫は持たない）。
+func _take_from_batches(item, count: int, damaged_first: bool) -> void:
+	if not Ingredients.is_perishable(str(item)):
+		remove_inventory(item, count)
+		return
+	var batches: Array = perishable_batches.get(item, [])
+	var left := count
+	for pass_damaged in [damaged_first, not damaged_first]:
+		var i := 0
+		while i < batches.size() and left > 0:
+			var batch: Dictionary = batches[i]
+			if (_batch_age(batch) >= SPOIL_DAMAGED_DAY) != pass_damaged:
+				i += 1
+				continue
+			var take := mini(int(batch["count"]), left)
+			batch["count"] = int(batch["count"]) - take
+			left -= take
+			if int(batch["count"]) <= 0:
+				batches.remove_at(i)
+			else:
+				i += 1
+	_sync_batches(item, batches)
+
+
+## バッチの合計を inventory へ反映する。合計が0ならキーごと消す。
+func _sync_batches(item, batches: Array) -> void:
+	var total := 0
+	for batch in batches:
+		total += int(batch["count"])
+	if total <= 0:
+		inventory.erase(item)
+		perishable_batches.erase(item)
+	else:
+		inventory[item] = total
+		perishable_batches[item] = batches
+
+
+## 腐りきったバッチ（4日目以降）だけを在庫から消し、消した品目の id の配列を返す。
+## 同じ品目の新しいバッチが残れば品目は在庫に残る。
 ## 呼び出し側（PREPに入る瞬間）が1回だけ呼び、返り値を通知テキストに使う。
 func discard_spoiled_inventory() -> Array:
 	var discarded := []
-	for item in inventory.keys():
-		if Ingredients.is_perishable(str(item)) and age_of(item) >= SPOIL_DISCARD_DAY:
-			inventory.erase(item)
-			stocked_day.erase(item)
+	for item in perishable_batches.keys():
+		var batches: Array = perishable_batches[item]
+		var kept := []
+		for batch in batches:
+			if _batch_age(batch) < SPOIL_DISCARD_DAY:
+				kept.append(batch)
+		if kept.size() != batches.size():
+			_sync_batches(item, kept)
 			discarded.append(item)
 	return discarded
 
@@ -274,7 +355,7 @@ func buy_reserve_base() -> bool:
 	return true
 
 
-## 購入日を1日目とした経過日数（age_of と同じ数え方）。
+## 購入日を1日目とした経過日数（_batch_age と同じ数え方）。
 func _reserve_base_age() -> int:
 	return day_count - reserve_base_purchase_day + 1
 

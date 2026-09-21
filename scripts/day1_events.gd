@@ -800,17 +800,21 @@ const _ADJUST_LABELS := {
 ## 全客共通なのでここに1箇所だけ置く。GameState.inventory にある id だけを出す
 ## （＝在庫が選択肢を決める）。remove_inventory は0以下でキーごと削除する仕様なので、
 ## 辞書に残っている＝在庫1個以上、のチェックは不要。
+## 鮮度: 腐る品目は「傷んでいない分」と「傷んだ分」を別ボタンにする（傷んだ側は
+## "damaged": true とラベル末尾の「(傷)」。キーが無ければ傷んでいない側）。腐らない品目は
+## damaged_count が常に0なので今までどおり1つ。どちらのボタンを押したかが判定を決める
+## （傷んだボタン＝-1段階）。その側の在庫が0のボタンは出さない。
 static func _adjust_options() -> Array:
 	var options := []
 	for id in GameState.inventory:
 		if id == "soup_base":   # 鍋のベースはADJUSTの対象外
 			continue
-		# 腐敗: 3日目の傷んだ具材は注記を付ける（使えるが判定で-1段階）。
 		# 日数は夜の間に変わらないので、接客開始時に組み立てる既存の扱いのままでよい。
 		var label: String = _ADJUST_LABELS.get(id, str(id))
-		if GameState.is_damaged(id):
-			label += "(傷)"
-		options.append({ "id": id, "label": label })
+		if GameState.fresh_count(id) > 0:
+			options.append({ "id": id, "label": label })
+		if GameState.damaged_count(id) > 0:
+			options.append({ "id": id, "label": label + "(傷)", "damaged": true })
 	return options
 
 
