@@ -68,6 +68,15 @@ var _market_shop := ""
 # 消えてしまうので、廃棄したという事実を別に持っておかないと計器盤から見えなくなる。
 var _bowl_discard_count := 0
 
+# 1人の客を複数の杯に分けて接客するとき（REACT に aggregate:true を持たせた客）の、
+# 退店までの集計。空辞書なら集計中の客はいない。形は
+#   { customer, rep_sum, rep_count, sale, servings }
+# 評判と提供記録は杯ごとではなく客1人分として退店時に1回だけ反映するため、ここに積む
+# （_flush_visit_tally）。鍋の消費と売上は杯ごとにその場で反映する（集計するのは
+# 評判と提供記録だけ）。客のrunnerがDONEになったとき、またはフェーズが替わるとき
+# （途中閉店・ゲームオーバー）に空にする＝二重に反映されない。
+var _visit_tally := {}
+
 # 今日のモブ人数（DESIGN.md 7.6）。OPENに入る瞬間に1回だけ引いて、スケジュール作成と
 # 客ごとのEvent生成の両方で使い回す（呼ぶたびに乱数を引くと食い違うため）。
 var _mob_count := 0
@@ -133,6 +142,9 @@ func _on_phase_changed(phase: int) -> void:
 ## NEXT_DAY は空のまま（日次処理は FlowController.advance_phase の折り返し側）。
 ## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
 func _set_runner_for_phase(phase: int) -> void:
+	# 途中閉店・ゲームオーバー（force_phase）でも、そこまでに提供した杯の評判と提供記録を
+	# 失わないよう、客キューを捨てる前に集計を反映する（空なら何もしない）。
+	_flush_visit_tally()
 	_open = null   # OPEN 以外では客キューを持たない
 	# 7.6: 鍋の選択待ち・鍋モードも OPEN 以外には持ち越さない（防御的リセット）。
 	_pending_shortage_ev = null
@@ -460,6 +472,8 @@ func _advance_open_queue_if_customer_done() -> void:
 	if GameState.phase != GameState.Phase.OPEN or _open == null:
 		return
 	if flow.is_runner_done() and _open.has_more():
+		# 退店：複数の杯に分けて接客した客の評判・提供記録を、ここで1回だけ反映する。
+		_flush_visit_tally()
 		# 7.6: 時間帯が変わったら鍋が煮詰まる（残量は変わらない＝蒸発なし）。
 		# 「変わったか」は OpenController が返し、鍋を動かすのは受け側のここ。
 		if _open.advance_customer():
@@ -476,10 +490,12 @@ func _advance_open_queue_if_customer_done() -> void:
 ##   REACT       … 残量が足りれば _serve_customer() で判定・評判・鍋消費・売上・記録
 ##                 （STEP 17.6・7.6）。足りないときは条件次第で自動閉店／選択待ち／
 ##                 そのまま提供に分かれる（7.6。詳細はこのcase内のコメント参照）
-##   TEXT / WAIT_INPUT / GREET / ADJUST / SERVE / MARKET … 表示だけ。状態は動かさない
-##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への反映は _on_ingredient_selected が
-##     行う。MARKET（7.7）も同様に、水場の効果は _on_market_stall_selected /
-##     _on_market_exit_pressed が行う。ここ（_apply_event）はどちらも何もしない）
+##   ADJUST      … new_bowl:true のときだけ、椀を新しく作り直す（同じ客の2杯目以降。
+##                 前の杯の具材・評価・傷み印を持ち越さない）。それ以外は表示だけ
+##   TEXT / WAIT_INPUT / GREET / SERVE / MARKET … 表示だけ。状態は動かさない
+##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への具材の反映は _on_ingredient_selected
+##     が行う。MARKET（7.7）も同様に、水場の効果は _on_market_stall_selected /
+##     _on_market_exit_pressed が行う）
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
 ## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
 func _apply_event(ev) -> void:
@@ -497,6 +513,11 @@ func _apply_event(ev) -> void:
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"ADJUST":
+			# 同じ客の2杯目以降：新しい椀へ切り替える。ADJUST は入力待ちで、具材を選べる前に
+			# 「新しく current になった瞬間」に1回だけここへ来るので、必ず選ぶ前に新しくなる。
+			if ev.get("new_bowl", false) and _open != null:
+				_open.reset_bowl()
 		"SET_SOUP":
 			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
 			# 7.6: servings（残量の初期値＝仕込んだ杯数）、strength（濃さ）、
@@ -535,18 +556,64 @@ func _apply_event(ev) -> void:
 ## の両方から呼ばれる共通処理。Event（reactions）は書き換えない
 ## （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
 ## どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
+##
+## REACT のフラグ（どちらも既定値なら従来どおり＝判定して、評判・記録もその場で反映）：
+##   judge:false     … 判定しない（judge_bowl を呼ばない）。評判は動かない。評価も付かない
+##                     杯（例：配達員の持ち帰り）。鍋の消費と売上は通常どおり
+##   aggregate:true  … 鍋の消費と売上はその場で反映するが、評判と提供記録は _visit_tally に
+##                     積み、退店時に客1人分として1回だけ反映する（_flush_visit_tally）
 func _serve_customer(ev: Dictionary) -> void:
 	var sale := int(ev.get("sale", 0))
 	var servings := int(ev.get("servings", 1))
+	var judged: bool = bool(ev.get("judge", true))
+	var aggregate: bool = bool(ev.get("aggregate", false))
 	var result := ""
-	if _open != null:
-		result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
-	var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
-	GameState.apply_reputation(int(table.get(result, 0)))
+	var delta := 0
+	if judged:
+		if _open != null:
+			result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+		var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
+		delta = int(table.get(result, 0))
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
+	if aggregate:
+		_add_to_visit_tally(str(ev.get("customer", "")), judged, delta, sale, servings)
+		return
+	if judged:
+		GameState.apply_reputation(delta)
 	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
 		"servings": servings })
+
+
+## 集計（_visit_tally）に1杯分を積む。判定した杯だけ評判の増減を積み（評価なしの杯は
+## 積まない）、売上と杯数は全杯を積む。
+func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
+		servings: int) -> void:
+	if _visit_tally.is_empty():
+		_visit_tally = { "customer": customer, "rep_sum": 0, "rep_count": 0,
+			"sale": 0, "servings": 0 }
+	if judged:
+		_visit_tally["rep_sum"] = int(_visit_tally["rep_sum"]) + delta
+		_visit_tally["rep_count"] = int(_visit_tally["rep_count"]) + 1
+	_visit_tally["sale"] = int(_visit_tally["sale"]) + sale
+	_visit_tally["servings"] = int(_visit_tally["servings"]) + servings
+
+
+## 集計を客1人分として反映し、空にする（空なら何もしない＝何度呼んでも二重には効かない）。
+## 評判：判定した杯の増減の平均を、四捨五入した整数で1回だけ適用する。
+## roundi は半端を「ゼロから遠い側」へ丸める（Godot 4.4.1 で確認：roundi(2.5)=3、
+## roundi(-2.5)=-3）。整数の割り算は切り捨てになるので使わず、浮動小数で割る。
+## 例：GOOD(+2)とOK(0)→+1、GOOD(+2)とBAD(-2)→0、GREAT(+3)とGOOD(+2)→+3。
+## 判定した杯が1つも無ければ評判は動かさない。提供記録は売上・杯数の合計で1件残す。
+func _flush_visit_tally() -> void:
+	if _visit_tally.is_empty():
+		return
+	var rep_count := int(_visit_tally["rep_count"])
+	if rep_count > 0:
+		GameState.apply_reputation(roundi(float(int(_visit_tally["rep_sum"])) / float(rep_count)))
+	GameState.record_served({ "customer": _visit_tally["customer"],
+		"sale": int(_visit_tally["sale"]), "servings": int(_visit_tally["servings"]) })
+	_visit_tally = {}
 
 
 ## もう水が無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
@@ -938,14 +1005,20 @@ func _format_open() -> String:
 	if cust != null:
 		cust_text = "%s (%d/%d) %d杯" % [
 			cust, _open.index + 1, slot_customers.size(), _current_servings()]
-	return "\n" + "\n".join(PackedStringArray([
+	var lines := PackedStringArray([
 		"── OpenController（客キュー）──",
 		"時間帯: %s" % slot_text,
 		"queue(この時間帯の客数): %d" % slot_customers.size(),
 		"customer(接客中): %s" % cust_text,
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 		"pending(鍋の選択待ち): %s" % ("はい" if _pending_shortage_ev != null else "いいえ"),
-	])) + _format_bowl()
+	])
+	# 1杯ずつ接客する客の集計中だけ出す（退店時に評判・提供記録として1回反映される）。
+	if not _visit_tally.is_empty():
+		lines.append("visit(この客の集計): 評価%d件 評判増減の合計%d 売上%d %d杯" % [
+			int(_visit_tally["rep_count"]), int(_visit_tally["rep_sum"]),
+			int(_visit_tally["sale"]), int(_visit_tally["servings"])])
+	return "\n" + "\n".join(lines) + _format_bowl()
 
 
 ## PREP中の市場の状態（DESIGN.md 7.7）。PREP以外は空文字（表示に何も足さない）。
@@ -966,13 +1039,33 @@ func _format_market() -> String:
 
 ## いま接客中の客が何杯注文しているか（7.6）。REACT がまだ current でなくても見たいので、
 ## runner の Event 列から REACT を探して servings を読む（Event はデータなので読むだけ）。
+## 探すのは「今の位置から先の最初のREACT」で、先に無ければ「直前のREACT」（_react_for_now）。
+## 1杯ずつ接客する客（REACTが複数ある客）でも、今の杯の値を返せる。REACTが1つだけの客は、
+## どの位置でも従来と同じ値になる。
 func _current_servings() -> int:
-	if flow.runner == null:
+	var react := _react_for_now()
+	if react.is_empty():
 		return 0
-	for ev in flow.runner.events:
+	return int(react.get("servings", 1))
+
+
+## いま見ている杯に対応するREACT Event（先の最初、無ければ直前の最後）。無ければ空辞書。
+## 客のEvent列に REACT が複数ある（1杯ずつ接客する）場合に、今の杯の REACT を引くための
+## 読み取り専用の探索。Event はデータなので書き換えない。
+func _react_for_now() -> Dictionary:
+	if flow.runner == null:
+		return {}
+	var events: Array = flow.runner.events
+	var start: int = clampi(flow.runner.index, 0, events.size())
+	for i in range(start, events.size()):
+		var ev = events[i]
 		if ev is Dictionary and ev.get("type", "") == "REACT":
-			return int(ev.get("servings", 1))
-	return 0
+			return ev
+	for i in range(start - 1, -1, -1):
+		var ev = events[i]
+		if ev is Dictionary and ev.get("type", "") == "REACT":
+			return ev
+	return {}
 
 
 ## 接客中の椀（STEP 13）。DESIGN.md 9.5 STEP 11「椀の最終tags = Soup.tags +
@@ -994,6 +1087,10 @@ func _format_bowl() -> String:
 	var additions: Array = _open.current_bowl.get("additions", [])
 	var result: String = str(_open.current_bowl.get("result", ""))
 	var judge_text := "(未定)"
+	# 評価しない杯（REACT に judge:false。例：持ち帰り用の杯）は、判定前から
+	# 「(評価なし)」と出す（「まだ判定していないだけ」に見えないように）。
+	if result == "" and not bool(_react_for_now().get("judge", true)):
+		judge_text = "(評価なし)"
 	if result != "":
 		var base_result: String = str(_open.current_bowl.get("base_result", result))
 		var penalty_suffix := ""
