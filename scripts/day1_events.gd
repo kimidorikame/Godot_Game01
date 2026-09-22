@@ -214,38 +214,51 @@ static func close_events() -> Array:
 	return events
 
 
-## OPEN の客の並び（DESIGN.md 9章 / 7.6）。STEP 6: 配達員1人 → STEP 7: 3人。
-## STEP 17.5: normal_customer を granny（老婆）に差し替え。
-## 7.6: モブ客 dock_workers（港湾労働者の一団）を追加。
-##   チンピラと老婆を連続させ、老婆がチンピラの退店を見てから来る流れを保つ
-##   （PRICING_SPEC.md 2章の接客順）。
+## OPEN の客の並び（DESIGN.md 9章 / 7.6 / §9-C「データの外部化」）。STEP 6: 配達員1人
+## → STEP 7: 3人 → §9-C: 日ごとの構成をScheduleData.day_schedule()のJSONから組み立てる
+## 汎用ロジックに変更（day1_events.gd側にはもう客IDのif/matchを持たない）。
 ## 7.6: フラットな配列をやめ、**時間帯で区切る**（宵の口 / 夜半 / 明け方）。
 ##   時間帯名と客リストを1つの辞書に同居させる（名前を別配列で並行管理しない）。
-##   将来ここに「その時間帯のモブ人数」「時間帯の切り替わりテキスト」を足せる。
-##   客の増減も時間帯の増減も、この関数の中だけで済む。
 ## 7.6: mob_count（その日のモブ人数。呼び出し側がOPEN開始時に1回だけ引いた値）が0なら
-##   宵の口に dock_workers 自体を出さない（配達員は必ず出る＝スロットが空になることはない）。
+##   宵の口に dock_workers 自体を出さない。夜半にも同じ判定を使う（§9-Cで新規に確定：
+##   モブ人数は宵の口と共有し、夜半用に再抽選しない）。
+## §9-C: day_schedule.jsonに無い日（Day3〜7）はScheduleData側で"1"（Day1）へ
+##   フォールバックする。ここでは「今日の枠構成」をそのまま信じて組み立てるだけでよい。
+## 時間帯に客がいない（＝main/main_poolを持たない）ことは今回は無い想定だが、
+##   将来そういう枠を足しても "id": "" のまま customers=[] になるだけで安全。
 static func customer_schedule(mob_count: int) -> Array:
-	# Day2：宵の口に新人警官（＋モブ）だけ。夜半・明け方は客のいない時間帯（空配列）で、
-	# OpenController._skip_finished_slots が読み飛ばす。場所代は Day1 だけなのでチンピラを
-	# 外しても影響しない。Day1・Day3以降は下の従来の並びのまま。
-	if GameState.day_count == 2:
-		var evening_day2 := ["officer"]
-		if mob_count > 0:
-			evening_day2.append("dock_workers")
-		return [
-			{ "name": "宵の口", "customers": evening_day2 },
-			{ "name": "夜半",   "customers": [] },
-			{ "name": "明け方", "customers": [] },
-		]
-	var evening := ["delivery_man"]
-	if mob_count > 0:
-		evening.append("dock_workers")
-	return [
-		{ "name": "宵の口", "customers": evening },
-		{ "name": "夜半",   "customers": ["thug"] },
-		{ "name": "明け方", "customers": ["granny"] },
-	]
+	var slots: Array = ScheduleData.day_schedule(GameState.day_count).get("slots", [])
+	var chosen_mains := []   # 同日内の重複禁止（main_poolの抽選用。§9-C確定仕様）
+	var result := []
+	for slot in slots:
+		var main_id := _pick_main(slot, chosen_mains)
+		var customers := []
+		if main_id != "":
+			customers.append(main_id)
+			chosen_mains.append(main_id)
+		if bool(slot.get("mob", false)) and mob_count > 0:
+			customers.append("dock_workers")
+		result.append({ "name": str(slot.get("name", "")), "customers": customers })
+	return result
+
+
+## 1枠ぶんのメイン客idを決める（day_schedule.jsonの読み込みからは独立させた純粋関数。
+## §9-Cで確定：固定("main")と抽選プール("main_pool")の2値のみ。特別な「初登場」
+## 「最後に固定」用のフィールドは作らない）。
+## main_poolの抽選は、その日すでに選ばれた客（chosen）を除外して選ぶ（同日内で同じ
+## メイン客が2回出ない）。除外すると候補が0になる場合（プールが尽きた）は、除外を
+## 無視してプール全体から選び直す（クラッシュしない。§9-C確定仕様）。
+## 乱数はRandomNumberGeneratorを作らず、既存の流儀どおりグローバルなrandi()を使う。
+static func _pick_main(slot: Dictionary, chosen: Array) -> String:
+	if slot.has("main"):
+		return str(slot["main"])
+	var pool: Array = slot.get("main_pool", [])
+	if pool.is_empty():
+		return ""
+	var candidates: Array = pool.filter(func(id): return not chosen.has(id))
+	if candidates.is_empty():
+		candidates = pool
+	return str(candidates[randi() % candidates.size()])
 
 
 ## id がモブ客か（DESIGN.md 7.6）。自動閉店の判定などで、受け側が
@@ -628,39 +641,9 @@ const _OFFICER_MARKET := [
 	"店主「そうか、用意しとくよ」",
 ]
 
-## 夜・来店（宵の口）。REACT の前の GREET。
-const _OFFICER_ARRIVAL := [
-	"（市場の搬入が終わり、通りの角に屋台の灯りがつく。人波の向こうから、昼間の警官が現れる。制服の肩には、巡回でついた細かな埃が残っている）",
-	"警官「こんばんは。ここで合っていました」",
-	"店主「表札のない方には着けたのか」",
-	"警官「はい。先輩とも合流できました。ありがとうございました」",
-	"店主「それはよかった。またはぐれたかと思った」",
-	"警官「今は休憩です。はぐれたわけではありません」",
-	"店主「そういうことにしておこう」",
-	"警官「本当です。休憩に入る前に、先輩にこの店へ来ると伝えました」",
-	"店主「行き先の報告まで必要なのか」",
-	"警官「昼に私を捜したので、次からは言っておけと」",
-	"店主「なら、先輩には見つかりやすい店だな」",
-	"警官「道の名前は、どう伝えればよかったんでしょう」",
-	"店主「市場横の角。鍋の匂いがする方」",
-	"警官「後半は地図に書けませんね」",
-	"店主「地図に載ってない道でも来られただろ」",
-	"（警官は椅子に腰を下ろしかけ、制服の裾を直してから座る）",
-	"店主「座っていいぞ。そこは検問所じゃない」",
-	"警官「……はい。昼の注文、覚えていますか」",
-	"店主「酸っぱい汁。あと、ちゃんと噛めるもの」",
-	"警官「覚えていたんですね」",
-	"店主「朝から仕入れを考えさせられたからな」",
-	"警官「すみません。無理な注文でしたか」",
-	"店主「材料を見てから言え。麺は好きか？」",
-	"警官「好きです。あれば、少し入れてください」",
-	"店主「注文の多い新人だ」",
-	"警官「昼間は道まで聞いています。すみません」",
-	"店主「勘定に道案内代は入れない。腹の具合だけ教えてくれ」",
-	"警官「昼から立ちっぱなしで。さっぱりした汁がいいんですけど、噛まずに飲み終わるのも寂しくて」",
-	"店主「分かった。靴じゃなく、腹が仕事したがってるんだな」",
-	"警官「靴ももう少し頑張ってほしいです」",
-]
+## 夜・来店（宵の口）。REACT の前の GREET。§9-C「データの外部化」で
+## res://data/customers/officer.json（days."2".greet）へ移した（重複を避けるため
+## 定数としては持たない。中身を見るならJSON側を参照）。
 
 ## 提供後・共通会話（料理の結果に関係なく必ず表示）。
 const _OFFICER_AFTER := [
@@ -731,40 +714,9 @@ const _OFFICER_PAYMENT := [
 	"（警官は小さく笑って頭を下げ、車列とは別の通りへ歩いていく）",
 ]
 
-## 警官の反応文：結果ごとに短い会話を改行でつないだ1つの文字列にし、各結果の配列は要素数1
-## （配達員と同じ形。judge_bowl が選ぶ reaction_variant は pool[variant % pool.size()] で
-## 要素1の配列でも安全に0番目を指す）。
-static func _officer_reactions() -> Dictionary:
-	return {
-		"GREAT": [_lines_text([
-			"（警官は麺をひと口すすり、続いて具を噛む。背筋を伸ばしたまま、目だけ少し丸くなる）",
-			"警官「……あ。麺まで入れてくれたんですね」",
-			"店主「少し、って言われたから少しだけな」",
-			"警官「酸っぱくて、噛むものもあって。昼に言った通りです」",
-			"店主「今なら道案内代も払えるか？」",
-			"警官「追加料金のある店でしたか」",
-			"店主「冗談だよ」",
-		])],
-		"GOOD": [_lines_text([
-			"（警官はひと口飲み、もうひと口、今度は具を噛む）",
-			"警官「おいしいです。昼に思っていたより、ずっと落ち着きます」",
-			"店主「目が覚める味の方がよかったか」",
-			"警官「休憩中なので、今はこっちがいいです」",
-		])],
-		"OK": [_lines_text([
-			"（警官は椀を少し持ち上げて、湯気を吸う）",
-			"警官「ありがとうございます。温かいものを座って食べられるだけで、かなり違います」",
-			"店主「注文には、少し外れたか」",
-			"警官「少し。でも、ちゃんと一杯です」",
-		])],
-		"BAD": [_lines_text([
-			"（警官は一口飲み、言葉を選んでから椀を置く）",
-			"警官「……すみません。昼、私の伝え方が曖昧でしたね」",
-			"店主「料理したのは俺だ。謝らなくていい」",
-			"警官「じゃあ、正直に。今日はお願いしたものとは違いました」",
-			"店主「それは覚えとく」",
-		])],
-	}
+## 警官の反応文（結果ごとに短い会話を改行でつないだ1つの文字列。各結果の配列は要素数1）。
+## §9-C「データの外部化」で res://data/customers/officer.json（days."2".reactions）へ
+## 移した（重複を避けるため関数としては持たない。中身を見るならJSON側を参照）。
 
 
 ## Day1開始時の初期在庫（DESIGN.md 7.7）。塩漬けライム・苦瓜は含めない
@@ -824,125 +776,60 @@ static func _adjust_options() -> Array:
 ##   会話の中に両方の手がかりを置く（例：配達員＝辛くしてくれ／疲れて眠い → HOT + POWER）。
 ##   reactions は判定結果をキーにした辞書。各段階2パターンで、どちらを出すかはランダム。
 ##   favorite は好物の具材id（1つ）。椀に入っていれば評価が1段上がる（クリティカル）。
-##   本来はレア食材（たまにしか売っていない／高い）にする想定だが、今は検証用に
-##   Day1の在庫から選んだ仮設定。いずれも wanted_tags と軸が重ならない具材にしてあり、
-##   一致数と favorite の効果を分けて確認できる（GREATには3枠すべてが要る）。
-##   TODO: BAD / GREAT の文言は仮。GOOD/OK は STEP17.5 の既存文言をそのまま割り当てている。
-## 未知 id は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）でフォールバック。
-## mob_count は dock_workers の人数だけに効く（is_mob_customer のように is_mob しか
-## 読まない呼び出しは省略してよい）。
+## §9-C「データの外部化」：客の会話・要求タグ・favorite・reactions・servingsは
+##   ScheduleData.customer_data()（res://data/customers/<id>.json）へ外部化した。
+##   ここでは「どのデータ源を読むか」の出し分けだけを行う（データそのものは持たない）。
+##   delivery_man は customer_events が専用の Event 列（_delivery_man_events）を返すため、
+##   ここでは is_mob・wanted_tags・favorite だけ使う（greet・reactions・servingsは
+##   JSON側も持たない＝呼び出し元も使わない）。
+## dock_workers（モブ。DESIGN.md 7.6）は ScheduleData.mob_data() から読む。greetの
+##   "%d"を含む行だけ mob_count を埋め込む（3行目のような素の台詞はそのまま。
+##   GDScriptの % 演算子はプレースホルダの無い文字列に使うとエラーになるため）。
+##   favorite は持たない＝GREAT は出ない（個人の好物は「その人を知っているから分かる」
+##   もので、一見の集団には無い）。servings は mob_count そのもの。
+## 未知 id（JSONファイルが無い等）は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）
+##   でフォールバックする（既存どおり。ScheduleDataは空辞書を返すのでそこで判別する）。
 static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Dictionary:
-	match customer_id:
-		"delivery_man":
-			# 配達員は customer_events が専用の Event 列（_delivery_man_events）を返す。
-			# ここに残すのは、is_mob_customer が読む is_mob と、_delivery_man_events が読む
-			# 要求タグ・好物だけ（greet・reactions・servings は使わない＝持たない）。
-			return { "is_mob": false,
-				"wanted_tags": ["HOT", "POWER"], "favorite": "tofu" }
-		"dock_workers":
-			# モブ客（DESIGN.md 7.6）。一団まとめて1杯作り、判定も1回。
-			# 会話は一言の要望だけ。favorite は持たない＝GREAT は出ない
-			# （個人の好物は「その人を知っているから分かる」もので、一見の集団には無い）。
-			return { "greet": [
-					"（港湾労働者が%d人、まとめて腰を下ろす）" % mob_count,
-					"労働者「%dつ頼む。荷揚げで腕が上がらねえ」" % mob_count,
-					"労働者「辛いのを、力の出るやつで。景気づけだ」",
-				],
-				"reactions": {
-					"GOOD": [
-						"一団「効くなァ！ よし、もうひと踏ん張りいけるぞ」",
-						"一団、汗をかきながら黙って椀を空にした。",
-					],
-					"OK": [
-						"一団「まあ、こんなもんか」",
-						"労働者「腹には入った。次はもう少し効かせてくれ」",
-					],
-					"BAD": [
-						"労働者「……おい、これで一杯50は取りすぎだろ」",
-						"一団、顔を見合わせて半分残した。",
-					],
-				},
-				"servings": mob_count, "is_mob": true,
-				"wanted_tags": ["HOT", "POWER"], "favorite": "" }
-		"thug":
-			return { "greet": [
-					"（チンピラは腰を下ろすと、腹の辺りを押さえて小さく息を吐く）",
-					"チンピラ「一杯。今日は軽いやつにしろ」",
-					"主人公「いつもの肉だらけの奴じゃなく？」",
-					"チンピラ「昨日、兄貴にしこたま飲まされてまだ胃が焼けてんだよ、辛いのも酸っぱいのも、今日は勘弁しろ」",
-					"主人公「じゃあ、薄めて出すか？」",
-					"チンピラ「水っぽくしろとは言ってねえ」",
-					"チンピラ「ほら………あーあれ、口当たりがまろくなるやつがあるだろ。あれを入れろ」",
-				],
-				"reactions": {
-					"GREAT": [
-						"チンピラ「……肉団子。おまえ、俺の好きなもん覚えてやがるな」",
-						"チンピラ「……悪くねえ。今日は兄貴の話はやめておくか」",
-					],
-					"GOOD": [
-						"チンピラ「……そう、これだ」",
-						"チンピラ「はー……うめ、腹に刺さらねえ」",
-					],
-					"OK": [
-						"チンピラ「………だから、刺激のあるのはやめろって言っただろ」",
-						"チンピラ「あー………まぁいいや」",
-					],
-					"BAD": [
-						"チンピラ「……おい。胃に穴が空いたらどうしてくれる」",
-						"チンピラ、途中で箸を置いた。",
-					],
-				},
-				"servings": 1, "is_mob": false,
-				"wanted_tags": ["MELLOW", "GENTLE"], "favorite": "meat_ball" }
-		"granny":
-			return { "greet": [
-					"（老婆は屋台の椅子にゆっくり腰を下ろし、両手を擦り合わせる）",
-					"老婆「今夜は骨がよく鳴るねえ。明日は雨だよ」",
-					"主人公「また骨占いか」",
-					"老婆「そこらの天気予報より当たるさ」",
-					"主人公「何がいい？」",
-					"老婆「昔、港の診療所で飲ませてもらった汁があってね」",
-					"主人公「病院の飯か？」",
-					"老婆「薬棚みたいな匂いがして、その奥に港の塩気がある………」",
-					"老婆「ああ、水で薄めた貧乏臭いのはごめんだよ、腹の底へちゃんと残る。ああいうのがいいね」",
-				],
-				"reactions": {
-					"GREAT": [
-						"老婆「……あんた、モツを入れたね。あの診療所の汁も、これが入ってたんだよ」",
-						"老婆「ああ、思い出した。この味だ。長生きしてみるもんだねえ」",
-					],
-					"GOOD": [
-						"老婆「そう、これだよ。塩気の奥から、草の根の匂いが戻ってくる」",
-						"老婆「苦いだけの薬より、こっちの方がよほど身体に効くねえ」",
-					],
-					"OK": [
-						"老婆「これはこれで悪くない。でも、今夜欲しかったのとは違うね」",
-						"老婆「舌じゃなく、古い骨まで温めてくれる味が欲しかったんだけどね」",
-					],
-					"BAD": [
-						"老婆「……年寄りの腹には、ちょいと寂しいねえ」",
-						"老婆、半分ほど残して椀を置いた。",
-					],
-				},
-				"servings": 1, "is_mob": false,
-				"wanted_tags": ["SAVORY", "FILLING"], "favorite": "offal" }
-		"officer":
-			# 新人警官（Day2で初登場。表示名「警官」）。通常の1杯客。要求タグ SOUR + BITE、好物は米麺。
-			# 米麺（FILLING）だけでは要求タグに一致しない＝一致0なら好物が入っていてもBAD
-			# （好物は一致数が1以上のときのボーナス）。会話稿・反応文は上の _OFFICER_* を参照。
-			return { "greet": _OFFICER_ARRIVAL,
-				"reactions": _officer_reactions(),
-				"servings": 1, "is_mob": false,
-				"wanted_tags": ["SOUR", "BITE"], "favorite": "rice_noodle" }
-		_:
-			return { "greet": ["客「……。」"],
-				"reactions": {
-					"GREAT": ["客、無言。", "客、無言。"],
-					"GOOD": ["客、無言。", "客、無言。"],
-					"OK": ["客、無言。", "客、無言。"],
-					"BAD": ["客、無言。", "客、無言。"],
-				},
-				"servings": 0, "is_mob": false, "wanted_tags": [], "favorite": "" }
+	if customer_id == "dock_workers":
+		var mob := ScheduleData.mob_data("dock_workers")
+		if mob.is_empty():
+			return _unknown_customer_flavor()
+		var greet := []
+		for line in mob.get("greet", []):
+			greet.append(_format_dock_greet(str(line), mob_count))
+		return { "greet": greet, "reactions": mob.get("reactions", {}),
+			"servings": mob_count, "is_mob": true,
+			"wanted_tags": mob.get("wanted_tags", []), "favorite": "" }
+	var data := ScheduleData.customer_data(customer_id, GameState.day_count)
+	if data.is_empty():
+		return _unknown_customer_flavor()
+	if customer_id == "delivery_man":
+		return { "is_mob": data.get("is_mob", false),
+			"wanted_tags": data.get("wanted_tags", []), "favorite": data.get("favorite", "") }
+	return { "greet": data.get("greet", []), "reactions": data.get("reactions", {}),
+		"servings": int(data.get("servings", 1)), "is_mob": data.get("is_mob", false),
+		"wanted_tags": data.get("wanted_tags", []), "favorite": data.get("favorite", "") }
+
+
+## dock_workers の greet 1行を仕上げる。"%d"を含む行だけ mob_count を埋め込み、
+## 含まない行（素の台詞）はそのまま返す（GDScriptの % 演算子はプレースホルダの
+## 無い文字列に値を渡すと実行時エラーになるため、含む行だけに絞る）。
+static func _format_dock_greet(line: String, mob_count: int) -> String:
+	if line.contains("%d"):
+		return line % mob_count
+	return line
+
+
+## 未知id・データ無しのフォールバック（既存どおり）。
+static func _unknown_customer_flavor() -> Dictionary:
+	return { "greet": ["客「……。」"],
+		"reactions": {
+			"GREAT": ["客、無言。", "客、無言。"],
+			"GOOD": ["客、無言。", "客、無言。"],
+			"OK": ["客、無言。", "客、無言。"],
+			"BAD": ["客、無言。", "客、無言。"],
+		},
+		"servings": 0, "is_mob": false, "wanted_tags": [], "favorite": "" }
 
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。
