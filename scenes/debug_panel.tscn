@@ -70,6 +70,10 @@ text = "鍋を見る"
 layout_mode = 2
 text = "閉店"
 
+[node name="BtnPhone" type="Button" parent="Margin/VBox/EventRow"]
+layout_mode = 2
+text = "スマホ"
+
 [node name="OptionsRow" type="HBoxContainer" parent="Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8

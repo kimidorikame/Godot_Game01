@@ -12,6 +12,7 @@ extends PanelContainer
 @onready var _btn_complete_input: Button = $Margin/VBox/EventRow/BtnCompleteInput as Button
 @onready var _btn_pot: Button = $Margin/VBox/EventRow/BtnPot as Button
 @onready var _btn_close: Button = $Margin/VBox/EventRow/BtnClose as Button
+@onready var _btn_phone: Button = $Margin/VBox/EventRow/BtnPhone as Button
 @onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
@@ -63,6 +64,16 @@ var _market_last_text := ""
 # 鍋モード（_pot_mode）と同じ「EventRunnerには触れないUIだけの入れ子」。
 # PREPに入るたびリセットする。
 var _market_shop := ""
+
+# スマホ（3つ目の入れ子モード）。鍋モード・市場モードと同じくEventRunnerには一切触れない。
+# フェーズ・鍋モード・市場モードのどれからでも開ける（排他にしない）。_update_options_row()の
+# 最優先で判定するので、_pot_mode/_market_shopの値はそのまま裏で保持され、閉じれば
+# 自動的に元の画面へ戻る（退避・復元の処理は不要）。
+var _phone_mode := false
+
+# スマホの現在のタブ（"recipe" / "news" / "sns"）。フェーズをまたいでも維持しない
+# （_set_runner_for_phase()で既定値に戻す。鍋モードの水入れ状態などと同じ扱い）。
+var _phone_tab := "recipe"
 
 # 今の客の椀を何回廃棄したか（[廃棄する]で作り直すたびに+1）。客が替わる
 # （_load_current_customer）たびにリセットする一時状態。現在の椀自体はリセットで
@@ -124,6 +135,9 @@ func _ready() -> void:
 	_btn_money_plus.pressed.connect(_on_money_debug_pressed.bind(50))
 	# [モブ人数] = 今夜のモブ人数を 自動→1→2→3→4→自動… と切り替える（デバッグ用）。
 	_btn_mob_debug.pressed.connect(_on_mob_debug_pressed)
+	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
+	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
+	_btn_phone.pressed.connect(_on_phone_pressed)
 
 	_refresh()
 
@@ -162,6 +176,9 @@ func _set_runner_for_phase(phase: int) -> void:
 	_market_visited_water = false
 	_market_last_text = ""
 	_market_shop = ""
+	# スマホも鍋・市場と同じくフェーズをまたいで持ち越さない（防御的リセット）。
+	_phone_mode = false
+	_phone_tab = "recipe"
 	if phase == GameState.Phase.WAKE:
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
@@ -327,6 +344,25 @@ func _on_add_water_pressed() -> void:
 
 func _on_add_base_pressed() -> void:
 	GameState.add_base()
+	_refresh()
+
+
+## [スマホ] のハンドラ。モードに入るだけで、EventRunner には触れない（_on_pot_pressed()
+## と同じ形）。_pot_mode/_market_shopの値は変更しない＝閉じれば自動的に元の画面へ戻る。
+func _on_phone_pressed() -> void:
+	_phone_mode = true
+	_refresh()
+
+
+## スマホの [閉じる]。会話・鍋・市場のどの状態にも触れず、ただモードを抜けるだけ。
+func _on_phone_close_pressed() -> void:
+	_phone_mode = false
+	_refresh()
+
+
+## スマホのタブ切り替え（[レシピ]/[ニュース]/[SNS]）。
+func _on_phone_tab_selected(tab: String) -> void:
+	_phone_tab = tab
 	_refresh()
 
 
@@ -761,7 +797,12 @@ func _refresh() -> void:
 	_game_state_label.text = _format_game_state()
 	# OPEN 中は runner 表示のあとに客キューの状態も出す。PREP 中は市場の状態を出す
 	# （どちらも対象外のフェーズでは空文字なので、両方繋げても実害はない）。
-	_runner_label.text = _format_runner() + _format_open() + _format_market()
+	# スマホを開いている間は、会話・鍋・市場の文面をスマホの中身に差し替える（裏では
+	# そのまま保持されているので、閉じれば元の表示に戻る。実データを消しはしない）。
+	if _phone_mode:
+		_runner_label.text = _format_phone()
+	else:
+		_runner_label.text = _format_runner() + _format_open() + _format_market()
 	_update_options_row()
 
 
@@ -808,12 +849,25 @@ func _update_options_row() -> void:
 			or (_is_choosing_ingredients() and not _is_short_now()) \
 			or _is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
-	_btn_pot.disabled = pot_disabled
-	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market()
+	_btn_pot.disabled = pot_disabled or _phone_mode
+	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market() or _phone_mode
 	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_short_in_adjust()
-	_btn_close.disabled = not _can_close_now()
+			or _is_in_market() or _is_short_in_adjust() or _phone_mode
+	_btn_close.disabled = not _can_close_now() or _phone_mode
+	_btn_next_phase.disabled = _phone_mode
+	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
+	_btn_phone.disabled = _phone_mode
+
+	# スマホは3つ目の入れ子モード（鍋・市場と同じくEventRunnerには触れない）。他のどの
+	# モードよりも最優先で判定し、真なら通常のADJUST/鍋/市場ボタンの代わりにタブ＋
+	# [閉じる]を出して return する（_pot_mode/_market_shopの値はそのまま裏で保持される）。
+	if _phone_mode:
+		var tabs := [["recipe", "レシピ"], ["news", "ニュース"], ["sns", "SNS"]]
+		for tab in tabs:
+			_add_pot_button(tab[1], _phone_tab == tab[0], _on_phone_tab_selected.bind(tab[0]))
+		_add_pot_button("閉じる", false, _on_phone_close_pressed)
+		return
 
 	if _pot_mode:
 		var locked := _pot_locked_until_water()
@@ -995,6 +1049,20 @@ func _format_inventory_detail() -> String:
 				entry += "(新鮮%d・傷%d)" % [GameState.fresh_count(id), bad]
 		parts.append(entry)
 	return " ".join(parts)
+
+
+## スマホの本文（シェルのみ。中身は今回すべてプレースホルダー。DESIGN.md該当箇所は
+## 別タスクでレシピ／ニュース／SNSの実データを積むときに更新する）。
+func _format_phone() -> String:
+	var body: String
+	match _phone_tab:
+		"news":
+			body = "ニュース：まだ届いていません"
+		"sns":
+			body = "SNS：まだ新着はありません"
+		_:
+			body = "レシピ：まだ記録がありません"
+	return "── スマホ ──\n%s" % body
 
 
 func _format_runner() -> String:
