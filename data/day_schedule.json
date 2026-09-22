@@ -9,7 +9,17 @@
       {
         "name": "夜半",
         "main": "thug",
-        "mob": true
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
       },
       {
         "name": "明け方",
@@ -23,7 +33,366 @@
       {
         "name": "宵の口",
         "main": "officer",
-        "mob": true
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      }
+    ]
+  },
+  "3": {
+    "slots": [
+      {
+        "name": "宵の口",
+        "main": "hooker",
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      }
+    ]
+  },
+  "4": {
+    "slots": [
+      {
+        "name": "宵の口",
+        "main": "streamer",
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      }
+    ]
+  },
+  "5": {
+    "slots": [
+      {
+        "name": "宵の口",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      }
+    ]
+  },
+  "6": {
+    "slots": [
+      {
+        "name": "宵の口",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main_pool": [
+          "granny",
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      }
+    ]
+  },
+  "7": {
+    "slots": [
+      {
+        "name": "宵の口",
+        "main_pool": [
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "夜半",
+        "main_pool": [
+          "thug",
+          "delivery_man",
+          "officer",
+          "hooker",
+          "streamer"
+        ],
+        "mob": {
+          "pool": [
+            "dock_workers",
+            "security_guard",
+            "inn_clerk",
+            "street_cleaners",
+            "general_store_clerk",
+            "market_porter",
+            "long_haul_driver"
+          ]
+        }
+      },
+      {
+        "name": "明け方",
+        "main": "granny",
+        "mob": false
       }
     ]
   }

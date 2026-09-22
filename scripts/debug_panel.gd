@@ -89,17 +89,15 @@ var _bowl_discard_count := 0
 # （途中閉店・ゲームオーバー）に空にする＝二重に反映されない。
 var _visit_tally := {}
 
-# 今日のモブ人数（DESIGN.md 7.6）。OPENに入る瞬間に1回だけ引いて、スケジュール作成と
-# 客ごとのEvent生成の両方で使い回す（呼ぶたびに乱数を引くと食い違うため）。
-var _mob_count := 0
-
-# デバッグ用：今夜のモブ人数の強制指定（-1＝自動＝GameState.mob_count_today()）。OPENに入る
-# 瞬間に読まれるので、変えるなら OPEN に入る前（WAKE・PREP中）に押すこと。GameState には持たせない
-# （本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
+# デバッグ用：今夜のモブ人数の強制指定（-1＝自動）。Day2-7ダミーデータ・モブ抽選独立化で、
+# Day1Events.customer_schedule()へそのまま渡す値になった（枠ごとに種類も人数も独立抽選する
+# ため、-1以外なら全モブ枠の人数だけを一律で上書きする。種類はそれでも枠ごとにばらつく）。
+# OPENに入る瞬間に読まれるので、変えるなら OPEN に入る前（WAKE・PREP中）に押すこと。
+# GameState には持たせない（本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
 var _debug_mob_count := -1
 
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
-# 1回だけ決めて、prep_events と計器盤の両方で使い回す（_mob_count と同じ形）。
+# 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
 var _scraps_base := false
 
 
@@ -192,8 +190,9 @@ func _set_runner_for_phase(phase: int) -> void:
 		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base, reserve_lost))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
-		_mob_count = _debug_mob_count if _debug_mob_count >= 0 else GameState.mob_count_today()
-		_open = OpenController.new(Day1Events.customer_schedule(_mob_count))
+		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
+		# デバッグ用の一律上書き値（_debug_mob_count。-1=自動）をそのまま渡すだけでよい。
+		_open = OpenController.new(Day1Events.customer_schedule(_debug_mob_count))
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
@@ -220,7 +219,9 @@ func _set_runner_for_phase(phase: int) -> void:
 func _load_current_customer() -> void:
 	_bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	if _open != null and _open.has_more():
-		flow.set_runner(Day1Events.customer_events(str(_open.current_customer()), _mob_count))
+		# モブの人数はDay1Events._mob_instances側で客ごとに覚えているので、ここでは
+		# 第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
+		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
 	else:
 		flow.set_runner([])
 

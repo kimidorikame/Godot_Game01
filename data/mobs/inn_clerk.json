@@ -1,7 +1,7 @@
 {
   "is_mob": true,
   "greet": [
-    "港湾労働者 %d人（HOT/POWER）"
+    "安宿の夜勤受付 %d人（HOT/POWER）"
   ],
   "reactions": {
     "GOOD": [

@@ -4,5 +4,27 @@
   "wanted_tags": [
     "HOT",
     "POWER"
-  ]
+  ],
+  "days": {
+    "1": {
+      "greet": [
+        "配達員（2日目以降・要求タグ: HOT/POWER）"
+      ],
+      "reactions": {
+        "GREAT": [
+          "GREAT"
+        ],
+        "GOOD": [
+          "GOOD"
+        ],
+        "OK": [
+          "OK"
+        ],
+        "BAD": [
+          "BAD"
+        ]
+      },
+      "servings": 1
+    }
+  }
 }

@@ -1,34 +1,10 @@
 {
   "is_mob": false,
-  "favorite": "rice_noodle",
+  "favorite": "pickled_lime",
   "days": {
-    "2": {
-      "greet": [
-        "警官（SOUR/BITE）"
-      ],
-      "wanted_tags": [
-        "SOUR",
-        "BITE"
-      ],
-      "reactions": {
-        "GREAT": [
-          "GREAT"
-        ],
-        "GOOD": [
-          "GOOD"
-        ],
-        "OK": [
-          "OK"
-        ],
-        "BAD": [
-          "BAD"
-        ]
-      },
-      "servings": 1
-    },
     "3": {
       "greet": [
-        "警官（HOT/POWER）"
+        "娼婦（HOT/POWER）"
       ],
       "wanted_tags": [
         "HOT",
@@ -52,7 +28,7 @@
     },
     "4": {
       "greet": [
-        "警官（HOT/POWER）"
+        "娼婦（HOT/POWER）"
       ],
       "wanted_tags": [
         "HOT",
@@ -76,7 +52,7 @@
     },
     "5": {
       "greet": [
-        "警官（HOT/POWER）"
+        "娼婦（HOT/POWER）"
       ],
       "wanted_tags": [
         "HOT",
@@ -100,7 +76,7 @@
     },
     "6": {
       "greet": [
-        "警官（HOT/POWER）"
+        "娼婦（HOT/POWER）"
       ],
       "wanted_tags": [
         "HOT",
@@ -124,7 +100,7 @@
     },
     "7": {
       "greet": [
-        "警官（HOT/POWER）"
+        "娼婦（HOT/POWER）"
       ],
       "wanted_tags": [
         "HOT",
