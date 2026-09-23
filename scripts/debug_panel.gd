@@ -807,24 +807,35 @@ func _serve_customer(ev: Dictionary) -> void:
 	var servings := int(ev.get("servings", 1))
 	var judged: bool = bool(ev.get("judge", true))
 	var aggregate: bool = bool(ev.get("aggregate", false))
+	var customer_id := str(ev.get("customer", ""))
+	# ③初回好物の開示：Event側の本来のfavorite（生の値。書き換えない）と、判定に実際に
+	# 使う値（まだ知らない客なら空にして隠す）を分けて持つ。current_bowlに残るfavorite/
+	# has_favoriteは「判定に使った値」の方になる（初回は好物を入れてもGREATにならない）。
+	var raw_favorite := str(ev.get("favorite", ""))
+	var favorite_for_judge := raw_favorite if GameState.knows_favorite(customer_id) else ""
 	var result := ""
 	var delta := 0
 	if judged:
 		if _open != null:
-			result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+			result = _open.judge_bowl(ev.get("wanted_tags", []), favorite_for_judge)
 		var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
 		delta = int(table.get(result, 0))
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
 	if aggregate:
-		_add_to_visit_tally(str(ev.get("customer", "")), judged, delta, sale, servings, result)
+		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
+		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
+		# _flush_visit_tally() が退店の瞬間に1回だけ確定させる。
+		_add_to_visit_tally(customer_id, judged, delta, sale, servings, result, raw_favorite)
 		return
 	if judged:
 		GameState.apply_reputation(delta)
+	if judged and raw_favorite != "":
+		GameState.mark_favorite_known(customer_id)
 	# 日次ログ：判定結果ごとに集計する。judged=falseの杯（配達員の持ち帰り等）は
 	# result=""のまま（判定なしと分かる値。指示文どおり）。
 	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + servings
-	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
+	GameState.record_served({ "customer": customer_id, "sale": sale,
 		"servings": servings, "result": result })
 
 
@@ -832,11 +843,14 @@ func _serve_customer(ev: Dictionary) -> void:
 ## 積まない）、売上と杯数は全杯を積む。
 ## 日次ログ：resultsに判定結果ごとの杯数も積んでおく（_flush_visit_tallyで
 ## _log_quality_countsへ合算し、record_servedにも残す。判定なしの杯はresult=""のまま）。
+## ③初回好物の開示：raw_favoriteが空でなければ_visit_tallyへ覚えておき（既に何か
+## 覚えていれば上書きしない＝配達員3杯目のfavorite無しに負けない）、退店時の
+## _flush_visit_tally()で1回だけ「知った」扱いにする。
 func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
-		servings: int, result: String = "") -> void:
+		servings: int, result: String = "", raw_favorite: String = "") -> void:
 	if _visit_tally.is_empty():
 		_visit_tally = { "customer": customer, "rep_sum": 0, "rep_count": 0,
-			"sale": 0, "servings": 0, "results": {} }
+			"sale": 0, "servings": 0, "results": {}, "pending_favorite": "" }
 	if judged:
 		_visit_tally["rep_sum"] = int(_visit_tally["rep_sum"]) + delta
 		_visit_tally["rep_count"] = int(_visit_tally["rep_count"]) + 1
@@ -844,6 +858,8 @@ func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
 	_visit_tally["servings"] = int(_visit_tally["servings"]) + servings
 	var results: Dictionary = _visit_tally["results"]
 	results[result] = int(results.get(result, 0)) + servings
+	if judged and raw_favorite != "":
+		_visit_tally["pending_favorite"] = raw_favorite
 
 
 ## 集計を客1人分として反映し、空にする（空なら何もしない＝何度呼んでも二重には効かない）。
@@ -862,6 +878,11 @@ func _flush_visit_tally() -> void:
 	var results: Dictionary = _visit_tally.get("results", {})
 	for key in results:
 		_log_quality_counts[key] = int(_log_quality_counts.get(key, 0)) + int(results[key])
+	# ③初回好物の開示：退店するこの瞬間に1回だけ「知った」扱いにする（配達員は
+	# これで1・2杯目の途中では判明せず、3杯すべて終えた退店時に判明する）。
+	var pending_favorite := str(_visit_tally.get("pending_favorite", ""))
+	if pending_favorite != "":
+		GameState.mark_favorite_known(str(_visit_tally["customer"]))
 	GameState.record_served({ "customer": _visit_tally["customer"],
 		"sale": int(_visit_tally["sale"]), "servings": int(_visit_tally["servings"]),
 		"results": results })
@@ -1271,6 +1292,8 @@ func _format_game_state() -> String:
 			"（購入分%d単位は傷んでいる）" % GameState.reserve_base_purchase_remaining if GameState.is_reserve_base_damaged() else ""],
 		"served(接客数/杯数): %d / %d" % [_served_count(), _served_servings()],
 		"discarded(廃棄数): %d 件" % _discarded_count(),
+		"known_favorites(好物を知っている客): %s" % (
+			"・".join(PackedStringArray(GameState.known_favorites.keys())) if not GameState.known_favorites.is_empty() else "(なし)"),
 	]))
 
 
@@ -1502,11 +1525,19 @@ func _format_bowl() -> String:
 		"bowl_tags(3枠のtags): %s" % str(_open.bowl_addition_tags()),
 		"final_tags(最終tags): %s" % str(_open.bowl_final_tags()),
 	]
-	# favorite は判定後（REACT適用後）だけ出す。判定前は好物を伏せておく。
+	# favorite は判定後（REACT適用後）だけ出す。判定前は好物を伏せておく（判定に実際に
+	# 使った値＝初回は空になる。current_bowlはjudge_bowlに渡した後の値を持つ）。
 	var favorite: String = str(_open.current_bowl.get("favorite", ""))
 	if result != "" and favorite != "":
 		var in_bowl: bool = _open.current_bowl.get("has_favorite", false)
 		lines.append("favorite(好物): %s → %s" % [favorite, "入っている" if in_bowl else "入っていない"])
+	# ③初回好物の開示：検証用に、判定の有無に関わらず「本来の好物」と既知状態を出す
+	# （Event側の生の値。current_bowlの上のfavoriteとは別。書き換えない読み取り専用）。
+	var raw_favorite: String = str(_react_for_now().get("favorite", ""))
+	if raw_favorite != "":
+		var customer_id: String = str(_open.current_bowl.get("customer_id", ""))
+		lines.append("favorite_true(本来の好物・デバッグ): %s (known=%s)" % [
+			raw_favorite, str(GameState.knows_favorite(customer_id))])
 	lines.append("judge(判定): %s" % judge_text)
 	# 廃棄回数（0回なら出さない）。椀自体は廃棄のたびに作り直されて消えるので、
 	# 「この客で何回作り直したか」は current_bowl とは別に _bowl_discard_count で持つ。

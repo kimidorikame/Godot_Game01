@@ -103,6 +103,12 @@ var reserve_base_purchased: bool = false
 var reserve_base_purchase_remaining: int = 0
 var reserve_base_purchase_day: int = 0
 
+# ③初回好物の開示（BALANCE_REDESIGN_PLAN.md §4）：名前あり客の好物を「知っているか」
+# {customer_id: true}。日をまたいで持ち越す（reset_for_new_dayでは触らない）が、
+# 新しい周回では初回に戻す（reset_for_new_gameでクリア）。モブは対象外（favoriteが
+# 常に空なので、そもそもここに登録されることがない）。
+var known_favorites: Dictionary = {}
+
 # 今どのフェーズか。進行度ではなく「位置」だけ。
 var phase: Phase = Phase.WAKE
 
@@ -163,6 +169,7 @@ func reset_for_new_game() -> void:
 	reserve_base_purchased = false
 	reserve_base_purchase_remaining = 0
 	reserve_base_purchase_day = 0
+	known_favorites.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
 
@@ -464,3 +471,16 @@ func record_served(record) -> void:
 ## 実際に適用されたときと、閉店直前の特別請求が通ったときの両方から呼ぶ。
 func mark_rent_paid() -> void:
 	rent_paid_today = true
+
+
+## ③初回好物の開示：この客の好物をもう知っているか（一度でも判定に使われる来店を
+## 終えたか）。モブは常にfavoriteが空で、そもそもここへ登録されることが無いので
+## 呼び出し側で気にする必要はない。
+func knows_favorite(customer_id) -> bool:
+	return bool(known_favorites.get(str(customer_id), false))
+
+
+## この客の好物を「知っている」状態にする（mark_rent_paidと同じ単発の入口。受け側から
+## known_favoritesを直接書き換えさせない）。次回の来店から判定に使われるようになる。
+func mark_favorite_known(customer_id) -> void:
+	known_favorites[str(customer_id)] = true
