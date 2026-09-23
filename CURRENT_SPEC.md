@@ -91,7 +91,9 @@ rent_paid_today : bool = false # 今日の場所代を払い終えたか ※日�
 - `remove_inventory_fresh(id, count)` / `remove_inventory_damaged(id, count)` …
   指定したバケツから古い順に引き、足りなければもう一方で自動的に補う
 - `discard_spoiled_inventory()` … 経過4日目以上のロットだけを在庫・`perishable_batches`から削除し、
-  破棄が発生した品目のidを返す（同じ品目の新しいロットが残っていれば品目自体は残る）
+  破棄が発生した品目ごとの個数を`{id: 破棄個数}`のDictionaryで返す（同じ品目の新しいロットが
+  残っていれば品目自体は残る。**2026-09-23：戻り値をidの配列からDictionaryへ変更（日次ログの
+  廃棄額概算に個数が必要になったため）。呼び出し元2箇所は無改修で動作**。§11「日次ログの導入」参照）
 - `is_final_day()` … 今日が最終日か。`day_count >= FINAL_DAY`（`is_collection_day()`と同じ形）
 - `reset_for_new_game()` … 最終日のNEXT_DAY→WAKEで呼ばれる全状態初期化
   （下記「状態変数14個すべてが対象」参照）
@@ -1591,6 +1593,38 @@ OpenController を維持する。
    §9「C. データの外部化」参照。**会話本文の実データ化（新規客・モブ・警官の
    残り日数分）は、経営数値（鍋・水・具材の入手量や価格、客ごとの嗜好バランス）の
    調整を優先するため意図的に後回しにしている（2026-09-22時点の方針）**
+9. **[済]** 日次ログの導入（`BALANCE_REDESIGN_PLAN.md`§8「①消費と鮮度の明確化・
+   日次ログ」・経済数値/計算式は無変更）：`planning/BALANCE_REDESIGN_PLAN.md`
+   （経営バランス再設計プラン。現行実装との13項目の差分を含む。7日MVP用の
+   正本）を独立監査した上で、その実装第一歩として、1日の終わりの状態をログに
+   残す仕組みだけを追加した。既存の定数・計算式・評判テーブル・鍋の仕様は
+   すべて現状のまま。
+   - `FlowController`に`day_ending`シグナルを新設し、NEXT_DAY→WAKEへ折り返す
+     瞬間、`reset_for_new_day()`/`reset_for_new_game()`（`served`等を消す）より
+     **前**に発火する（最終日側の分岐でも発火する。既存の`phase_changed`は
+     リセット後に発火するため今回の用途には使えないと判明し、新設した）。
+   - `GameState.discard_spoiled_inventory()`の戻り値をidの配列から
+     `{id: 破棄個数}`のDictionaryへ拡張（上記「状態変更の入口」参照）。
+   - `day1_events.gd`に`ingredient_prices()`を新設。既存の`*_goods()`
+     （6関数）から価格を集約するだけで数値は書き写さない
+     （`reserve_base`は腐敗対象外のため除外）。廃棄額の概算
+     （`price / INGREDIENT_SERVINGS_PER_PURCHASE × 破棄個数`）に使う。
+   - `DebugPanel`が日次カウンタ（開店時の所持金/評判、計画杯数の先読み、
+     水/ベース使用回数、早期閉店フラグ、判定結果ごとの杯数、廃棄品目）を
+     保持し、`day_ending`受信時に`day / opening・closing_money / opening・
+     closing_reputation / planned_cups / served_cups / unserved_cups /
+     sale_total / quality_counts / spoiled_items / spoiled_value_approx /
+     water_used / base_used / closed_early`を1日1行、コンソール
+     （`BALANCE_LOG: `プレフィックス）と`user://balance_log.jsonl`
+     （JSON Lines）へ出力する。
+   - `tests/balance_log_test.gd`（新規）で配線を検証（廃棄個数の記録、価格表の
+     網羅性、計画杯数の先読み、`quality_counts`と`served_cups`の整合、
+     `day_ending`が日次リセットより前に発火することなど14項目）。headless
+     テストに加え、Godot実機で1日分プレイしてログ出力を目視確認済み。
+   - コミット：`13dfc89`。次回以降、この仕組みを使って
+     `BALANCE_REDESIGN_PLAN.md`の残りの項目（②拒否と部分提供、③商品・
+     固定日程・初回好物の開示、④仕込みと評判・予告、⑤7日通し確認）を
+     1項目ずつ移行していく。
 
 **【解消済み・フェーズ1の範囲外】閉店で場所代を避けられる**
 - **現象**：徴収日（Day1）に、場所代（チンピラのPAY）より前で閉店すると、場所代を
