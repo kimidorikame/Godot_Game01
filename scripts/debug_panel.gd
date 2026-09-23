@@ -115,6 +115,23 @@ var _log_closed_early := false      # 鍋不足等でCLOSEへ強制遷移した�
 var _log_quality_counts := {}       # {"GREAT":n, "GOOD":n, "OK":n, "BAD":n, "":n(判定なし)}
 var _log_spoiled_items := {}        # PREP突入時のdiscard_spoiled_inventory()の結果をそのまま保持
 
+# --- ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6。モブ客の団体オーダーだけが対象） ---
+# モブ客のADJUST中に選んだ具材を、在庫を引かずに一時記録するリスト（{"id":String,
+# "damaged":bool}の配列）。人数が確定した瞬間（_serve_mob_partial）まで在庫消費を遅らせる
+# ため、「選ぶ」と「消費する」を分離する置き場所。名前あり客・配達員は使わない
+# （今までどおり選んだ瞬間に消費）。
+var _mob_picks: Array = []
+
+# [入力完了]を押して「N人分を提供／注文を断る」の確認ボタンを表示中か。
+# trueの間、_update_options_row()はADJUSTの具材ボタンの代わりにこの2択を出す
+# （_pot_mode/_phone_modeと同じ「専用ボタン行に差し替える」パターン）。
+var _pending_group_choice := false
+
+# 確認ボタンで確定した結果（{"servings": 実際に提供する人数, "ordered": 注文人数}）。
+# 空でなければ、_apply_event()のREACTケースがこちらを使って_serve_mob_partial()へ
+# 委譲する（名前あり客・配達員のREACTは常にこれが空なので既存の経路のまま無影響）。
+var _pending_group_result := {}
+
 
 func _ready() -> void:
 	_seed_initial_inventory()
@@ -256,6 +273,7 @@ func _set_runner_for_phase(phase: int) -> void:
 ## 客がいなければ空 runner（＝即 DONE）にして、OPEN を CLOSE へ進められる状態にする。
 func _load_current_customer() -> void:
 	_bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
+	_reset_mob_group_state()   # ②拒否と部分提供：客が替わるたび選択中の具材・確認状態を破棄
 	if _open != null and _open.has_more():
 		# モブの人数はDay1Events._mob_instances側で客ごとに覚えているので、ここでは
 		# 第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
@@ -283,7 +301,14 @@ func _on_next_event_pressed() -> void:
 ## STEP 17.6: ADJUST 中も含め、常にこのボタンで進める（＝「提供」を兼ねる）。
 ## 具材ボタンはもう進めない（_on_ingredient_selected 側）ので、ADJUST で止まったまま
 ## 何度でも具材を選び、進みたくなったらこのボタンを押す、という形になる。
+## ②拒否と部分提供：モブ客のADJUST中に押した最初の一回は、まだ進めず
+## 「N人分を提供／注文を断る」の確認ボタンへ差し替えるだけにする（_pot_mode等と同じ
+## 「専用ボタン行に差し替える」パターン）。名前あり客・配達員は今までどおり即座に進む。
 func _on_complete_input_pressed() -> void:
+	if _is_current_mob_order() and not _pending_group_choice:
+		_pending_group_choice = true
+		_refresh()
+		return
 	_complete_input_and_advance()
 
 
@@ -302,13 +327,25 @@ func _on_complete_input_pressed() -> void:
 ## 鮮度: 傷み判定は「どちらのボタンを押したか」だけで決める（damaged＝傷んだボタン）。
 ## 押した側の在庫が足りなくても、合計が servings 以上なら、もう一方から補って人数分まとめて
 ## 引く（押した側に1個以上あることはボタン側で保証。二重にここでも見る）。
+## ②拒否と部分提供：有効条件を「押した側のバケツに1個以上あるか」だけに簡略化した
+## （旧条件の「fresh+damaged合計がservings以上」は、名前あり客・配達員（servings常に1）に
+## 対しては数学的に同値なので、この2者の挙動は変わらない。モブ（servings>1）だけが
+## 「揃わなくても選べる」ようになる）。
+## モブ客（is_mob）は在庫をまだ引かない。_mob_picksへ記録するだけにして、実際の消費は
+## 人数が確定した瞬間（_serve_mob_partial）まで遅らせる。名前あり客・配達員は
+## 今までどおり選んだ瞬間に消費する。
 func _on_ingredient_selected(ingredient_id: String, damaged: bool = false) -> void:
-	var servings := _current_servings()
 	var own: int = GameState.damaged_count(ingredient_id) if damaged else GameState.fresh_count(ingredient_id)
-	if own < 1 or GameState.fresh_count(ingredient_id) + GameState.damaged_count(ingredient_id) < servings:
+	if own < 1:
 		return
 	var added := _open != null and _open.add_to_bowl(ingredient_id, damaged)
-	if added:
+	if not added:
+		_refresh()
+		return
+	if _is_current_mob_order():
+		_mob_picks.append({ "id": ingredient_id, "damaged": damaged })
+	else:
+		var servings := _current_servings()
 		if damaged:
 			GameState.remove_inventory_damaged(ingredient_id, servings)
 		else:
@@ -331,6 +368,7 @@ func _on_discard_pressed() -> void:
 		"servings": servings, "discarded": true })
 	_bowl_discard_count += 1
 	_open.reset_bowl()
+	_reset_mob_group_state()   # ②拒否と部分提供：作り直すので選択中の具材・確認状態も破棄
 	_refresh()
 
 
@@ -616,6 +654,7 @@ func _apply_event(ev) -> void:
 			# 「新しく current になった瞬間」に1回だけここへ来るので、必ず選ぶ前に新しくなる。
 			if ev.get("new_bowl", false) and _open != null:
 				_open.reset_bowl()
+				_reset_mob_group_state()   # ②拒否と部分提供：同じ客の次の杯でも選択中の状態を破棄
 		"SET_SOUP":
 			# 鍋を作るのは GameState.set_soup 経由（受け側は soup を直接触らない）。
 			# 7.6: servings（残量の初期値＝仕込んだ杯数）、strength（濃さ）、
@@ -625,6 +664,16 @@ func _apply_event(ev) -> void:
 				int(ev.get("strength", 3)),
 				int(ev.get("water_doses", 0)))
 		"REACT":
+			# ②拒否と部分提供：モブ客はADJUST中の確認ボタン（_on_group_serve_pressed /
+			# _on_group_decline_pressed）で人数をすでに確定させているので、_serve_mob_partial()
+			# へ委譲する（下の「残量が足りない」判定は経由しない＝鍋不足も具材不足もADJUST側の
+			# 達成可能人数の計算にすでに含まれているため）。名前あり客・配達員は
+			# _pending_group_result が常に空なので、この分岐には入らず既存のまま。
+			if not _pending_group_result.is_empty():
+				var result: Dictionary = _pending_group_result
+				_pending_group_result = {}
+				_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)))
+				return
 			# 7.6: 提供しようとした時点で残量が servings に足りないとき、
 			# 条件1（名前あり客がもう残っていない）と条件2（水が無い）の成立具合で分かれる：
 			#   両方成立     → 自動的に閉店（_auto_close_kitchen。選ぶ余地が無い）
@@ -647,6 +696,99 @@ func _apply_event(ev) -> void:
 				_pending_shortage_ev = ev
 				return
 			_serve_customer(ev)
+
+
+## ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6）：対象はモブ客の団体オーダーだけ。
+## いま見ているREACTがモブ客のものか。_react_for_now()は書き換えない読み取り専用の
+## 先読みなので、ADJUST中（REACT到達前）でも判定に使える。
+func _is_current_mob_order() -> bool:
+	return bool(_react_for_now().get("is_mob", false))
+
+
+## 達成可能人数 = min(注文人数, 鍋の残量, 選んだ各具材のバケツ別在庫数)。
+## 「新鮮2個＋傷み2個を新鮮4人分にはしない」（仕様3）＝押したバケツ単体の在庫数だけを見る
+## （fresh+damagedの合算はしない）。同じ具材・同じバケツを2枠選んだ場合はその具材について
+## 在庫数を選んだ回数で割る（add_to_bowlは重複を許すため。例：軟骨(新鮮)を2枠→
+## 新鮮在庫8個なら軟骨に関する上限は8÷2=4人）。
+func _mob_achievable_servings(ordered: int) -> int:
+	var achievable := ordered
+	if GameState.soup != null:
+		achievable = mini(achievable, int(GameState.soup.get("remaining_servings", 0)))
+	else:
+		achievable = 0
+	var counts := {}   # "id|damaged" -> 選んだ回数
+	for pick in _mob_picks:
+		var key: String = "%s|%s" % [pick["id"], pick["damaged"]]
+		counts[key] = int(counts.get(key, 0)) + 1
+	var seen := {}
+	for pick in _mob_picks:
+		var key: String = "%s|%s" % [pick["id"], pick["damaged"]]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		var avail: int = GameState.damaged_count(pick["id"]) if pick["damaged"] else GameState.fresh_count(pick["id"])
+		achievable = mini(achievable, int(avail / int(counts[key])))
+	return maxi(achievable, 0)
+
+
+## モブ客の選択中の状態（在庫はまだ引いていない）を破棄する。客が替わる・同じ客の次の杯・
+## 廃棄して作り直す、の3箇所から呼ぶ（_reset_mob_group_state）。
+func _reset_mob_group_state() -> void:
+	_mob_picks = []
+	_pending_group_choice = false
+	_pending_group_result = {}
+
+
+## 「N人分を提供」ボタン。人数を確定してADJUST→SERVEへ進める（実際の消費・判定・売上・
+## 評判・記録はREACT到達時の_serve_mob_partial()で行う。Event（データ）はここでは
+## 一切書き換えない）。
+func _on_group_serve_pressed(n: int, ordered: int) -> void:
+	_pending_group_result = { "servings": n, "ordered": ordered }
+	_pending_group_choice = false
+	_complete_input_and_advance()
+
+
+## 「注文を断る」ボタン。人数0で確定させる（_serve_mob_partial側で「断り」として扱う）。
+func _on_group_decline_pressed(ordered: int) -> void:
+	_pending_group_result = { "servings": 0, "ordered": ordered }
+	_pending_group_choice = false
+	_complete_input_and_advance()
+
+
+## REACT到達時、_pending_group_result（確認ボタンで確定済み）があるモブ客はこちらで処理する
+## （_apply_event()のREACTケースから委譲。名前あり客・配達員は_pending_group_resultが
+## 常に空なので、この関数自体を通らない＝既存の_serve_customer()のみ使う）。
+## actual（実際に提供する人数）が0なら「断り」＝判定・鍋消費・売上・評判のいずれも発生させない
+## （既存の[閉店]と同じ扱い。仕様7）。1以上なら、実際に消費するのはactual人分だけ
+## （鍋・選んだ各具材とも）。判定（GREAT/GOOD/OK/BAD）はactualの大小に関係なく「何を
+## 入れたか」だけで決まり、評判もその結果に応じて1回だけ加算する（人数に比例させない。
+## §2確定仕様）。
+func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
+	var unserved: int = maxi(ordered - actual, 0)
+	if actual <= 0:
+		GameState.record_served({ "customer": ev.get("customer", ""), "sale": 0,
+			"servings": 0, "ordered_servings": ordered, "unserved_servings": unserved,
+			"declined": true, "result": "" })
+		return
+	var result := ""
+	if _open != null:
+		result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+	var delta: int = int(REPUTATION_MOB.get(result, 0))
+	for pick in _mob_picks:
+		if bool(pick["damaged"]):
+			GameState.remove_inventory_damaged(str(pick["id"]), actual)
+		else:
+			GameState.remove_inventory_fresh(str(pick["id"]), actual)
+	GameState.consume_soup(actual)
+	var sale: int = actual * GameState.PRICE_PER_SERVING
+	GameState.apply_money(sale)
+	GameState.apply_reputation(delta)
+	# 日次ログ：実際に提供した人数ぶんだけ加算する（①のplanned_cupsは注文人数のまま
+	# 先読み済みなので、ここをactualにするだけでunserved_cupsが自動的に正しくなる）。
+	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + actual
+	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
+		"servings": actual, "ordered_servings": ordered, "unserved_servings": unserved,
+		"declined": false, "result": result })
 
 
 ## REACT の効果を実際に適用する（判定→評判→鍋の消費→売上→記録）。
@@ -750,9 +892,11 @@ func _is_short_in_adjust() -> bool:
 
 ## [閉店]を押せるか。鍋不足の保留中、または「ADJUST中で不足、かつ水が無い」
 ## （足せなければ閉店）。どちらも、その客には出せなかった扱いで CLOSE へ進む。
+## ②拒否と部分提供：モブ客の鍋不足は「断る」で次の客へ進めるので、これだけを理由に
+## [閉店]は出さない（名前あり客・配達員は無変更）。
 func _can_close_now() -> bool:
 	return _pending_shortage_ev != null \
-			or (_is_short_in_adjust() and _no_resources_left())
+			or (_is_short_in_adjust() and _no_resources_left() and not _is_current_mob_order())
 
 
 ## 現在の客（含む）から OPEN 終了まで、名前あり客がもう出てこないか。
@@ -968,10 +1112,14 @@ func _update_options_row() -> void:
 			or _is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled or _phone_mode
-	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market() or _phone_mode
+	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market() \
+			or _phone_mode or _pending_group_choice
 	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
+	# ②拒否と部分提供：モブ客は鍋不足だけでは塞がない（達成可能人数の計算に鍋残量も
+	# 含めており、[入力完了]を押せば確認ボタンへ進めるため。名前あり客・配達員は無変更）。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_short_in_adjust() or _phone_mode
+			or _is_in_market() or _phone_mode or _pending_group_choice \
+			or (_is_short_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
@@ -996,6 +1144,20 @@ func _update_options_row() -> void:
 		# 水待ちで[戻る]を塞ぐのは、[水を足す]で解ける（水がある）ときだけ。
 		# 水が無ければ塞がない＝鍋モードには必ず出口がある。
 		_add_pot_button("戻る", locked and GameState.can_add_water(), _on_pot_back_pressed)
+		return
+
+	# ②拒否と部分提供：モブ客が[入力完了]を押した後は、通常のADJUST具材ボタンの代わりに
+	# 「N人分を提供／注文を断る」の2択を出す（達成可能人数は毎回ここで計算し直すので、
+	# 鍋モードへ寄り道して水を足してから戻ってきても最新の値になる）。全員分そろっている
+	# ときも「注文を断る」は必ず出す（仕様6）。達成可能人数が0なら「断る」だけを出す。
+	if _pending_group_choice:
+		var order := _react_for_now()
+		var ordered: int = int(order.get("servings", 0))
+		var achievable := _mob_achievable_servings(ordered)
+		if achievable >= 1:
+			_add_pot_button("%d人分を提供（注文%d人）" % [achievable, ordered], false,
+				_on_group_serve_pressed.bind(achievable, ordered))
+		_add_pot_button("注文を断る", false, _on_group_decline_pressed.bind(ordered))
 		return
 
 	var r: EventRunner = flow.runner
@@ -1028,20 +1190,18 @@ func _update_options_row() -> void:
 	var at_cap := false
 	if _open != null:
 		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
-	var servings := _current_servings()
 	for option in cur["options"]:
 		var opt_id: String = str(option.get("id", ""))
 		# 7.7: options は接客開始時に1回だけ組み立てた在庫のスナップショット（MARKETの
 		# enabledと同じく読むだけで書き換えない）。同じ接客中に選び尽くして0になる分は
 		# ここでライブの在庫数を見て無効化し直す（水場ボタンと同じ形）。
-		# DESIGN.md 7.6「具材 −人数分」：1回選ぶと servings 個消費するので、
-		# servings に満たない残りしか無ければ押せない（黙って端数だけ消費させない）。
-		# 鮮度: 押した側のバケツが1個以上あり、かつ両バケツの合計が servings 以上なら押せる
-		# （不足はもう一方で補う。押した側が空のボタンで傷みの有無を選び直せないようにする）。
+		# 鮮度: 押した側のバケツに1個以上あれば押せる（②拒否と部分提供：旧条件の
+		# 「両バケツの合計がservings以上」は、名前あり客・配達員(servings常に1)には
+		# own>=1と数学的に同値なので挙動は変わらない。モブ(servings>1)だけが
+		# 「揃わなくても選べる」ようになる＝達成可能人数はADJUST完了時に別途計算する）。
 		var opt_damaged: bool = bool(option.get("damaged", false))
 		var own: int = GameState.damaged_count(opt_id) if opt_damaged else GameState.fresh_count(opt_id)
-		var out_of_stock: bool = own < 1 \
-			or GameState.fresh_count(opt_id) + GameState.damaged_count(opt_id) < servings
+		var out_of_stock: bool = own < 1
 		var btn := Button.new()
 		btn.text = str(option.get("label", opt_id if opt_id != "" else "?"))
 		btn.disabled = at_cap or out_of_stock
