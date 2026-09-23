@@ -140,28 +140,30 @@ static func _market_options(scraps_base: bool = false) -> Array:
 	]
 
 
-## 永順青果の商品（DESIGN.md 7.7）。1回選ぶと1袋＝GameState.INGREDIENT_SERVINGS_PER_PURCHASE
-## 杯分を買える（何度でも買える。所持金が足りなければ受け側がボタンを無効化する）。
-## 価格はPRICING_SPEC.md 6章「安い例」の冬瓜=20を基準。苦瓜はPRICING_SPEC.md 7章では
-## 調味料10杯分25だが、ここでは冬瓜と揃えて5杯分梱包に変更したための仮の半額（13）。
-## §7の「10杯分」表記との食い違いはPRICING_SPEC.md側の追記が別途必要（今は保留）。
+## 永順青果の商品（DESIGN.md 7.7 → BALANCE_REDESIGN_PLAN.md §3で購入単位・価格を更新）。
+## 各要素の"item"が在庫に足す品目id、"count"が1回の購入で増える個数（品目ごとに異なる。
+## GameState.INGREDIENT_SERVINGS_PER_PURCHASEは①具材の購入単位ラウンドで廃止した）。
+## "id"はボタン識別用（同じitemに複数の購入選択肢があるときはidを分ける。モツ・海老の
+## 小口購入 = meat_wholesale_goods() / seafood_goods() 参照）。何度でも買える。
+## 所持金が足りなければ受け側がボタンを無効化する。
 static func produce_goods() -> Array:
 	return [
-		{ "id": "winter_melon", "label": "冬瓜", "price": 20 },
-		{ "id": "bitter_melon", "label": "苦瓜", "price": 13 },
+		{ "id": "winter_melon", "item": "winter_melon", "label": "冬瓜", "price": 50, "count": 5 },
+		{ "id": "bitter_melon", "item": "bitter_melon", "label": "苦瓜", "price": 12, "count": 3 },
 	]
 
 
 ## 残りの店の商品（DESIGN.md 7.7）。<店のid>_goods の名前で produce_goods に揃える
-## （DebugPanel._shop_goods の match のキーと一対一）。1回選ぶと INGREDIENT_SERVINGS_PER_PURCHASE
-## 杯分を買える。価格は仮（PRICING_SPEC.md §6・§7の例とは食い違う決定値。ドキュメント側の追記は別途）。
+## （DebugPanel._shop_goods の match のキーと一対一）。schemaは produce_goods() 参照。
+## モツは1個12の小口購入も追加（offal_single。在庫は同じoffalへ足す）。
 ## 「既存id」は初期在庫と同じ id で、市場での補充経路が増えるだけ（買い足すと品目全体の
 ## 補充日が更新される簡易仕様）。
 static func meat_wholesale_goods() -> Array:
 	return [
-		{ "id": "offal",       "label": "モツ",   "price": 35 },
-		{ "id": "cartilage",   "label": "軟骨",   "price": 40 },
-		{ "id": "tendon_meat", "label": "すじ肉", "price": 40 },
+		{ "id": "offal",        "item": "offal",       "label": "モツ",           "price": 30, "count": 3 },
+		{ "id": "offal_single", "item": "offal",       "label": "モツ(小口1個)", "price": 12, "count": 1 },
+		{ "id": "cartilage",    "item": "cartilage",   "label": "軟骨",           "price": 24, "count": 3 },
+		{ "id": "tendon_meat",  "item": "tendon_meat", "label": "すじ肉",         "price": 36, "count": 3 },
 		# 予備ベース（1周1回・購入分だけ期限あり）。在庫（inventory）には入れず、
 		# 受け側が GameState.buy_reserve_base() で処理する。Day2から（市場の解禁と同じ）。
 		{ "id": "reserve_base", "label": "予備ベース(1袋)", "price": GameState.BASE_PRICE },
@@ -170,39 +172,43 @@ static func meat_wholesale_goods() -> Array:
 
 static func dry_goods_goods() -> Array:
 	return [
-		{ "id": "nam_prik_pao",   "label": "ナムプリックパオ",   "price": 25 },
-		{ "id": "coconut_milk",   "label": "ココナッツミルク",   "price": 25 },
-		{ "id": "herbal_sauce",   "label": "薬膳ナンプラーだれ", "price": 25 },
-		{ "id": "pickled_lime",   "label": "塩漬けライム",       "price": 20 },
-		{ "id": "dried_wood_ear", "label": "乾燥きくらげ",       "price": 30 },
+		{ "id": "nam_prik_pao",   "item": "nam_prik_pao",   "label": "ナムプリックパオ",   "price": 25, "count": 5 },
+		{ "id": "coconut_milk",   "item": "coconut_milk",   "label": "ココナッツミルク",   "price": 15, "count": 3 },
+		{ "id": "herbal_sauce",   "item": "herbal_sauce",   "label": "薬膳ナンプラーだれ", "price": 25, "count": 5 },
+		{ "id": "pickled_lime",   "item": "pickled_lime",   "label": "塩漬けライム",       "price": 20, "count": 5 },
+		{ "id": "dried_wood_ear", "item": "dried_wood_ear", "label": "乾燥きくらげ",       "price": 50, "count": 5 },
 	]
 
 
 static func tofu_noodles_goods() -> Array:
 	return [
-		{ "id": "tofu",       "label": "豆腐", "price": 20 },
-		{ "id": "rice_noodle", "label": "米麺", "price": 15 },
+		{ "id": "tofu",        "item": "tofu",        "label": "豆腐", "price": 24, "count": 3 },
+		{ "id": "rice_noodle", "item": "rice_noodle", "label": "米麺", "price": 40, "count": 5 },
 	]
 
 
+## 海老は1個20の小口購入も追加（shrimp_single。在庫は同じshrimpへ足す）。
 static func seafood_goods() -> Array:
 	return [
-		{ "id": "shrimp",  "label": "海老",         "price": 60 },
-		{ "id": "clam",    "label": "貝",           "price": 55 },
-		{ "id": "fish_maw", "label": "魚の浮き袋", "price": 75 },
+		{ "id": "shrimp",        "item": "shrimp",   "label": "海老",           "price": 54,  "count": 3 },
+		{ "id": "shrimp_single", "item": "shrimp",   "label": "海老(小口1個)", "price": 20,  "count": 1 },
+		{ "id": "clam",          "item": "clam",     "label": "貝",             "price": 48,  "count": 3 },
+		{ "id": "fish_maw",      "item": "fish_maw", "label": "魚の浮き袋",   "price": 100, "count": 5 },
 	]
 
 
 static func scraps_goods() -> Array:
 	return [
-		{ "id": "broken_wrapper", "label": "割れた餃子皮", "price": 10 },
-		{ "id": "meat_ball",      "label": "くず肉団子",   "price": 15 },
+		{ "id": "broken_wrapper", "item": "broken_wrapper", "label": "割れた餃子皮", "price": 18, "count": 3 },
+		{ "id": "meat_ball",      "item": "meat_ball",      "label": "肉団子",       "price": 24, "count": 3 },
 	]
 
 
-## 品目id → 市場価格（1回の購入＝GameState.INGREDIENT_SERVINGS_PER_PURCHASE杯分の値段）。
-## 日次ログ（廃棄額の概算）用。数値をここへ書き写さず、既存の *_goods() を1回ずつ集めて
-## 作るだけにする（市場価格を変えてもこちらは自動で追従する）。reserve_base（予備ベース）は
+## 品目id → 市場での価格（"id"ごとの値。パックと小口が別idを持つ品目は両方載る）。
+## 廃棄額の計算にはもう使わない（①具材の購入単位で、ロットごとに実際に払った単価を
+## 積算する方式へ変更。GameState.discard_spoiled_inventory()参照）。将来の代表価格
+## 表示用として残す。数値をここへ書き写さず、既存の *_goods() を1回ずつ集めて作るだけに
+## する（市場価格を変えてもこちらは自動で追従する）。reserve_base（予備ベース）は
 ## 仕込み用の別資源で腐敗バッチにも登場しないため、含めても実害はないが対象外として省く。
 static func ingredient_prices() -> Dictionary:
 	var prices := {}
@@ -540,7 +546,7 @@ const _ADJUST_LABELS := {
 	"nam_prik_pao": "ナムプリックパオ", "coconut_milk": "ココナッツミルク",
 	"pickled_lime": "塩漬けライム", "herbal_sauce": "薬膳ナンプラーだれ",
 	"bitter_melon": "苦瓜", "offal": "下処理したモツ",
-	"meat_ball": "くず肉団子", "tofu": "豆腐",
+	"meat_ball": "肉団子", "tofu": "豆腐",
 	"broken_wrapper": "割れた餃子皮", "winter_melon": "冬瓜",
 	"cartilage": "軟骨", "tendon_meat": "すじ肉", "dried_wood_ear": "乾燥きくらげ",
 	"rice_noodle": "米麺", "shrimp": "海老", "clam": "貝", "fish_maw": "魚の浮き袋",

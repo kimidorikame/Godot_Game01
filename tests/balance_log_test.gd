@@ -10,16 +10,20 @@ extends RefCounted
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
-	# --- 1. discard_spoiled_inventory(): 個数付きDictionaryを返す ---
+	# --- 1. discard_spoiled_inventory(): 個数・実額付きDictionaryを返す ---
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
-	GameState.add_inventory("tofu", 5)
-	GameState.add_inventory("offal", 3)
+	GameState.add_inventory("tofu", 5, 4)
+	GameState.add_inventory("offal", 3, 10)
 	GameState.day_count = 4
 	var spoiled: Dictionary = GameState.discard_spoiled_inventory()
 	c.check("discard_spoiled_inventoryはDictionaryを返す", spoiled is Dictionary)
 	c.check("豆腐5個・モツ3個が個数付きで返る",
-		int(spoiled.get("tofu", 0)) == 5 and int(spoiled.get("offal", 0)) == 3, str(spoiled))
+		int(spoiled.get("tofu", {}).get("count", 0)) == 5
+			and int(spoiled.get("offal", {}).get("count", 0)) == 3, str(spoiled))
+	c.check("廃棄額はロットの実際に払った単価×個数の合計(豆腐4*5=20・モツ10*3=30)",
+		int(spoiled.get("tofu", {}).get("value", -1)) == 20
+			and int(spoiled.get("offal", {}).get("value", -1)) == 30, str(spoiled))
 	c.check("破棄後は在庫から消える",
 		not GameState.inventory.has("tofu") and not GameState.inventory.has("offal"))
 
@@ -29,18 +33,19 @@ func run(t: SceneTree) -> int:
 	c.check("prep_eventsの先頭に破棄の一言が入る",
 		events[0]["type"] == "TEXT" and str(events[0]["text"]).contains("捨てた"))
 
-	# --- 3. ingredient_prices(): 腐る11品目すべてに価格がある ---
+	# --- 3. ingredient_prices(): 腐る10品目すべてに価格がある
+	#    (fish_mawは①具材の購入単位で非生鮮に変更されたため対象外) ---
 	var prices: Dictionary = Day1Events.ingredient_prices()
 	var perishable_ids := ["coconut_milk", "offal", "meat_ball", "tofu", "broken_wrapper",
-		"bitter_melon", "cartilage", "tendon_meat", "shrimp", "clam", "fish_maw"]
+		"bitter_melon", "cartilage", "tendon_meat", "shrimp", "clam"]
 	var all_have_price := true
 	for id in perishable_ids:
 		if not prices.has(id) or int(prices[id]) <= 0:
 			all_have_price = false
-	c.check("腐る11品目すべてに価格がある", all_have_price, str(prices))
+	c.check("腐る10品目すべてに価格がある", all_have_price, str(prices))
 	c.check("reserve_baseは含まない", not prices.has("reserve_base"))
 	c.check("軟骨の価格はmeat_wholesale_goods()と一致",
-		int(prices.get("cartilage", -1)) == 40)
+		int(prices.get("cartilage", -1)) == 24)
 
 	# --- 4. planned_cups: Day1固定スケジュールでの先読み合計 ---
 	GameState.reset_for_new_game()

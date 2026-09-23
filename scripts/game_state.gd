@@ -50,11 +50,6 @@ const MOB_COUNT_TABLE := [[80, 8], [50, 6], [20, 4], [0, 3]]
 # Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない）。
 const DAY1_MOB_COUNT := 4
 
-# 市場で具材を1回買うと足される杯数（DESIGN.md 7.7：具材は5杯分の小分けで販売）。
-# ベースと違い袋／単位の2段管理はしない。inventoryの個数＝そのまま使える杯数として持つ
-# （将来ADJUSTで消費するとき remove_inventory(id, 1) するだけで済む形にしておく）。
-const INGREDIENT_SERVINGS_PER_PURCHASE := 5
-
 # 具材の腐敗（購入日を1日目に数える経過日数。どの品目が腐るかは Ingredients.is_perishable）。
 #   1〜2日目 … 新鮮／3日目 … 傷んでいる（使えるが判定が-1段階）／4日目以降 … 自動破棄
 # 腐敗の速度は全品目一律（品目ごとに変える仕組みは対象外）。
@@ -80,10 +75,13 @@ var reputation: int = 0
 # 個数が0になったキーは削除する＝「持っていない」を辞書に無い状態で表現する。
 var inventory: Dictionary = {}
 
-# 腐る品目（Ingredients.is_perishable）の購入日別の内訳 { id: [ { "day": 購入日, "count": 個数 }, ... ] }。
+# 腐る品目（Ingredients.is_perishable）の購入日別の内訳
+# { id: [ { "day": 購入日, "count": 個数, "unit_price": 1個あたりの実際の支払額 }, ... ] }。
 # 配列は購入日が早い順（day_count は増える一方なので、末尾へ足すだけで古い順が保たれる）。
 # 個数の合計は常に inventory[id] と一致させる。個数0のバッチは取り除き、品目の合計が0に
 # なったらキーごと消す。腐らない品目・soup_base は登場しない。経過日数は保存せず都度計算する。
+# unit_price（①具材の購入単位・BALANCE_REDESIGN_PLAN.md§3）は同じ品目でもパック購入と
+# 小口購入で単価が異なりうるため、廃棄額・将来の原価計算をロットごとの実額で行うために持つ。
 var perishable_batches: Dictionary = {}
 
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
@@ -224,18 +222,23 @@ func apply_reputation(delta: int) -> void:
 	reputation += delta
 
 
-## 在庫に item を count 個足す入口。ADD_ITEM Event を受けた側から呼ぶ。
+## 在庫に item を count 個足す入口。ADD_ITEM Event・市場での購入・初期在庫の積み込みから呼ぶ。
 ## apply_money と同じく「在庫をいじる唯一の入口」を用意し、受け側から
 ## inventory 辞書を直接触らせない。
-## 腐る品目は、購入日別のバッチ（perishable_batches）にも足す（同じ日なら末尾へ合算）。
-func add_inventory(item, count: int = 1) -> void:
+## unit_price は1個あたりの実際の支払額（①具材の購入単位）。価格の概念が無い呼び出し元
+## （初期在庫・汎用ADD_ITEM Event）は省略でき、その場合は0（無料の持ち出し）として扱う。
+## 腐る品目は、購入日別のバッチ（perishable_batches）にも足す。同じ日かつ同じunit_price
+## のときだけ末尾へ合算する（同じ日にパック購入と小口購入を両方行うと単価が異なるため、
+## 合算すると廃棄額の計算で単価を取り違えてしまう。分けて別バッチのまま持つ）。
+func add_inventory(item, count: int = 1, unit_price: int = 0) -> void:
 	inventory[item] = int(inventory.get(item, 0)) + count
 	if Ingredients.is_perishable(str(item)) and count > 0:
 		var batches: Array = perishable_batches.get(item, [])
-		if not batches.is_empty() and int(batches[-1]["day"]) == day_count:
+		if not batches.is_empty() and int(batches[-1]["day"]) == day_count \
+				and int(batches[-1].get("unit_price", 0)) == unit_price:
 			batches[-1]["count"] = int(batches[-1]["count"]) + count
 		else:
-			batches.append({ "day": day_count, "count": count })
+			batches.append({ "day": day_count, "count": count, "unit_price": unit_price })
 		perishable_batches[item] = batches
 
 
@@ -334,10 +337,11 @@ func _sync_batches(item, batches: Array) -> void:
 		perishable_batches[item] = batches
 
 
-## 腐りきったバッチ（4日目以降）だけを在庫から消し、消した品目 id → 消した個数の
-## Dictionary を返す（日次ログ導入で個数も要るようになったため Array から拡張。
+## 腐りきったバッチ（4日目以降）だけを在庫から消し、消した品目 id →
+## { "count": 消した個数, "value": 実際に払った額の合計 } の Dictionary を返す
+## （①具材の購入単位で、概算だった廃棄額をロットごとの実額積算に変更したため拡張。
 ## 呼び出し元は day1_events.gd の prep_events()（`for id in spoiled` でキーを回すだけ）と
-## debug_panel.gd のPREP分岐のみで、どちらも Array 時代のまま無改修で動く）。
+## debug_panel.gd のPREP分岐のみで、どちらもキーを回すだけなので無改修で動く）。
 ## 同じ品目の新しいバッチが残れば品目は在庫に残る。
 ## 呼び出し側（PREPに入る瞬間）が1回だけ呼び、返り値を通知テキスト・日次ログに使う。
 func discard_spoiled_inventory() -> Dictionary:
@@ -346,14 +350,16 @@ func discard_spoiled_inventory() -> Dictionary:
 		var batches: Array = perishable_batches[item]
 		var kept := []
 		var lost := 0
+		var lost_value := 0
 		for batch in batches:
 			if _batch_age(batch) < SPOIL_DISCARD_DAY:
 				kept.append(batch)
 			else:
 				lost += int(batch["count"])
+				lost_value += int(batch["count"]) * int(batch.get("unit_price", 0))
 		if lost > 0:
 			_sync_batches(item, kept)
-			discarded[item] = lost
+			discarded[item] = { "count": lost, "value": lost_value }
 	return discarded
 
 

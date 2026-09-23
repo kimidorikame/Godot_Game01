@@ -492,8 +492,10 @@ func _on_shop_item_selected(shop: String, id: String) -> void:
 					GameState.apply_money(-price)
 					GameState.buy_reserve_base()
 			elif GameState.money >= price:
+				var item = good.get("item", id)
+				var count: int = int(good.get("count", 1))
 				GameState.apply_money(-price)
-				GameState.add_inventory(id, GameState.INGREDIENT_SERVINGS_PER_PURCHASE)
+				GameState.add_inventory(item, count, int(price / count) if count > 0 else price)
 			break
 	_refresh()
 
@@ -1002,7 +1004,7 @@ func _on_day_ending() -> void:
 			served_cups += int(record.get("servings", 0))
 			sale_total += int(record.get("sale", 0))
 	var unserved_cups: int = maxi(_log_planned_cups - served_cups, 0)
-	var spoiled_value_approx := _spoiled_value_approx(_log_spoiled_items)
+	var spoiled_value := _spoiled_value(_log_spoiled_items)
 	var log_entry := {
 		"day": GameState.day_count,
 		"opening_money": _log_opening_money, "closing_money": GameState.money,
@@ -1011,28 +1013,25 @@ func _on_day_ending() -> void:
 		"unserved_cups": unserved_cups, "sale_total": sale_total,
 		"quality_counts": _log_quality_counts.duplicate(),
 		"spoiled_items": _log_spoiled_items.duplicate(),
-		"spoiled_value_approx": spoiled_value_approx,
+		"spoiled_value": spoiled_value,
 		"water_used": _log_water_used, "base_used": _log_base_used,
 		"closed_early": _log_closed_early,
 	}
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d cups=%d/%d(計画%d) 売上=%d 廃棄概算=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"],
-		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value_approx,
+		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
 		_log_water_used, _log_base_used, str(_log_closed_early), str(_log_quality_counts)])
 	_append_balance_log_file(log_entry)
 
 
-## discard_spoiled_inventory()の結果（品目id→個数）を、市場価格から割り出した
-## 1杯あたり単価（price / GameState.INGREDIENT_SERVINGS_PER_PURCHASE）で概算する。
-## ロットごとの実購入単価は記録していないため（BALANCE_REDESIGN_PLAN.mdが前提とする
-## 将来のロット単価管理は今回のタスク対象外）、あくまで概算。
-func _spoiled_value_approx(spoiled_items: Dictionary) -> int:
-	var prices := Day1Events.ingredient_prices()
+## discard_spoiled_inventory()が返す各品目の"value"（ロットごとに実際に払った単価×個数の
+## 合計。①具材の購入単位でGameStateが計算するようになった）をそのまま足し合わせるだけ。
+## 概算はしない（パック購入と小口購入で単価が違っても、GameStateが記録した実額を使う）。
+func _spoiled_value(spoiled_items: Dictionary) -> int:
 	var total := 0
 	for item in spoiled_items:
-		var unit_price: float = float(prices.get(str(item), 0)) / float(GameState.INGREDIENT_SERVINGS_PER_PURCHASE)
-		total += int(round(unit_price * int(spoiled_items[item])))
+		total += int(spoiled_items[item].get("value", 0))
 	return total
 
 
