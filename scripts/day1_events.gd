@@ -31,15 +31,17 @@ static func wake_events() -> Array:
 ##   （TEXT→PAY→ADD_ITEMがMARKETの前に並ぶだけ）。水場は市場滞在中に押せる
 ##   選択肢の1つになり、TEXTとしては並べない（受け側が直接処理する。詳細は
 ##   DebugPanel._visit_water_stall / _on_market_exit_pressed）。
-## 具材の腐敗: spoiled は今朝PREPに入った瞬間に破棄された品目 id の配列（受け側が
-##   GameState.discard_spoiled_inventory() で先に消して渡す）。あれば先頭に一言テキストを
-##   1つ足す（データのみ。破棄自体はここでは行わない）。
+## 具材の腐敗: spoiled は今朝PREPに入った瞬間に破棄された品目 id → 個数の Dictionary
+##   （受け側が GameState.discard_spoiled_inventory() で先に消して渡す。日次ログ導入で
+##   個数も持つようになったが、ここでは `for id in spoiled` でキーを回すだけなので
+##   Array時代と同じ書き方のまま動く）。あれば先頭に一言テキストを1つ足す
+##   （データのみ。破棄自体はここでは行わない）。
 ## クズ野菜ベース: scraps_base は「ベース代（GameState.BASE_PRICE）を払えない」ので
 ##   食肉仲卸ではなく端材屋へ回る日か。受け側がPREPに入る瞬間に所持金を見て1回だけ決め、
 ##   ここへは引数で渡す（計器盤にも同じ値を出すため。ここで money を読むと、PREPの途中で
 ##   所持金が変わったときに表示とずれる）。違うのは冒頭の3つ（TEXT・会話・ADD_ITEM。
 ##   PAYなし）と、SET_SOUP の濃さ（1スタート）だけ。杯数・仕込みの流れは同じ。
-static func prep_events(spoiled: Array = [], scraps_base: bool = false, reserve_lost: bool = false) -> Array:
+static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false, reserve_lost: bool = false) -> Array:
 	var events := []
 	# 予備ベースの購入分が腐りきって捨てられた朝は、一言足す（破棄は受け側が先に行う）。
 	if reserve_lost:
@@ -196,6 +198,21 @@ static func scraps_goods() -> Array:
 		{ "id": "broken_wrapper", "label": "割れた餃子皮", "price": 10 },
 		{ "id": "meat_ball",      "label": "くず肉団子",   "price": 15 },
 	]
+
+
+## 品目id → 市場価格（1回の購入＝GameState.INGREDIENT_SERVINGS_PER_PURCHASE杯分の値段）。
+## 日次ログ（廃棄額の概算）用。数値をここへ書き写さず、既存の *_goods() を1回ずつ集めて
+## 作るだけにする（市場価格を変えてもこちらは自動で追従する）。reserve_base（予備ベース）は
+## 仕込み用の別資源で腐敗バッチにも登場しないため、含めても実害はないが対象外として省く。
+static func ingredient_prices() -> Dictionary:
+	var prices := {}
+	var all_goods := produce_goods() + meat_wholesale_goods() + dry_goods_goods() \
+		+ tofu_noodles_goods() + seafood_goods() + scraps_goods()
+	for good in all_goods:
+		var id := str(good.get("id", ""))
+		if id != "" and id != "reserve_base":
+			prices[id] = int(good.get("price", 0))
+	return prices
 
 
 ## CLOSE の締めくくり（DESIGN.md 9章 STEP 9）。TEXT のみ・効果を持つ Event は入れない。

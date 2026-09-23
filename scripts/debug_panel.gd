@@ -100,6 +100,21 @@ var _debug_mob_count := -1
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
 var _scraps_base := false
 
+# --- 日次ログ（BALANCE_REDESIGN_PLAN.md §8「①消費と鮮度の明確化・日次ログ」）用の
+# 使い捨てカウンタ。経済数値・計算式には一切関与しない、記録専用の値。WAKEに入った瞬間
+# （_set_runner_for_phase）にその日ぶんへ初期化し、FlowController.day_ending シグナル
+# （NEXT_DAY→WAKE折り返しで日次リセットの前）で読み出してログへ組み立てる。
+# GameStateではなくここに置く理由は_mob_count等と同じ：日をまたいで使い捨てる
+# 受け側の作業変数であり、GameStateの「事実のみ・永続」という役割ではないため。
+var _log_opening_money := 0
+var _log_opening_reputation := 0
+var _log_planned_cups := 0          # OPEN突入時、その日の全客のREACT servingsを合算
+var _log_water_used := 0            # [水を足す]を押した回数
+var _log_base_used := 0             # [ベースを足す]を押した回数
+var _log_closed_early := false      # 鍋不足等でCLOSEへ強制遷移したか
+var _log_quality_counts := {}       # {"GREAT":n, "GOOD":n, "OK":n, "BAD":n, "":n(判定なし)}
+var _log_spoiled_items := {}        # PREP突入時のdiscard_spoiled_inventory()の結果をそのまま保持
+
 
 func _ready() -> void:
 	_seed_initial_inventory()
@@ -110,6 +125,9 @@ func _ready() -> void:
 	flow.game_restarted.connect(_seed_initial_inventory)
 	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
 	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
+	# 日次ログ：NEXT_DAY→WAKEの折り返しで、日次リセットの前に一日分の集計を確定して出す
+	# （シグナルは同期発火なので、ここが完了してからFlowController側の日次リセットへ進む）。
+	flow.day_ending.connect(_on_day_ending)
 	# [次のEvent] = _on_next_event_pressed:
 	#   flow.runner_advance() で PLAYING のときだけ index を1つ進める。
 	#   WAITING_INPUT / DONE では何もしない（＝WAIT_INPUT で確実に止まる）。
@@ -178,6 +196,16 @@ func _set_runner_for_phase(phase: int) -> void:
 	_phone_mode = false
 	_phone_tab = "recipe"
 	if phase == GameState.Phase.WAKE:
+		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
+		# 初期化する（前日の day_ending 発火はもう終わっている＝直前のログには影響しない）。
+		_log_opening_money = GameState.money
+		_log_opening_reputation = GameState.reputation
+		_log_planned_cups = 0
+		_log_water_used = 0
+		_log_base_used = 0
+		_log_closed_early = false
+		_log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
+		_log_spoiled_items = {}
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
@@ -186,6 +214,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		_scraps_base = GameState.money < GameState.BASE_PRICE
 		# 予備ベースの購入分も同じ瞬間に1回だけ判定し、捨てたら一言足す。
 		var spoiled := GameState.discard_spoiled_inventory()
+		_log_spoiled_items = spoiled   # 日次ログ用に保持（廃棄額の概算に使う）
 		var reserve_lost := GameState.discard_spoiled_reserve_base()
 		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base, reserve_lost))
 	elif phase == GameState.Phase.OPEN:
@@ -193,6 +222,15 @@ func _set_runner_for_phase(phase: int) -> void:
 		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
 		# デバッグ用の一律上書き値（_debug_mob_count。-1=自動）をそのまま渡すだけでよい。
 		_open = OpenController.new(Day1Events.customer_schedule(_debug_mob_count))
+		# 日次ログ：その日の計画杯数（提供できたか否かに関わらず）を、実際の接客より前に
+		# 先読みして合算する。customer_events()はGameState.day_countとJSONキャッシュを
+		# 読むだけの副作用なし関数なので、ここで呼んでも以後の本編の進行に影響しない。
+		_log_planned_cups = 0
+		for slot in _open.schedule:
+			for customer_id in slot.get("customers", []):
+				for ev in Day1Events.customer_events(str(customer_id)):
+					if ev.get("type", "") == "REACT":
+						_log_planned_cups += int(ev.get("servings", 0))
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
@@ -331,6 +369,7 @@ func _on_close_pressed() -> void:
 	_pending_shortage_ev = null
 	_pot_mode = false
 	_closed_early_reason = reason
+	_log_closed_early = true   # 日次ログ：鍋不足で名前あり客を最後まで回せなかった
 	flow.force_phase(GameState.Phase.CLOSE)
 	_refresh()
 
@@ -340,11 +379,13 @@ func _on_close_pressed() -> void:
 func _on_add_water_pressed() -> void:
 	GameState.add_water()
 	_pot_water_added = true
+	_log_water_used += 1   # 日次ログ：水を足した回数
 	_refresh()
 
 
 func _on_add_base_pressed() -> void:
 	GameState.add_base()
+	_log_base_used += 1   # 日次ログ：ベースを足した回数
 	_refresh()
 
 
@@ -634,26 +675,33 @@ func _serve_customer(ev: Dictionary) -> void:
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
 	if aggregate:
-		_add_to_visit_tally(str(ev.get("customer", "")), judged, delta, sale, servings)
+		_add_to_visit_tally(str(ev.get("customer", "")), judged, delta, sale, servings, result)
 		return
 	if judged:
 		GameState.apply_reputation(delta)
+	# 日次ログ：判定結果ごとに集計する。judged=falseの杯（配達員の持ち帰り等）は
+	# result=""のまま（判定なしと分かる値。指示文どおり）。
+	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + servings
 	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
-		"servings": servings })
+		"servings": servings, "result": result })
 
 
 ## 集計（_visit_tally）に1杯分を積む。判定した杯だけ評判の増減を積み（評価なしの杯は
 ## 積まない）、売上と杯数は全杯を積む。
+## 日次ログ：resultsに判定結果ごとの杯数も積んでおく（_flush_visit_tallyで
+## _log_quality_countsへ合算し、record_servedにも残す。判定なしの杯はresult=""のまま）。
 func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
-		servings: int) -> void:
+		servings: int, result: String = "") -> void:
 	if _visit_tally.is_empty():
 		_visit_tally = { "customer": customer, "rep_sum": 0, "rep_count": 0,
-			"sale": 0, "servings": 0 }
+			"sale": 0, "servings": 0, "results": {} }
 	if judged:
 		_visit_tally["rep_sum"] = int(_visit_tally["rep_sum"]) + delta
 		_visit_tally["rep_count"] = int(_visit_tally["rep_count"]) + 1
 	_visit_tally["sale"] = int(_visit_tally["sale"]) + sale
 	_visit_tally["servings"] = int(_visit_tally["servings"]) + servings
+	var results: Dictionary = _visit_tally["results"]
+	results[result] = int(results.get(result, 0)) + servings
 
 
 ## 集計を客1人分として反映し、空にする（空なら何もしない＝何度呼んでも二重には効かない）。
@@ -668,8 +716,13 @@ func _flush_visit_tally() -> void:
 	var rep_count := int(_visit_tally["rep_count"])
 	if rep_count > 0:
 		GameState.apply_reputation(roundi(float(int(_visit_tally["rep_sum"])) / float(rep_count)))
+	# 日次ログ：この客の杯ごとの判定結果を、その日の集計へ合算する。
+	var results: Dictionary = _visit_tally.get("results", {})
+	for key in results:
+		_log_quality_counts[key] = int(_log_quality_counts.get(key, 0)) + int(results[key])
 	GameState.record_served({ "customer": _visit_tally["customer"],
-		"sale": int(_visit_tally["sale"]), "servings": int(_visit_tally["servings"]) })
+		"sale": int(_visit_tally["sale"]), "servings": int(_visit_tally["servings"]),
+		"results": results })
 	_visit_tally = {}
 
 
@@ -747,6 +800,7 @@ func _auto_close_kitchen() -> void:
 	if reason == "":
 		return
 	_closed_early_reason = reason
+	_log_closed_early = true   # 日次ログ：鍋が尽きて自動的に閉店した
 	flow.force_phase(GameState.Phase.CLOSE)
 
 
@@ -769,6 +823,69 @@ func _reason_after_collecting_rent(base_reason: String) -> String:
 
 func _on_runner_updated() -> void:
 	_refresh()
+
+
+## 日次ログの本体（FlowController.day_ending。NEXT_DAY→WAKEの折り返しで、日次リセットの
+## 前に発火する）。GameStateがまだその日の値のうちに集計を確定し、コンソールとファイルへ
+## 出す。経済数値・計算式には一切手を入れない、記録専用の処理（BALANCE_REDESIGN_PLAN.md
+## §8「①消費と鮮度の明確化・日次ログ」）。
+func _on_day_ending() -> void:
+	var served_cups := 0
+	var sale_total := 0
+	for record in GameState.served:
+		if record is Dictionary and not bool(record.get("discarded", false)):
+			served_cups += int(record.get("servings", 0))
+			sale_total += int(record.get("sale", 0))
+	var unserved_cups: int = maxi(_log_planned_cups - served_cups, 0)
+	var spoiled_value_approx := _spoiled_value_approx(_log_spoiled_items)
+	var log_entry := {
+		"day": GameState.day_count,
+		"opening_money": _log_opening_money, "closing_money": GameState.money,
+		"opening_reputation": _log_opening_reputation, "closing_reputation": GameState.reputation,
+		"planned_cups": _log_planned_cups, "served_cups": served_cups,
+		"unserved_cups": unserved_cups, "sale_total": sale_total,
+		"quality_counts": _log_quality_counts.duplicate(),
+		"spoiled_items": _log_spoiled_items.duplicate(),
+		"spoiled_value_approx": spoiled_value_approx,
+		"water_used": _log_water_used, "base_used": _log_base_used,
+		"closed_early": _log_closed_early,
+	}
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d cups=%d/%d(計画%d) 売上=%d 廃棄概算=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
+		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
+		log_entry["opening_reputation"], log_entry["closing_reputation"],
+		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value_approx,
+		_log_water_used, _log_base_used, str(_log_closed_early), str(_log_quality_counts)])
+	_append_balance_log_file(log_entry)
+
+
+## discard_spoiled_inventory()の結果（品目id→個数）を、市場価格から割り出した
+## 1杯あたり単価（price / GameState.INGREDIENT_SERVINGS_PER_PURCHASE）で概算する。
+## ロットごとの実購入単価は記録していないため（BALANCE_REDESIGN_PLAN.mdが前提とする
+## 将来のロット単価管理は今回のタスク対象外）、あくまで概算。
+func _spoiled_value_approx(spoiled_items: Dictionary) -> int:
+	var prices := Day1Events.ingredient_prices()
+	var total := 0
+	for item in spoiled_items:
+		var unit_price: float = float(prices.get(str(item), 0)) / float(GameState.INGREDIENT_SERVINGS_PER_PURCHASE)
+		total += int(round(unit_price * int(spoiled_items[item])))
+	return total
+
+
+## 日次ログをuser://配下へJSON Linesで追記する（1行1JSON。人が読むための整形は不要）。
+func _append_balance_log_file(log_entry: Dictionary) -> void:
+	var path := "user://balance_log.jsonl"
+	var f: FileAccess
+	if FileAccess.file_exists(path):
+		f = FileAccess.open(path, FileAccess.READ_WRITE)
+		if f != null:
+			f.seek_end()
+	else:
+		f = FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		push_error("BALANCE_LOG: failed to open %s (%s)" % [path, FileAccess.get_open_error()])
+		return
+	f.store_line(JSON.stringify(log_entry))
+	f.close()
 
 
 func _on_day_plus_pressed() -> void:

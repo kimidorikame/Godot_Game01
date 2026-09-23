@@ -13,6 +13,12 @@ signal runner_updated()
 # 最終日の翌朝に新規ゲームの状態へ戻したとき（GameState.reset_for_new_game() の直後、
 # phase_changed の前）に発火する。受け側が Day1 の初期在庫を積み直すための合図。
 signal game_restarted()
+# NEXT_DAY→WAKE の折り返しで、日次リセット（GameState.reset_for_new_day() /
+# reset_for_new_game()）を呼ぶ**前**に発火する（日次ログ導入）。served・reputation・
+# day_count がまだ当日の値のうちに、受け側（DebugPanel）がその日の集計を確定して
+# 記録できるようにするための合図。シグナルは同期発火なので、emit() の時点で
+# 受け側のハンドラが完了してから、この関数は日次リセットへ進む。
+signal day_ending()
 
 # フェーズの並び順。advance_phase() は現在位置の +1 しか行わず、前のフェーズには戻さない。
 # 末尾 NEXT_DAY の次は先頭 WAKE へ折り返す（そこで日次リセット＋日数+1）。
@@ -70,6 +76,9 @@ func advance_phase() -> void:
 	var wrapping := (GameState.phase == GameState.Phase.NEXT_DAY)
 	var next_phase = _phase_order[(i + 1) % _phase_order.size()]
 	if wrapping:
+		# 日次リセットの前に、その日の状態がまだ残っているうちに集計・記録させる
+		# （最終日も含めて必ず出す。reset_for_new_game() 側にも入る前）。
+		day_ending.emit()
 		if GameState.is_final_day():
 			# 最終日は次の日へ進まず、すべてを初期化して1日目に戻る。
 			GameState.reset_for_new_game()

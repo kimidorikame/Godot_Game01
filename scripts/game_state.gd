@@ -327,20 +327,26 @@ func _sync_batches(item, batches: Array) -> void:
 		perishable_batches[item] = batches
 
 
-## 腐りきったバッチ（4日目以降）だけを在庫から消し、消した品目の id の配列を返す。
+## 腐りきったバッチ（4日目以降）だけを在庫から消し、消した品目 id → 消した個数の
+## Dictionary を返す（日次ログ導入で個数も要るようになったため Array から拡張。
+## 呼び出し元は day1_events.gd の prep_events()（`for id in spoiled` でキーを回すだけ）と
+## debug_panel.gd のPREP分岐のみで、どちらも Array 時代のまま無改修で動く）。
 ## 同じ品目の新しいバッチが残れば品目は在庫に残る。
-## 呼び出し側（PREPに入る瞬間）が1回だけ呼び、返り値を通知テキストに使う。
-func discard_spoiled_inventory() -> Array:
-	var discarded := []
+## 呼び出し側（PREPに入る瞬間）が1回だけ呼び、返り値を通知テキスト・日次ログに使う。
+func discard_spoiled_inventory() -> Dictionary:
+	var discarded := {}
 	for item in perishable_batches.keys():
 		var batches: Array = perishable_batches[item]
 		var kept := []
+		var lost := 0
 		for batch in batches:
 			if _batch_age(batch) < SPOIL_DISCARD_DAY:
 				kept.append(batch)
-		if kept.size() != batches.size():
+			else:
+				lost += int(batch["count"])
+		if lost > 0:
 			_sync_batches(item, kept)
-			discarded.append(item)
+			discarded[item] = lost
 	return discarded
 
 
