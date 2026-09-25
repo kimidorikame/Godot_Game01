@@ -18,17 +18,40 @@ static func wake_events() -> Array:
 	]
 
 
+## 仕込みの3段階（BALANCE_REDESIGN_PLAN.md§2「7日版の数値一式」）。MARKETの
+## *_goods()と同じ置き場所・schema思想（id/label/price + この場合はservings）。
+## 小仕込みの価格(80)はGameState.BASE_PRICE（予備ベース購入と共用）とたまたま同じ値だが、
+## 定数としては別に持つ（濃さ三点セットで予備ベースが濃縮だしへ置き換わってもここは
+## 影響を受けない）。
+const PREP_TIERS := [
+	{ "id": "small",  "label": "小仕込み", "price": 80,  "servings": 8 },
+	{ "id": "medium", "label": "中仕込み", "price": 110, "servings": 11 },
+	{ "id": "large",  "label": "大仕込み", "price": 140, "servings": 14 },
+]
+
+
+## PREP_TIER Eventのoptionsとして渡す（呼び出し側が書き換えても本体に影響しないよう複製）。
+static func prep_tier_options() -> Array:
+	return PREP_TIERS.duplicate(true)
+
+
+## idから仕込み段階を引く。未知idはPREP_TIERS[0]（小仕込み）にフォールバックする
+## （安全側。実際には既知の3種類のidしかボタンから渡らない想定）。
+static func prep_tier_by_id(tier_id: String) -> Dictionary:
+	for tier in PREP_TIERS:
+		if str(tier.get("id", "")) == tier_id:
+			return tier
+	return PREP_TIERS[0]
+
+
 ## PREP の最小構成（DESIGN.md 9章 STEP 4 → STEP 9 で水道代 → Day2 分岐で条件化）。
 ## 「PREP という巨大なコード」は作らず、TEXT / PAY / ADD_ITEM / MARKET / REMOVE_ITEM の
 ## 並びだけで表現する。ここはデータのみ。PAY の amount / ADD_ITEM・REMOVE_ITEM の
 ## item・amount が「効果」を表し、実際の処理（apply_money / add_inventory /
 ## remove_inventory）は受け側 = DebugPanel._apply_event が行う。
 ## text は表示用でしかなく、状態は動かさない。
-## 支払いのトーン: 市場 -80 淡々（毎日）/ 水場 -50 生活の愚痴（徴収日のみ）/
-##   場所代 -150 理不尽（OPEN・thug 側、同じく徴収日のみ）。金額処理は3つとも apply_money(-x)。
 ## DESIGN.md 7.7: 市場を MARKET Event（"options" を持つ。ADJUSTと同じくEventRunnerは
-##   型を問わずWAITING_INPUTで止まる）として挟む。食肉仲卸は今まで通り自動
-##   （TEXT→PAY→ADD_ITEMがMARKETの前に並ぶだけ）。水場は市場滞在中に押せる
+##   型を問わずWAITING_INPUTで止まる）として挟む。水場は市場滞在中に押せる
 ##   選択肢の1つになり、TEXTとしては並べない（受け側が直接処理する。詳細は
 ##   DebugPanel._visit_water_stall / _on_market_exit_pressed）。
 ## 具材の腐敗: spoiled は今朝PREPに入った瞬間に破棄された品目 id → 個数の Dictionary
@@ -36,11 +59,18 @@ static func wake_events() -> Array:
 ##   個数も持つようになったが、ここでは `for id in spoiled` でキーを回すだけなので
 ##   Array時代と同じ書き方のまま動く）。あれば先頭に一言テキストを1つ足す
 ##   （データのみ。破棄自体はここでは行わない）。
-## クズ野菜ベース: scraps_base は「ベース代（GameState.BASE_PRICE）を払えない」ので
+## クズ野菜ベース: scraps_base は「一番安い仕込み（PREP_TIERS[0]）すら払えない」ので
 ##   食肉仲卸ではなく端材屋へ回る日か。受け側がPREPに入る瞬間に所持金を見て1回だけ決め、
 ##   ここへは引数で渡す（計器盤にも同じ値を出すため。ここで money を読むと、PREPの途中で
-##   所持金が変わったときに表示とずれる）。違うのは冒頭の3つ（TEXT・会話・ADD_ITEM。
-##   PAYなし）と、SET_SOUP の濃さ（1スタート）だけ。杯数・仕込みの流れは同じ。
+##   所持金が変わったときに表示とずれる）。この場合は3段階から選ばせず、自動的に
+##   PREP_TIERS[0]と同じ8杯・支払い無し・濃さ1スタートになる。
+## 仕込み3段階化（BALANCE_REDESIGN_PLAN.md§1・§2）：食肉仲卸での固定PAYは、
+##   PREP_TIER Event（3段階から選ぶ、MARKETと同じ"options"方式）に置き換えた。
+##   選んだ段階の杯数はprep_events()を組み立てる時点ではまだ決まらないため、
+##   ここでは選択肢を提示するところまでで打ち切り、残り（ADD_ITEM以降）は
+##   選択後にprep_after_tier_events()で組み立ててDebugPanel側がrunnerを差し替える
+##   （_on_prep_tier_selected参照）。端材屋ルートは段階が固定（PREP_TIERS[0]相当）
+##   なので、従来どおりここで最後まで1回で組み立てる。
 static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false, reserve_lost: bool = false) -> Array:
 	var events := []
 	# 予備ベースの購入分が腐りきって捨てられた朝は、一言足す（破棄は受け側が先に行う）。
@@ -53,19 +83,33 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false, res
 		events.append({ "type": "TEXT",
 			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
 	if scraps_base:
-		# 値切る／譲ってもらう。食肉仲卸の「いつもの。80だ」の淡々としたトーンと対比させる。
+		# 値切る／譲ってもらう。食肉仲卸で仕込みを選ぶ淡々としたトーンと対比させる。
 		events.append_array([
 			{ "type": "TEXT", "text": "荷捌き裏通りへ回る。半端市「拾味」。今日は財布が軽い" },
 			{ "type": "TEXT", "text": "「すまん、持ち合わせが足りねえ」「……野菜くずなら持ってきな。金はいい」" },
-			{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "萎れた野菜くずをひと抱え、譲ってもらった" },
 		])
+		events.append_array(prep_after_tier_events(PREP_TIERS[0], true))
 	else:
 		events.append_array([
 			{ "type": "TEXT", "text": "食肉売場へ来た" },
-			{ "type": "PAY", "amount": GameState.BASE_PRICE,
-				"text": "「いつもの。%dだ」" % GameState.BASE_PRICE },
-			{ "type": "ADD_ITEM", "item": "soup_base", "amount": 1, "text": "鶏骨と手羽端を受け取った" },
+			{ "type": "PREP_TIER", "text": "「いつもの、って言われてもな。今日はどれだけ仕込む？」",
+				"options": prep_tier_options() },
 		])
+	return events
+
+
+## PREP_TIERの選択（または端材屋の固定・小仕込み相当）が決まった後の残り。
+## DebugPanel._on_prep_tier_selected()が選択直後にflow.set_runner()で差し替える
+## （prep_events()自体は選択前に呼ばれるため、選ばれた杯数をここで初めて確定させる）。
+## 差し替え先の新しいEvent列の先頭（index 0）はEventRunnerの仕様上、乗った瞬間には
+## 効果が適用されない（_apply_eventのコメント参照）ため、先頭を必ず効果の無いTEXTにする
+## （scraps_baseルートはprep_events()側の既存TEXTに連結されるだけなので影響なし）。
+static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) -> Array:
+	var events := []
+	if not scraps_base:
+		events.append({ "type": "TEXT", "text": "%sにした。" % str(tier.get("label", "")) })
+	events.append({ "type": "ADD_ITEM", "item": "soup_base", "amount": 1,
+		"text": "萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "鶏骨と手羽端を受け取った" })
 	# Day2（新人警官の初登場）：ベース入手の後・市場の前に、昼の市場の会話を挟む。要求タグ
 	# （酸っぱい汁・噛める具）を仕入れの前に知らせるため。市場の enabled（day2_unlocked）とは
 	# 無関係に、会話は必ず出る。日付は _market_options と同じく関数の中で直接読む。
@@ -79,25 +123,27 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false, res
 	# 共有鍋ができる（STEP 12）。ベースは今は鶏がらだしの1種類だけ（DESIGN.md 7.7：
 	# 「骨と大根」から「鶏骨＋手羽端」に変更。IDはbone_broth/soup_baseのまま据え置き）。
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
-	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。
+	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。仕込み3段階化：
+	#   杯数はtier.servings（選んだ段階、または端材屋の固定分）を使う。
 	# 7.6: 濃さ（仕込み時は3＝ちょうどいい）と、今夜使える水の回数も一緒に渡す。
 	#   水の回数自体は市場（水場）に行ったかとは無関係に毎朝2回分（GameState定数）。
 	#   水場で払うのは水道代（徴収日のみ）で、回数を増やす効果ではない。
 	# クズ野菜ベース: 濃さ1スタート（既存の濃さ1のペナルティがそのまま効く）。base_id・tags は
 	#   veg_scrap_broth / ["vegetal"] にして、計器盤の soup 行で1日中「クズ野菜の日」と読めるようにする
 	#   （soupのtagsは判定に使っていない＝表示用。効果は濃さだけ）。
+	var servings := int(tier.get("servings", 8))
 	if scraps_base:
 		events.append({ "type": "SET_SOUP", "base_id": "veg_scrap_broth", "tags": ["vegetal"],
-			"servings": GameState.SERVINGS_PER_BASE,
+			"servings": servings,
 			"strength": 1,
 			"water_doses": GameState.WATER_DOSES_PER_NIGHT,
-			"text": "野菜くずを煮出した。薄い……。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
+			"text": "野菜くずを煮出した。薄い……。今日の鍋ができた（%d杯分）。" % servings })
 	else:
 		events.append({ "type": "SET_SOUP", "base_id": "bone_broth", "tags": ["meaty"],
-			"servings": GameState.SERVINGS_PER_BASE,
+			"servings": servings,
 			"strength": 3,
 			"water_doses": GameState.WATER_DOSES_PER_NIGHT,
-			"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % GameState.SERVINGS_PER_BASE })
+			"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % servings })
 	return events
 
 

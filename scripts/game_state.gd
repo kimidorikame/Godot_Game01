@@ -20,12 +20,12 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 # 評価差は価格ではなく評判・翌日の客数へ反映する（高級具に追加料金は付けない）。
 const PRICE_PER_SERVING := 50
 
-# ベース1袋で作れる杯数（PRICING_SPEC.md 5章：1袋80＝10杯分）。
-# 値段と同じくゲーム共通のルール。
-const SERVINGS_PER_BASE := 10
-
-# ベース1袋の値段（PRICING_SPEC.md 5章）。食肉仲卸での支払いと、所持金がこれに満たない
-# ときにクズ野菜ベースへ切り替える閾値の両方で使う（別々の数字にならないよう1箇所に置く）。
+# ベース1袋の値段（PRICING_SPEC.md 5章）。予備ベース購入（buy_reserve_base）の価格として
+# 使う。仕込み3段階化（BALANCE_REDESIGN_PLAN.md§1・§2）で、食肉仲卸での固定支払い・
+# 仕込み杯数の決め方はDay1Events.PREP_TIERS（小8杯/80・中11杯/110・大14杯/140）へ
+# 置き換わった。小仕込みの価格はこの値とたまたま同じ80だが、意図的に別の定数として
+# 分離してある（次ラウンドで予備ベース／add_base()が濃縮だしへ置き換わっても、
+# 仕込み額とは無関係に保つため）。
 const BASE_PRICE := 80
 
 # 場所代（みかじめ・PRICING_SPEC.md 4章）。徴収日のみ。チンピラのPAY Eventの金額と、

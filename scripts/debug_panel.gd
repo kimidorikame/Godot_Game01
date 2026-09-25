@@ -231,8 +231,12 @@ func _set_runner_for_phase(phase: int) -> void:
 	elif phase == GameState.Phase.PREP:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
-		# クズ野菜ベース: 所持金がベース代に満たなければ食肉仲卸ではなく端材屋へ回る（自動）。
-		_scraps_base = GameState.money < GameState.BASE_PRICE
+		# クズ野菜ベース: 所持金が一番安い仕込み（PREP_TIERS[0]）にも満たなければ、
+		# 3段階から選ばせず食肉仲卸ではなく端材屋へ回る（自動）。GameState.BASE_PRICEを
+		# 見ないのは意図的（仕込み3段階化：BASE_PRICEは予備ベース購入と共用の別概念で、
+		# たまたま値が同じだけ。次ラウンドでBASE_PRICEが濃縮だしへ置き換わっても
+		# この閾値が巻き添えで壊れないようにする）。
+		_scraps_base = GameState.money < int(Day1Events.PREP_TIERS[0].get("price", 0))
 		# 予備ベースの購入分も同じ瞬間に1回だけ判定し、捨てたら一言足す。
 		var spoiled := GameState.discard_spoiled_inventory()
 		_log_spoiled_items = spoiled   # 日次ログ用に保持（廃棄額の概算に使う）
@@ -510,6 +514,25 @@ func _on_shop_item_selected(shop: String, id: String) -> void:
 	_refresh()
 
 
+## 仕込み3段階（PREP_TIER）のボタンが押されたときのハンドラ。MARKETの商品選択と同じく
+## 「押した瞬間にGameStateへ直接反映する」即時方式（EventRunnerのcomplete_input()は
+## 経由しない）。ただしMARKETと違い一発選択で終わるため、選んだ段階を確定させたら
+## 残りのPREP Event列（ADD_ITEM→市場→REMOVE_ITEM→SET_SOUP）をその場で組み立て直し、
+## flow.set_runner()でrunnerごと差し替える（prep_events()を呼んだ時点ではまだ段階が
+## 決まっていなかったため、SET_SOUPの杯数はここで初めて確定する。
+## Day1Events.prep_after_tier_events参照）。
+## 差し替え後の新しいEvent列の先頭はEventRunnerの仕様で効果が適用されない（index 0）ため、
+## prep_after_tier_events()側で必ず効果の無いTEXTを先頭にしてある。
+func _on_prep_tier_selected(tier_id: String) -> void:
+	var tier := Day1Events.prep_tier_by_id(tier_id)
+	var price: int = int(tier.get("price", 0))
+	if GameState.money < price:
+		return   # ボタン側で無効化済みのはずの二重チェック（防御的）
+	GameState.apply_money(-price)
+	flow.set_runner(Day1Events.prep_after_tier_events(tier, false))
+	_refresh()
+
+
 ## [市場に戻る]（店から出る）。鍋モードの[戻る]と同じくEventRunnerには触れない。
 func _on_shop_exit_pressed() -> void:
 	_market_shop = ""
@@ -563,6 +586,17 @@ func _is_in_market() -> bool:
 		return false
 	var cur = r.current()
 	return cur is Dictionary and cur.get("type", "") == "MARKET"
+
+
+## いま PREP_TIER（仕込み3段階の選択）が現在の Event か。_is_in_market() と同じ形。
+## [次のEvent]/[入力完了] を無効化する判定に使う（抜ける経路を段階選択ボタンだけにする。
+## 選ばずに素通りされると、その先のADD_ITEM/SET_SOUPが無いまま仕込みが成立しなくなる）。
+func _is_in_prep_tier() -> bool:
+	var r: EventRunner = flow.runner
+	if r == null:
+		return false
+	var cur = r.current()
+	return cur is Dictionary and cur.get("type", "") == "PREP_TIER"
 
 
 ## いま ADJUST で3枠を選んでいる最中か（options を持つ WAITING_INPUT）。
@@ -640,12 +674,16 @@ func _advance_open_queue_if_customer_done() -> void:
 ##                 そのまま提供に分かれる（7.6。詳細はこのcase内のコメント参照）
 ##   ADJUST      … new_bowl:true のときだけ、椀を新しく作り直す（同じ客の2杯目以降。
 ##                 前の杯の具材・評価・傷み印を持ち越さない）。それ以外は表示だけ
-##   TEXT / WAIT_INPUT / GREET / SERVE / MARKET … 表示だけ。状態は動かさない
+##   TEXT / WAIT_INPUT / GREET / SERVE / MARKET / PREP_TIER … 表示だけ。状態は動かさない
 ##     （ADJUST は STEP 13 で入力待ちに変わったが、椀への具材の反映は _on_ingredient_selected
 ##     が行う。MARKET（7.7）も同様に、水場の効果は _on_market_stall_selected /
-##     _on_market_exit_pressed が行う）
+##     _on_market_exit_pressed が行う。PREP_TIER（仕込み3段階化）も同様に、選んだ効果は
+##     _on_prep_tier_selected が直接GameStateへ反映し、あわせて残りのPREP Event列を
+##     flow.set_runner()で差し替える）
 ## 注意: index 0 の Event は「乗る前進」が無いので適用されない。Day1 の WAKE / PREP /
-## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。
+## 客の接客はどれも先頭が TEXT / GREET（効果なし）なので実害なし。PREP_TIER選択後に
+## 差し替わる新しいEvent列も、この理由から必ず先頭をTEXTにしてある
+## （Day1Events.prep_after_tier_events参照）。
 func _apply_event(ev) -> void:
 	if not (ev is Dictionary):
 		return
@@ -1144,13 +1182,15 @@ func _update_options_row() -> void:
 			or _is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled or _phone_mode
-	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null or _is_in_market() \
+	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null \
+			or _is_in_market() or _is_in_prep_tier() \
 			or _phone_mode or _pending_group_choice
 	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
 	# ②拒否と部分提供：モブ客は鍋不足だけでは塞がない（達成可能人数の計算に鍋残量も
 	# 含めており、[入力完了]を押せば確認ボタンへ進めるため。名前あり客・配達員は無変更）。
+	# 仕込み3段階化：PREP_TIER中は段階ボタン以外で抜けさせない（_is_in_marketと同じ理由）。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _phone_mode or _pending_group_choice \
+			or _is_in_market() or _is_in_prep_tier() or _phone_mode or _pending_group_choice \
 			or (_is_short_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
@@ -1197,6 +1237,13 @@ func _update_options_row() -> void:
 		return
 	var cur = r.current()
 	if not (cur is Dictionary) or not cur.has("options"):
+		return
+
+	if cur.get("type", "") == "PREP_TIER":
+		for tier in cur.get("options", []):
+			var price: int = int(tier.get("price", 0))
+			_add_pot_button("%s（-%d・%d杯）" % [str(tier.get("label", "")), price, int(tier.get("servings", 0))],
+				GameState.money < price, _on_prep_tier_selected.bind(str(tier.get("id", ""))))
 		return
 
 	if cur.get("type", "") == "MARKET":
