@@ -20,9 +20,8 @@ static func wake_events() -> Array:
 
 ## 仕込みの3段階（BALANCE_REDESIGN_PLAN.md§2「7日版の数値一式」）。MARKETの
 ## *_goods()と同じ置き場所・schema思想（id/label/price + この場合はservings）。
-## 小仕込みの価格(80)はGameState.BASE_PRICE（予備ベース購入と共用）とたまたま同じ値だが、
-## 定数としては別に持つ（濃さ三点セットで予備ベースが濃縮だしへ置き換わってもここは
-## 影響を受けない）。
+## 小仕込みの価格(80)は独立した定数（旧GameState.BASE_PRICEは予備ベース購入専用の
+## 値だったが、濃さメカニクス三点セットで予備ベースごと廃止した）。
 const PREP_TIERS := [
 	{ "id": "small",  "label": "小仕込み", "price": 80,  "servings": 8 },
 	{ "id": "medium", "label": "中仕込み", "price": 110, "servings": 11 },
@@ -71,11 +70,8 @@ static func prep_tier_by_id(tier_id: String) -> Dictionary:
 ##   選択後にprep_after_tier_events()で組み立ててDebugPanel側がrunnerを差し替える
 ##   （_on_prep_tier_selected参照）。端材屋ルートは段階が固定（PREP_TIERS[0]相当）
 ##   なので、従来どおりここで最後まで1回で組み立てる。
-static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false, reserve_lost: bool = false) -> Array:
+static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> Array:
 	var events := []
-	# 予備ベースの購入分が腐りきって捨てられた朝は、一言足す（破棄は受け側が先に行う）。
-	if reserve_lost:
-		events.append({ "type": "TEXT", "text": "予備ベースの購入分は傷みきったので捨てた。" })
 	if not spoiled.is_empty():
 		var names := PackedStringArray()
 		for id in spoiled:
@@ -210,9 +206,10 @@ static func meat_wholesale_goods() -> Array:
 		{ "id": "offal_single", "item": "offal",       "label": "モツ(小口1個)", "price": 12, "count": 1 },
 		{ "id": "cartilage",    "item": "cartilage",   "label": "軟骨",           "price": 24, "count": 3 },
 		{ "id": "tendon_meat",  "item": "tendon_meat", "label": "すじ肉",         "price": 36, "count": 3 },
-		# 予備ベース（1周1回・購入分だけ期限あり）。在庫（inventory）には入れず、
-		# 受け側が GameState.buy_reserve_base() で処理する。Day2から（市場の解禁と同じ）。
-		{ "id": "reserve_base", "label": "予備ベース(1袋)", "price": GameState.BASE_PRICE },
+		# 濃縮だし（予備ベースの後継。濃さメカニクス三点セット）。1周1回の制限や期限は無く、
+		# 毎日何度でも買える。在庫（inventory）には入れず、受け側が GameState.buy_dashi()
+		# で処理する。Day2から（市場の解禁と同じ）。
+		{ "id": "dashi", "label": "濃縮だし", "price": GameState.DASHI_PRICE },
 	]
 
 
@@ -254,7 +251,7 @@ static func scraps_goods() -> Array:
 ## 廃棄額の計算にはもう使わない（①具材の購入単位で、ロットごとに実際に払った単価を
 ## 積算する方式へ変更。GameState.discard_spoiled_inventory()参照）。将来の代表価格
 ## 表示用として残す。数値をここへ書き写さず、既存の *_goods() を1回ずつ集めて作るだけに
-## する（市場価格を変えてもこちらは自動で追従する）。reserve_base（予備ベース）は
+## する（市場価格を変えてもこちらは自動で追従する）。dashi（濃縮だし）は
 ## 仕込み用の別資源で腐敗バッチにも登場しないため、含めても実害はないが対象外として省く。
 static func ingredient_prices() -> Dictionary:
 	var prices := {}
@@ -262,7 +259,7 @@ static func ingredient_prices() -> Dictionary:
 		+ tofu_noodles_goods() + seafood_goods() + scraps_goods()
 	for good in all_goods:
 		var id := str(good.get("id", ""))
-		if id != "" and id != "reserve_base":
+		if id != "" and id != "dashi":
 			prices[id] = int(good.get("price", 0))
 	return prices
 

@@ -29,7 +29,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 2. prep_events() は Dictionary をそのまま受け取れる（後方互換） ---
 	GameState.reset_for_new_game()
-	var events: Array = Day1Events.prep_events(spoiled, false, false)
+	var events: Array = Day1Events.prep_events(spoiled, false)
 	c.check("prep_eventsの先頭に破棄の一言が入る",
 		events[0]["type"] == "TEXT" and str(events[0]["text"]).contains("捨てた"))
 
@@ -43,7 +43,7 @@ func run(t: SceneTree) -> int:
 		if not prices.has(id) or int(prices[id]) <= 0:
 			all_have_price = false
 	c.check("腐る10品目すべてに価格がある", all_have_price, str(prices))
-	c.check("reserve_baseは含まない", not prices.has("reserve_base"))
+	c.check("dashiは含まない", not prices.has("dashi"))
 	c.check("軟骨の価格はmeat_wholesale_goods()と一致",
 		int(prices.get("cartilage", -1)) == 24)
 

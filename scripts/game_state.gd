@@ -20,14 +20,6 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 # 評価差は価格ではなく評判・翌日の客数へ反映する（高級具に追加料金は付けない）。
 const PRICE_PER_SERVING := 50
 
-# ベース1袋の値段（PRICING_SPEC.md 5章）。予備ベース購入（buy_reserve_base）の価格として
-# 使う。仕込み3段階化（BALANCE_REDESIGN_PLAN.md§1・§2）で、食肉仲卸での固定支払い・
-# 仕込み杯数の決め方はDay1Events.PREP_TIERS（小8杯/80・中11杯/110・大14杯/140）へ
-# 置き換わった。小仕込みの価格はこの値とたまたま同じ80だが、意図的に別の定数として
-# 分離してある（次ラウンドで予備ベース／add_base()が濃縮だしへ置き換わっても、
-# 仕込み額とは無関係に保つため）。
-const BASE_PRICE := 80
-
 # 場所代（みかじめ・PRICING_SPEC.md 4章）。徴収日のみ。チンピラのPAY Eventの金額と、
 # 未払いのまま閉店したときの特別請求（CURRENT_SPEC.md §11「未解決」の直し方）の
 # 両方で使う（別々の数字にならないよう1箇所に置く）。
@@ -40,7 +32,6 @@ const FINAL_DAY := 7
 # 新規ゲーム開始時の初期値。変数宣言と reset_for_new_game() の両方で使う
 # （別々の数字にならないよう1箇所に置く）。
 const INITIAL_MONEY := 300
-const INITIAL_RESERVE_BASE_UNITS := 10
 
 # Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない。CURRENT_SPEC.md参照）。
 # ④評判の更新+⑤客数の決め方（BALANCE_REDESIGN_PLAN.md§5）で、Day2以降のモブ人数は
@@ -62,14 +53,23 @@ const DAY1_DEMAND := 9
 const SPOIL_DAMAGED_DAY := 3
 const SPOIL_DISCARD_DAY := 4
 
-# 鍋の操作の効き方（DESIGN.md 7.6「状態の変化」の表）。値をここに集約する。
-const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）
-const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）
+# 鍋の操作の効き方（DESIGN.md 7.6「状態の変化」の表 → 濃さメカニクス三点セットで改訂）。
+# STRENGTH_MIN/MAXは「評価が1段階下がる境界」（judge_bowl()参照）で、水を足せるかどうかの
+# 下限（STRENGTH_HARD_FLOOR）とは別の値。水を足すと濃さ0まで下がりうる（評価penaltyの
+# 境界=1とは別次元の「提供不可」という新しい下限）ため、STRENGTH_MIN自体は1のまま変えない
+# （judge_bowl()のbad_strength判定を壊さないため。濃さ0はADJUST側で提供そのものを
+# ブロックするので、judge_bowl()が0を見ることはない）。
+const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）。評価1段階低下の境界
+const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）。評価1段階低下の境界
+const STRENGTH_HARD_FLOOR := 0     # 水を足せるかどうかの下限。0＝提供不可（別の・より重い結果）
 const WATER_DOSES_PER_NIGHT := 2   # 毎朝汲める水の回数（PRICING_SPEC 4章。持ち越さない）
-const WATER_SERVINGS := 2          # 水1回： 残量 +2 / 濃さ -1
-# ベース追加は残量を増やさず、濃さだけ +1（かさ増しは水の役。DESIGN.md 7.6「味が戻る」）。
-const RESERVE_BASE_PURCHASE_UNITS := 10   # 予備ベース1袋の購入で増える単位数（価格は BASE_PRICE）
-const BASE_UNITS_PER_ADD := 2      # ベース追加1回で使う単位数（1袋＝10単位）
+const WATER_SERVINGS := 2          # 水1回： 残量 +2
+const WATER_STRENGTH_DELTA := 2    # 水1回で下がる濃さ
+# 濃縮だし（予備ベース／add_base()の後継。BALANCE_REDESIGN_PLAN.md§1・§2）。
+# 予備ベースと違い「1周1回」の制限・期限・傷みの概念は無い＝市場で毎日何度でも買える
+# 単純なカウンタ（dashi_units）。量は増やさず濃さだけ上げる。
+const DASHI_PRICE := 16            # 1回分の価格（食肉仲卸で購入）
+const DASHI_STRENGTH_DELTA := 2    # だし1回で上がる濃さ
 
 # --- 永続する事実 ---
 var day_count: int = 1
@@ -93,19 +93,12 @@ var perishable_batches: Dictionary = {}
 # スマホで得た情報の断片。中身の型は Rumor（後で定義）。
 var rumors: Array = []
 
-# 追加用ベースの単位数（1袋＝10単位。DESIGN.md 7.6「ベースと水の扱い」）。
-# soup の中ではなくここに置く理由：**余った単位は翌日へ持ち越す**ので、
-# NEXT_DAY で null になる soup に入れると消えてしまうため（寿命が違う）。
-# 初期値は仮。PREP でベース2袋目を買う操作が未実装なので、最初から持たせている。
-var reserve_base_units: int = INITIAL_RESERVE_BASE_UNITS
-
-# 予備ベースの購入（食肉仲卸。1周1回）。購入した分だけに期限がある（初期分は対象外）。
-# inventory / perishable_batches は再利用しない（予備ベースは在庫の品目ではなく、期限の日数の
-# 数え方だけ食材と揃える）。reserve_base_units は「初期分＋購入分」の合計のまま残す。
-# purchased は破棄されても true のまま（1周1回の上限）。remaining は購入分のうち未使用の単位数。
-var reserve_base_purchased: bool = false
-var reserve_base_purchase_remaining: int = 0
-var reserve_base_purchase_day: int = 0
+# 濃縮だしの保有回数分（DASHI_STRENGTH_DELTAずつ濃さを上げられる回数）。
+# soup の中ではなくここに置く理由：**余った分は翌日へ持ち越す**ので、
+# NEXT_DAY で null になる soup に入れると消えてしまうため（寿命が違う。予備ベース時代の
+# reserve_base_unitsと同じ理由）。期限・傷みの概念は無い単純な加算のみ
+# （reset_for_new_dayでは触らず、reset_for_new_gameで0に戻す）。
+var dashi_units: int = 0
 
 # ③初回好物の開示（BALANCE_REDESIGN_PLAN.md §4）：名前あり客の好物を「知っているか」
 # {customer_id: true}。日をまたいで持ち越す（reset_for_new_dayでは触らない）が、
@@ -169,10 +162,7 @@ func reset_for_new_game() -> void:
 	inventory.clear()
 	perishable_batches.clear()
 	rumors.clear()
-	reserve_base_units = INITIAL_RESERVE_BASE_UNITS
-	reserve_base_purchased = false
-	reserve_base_purchase_remaining = 0
-	reserve_base_purchase_day = 0
+	dashi_units = 0
 	known_favorites.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
@@ -371,46 +361,12 @@ func discard_spoiled_inventory() -> Dictionary:
 	return discarded
 
 
-## 予備ベースを1袋買った効果だけを適用する（支払いは呼び出し側）。購入済みなら何もせず false。
-func buy_reserve_base() -> bool:
-	if reserve_base_purchased:
-		return false
-	reserve_base_purchased = true
-	reserve_base_units += RESERVE_BASE_PURCHASE_UNITS
-	reserve_base_purchase_remaining = RESERVE_BASE_PURCHASE_UNITS
-	reserve_base_purchase_day = day_count
-	return true
-
-
-## 購入日を1日目とした経過日数（_batch_age と同じ数え方）。
-func _reserve_base_age() -> int:
-	return day_count - reserve_base_purchase_day + 1
-
-
-## 購入分が「傷んでいる」日か（表示のみ。判定には効かない）。
-func is_reserve_base_damaged() -> bool:
-	if reserve_base_purchase_remaining <= 0:
-		return false
-	var age := _reserve_base_age()
-	return age >= SPOIL_DAMAGED_DAY and age < SPOIL_DISCARD_DAY
-
-
-## 購入分の未使用の残りが腐りきっていれば捨てる（初期分は残す）。捨てたら true。
-## discard_spoiled_inventory() と同じく、PREPに入る瞬間に1回だけ呼ぶ。
-func discard_spoiled_reserve_base() -> bool:
-	if reserve_base_purchase_remaining <= 0 or _reserve_base_age() < SPOIL_DISCARD_DAY:
-		return false
-	reserve_base_units = maxi(reserve_base_units - reserve_base_purchase_remaining, 0)
-	reserve_base_purchase_remaining = 0
-	return true
-
-
 ## 今日の共有鍋を作る入口。SET_SOUP Event を受けた側から呼ぶ（STEP 12）。
 ## 形は STEP 11 で決めた { base_id, tags[] } ＋ 残量（7.6）。apply_money / add_inventory と
 ## 同じく「soup をいじる唯一の入口」を用意し、受け側から soup へ直接代入させない。
 ## tags は複製して持つ（データ側の配列を共有して後から書き換わるのを防ぐ）。
 ## 7.6: 残量に加えて濃さ（1〜5）と、今夜使える水の回数も持つ。
-## 予備ベースは soup ではなく GameState 直下（翌日へ持ち越すため）。
+## 濃縮だし（dashi_units）は soup ではなく GameState 直下（翌日へ持ち越すため）。
 func set_soup(base_id: String, tags: Array, servings: int = 0,
 		strength: int = 3, water_doses: int = 0) -> void:
 	soup = { "base_id": base_id, "tags": tags.duplicate(),
@@ -430,8 +386,9 @@ func consume_soup(servings: int) -> void:
 	soup["remaining_servings"] = maxi(int(soup.get("remaining_servings", 0)) - servings, 0)
 
 
-## 鍋を濃くする（DESIGN.md 7.6：時間帯が進むと煮詰まる）。上限で頭打ち。
-## 残量は動かさない（蒸発は入れない仕様）。
+## 鍋を濃くする（DESIGN.md 7.6：時間帯が進むと煮詰まる。濃さメカニクス三点セットで
+## 1晩1回・明け方の時間帯に入った瞬間だけに変更。呼び出し側＝debug_panel.gd参照）。
+## 上限で頭打ち。残量は動かさない（蒸発は入れない仕様）。
 func deepen_soup(delta: int = 1) -> void:
 	if soup == null:
 		return
@@ -439,40 +396,51 @@ func deepen_soup(delta: int = 1) -> void:
 		STRENGTH_MIN, STRENGTH_MAX)
 
 
-## 水を足せるか（鍋があり、今夜の水がまだ残っているか）。
+## 水を足せるか（鍋があり、今夜の水がまだ残っており、かつ足した結果の濃さが
+## STRENGTH_HARD_FLOOR（0）を下回らないか）。濃さメカニクス三点セット：
+## 「上限・下限で効果を切り捨てない（超える操作はボタン側で無効化）」ため、
+## add_water()側でclampiせずに済むよう、ここで事前にガードする。
 func can_add_water() -> bool:
-	return soup != null and int(soup.get("water_doses", 0)) > 0
+	return soup != null and int(soup.get("water_doses", 0)) > 0 \
+		and int(soup.get("strength", 3)) - WATER_STRENGTH_DELTA >= STRENGTH_HARD_FLOOR
 
 
-## ベースを足せるか（鍋があり、予備ベースが1回分以上あるか）。
-func can_add_base() -> bool:
-	return soup != null and reserve_base_units >= BASE_UNITS_PER_ADD
+## 濃縮だしを足せるか（鍋があり、だしが1回分以上あり、かつ足した結果の濃さが
+## STRENGTH_MAX（5）を超えないか）。can_add_water()と同じ「事前ガード」方針。
+func can_add_dashi() -> bool:
+	return soup != null and dashi_units >= 1 \
+		and int(soup.get("strength", 3)) + DASHI_STRENGTH_DELTA <= STRENGTH_MAX
 
 
-## 水を一回足す（DESIGN.md 7.6）。残量 +2 / 濃さ -1 / 水の回数 -1。
+## 水を一回足す（DESIGN.md 7.6）。残量 +2 / 濃さ -2 / 水の回数 -1。
 ## apply_money のような「量は受け側が決める」形にしないのは、
 ## 「資源を1つ消費する」ことと「2つの数値が動く」ことが常にセットで、
 ## 分けて呼べると壊せてしまうため（複合操作を1つの入口にまとめる）。
+## can_add_water()が事前に下限を満たすことを保証しているので、ここではclampiしない
+## （上限・下限で効果を切り捨てない、という濃さメカニクス三点セットの方針）。
 ## 資源が足りなければ黙って何もしない（UI側でもボタンを無効化して二重に防ぐ）。
 func add_water() -> void:
 	if not can_add_water():
 		return
 	soup["remaining_servings"] = int(soup.get("remaining_servings", 0)) + WATER_SERVINGS
-	soup["strength"] = clampi(int(soup.get("strength", 3)) - 1, STRENGTH_MIN, STRENGTH_MAX)
+	soup["strength"] = int(soup.get("strength", 3)) - WATER_STRENGTH_DELTA
 	soup["water_doses"] = int(soup.get("water_doses", 0)) - 1
 
 
-## ベースを足す（DESIGN.md 7.6）。**残量は変えず**濃さ +1 / 予備ベース -2単位。
-## 出汁の素を足しても量は増えない（増やせるのは水だけ）。
-## add_water と同じく複合操作を1つの入口にまとめる。
-func add_base() -> void:
-	if not can_add_base():
+## 濃縮だしを一回足す（予備ベース／add_base()の後継）。**残量は変えず**濃さ +2 / だし -1回分。
+## add_water と同じく複合操作を1つの入口にまとめ、can_add_dashi()の事前ガードにより
+## clampiしない。
+func add_dashi() -> void:
+	if not can_add_dashi():
 		return
-	soup["strength"] = clampi(int(soup.get("strength", 3)) + 1, STRENGTH_MIN, STRENGTH_MAX)
-	# 古い（初期）分から先に使い、購入分（期限つき）は最後まで残す。
-	if reserve_base_units - reserve_base_purchase_remaining < BASE_UNITS_PER_ADD:
-		reserve_base_purchase_remaining -= BASE_UNITS_PER_ADD - (reserve_base_units - reserve_base_purchase_remaining)
-	reserve_base_units -= BASE_UNITS_PER_ADD
+	soup["strength"] = int(soup.get("strength", 3)) + DASHI_STRENGTH_DELTA
+	dashi_units -= 1
+
+
+## 濃縮だしを1回分買う（食肉仲卸で¥DASHI_PRICE、支払いは呼び出し側）。予備ベースと違い
+## 1周1回の制限も期限も無い＝いつでも何度でも買える。単純にdashi_unitsへ+1するだけ。
+func buy_dashi() -> void:
+	dashi_units += 1
 
 
 ## 提供実績を1件記録する。REACT で売上が確定したときに呼ぶ。

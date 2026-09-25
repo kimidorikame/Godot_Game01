@@ -52,6 +52,10 @@ var _pending_shortage_ev = null
 # _on_pot_pressed() で毎回リセットする。
 var _pot_water_added := false
 
+# 鍋モードに入った時点で濃さ0（提供不可）だった場合、濃縮だしを入れるまでの間だけ true。
+# _pot_water_added と同じ形（濃さメカニクス三点セット）。_on_pot_pressed() で毎回リセットする。
+var _pot_dashi_added := false
+
 # 市場（DESIGN.md 7.7）で水場に寄ったか。PREPに入るたびリセットする。
 var _market_visited_water := false
 
@@ -113,7 +117,7 @@ var _log_planned_cups := 0          # OPEN突入時、その日の全客のREACT
 var _log_judged_planned_cups := 0   # 同上のうちjudge:false（配達員の持ち帰り等）を除いた分。
 									 # ④評判の更新：当夜品質Qの分母に使う（_quality_score参照）
 var _log_water_used := 0            # [水を足す]を押した回数
-var _log_base_used := 0             # [ベースを足す]を押した回数
+var _log_dashi_used := 0            # [だしを足す]を押した回数（旧_log_base_used）
 var _log_closed_early := false      # 鍋不足等でCLOSEへ強制遷移したか
 var _log_quality_counts := {}       # {"GREAT":n, "GOOD":n, "OK":n, "BAD":n, "":n(判定なし)}
 var _log_spoiled_items := {}        # PREP突入時のdiscard_spoiled_inventory()の結果をそのまま保持
@@ -208,6 +212,7 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pending_shortage_ev = null
 	_pot_mode = false
 	_pot_water_added = false
+	_pot_dashi_added = false
 	# 7.7: 市場の水場訪問フラグ・直前のセリフ・店の中にいるかも PREP に入るたびリセットする。
 	_market_visited_water = false
 	_market_last_text = ""
@@ -223,7 +228,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		_log_planned_cups = 0
 		_log_judged_planned_cups = 0
 		_log_water_used = 0
-		_log_base_used = 0
+		_log_dashi_used = 0
 		_log_closed_early = false
 		_log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
 		_log_spoiled_items = {}
@@ -232,16 +237,11 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
 		# クズ野菜ベース: 所持金が一番安い仕込み（PREP_TIERS[0]）にも満たなければ、
-		# 3段階から選ばせず食肉仲卸ではなく端材屋へ回る（自動）。GameState.BASE_PRICEを
-		# 見ないのは意図的（仕込み3段階化：BASE_PRICEは予備ベース購入と共用の別概念で、
-		# たまたま値が同じだけ。次ラウンドでBASE_PRICEが濃縮だしへ置き換わっても
-		# この閾値が巻き添えで壊れないようにする）。
+		# 3段階から選ばせず食肉仲卸ではなく端材屋へ回る（自動）。
 		_scraps_base = GameState.money < int(Day1Events.PREP_TIERS[0].get("price", 0))
-		# 予備ベースの購入分も同じ瞬間に1回だけ判定し、捨てたら一言足す。
 		var spoiled := GameState.discard_spoiled_inventory()
 		_log_spoiled_items = spoiled   # 日次ログ用に保持（廃棄額の概算に使う）
-		var reserve_lost := GameState.discard_spoiled_reserve_base()
-		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base, reserve_lost))
+		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base))
 	elif phase == GameState.Phase.OPEN:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
@@ -387,10 +387,12 @@ func _on_discard_pressed() -> void:
 
 
 ## [鍋を見る] のハンドラ（7.6）。モードに入るだけで、EventRunner には触れない。
-## 鍋モードに入るたびに「水を入れたか」をリセットする（_pot_locked_until_water 用）。
+## 鍋モードに入るたびに「水を入れたか」「だしを入れたか」をリセットする
+## （_pot_locked_until_water / _pot_locked_until_dashi 用）。
 func _on_pot_pressed() -> void:
 	_pot_mode = true
 	_pot_water_added = false
+	_pot_dashi_added = false
 	_refresh()
 
 
@@ -426,7 +428,7 @@ func _on_close_pressed() -> void:
 	_refresh()
 
 
-## 鍋モードの [水を足す] / [ベースを足す]。効果は GameState の入口にまとめてある
+## 鍋モードの [水を足す] / [だしを足す]。効果は GameState の入口にまとめてある
 ## （残量・濃さ・資源が同時に動くので、受け側から分けて呼べないようにしている）。
 func _on_add_water_pressed() -> void:
 	GameState.add_water()
@@ -435,9 +437,10 @@ func _on_add_water_pressed() -> void:
 	_refresh()
 
 
-func _on_add_base_pressed() -> void:
-	GameState.add_base()
-	_log_base_used += 1   # 日次ログ：ベースを足した回数
+func _on_add_dashi_pressed() -> void:
+	GameState.add_dashi()
+	_pot_dashi_added = true
+	_log_dashi_used += 1   # 日次ログ：だしを足した回数
 	_refresh()
 
 
@@ -501,10 +504,10 @@ func _on_shop_item_selected(shop: String, id: String) -> void:
 	for good in _shop_goods(shop):
 		if str(good.get("id", "")) == id:
 			var price: int = int(good.get("price", 0))
-			if id == "reserve_base":
-				if GameState.money >= price and not GameState.reserve_base_purchased:
+			if id == "dashi":
+				if GameState.money >= price:
 					GameState.apply_money(-price)
-					GameState.buy_reserve_base()
+					GameState.buy_dashi()
 			elif GameState.money >= price:
 				var item = good.get("item", id)
 				var count: int = int(good.get("count", 1))
@@ -625,13 +628,22 @@ func _is_awaiting_react() -> bool:
 
 
 ## 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れる（_pot_water_added）
-## までの間だけ true（DESIGN.md 7.6：ベースだけ入れても煮出す水が無く意味をなさない）。
+## までの間だけ true（DESIGN.md 7.6：だしだけ入れても煮出す水が無く意味をなさない）。
 ## "どうやって鍋モードに入ったか" ではなく "残量が実際に空かどうか" で判定するので、
 ## 選択待ち経由でも普段の任意タイミングでの訪問でも同じルールが自然にかかる。
 func _pot_locked_until_water() -> bool:
 	if _pot_water_added:
 		return false
 	return GameState.soup != null and int(GameState.soup.get("remaining_servings", 0)) <= 0
+
+
+## 濃さメカニクス三点セット：鍋モードに入った時点で濃さ0（提供不可）だった場合、
+## 濃縮だしを入れる（_pot_dashi_added）までの間だけ true。_pot_locked_until_water() と
+## 同じ形（"どうやって入ったか"ではなく"濃さが実際に0かどうか"で判定）。
+func _pot_locked_until_dashi() -> bool:
+	if _pot_dashi_added:
+		return false
+	return GameState.soup != null and int(GameState.soup.get("strength", 3)) <= 0
 
 
 ## [入力完了] と選択肢ボタンの共通処理：WAITING_INPUT を解除して1つ進め、
@@ -656,9 +668,12 @@ func _advance_open_queue_if_customer_done() -> void:
 	if flow.is_runner_done() and _open.has_more():
 		# 退店：複数の杯に分けて接客した客の評判・提供記録を、ここで1回だけ反映する。
 		_flush_visit_tally()
-		# 7.6: 時間帯が変わったら鍋が煮詰まる（残量は変わらない＝蒸発なし）。
-		# 「変わったか」は OpenController が返し、鍋を動かすのは受け側のここ。
-		if _open.advance_customer():
+		# 濃さメカニクス三点セット：1晩で鍋が煮詰まるのは明け方（最後の時間帯）に
+		# 入った瞬間の1回だけにする（旧：時間帯が変わるたび＝1晩最大2回だった）。
+		# 「新しい時間帯に入ったか」はOpenControllerが返すが、「それが最後の時間帯か」は
+		# slot_index（進んだ後の値）とschedule.size()から受け側で判定する
+		# （OpenController自身は「時間帯が進んだか」だけを答える薄い部品のまま無改修）。
+		if _open.advance_customer() and _open.slot_index == _open.schedule.size() - 1:
 			GameState.deepen_soup()
 		_load_current_customer()
 
@@ -745,6 +760,14 @@ func _apply_event(ev) -> void:
 					return
 				_pending_shortage_ev = ev
 				return
+			# 濃さメカニクス三点セット：濃さ0（提供不可）のときも判定せず保留に落とす。
+			# ADJUST側の[入力完了]無効化（_is_strength_zero_in_adjust）で通常はここまで
+			# 来ないが、残量不足の判定と同じ「保険」として一段レイヤーを重ねる（名前あり客・
+			# 配達員向け。モブは_pending_group_result経由で上のreturnに引っかかるので無関係）。
+			# 自動閉店には倒さない（濃縮だしがあれば[鍋を見る]で救えるため）。
+			if GameState.soup != null and int(GameState.soup.get("strength", 3)) <= 0:
+				_pending_shortage_ev = ev
+				return
 			_serve_customer(ev)
 
 
@@ -760,10 +783,15 @@ func _is_current_mob_order() -> bool:
 ## （fresh+damagedの合算はしない）。同じ具材・同じバケツを2枠選んだ場合はその具材について
 ## 在庫数を選んだ回数で割る（add_to_bowlは重複を許すため。例：軟骨(新鮮)を2枠→
 ## 新鮮在庫8個なら軟骨に関する上限は8÷2=4人）。
+## 濃さメカニクス三点セット：濃さ0（提供不可）の鍋は人数に関係なく達成可能0にする
+## （具材や残量が足りていても、薄すぎる鍋では誰にも出せない。既存の「達成可能0なら
+## 断るしか出せない」というモブUIにそのまま乗せるだけで、新しい分岐は増やさない）。
 func _mob_achievable_servings(ordered: int) -> int:
 	var achievable := ordered
 	if GameState.soup != null:
 		achievable = mini(achievable, int(GameState.soup.get("remaining_servings", 0)))
+		if int(GameState.soup.get("strength", 3)) <= 0:
+			achievable = 0
 	else:
 		achievable = 0
 	var counts := {}   # "id|damaged" -> 選んだ回数
@@ -924,7 +952,7 @@ func _flush_visit_tally() -> void:
 
 
 ## もう水が無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
-## 残量を増やせるのは水だけ（ベースは濃さを上げるだけで、量は増やさない）ので、
+## 残量を増やせるのは水だけ（だしは濃さを上げるだけで、量は増やさない）ので、
 ## 不足を埋められるかの判定は水の有無だけを見る。
 func _no_resources_left() -> bool:
 	return not GameState.can_add_water()
@@ -945,13 +973,43 @@ func _is_short_in_adjust() -> bool:
 	return _is_choosing_ingredients() and _is_short_now()
 
 
-## [閉店]を押せるか。鍋不足の保留中、または「ADJUST中で不足、かつ水が無い」
-## （足せなければ閉店）。どちらも、その客には出せなかった扱いで CLOSE へ進む。
-## ②拒否と部分提供：モブ客の鍋不足は「断る」で次の客へ進めるので、これだけを理由に
-## [閉店]は出さない（名前あり客・配達員は無変更）。
+## 残量不足が「今まさに提供を妨げている」文脈か：ADJUST中に既に不足しているか、
+## 保留中のREACT（_pending_shortage_ev）がその不足で保留になっているか。
+## ADJUST中の判定（_is_short_in_adjust）はSERVE/REACT到達前しか見えないため、
+## 保留に落ちた後（SERVEを過ぎている）も同じ問いに答えられるよう別関数にしてある。
+## 水で解決できるかどうかの判定（鍋モードの入場可否）に使う。
+func _is_servings_short_context() -> bool:
+	if _is_short_in_adjust():
+		return true
+	if _pending_shortage_ev == null or GameState.soup == null:
+		return false
+	return int(GameState.soup.get("remaining_servings", 0)) < int(_pending_shortage_ev.get("servings", 1))
+
+
+## 濃さメカニクス三点セット：鍋の濃さが実際に0（提供不可）か。文脈（ADJUST中か保留中か）を
+## 問わない素の状態チェック（濃さは接客中に自然には変わらないので、どちらの文脈でも
+## 同じ値になる。だしで解決できるかどうかの判定に使う）。
+func _is_strength_zero() -> bool:
+	return GameState.soup != null and int(GameState.soup.get("strength", 3)) <= 0
+
+
+## ADJUST中（椀を作っている最中）で、濃さ0（提供不可）か。残量不足（_is_short_in_adjust）
+## とは独立した別の条件（判定そのものが成立しない）。[入力完了]を止め、
+## [鍋を見る]・[閉店]を出す条件に使う（残量不足と同じ役割）。
+func _is_strength_zero_in_adjust() -> bool:
+	return _is_choosing_ingredients() and _is_strength_zero()
+
+
+## [閉店]を押せるか。鍋不足の保留中、「ADJUST中で残量不足、かつ水が無い」、または
+## 「ADJUST中で濃さ0、かつだしが無い」（どちらも足せなければ閉店）。いずれも、その客には
+## 出せなかった扱いで CLOSE へ進む。
+## ②拒否と部分提供：モブ客の不足は「断る」で次の客へ進めるので、これだけを理由に
+## [閉店]は出さない（名前あり客・配達員は無変更。濃さ0もモブは_mob_achievable_servings()の
+## 「達成可能0」経由で断れるので同じ扱いにする）。
 func _can_close_now() -> bool:
 	return _pending_shortage_ev != null \
-			or (_is_short_in_adjust() and _no_resources_left() and not _is_current_mob_order())
+			or (_is_short_in_adjust() and _no_resources_left() and not _is_current_mob_order()) \
+			or (_is_strength_zero_in_adjust() and not GameState.can_add_dashi() and not _is_current_mob_order())
 
 
 ## 現在の客（含む）から OPEN 終了まで、名前あり客がもう出てこないか。
@@ -1049,14 +1107,14 @@ func _on_day_ending() -> void:
 		"judged_planned_cups": _log_judged_planned_cups, "quality": quality,
 		"spoiled_items": _log_spoiled_items.duplicate(),
 		"spoiled_value": spoiled_value,
-		"water_used": _log_water_used, "base_used": _log_base_used,
+		"water_used": _log_water_used, "dashi_used": _log_dashi_used,
 		"closed_early": _log_closed_early,
 	}
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
 		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
-		_log_water_used, _log_base_used, str(_log_closed_early), str(_log_quality_counts)])
+		_log_water_used, _log_dashi_used, str(_log_closed_early), str(_log_quality_counts)])
 	_append_balance_log_file(log_entry)
 
 
@@ -1141,7 +1199,7 @@ func _refresh() -> void:
 ## 動的なボタン行の描画。毎回 _refresh() から呼び、状態から描き直す
 ## （他の表示と同じ「押した直後だけ更新」ではなく毎回作り直す方針）。
 ## 1つの行を3つの用途で使い分ける（各モードは互いに排他なので衝突しない）:
-##   - 鍋モード中（7.6）… [水を足す] [ベースを足す] [戻る]
+##   - 鍋モード中（7.6）… [水を足す] [だしを足す] [戻る]
 ##   - MARKET中（7.7）  … 7店舗のボタン ＋ [市場を出る]
 ##   - それ以外          … ADJUST の具材ボタン（"options" を持つ WAITING_INPUT のときだけ）
 ## STEP 17.6: [入力完了] は ADJUST 中でも押せる（3枠未満でも提供できる仕様）。
@@ -1150,7 +1208,7 @@ func _refresh() -> void:
 ##   して「会話が止まっている」ことを見た目にも合わせる。
 ## 7.6: 鍋が尽きて選択待ち（_pending_shortage_ev != null）のときは、それに加えて
 ##   [次のEvent]/[入力完了]も無効（保留を解決するまで進めない）。[鍋を見る]は
-##   選択待ち中だけ「水かベースが残っているか」も条件に足す（無ければ作り直しようが
+##   選択待ち中だけ「水かだしが残っているか」も条件に足す（無ければ作り直しようが
 ##   ないので、実質[閉店]しか選べない状態にする）。[閉店]は選択待ち中だけ有効。
 ## 7.7: MARKET中も [次のEvent]/[入力完了] を無効化する。抜ける経路を[市場を出る]
 ##   （水場未訪問なら自動で訪れる安全策を持つ）だけに絞るため。
@@ -1165,20 +1223,29 @@ func _update_options_row() -> void:
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
 	# ゲームオーバー後は、OPENで止まって鍋が残っていても鍋を触らせない。
-	# [鍋を見る]：ADJUST中は原則触れない（作っている椀があるため）が、鍋が足りないときだけ
-	# 触れる（水を足して足りれば提供できる）。足せるものが無いときは入れない（入っても出口が
-	# 無くなるため）。不足を埋められるのは水だけなので、不足の文脈（保留中・ADJUSTで不足）では
-	# 水の有無を、それ以外（濃さの調整）では水かベースがあるかを見る。
+	# [鍋を見る]：ADJUST中は原則触れない（作っている椀があるため）が、残量不足または
+	# 濃さ0（提供不可）のときだけ触れる（水／だしを足して解決できる可能性があるため）。
+	# 足せるものが無いときは入れない（入っても出口が無くなるため）。残量不足を埋められるのは
+	# 水だけ、濃さ0を埋められるのはだしだけなので、それぞれ独立に「解決可能か」を見て、
+	# どちらか一方でも解決可能なら鍋モードへ入れる（濃さメカニクス三点セット）。
+	# 濃さ0は文脈を問わない素の状態（_is_strength_zero）で見る＝ADJUST中でも保留中の
+	# REACT待ちでも同じ値になる。残量不足は「今それが実際に提供を妨げているか」
+	# （_is_servings_short_context。ADJUST中の判定はSERVEを過ぎると見えなくなるため、
+	# 保留中は_pending_shortage_evの注文数から再計算する）で見る。
+	# それ以外（不足の文脈でない・濃さの調整だけ）では水かだしのどちらかがあるかを見る。
 	# SERVE中（_is_awaiting_react）は不足の文脈になり得ない（ADJUSTの[入力完了]は不足時
 	# 押せないので、無事SERVEまで来た時点で足りている）ため、無条件で塞いでよい。
-	var shortage_context := _pending_shortage_ev != null or _is_short_in_adjust()
+	var servings_short := _is_servings_short_context()
+	var strength_zero := _is_strength_zero()
 	var nothing_to_add: bool
-	if shortage_context:
-		nothing_to_add = _no_resources_left()
+	if servings_short or strength_zero:
+		var can_fix_servings := servings_short and GameState.can_add_water()
+		var can_fix_strength := strength_zero and GameState.can_add_dashi()
+		nothing_to_add = not can_fix_servings and not can_fix_strength
 	else:
-		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_base()
+		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_dashi()
 	var pot_disabled := GameState.soup == null or _pot_mode \
-			or (_is_choosing_ingredients() and not _is_short_now()) \
+			or (_is_choosing_ingredients() and not _is_short_now() and not strength_zero) \
 			or _is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled or _phone_mode
@@ -1188,10 +1255,13 @@ func _update_options_row() -> void:
 	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
 	# ②拒否と部分提供：モブ客は鍋不足だけでは塞がない（達成可能人数の計算に鍋残量も
 	# 含めており、[入力完了]を押せば確認ボタンへ進めるため。名前あり客・配達員は無変更）。
+	# 濃さメカニクス三点セット：濃さ0も同じ扱い（モブは_mob_achievable_servings()が
+	# 強制的に0を返すので「断る」しか出せなくなる。名前あり客・配達員は塞ぐ）。
 	# 仕込み3段階化：PREP_TIER中は段階ボタン以外で抜けさせない（_is_in_marketと同じ理由）。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
 			or _is_in_market() or _is_in_prep_tier() or _phone_mode or _pending_group_choice \
-			or (_is_short_in_adjust() and not _is_current_mob_order())
+			or (_is_short_in_adjust() and not _is_current_mob_order()) \
+			or (_is_strength_zero_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
@@ -1208,14 +1278,19 @@ func _update_options_row() -> void:
 		return
 
 	if _pot_mode:
-		var locked := _pot_locked_until_water()
-		_add_pot_button("水を足す（残量+%d 濃さ-1）" % GameState.WATER_SERVINGS,
+		var locked_water := _pot_locked_until_water()
+		var locked_dashi := _pot_locked_until_dashi()
+		_add_pot_button("水を足す（残量+%d 濃さ-%d）" % [GameState.WATER_SERVINGS, GameState.WATER_STRENGTH_DELTA],
 			not GameState.can_add_water(), _on_add_water_pressed)
-		_add_pot_button("ベースを足す（濃さ+1）",
-			not GameState.can_add_base() or locked, _on_add_base_pressed)
-		# 水待ちで[戻る]を塞ぐのは、[水を足す]で解ける（水がある）ときだけ。
-		# 水が無ければ塞がない＝鍋モードには必ず出口がある。
-		_add_pot_button("戻る", locked and GameState.can_add_water(), _on_pot_back_pressed)
+		# だしだけ入れても煮出す水が無く意味をなさない（旧ベースと同じ理由）ので、
+		# 水待ちロック中はだしボタンも塞ぐ。
+		_add_pot_button("だしを足す（濃さ+%d）" % GameState.DASHI_STRENGTH_DELTA,
+			not GameState.can_add_dashi() or locked_water, _on_add_dashi_pressed)
+		# 水待ち・だし待ちで[戻る]を塞ぐのは、それぞれ[水を足す]/[だしを足す]で
+		# 解ける（資源がある）ときだけ。資源が無ければ塞がない＝鍋モードには必ず出口がある。
+		_add_pot_button("戻る",
+			(locked_water and GameState.can_add_water()) or (locked_dashi and GameState.can_add_dashi()),
+			_on_pot_back_pressed)
 		return
 
 	# ②拒否と部分提供：モブ客が[入力完了]を押した後は、通常のADJUST具材ボタンの代わりに
@@ -1251,9 +1326,8 @@ func _update_options_row() -> void:
 			for good in _shop_goods(_market_shop):
 				var gid: String = str(good.get("id", ""))
 				var price: int = int(good.get("price", 0))
-				var bought: bool = gid == "reserve_base" and GameState.reserve_base_purchased
-				_add_pot_button("%s（-%d）%s" % [str(good.get("label", gid)), price, "（購入済み）" if bought else ""],
-					GameState.money < price or bought, _on_shop_item_selected.bind(_market_shop, gid))
+				_add_pot_button("%s（-%d）" % [str(good.get("label", gid)), price],
+					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid))
 			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
 			return
 		for option in cur.get("options", []):
@@ -1326,7 +1400,7 @@ func _format_game_state() -> String:
 	#   rumors     … スマホで得た噂の件数。今は未使用
 	#   phase      … 一日のどの段階か（WAKE→PREP→OPEN→CLOSE→NEXT_DAY）
 	#   soup       … 仕込んだ鍋と残量・濃さ。仕込み前はnone。翌日リセット
-	#   pot        … 鍋に足せる資源。水は今夜だけ（soupの中）、予備ベースは翌日へ持ち越す
+	#   pot        … 鍋に足せる資源。水は今夜だけ（soupの中）、濃縮だしは翌日へ持ち越す
 	#                 （GameState直下）。寿命が違うので soup とは行を分けている
 	#   served     … 接客数と杯数（servingsの合計）。翌日リセット。どちらも廃棄
 	#                 （discarded:true）を除く＝客に何も出していないので混ぜない
@@ -1346,8 +1420,7 @@ func _format_game_state() -> String:
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
 		"phase(現在フェーズ): %s (%d)" % [phase_name, GameState.phase],
 		"soup(今日の鍋): %s" % soup_text,
-		"pot(鍋の資源): 水%d回 / 予備ベース%d単位%s" % [water_doses, GameState.reserve_base_units,
-			"（購入分%d単位は傷んでいる）" % GameState.reserve_base_purchase_remaining if GameState.is_reserve_base_damaged() else ""],
+		"pot(鍋の資源): 水%d回 / 濃縮だし%d回分" % [water_doses, GameState.dashi_units],
 		"served(接客数/杯数): %d / %d" % [_served_count(), _served_servings()],
 		"discarded(廃棄数): %d 件" % _discarded_count(),
 		"known_favorites(好物を知っている客): %s" % (

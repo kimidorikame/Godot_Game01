@@ -86,7 +86,11 @@ func run(t: SceneTree) -> int:
 	c.check("所持金不足の段階を選んでも所持金・進行が変わらない",
 		GameState.money == before_money3 and panel3.flow.runner.index == before_index3)
 
-	# --- 5. 水を2回使い切った場合の残量上限が段階ごとに12/15/18になる(鍋容量拡大の確認) ---
+	# --- 5. 水を2回使い切った場合の残量上限が段階ごとに12/15/18になる(鍋容量拡大の確認)。
+	#    濃さメカニクス三点セット：濃さ3スタートのまま水を連続2回は使えない
+	#    （1回目で3→1、2回目は1-2<0でブロックされる）。明け方の自動+1相当
+	#    （GameState.deepen_soup()）を間に挟んで初めて2回使い切れる、という
+	#    「一晩の最大供給」の前提を検証する。 ---
 	var water_cases := [["small", 12], ["medium", 15], ["large", 18]]
 	for wcase in water_cases:
 		var tier_id2: String = wcase[0]
@@ -95,9 +99,12 @@ func run(t: SceneTree) -> int:
 		_drive_to_waiting_input(panel4)
 		panel4._on_prep_tier_selected(tier_id2)
 		_drive_after_tier(panel4)
-		GameState.add_water()
-		GameState.add_water()
-		c.check("%s: 水2回込みで%d杯" % [tier_id2, expected_max],
+		GameState.add_water()   # 濃さ3→1
+		c.check("%s: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)" % tier_id2,
+			not GameState.can_add_water(), str(GameState.soup))
+		GameState.deepen_soup()   # 明け方の自動+1相当。濃さ1→2
+		GameState.add_water()   # 濃さ2→0
+		c.check("%s: 明け方の自動+1を挟めば水を2回使い切れ、残量は%d杯" % [tier_id2, expected_max],
 			int(GameState.soup.get("remaining_servings", -1)) == expected_max, str(GameState.soup))
 
 	# --- 6. prep_after_tier_events(): 先頭は必ずTEXT(index 0の効果スキップ対策)、
@@ -123,7 +130,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 8. 既存のprep_events()の先頭(傷み通知)は無改修で動く(回帰) ---
 	var spoiled := { "tofu": { "count": 3, "value": 12 } }
-	var events: Array = Day1Events.prep_events(spoiled, false, false)
+	var events: Array = Day1Events.prep_events(spoiled, false)
 	c.check("prep_eventsの先頭に破棄の一言が入る(既存動作の回帰)",
 		str(events[0].get("type", "")) == "TEXT" and str(events[0].get("text", "")).contains("捨てた"))
 	c.check("その後、食肉売場のTEXT→PREP_TIER(3段階選択)の順で並ぶ",
