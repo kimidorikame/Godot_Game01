@@ -69,10 +69,12 @@ func run(t: SceneTree) -> int:
 	c.check("mob:falseはモブなし", Day1Events._pick_mob({"mob": false}, 3).is_empty())
 	c.check("mob無指定もモブなし", Day1Events._pick_mob({}, 3).is_empty())
 	c.check("デバッグ上書きの人数がそのまま入る", Day1Events._pick_mob({"mob": {"pool": ["a"]}}, 2)["count"] == 2)
-	GameState.day_count = 2   # Day1は人数固定(DAY1_MOB_COUNT)なので、評判依存を見るにはDay2以降にする
-	GameState.reputation = -100
-	c.check("人数0(評判が低い等)ならモブなし",
-		Day1Events._pick_mob({"mob": {"pool": ["a"]}}, -1).is_empty())
+	# ④評判の更新+⑤客数の決め方：_pick_mob()の自動フォールバック(debug_count<0)は
+	# customer_schedule()からDay1でしか呼ばれなくなったため、GameState.DAY1_MOB_COUNT
+	# （評判に関わらず常に4）を返す。評判→モブ杯数の抽選はtotal_demand_today()側へ
+	# 移った（tests/reputation_demand_test.gdで検証）。
+	c.check("_pick_mobの自動フォールバックはDAY1_MOB_COUNTを返す(評判に関わらず)",
+		Day1Events._pick_mob({"mob": {"pool": ["a"]}}, -1)["count"] == GameState.DAY1_MOB_COUNT)
 	GameState.reset_for_new_game()
 
 	# --- 5. customer_schedule(): Day1の並び（宵の口=delivery_man固定+dock_workers固定、

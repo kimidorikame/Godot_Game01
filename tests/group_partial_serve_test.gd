@@ -49,7 +49,11 @@ func run(t: SceneTree) -> int:
 	c.check("肉団子は3個消費される(在庫0)", not GameState.inventory.has("meat_ball"))
 	c.check("鍋残量は3減る", int(GameState.soup["remaining_servings"]) == 999 - 3)
 	c.check("売上は3人分(150)", GameState.money == money0 + 150, str(GameState.money - money0))
-	c.check("評判はGOOD(+1)ぶんだけ動く(モブ)", GameState.reputation == rep0 + 1, str(GameState.reputation - rep0))
+	# ④評判の更新：評判は閉店時に1回だけ確定するため、提供直後は動かない
+	# （tests/reputation_demand_test.gdで閉店時の確定を別途検証する）。
+	c.check("評判は提供直後には動かない(閉店時に一括確定)", GameState.reputation == rep0)
+	c.check("代わりに_log_quality_countsのGOODが3(提供人数)だけ増える",
+		int(panel._log_quality_counts.get("GOOD", 0)) == 3, str(panel._log_quality_counts))
 	var rec: Dictionary = GameState.served[GameState.served.size() - 1]
 	c.check("servings=3 / ordered_servings=4 / unserved_servings=1が記録される",
 		int(rec.get("servings")) == 3 and int(rec.get("ordered_servings")) == 4

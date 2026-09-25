@@ -42,13 +42,19 @@ const FINAL_DAY := 7
 const INITIAL_MONEY := 300
 const INITIAL_RESERVE_BASE_UNITS := 10
 
-# 評判 → その日のモブ人数（DESIGN.md 7.6「評判→翌日のモブ客数」）。ゲーム共通のルール。
-# [評判の下限, 人数の上限] を大きい順に並べ、最初に当たった行を使う。人数は1〜上限の乱数。
-# 評判が0未満なら0人（テーブルの外）。数値は仮。上限・逓減の調整は今回は対象外。
-const MOB_COUNT_TABLE := [[80, 8], [50, 6], [20, 4], [0, 3]]
-
-# Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない）。
+# Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない。CURRENT_SPEC.md参照）。
+# ④評判の更新+⑤客数の決め方（BALANCE_REDESIGN_PLAN.md§5）で、Day2以降のモブ人数は
+# total_demand_today()ベースの配分へ置き換えたが、Day1だけはこの定数を使う従来どおりの
+# 枠ごと独立抽選（Day1Events._pick_mob経由）のまま据え置く（宵の口のdock_workers演出を
+# 変えないため）。旧・評判→モブ人数の直接テーブル（MOB_COUNT_TABLE/mob_count_for_reputation/
+# mob_count_today）はDay2以降がtotal_demand_today()に置き換わったことで役目を終えたので削除した。
 const DAY1_MOB_COUNT := 4
+
+# 評判 → その夜の総需要（中心値。BALANCE_REDESIGN_PLAN.md§5「客数の決め方」）。
+# [評判の下限, 中心値] を大きい順に並べ、最初に当たった行を使う。実際の需要は
+# 中心-1/中心/中心+1を25%/50%/25%で引く（total_demand_today()）。Day1は9固定。
+const DEMAND_TABLE := [[71, 17], [60, 14], [45, 11], [20, 9], [0, 7]]
+const DAY1_DEMAND := 9
 
 # 具材の腐敗（購入日を1日目に数える経過日数。どの品目が腐るかは Ingredients.is_perishable）。
 #   1〜2日目 … 新鮮／3日目 … 傷んでいる（使えるが判定が-1段階）／4日目以降 … 自動破棄
@@ -178,23 +184,24 @@ func is_collection_day() -> bool:
 	return day_count == 1
 
 
-## 評判からその日のモブ人数を決める（乱数を引くので呼ぶたびに値が変わり得る）。
+## 評判からその夜の総需要（客数の中心値）を決め、中心-1/中心/中心+1を25%/50%/25%で
+## 引く（乱数を引くので呼ぶたびに値が変わり得る。BALANCE_REDESIGN_PLAN.md§5）。
+## Day1は9固定（DAY1_MOB_COUNTと同じく台本どおり・評判では揺らさない）。
 ## 呼び出し側は「その日のEvent列を作る時点で1回だけ」呼んで、結果を使い回すこと。
-func mob_count_for_reputation(rep: int) -> int:
-	if rep < 0:
-		return 0
-	for row in MOB_COUNT_TABLE:
-		if rep >= int(row[0]):
-			return randi_range(1, int(row[1]))
-	return 0
-
-
-## 今日のモブ人数。Day1は固定、Day2以降は評判で決まる（is_collection_day() と同じく
-## 「今日が何日目か」というルールなので GameState に置く）。
-func mob_count_today() -> int:
+func total_demand_today() -> int:
 	if day_count == 1:
-		return DAY1_MOB_COUNT
-	return mob_count_for_reputation(reputation)
+		return DAY1_DEMAND
+	var center := 7
+	for row in DEMAND_TABLE:
+		if reputation >= int(row[0]):
+			center = int(row[1])
+			break
+	var roll := randf()
+	if roll < 0.25:
+		return center - 1
+	elif roll < 0.75:
+		return center
+	return center + 1
 
 
 ## 金額の増減をまとめて通す入口。
@@ -215,11 +222,12 @@ func try_pay(amount: int) -> bool:
 	return true
 
 
-## 評判の増減をまとめて通す入口（DESIGN.md 7.6）。apply_money と同じ役割で、
-## 「どれだけ動かすか」を決めるのは受け側、ここは適用するだけ。
-## 名前あり客とモブで増加量が違う（受け側の増減表で決める）。
-func apply_reputation(delta: int) -> void:
-	reputation += delta
+## 評判の確定：閉店時（NEXT_DAY→WAKE折り返しのday_ending）に1回だけ、現在の評判と
+## 当夜品質(quality)から新しい値を計算し直す入口（BALANCE_REDESIGN_PLAN.md§5
+## 「評判は閉店時に更新する」）。杯ごとの即時加算（旧apply_reputation(delta)）は
+## この導入で廃止した＝OPEN中は評判が朝の値のまま動かない。
+func settle_reputation(quality: float) -> void:
+	reputation = roundi(float(reputation) * 0.7 + quality * 0.3)
 
 
 ## 在庫に item を count 個足す入口。ADD_ITEM Event・市場での購入・初期在庫の積み込みから呼ぶ。

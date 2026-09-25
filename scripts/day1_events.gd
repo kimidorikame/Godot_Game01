@@ -247,11 +247,8 @@ static func close_events() -> Array:
 ## 時間帯に客がいない（＝main/main_poolを持たない）ことは今回は無い想定だが、
 ##   将来そういう枠を足しても "id": "" のまま customers=[] になるだけで安全。
 ##
-## モブの独立抽選（Day2-7ダミーデータ・モブ抽選独立化）：以前は日全体で共有の1個の
-## mob_countを全モブ枠に使い回していたが、**枠（宵の口・夜半・明け方）ごとに、種類も
-## 人数も別々に抽選する**。引数の意味が「今日の実人数」から「デバッグ用の一律上書き値
-## （-1=自動。debug_panel.gdの_debug_mob_countをそのまま渡す）」に変わった点に注意
-## （引数名もそれに合わせて改名）。
+## モブの独立抽選（Day2-7ダミーデータ・モブ抽選独立化 → ④評判の更新+⑤客数の決め方で
+## Day2以降のauto経路をtotal_demand_today()ベースへ置き換え）。
 ## 枠ごとに決めたモブの（型・人数）は、customersに積む文字列自体を"mob#N"という
 ## その日だけのインスタンスidにし、_mob_instancesへ退避しておく（客の番が来て
 ## customer_events()→_customer_flavor()が呼ばれるときに引けるようにするため。
@@ -259,26 +256,120 @@ static func close_events() -> Array:
 ## この2つは無改修で動く）。_mob_instancesはここで毎回clear()するので、次の日の
 ## customer_schedule()呼び出しで自動的に前日の分が消える（明示的なリセットフックは
 ## 不要と判断した）。
+##
+## debug_mob_count（-1=自動、0以上=QA用の一律上書き）とDay1は、従来どおり
+## 枠（宵の口・夜半・明け方）ごとに独立して_pick_mob()を呼ぶ（Day1はCURRENT_SPEC.md
+## 「チュートリアルなので評判では揺らさない」の明記どおり据え置き。デバッグ上書きは
+## 総需要システムを丸ごとバイパスして全モブ枠へ一律適用する既存挙動を維持）。
+## それ以外（Day2以降のauto）だけ、その夜の総需要からメイン客の合計杯数を引いた
+## モブ杯数を先に決め、_plan_mob_groups()で組へ配分してから枠へ割り当てる。
 static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	_mob_instances.clear()
 	var slots: Array = ScheduleData.day_schedule(GameState.day_count).get("slots", [])
 	var chosen_mains := []   # 同日内の重複禁止（main_poolの抽選用。§9-C確定仕様）
-	var mob_seq := 0
-	var result := []
+	var main_ids := []
 	for slot in slots:
 		var main_id := _pick_main(slot, chosen_mains)
-		var customers := []
+		main_ids.append(main_id)
 		if main_id != "":
-			customers.append(main_id)
 			chosen_mains.append(main_id)
-		var mob := _pick_mob(slot, debug_mob_count)
-		if not mob.is_empty():
-			var instance_id := "mob#%d" % mob_seq
-			mob_seq += 1
-			_mob_instances[instance_id] = mob
-			customers.append(instance_id)
+
+	var use_demand_system: bool = debug_mob_count < 0 and GameState.day_count > 1
+	var mob_groups_by_index := {}
+	if use_demand_system:
+		var main_total := 0
+		for main_id in main_ids:
+			if main_id != "":
+				main_total += _customer_total_servings(main_id)
+		var mob_cups: int = maxi(GameState.total_demand_today() - main_total, 0)
+		mob_groups_by_index = _plan_mob_groups(slots, mob_cups)
+
+	var mob_seq := 0
+	var result := []
+	for i in range(slots.size()):
+		var slot: Dictionary = slots[i]
+		var customers := []
+		if main_ids[i] != "":
+			customers.append(main_ids[i])
+		if use_demand_system:
+			for size in mob_groups_by_index.get(i, []):
+				var type_id := _pick_mob_type(slot)
+				if type_id == "":
+					continue
+				var instance_id := "mob#%d" % mob_seq
+				mob_seq += 1
+				_mob_instances[instance_id] = { "type": type_id, "count": size }
+				customers.append(instance_id)
+		else:
+			var mob := _pick_mob(slot, debug_mob_count)
+			if not mob.is_empty():
+				var instance_id := "mob#%d" % mob_seq
+				mob_seq += 1
+				_mob_instances[instance_id] = mob
+				customers.append(instance_id)
 		result.append({ "name": str(slot.get("name", "")), "customers": customers })
 	return result
+
+
+## 1人の客の合計servings（そのcustomer_events()の全REACT Eventのservingsを合算する）。
+## 総需要からメイン客分を差し引く計算（customer_schedule）用。_customer_flavor().servingsを
+## 直接見ないのは、配達員のDay1（3杯を別々のREACTに分ける専用Event列）のような
+## 「1客で複数REACT」の形にも自動的に対応するため（配達員Day1は合計3になる）。
+static func _customer_total_servings(customer_id: String) -> int:
+	var total := 0
+	for ev in customer_events(customer_id):
+		if ev.get("type", "") == "REACT":
+			total += int(ev.get("servings", 0))
+	return total
+
+
+## モブ杯数を1〜4人の組へ均等配分し（大きい組から先。BALANCE_REDESIGN_PLAN.md§5原文）、
+## その日の枠index（day_schedule.jsonの並び順）へ割り当てる。返り値は
+## { 枠index: [組のサイズ, ...] }（同じ枠に複数の組が入ることもある）。
+## 組数は ceil(モブ杯数/4)。総需要の上限(18)とメイン客合計の下限(3)から、組数は
+## 理論上4を超えない（_GROUP_SLOT_PRIORITYが4件しか無いのはこのため）。
+## 配置先はその夜の組の何番目かで決め打ち（1組目→夜半、2組目→宵の口、3組目→明け方、
+## 4組目→宵の口）。その枠がその日「モブなし」（mob:false。Day1・Day7の明け方）なら
+## _GROUP_SLOT_FALLBACK（夜半）へ振り替える（杯数を消さない。全日で夜半は必ずモブ許可枠）。
+const _GROUP_SLOT_PRIORITY := ["夜半", "宵の口", "明け方", "宵の口"]
+const _GROUP_SLOT_FALLBACK := "夜半"
+
+static func _plan_mob_groups(slots: Array, mob_cups: int) -> Dictionary:
+	var by_index := {}
+	if mob_cups <= 0:
+		return by_index
+	var group_count: int = ceili(float(mob_cups) / 4.0)
+	var base: int = mob_cups / group_count
+	var extra: int = mob_cups % group_count
+	var sizes := []
+	for i in range(group_count):
+		sizes.append(base + 1 if i < extra else base)   # 大きい組から先に並べる
+
+	var index_by_name := {}
+	for i in range(slots.size()):
+		index_by_name[str(slots[i].get("name", ""))] = i
+
+	for i in range(sizes.size()):
+		var target: String = _GROUP_SLOT_PRIORITY[i] if i < _GROUP_SLOT_PRIORITY.size() \
+			else _GROUP_SLOT_FALLBACK
+		if not (index_by_name.has(target) and _slot_mob_eligible(slots[index_by_name[target]])):
+			target = _GROUP_SLOT_FALLBACK
+		if not (index_by_name.has(target) and _slot_mob_eligible(slots[index_by_name[target]])):
+			continue   # フォールバック先も無い/対象外という想定外の日は、その組は諦める（安全側）
+		var idx: int = index_by_name[target]
+		var arr: Array = by_index.get(idx, [])
+		arr.append(sizes[i])
+		by_index[idx] = arr
+	return by_index
+
+
+## その枠にモブが出る資格があるか（"mob"がfalse/無指定ではない）。
+## Dictionary と bool を == で比べると実行時エラーになるため、先に is Dictionary で分岐する。
+static func _slot_mob_eligible(slot: Dictionary) -> bool:
+	var spec = slot.get("mob", false)
+	if spec is Dictionary:
+		return true
+	return bool(spec)
 
 
 ## 1枠ぶんのメイン客idを決める（day_schedule.jsonの読み込みからは独立させた純粋関数。
@@ -300,32 +391,37 @@ static func _pick_main(slot: Dictionary, chosen: Array) -> String:
 	return str(candidates[randi() % candidates.size()])
 
 
-## 1枠ぶんのモブの型・人数を決める（Day2-7ダミーデータ・モブ抽選独立化で新設）。
-## "mob"の値は3値：false/無指定（モブなし）、true（既存どおりdock_workers固定）、
-## {"pool":[...]}（型をプールから抽選。**同日内の重複除外はしない**＝main_poolとは
-## 対称的な仕様。3-1節確定）。型が決まったら、人数は debug_count>=0 ならそれを、
-## そうでなければ GameState.mob_count_today() を毎回独立に呼んで決める（Day1は
-## day_count==1の分岐で常に固定4を返す関数なので、宵の口・夜半とも今までどおり4人。
-## Day2以降は枠ごとに別々の乱数が引かれる）。人数が0ならその枠にモブは出さない
-## （{}を返す。既存の「mob_count>0のときだけ出す」ルールを踏襲）。
+## 1枠ぶんのモブの型・人数を決める（Day1・デバッグ上書き専用経路。customer_schedule()
+## 参照）。人数は debug_count>=0 ならそれを、そうでなければ GameState.DAY1_MOB_COUNT
+## を使う（この関数の自動フォールバック側は、customer_schedule()がDay1でしか
+## 呼ばなくなったため、実質Day1専用になった）。人数が0ならその枠にモブは出さない
+## （{}を返す。既存の「人数>0のときだけ出す」ルールを踏襲）。
 static func _pick_mob(slot: Dictionary, debug_count: int) -> Dictionary:
+	var type_id := _pick_mob_type(slot)
+	if type_id == "":
+		return {}
+	var count := debug_count if debug_count >= 0 else GameState.DAY1_MOB_COUNT
+	if count <= 0:
+		return {}
+	return { "type": type_id, "count": count }
+
+
+## 1枠ぶんのモブの型だけを決める（人数はこの関数の役割外。_pick_mob()と
+## _plan_mob_groups()の両方から呼ぶ）。"mob"の値は3値：false/無指定（モブなし・
+## 空文字を返す）、true（既存どおりdock_workers固定）、{"pool":[...]}（型をプールから
+## 抽選。**同日内の重複除外はしない**＝main_poolとは対称的な仕様。3-1節確定）。
+static func _pick_mob_type(slot: Dictionary) -> String:
 	var spec = slot.get("mob", false)
-	var type_id := ""
 	# Dictionary と bool を == で比べると実行時エラーになるため、先に is Dictionary で
 	# 分岐する（それ以外はbool(spec)でtrue/falseを見る）。
 	if spec is Dictionary:
 		var pool: Array = spec.get("pool", [])
 		if pool.is_empty():
-			return {}
-		type_id = str(pool[randi() % pool.size()])
+			return ""
+		return str(pool[randi() % pool.size()])
 	elif bool(spec):
-		type_id = "dock_workers"
-	else:
-		return {}
-	var count := debug_count if debug_count >= 0 else GameState.mob_count_today()
-	if count <= 0:
-		return {}
-	return { "type": type_id, "count": count }
+		return "dock_workers"
+	return ""
 
 
 ## id がモブ客か（DESIGN.md 7.6）。自動閉店の判定などで、受け側が

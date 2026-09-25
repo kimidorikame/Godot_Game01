@@ -32,12 +32,11 @@ var _closed_early_reason := ""
 # （_closed_early_reason と同じく一度きり）。
 var _game_over_reason := ""
 
-# 判定結果 → 評判の増減（DESIGN.md 7.6）。名前あり客よりモブの方が動きが小さい。
-# 「どれだけ動かすか」を決めるのは受け側＝ここ。適用は GameState.apply_reputation()。
-# sale と同じ考え方（量は受け側が決め、GameState は入口として適用するだけ）。
-# 数値は仮。触ってから調整する（DESIGN.md 7.6「評判のインフレについて」）。
-const REPUTATION_NAMED := { "GREAT": 3, "GOOD": 2, "OK": 0, "BAD": -2 }
-const REPUTATION_MOB := { "GREAT": 1, "GOOD": 1, "OK": 0, "BAD": -1 }
+# 判定結果 → 評点（BALANCE_REDESIGN_PLAN.md§5「評判・需要・日程」）。名前あり客・モブの
+# 区別はなくなり、どの客でも共通の得点表を使う（旧REPUTATION_NAMED/REPUTATION_MOBは
+# ④評判の更新+⑤客数の決め方で廃止。評判は閉店時に_quality_score()の結果をまとめて
+# GameState.settle_reputation()へ渡す1回だけの処理に変わった＝杯ごとの即時加算はしない）。
+const REPUTATION_SCORE := { "GREAT": 100, "GOOD": 75, "OK": 35, "BAD": 0 }
 
 # [鍋を見る] の操作モード中か（DESIGN.md 7.6）。
 # EventRunner には一切触れない＝ index も status も動かさない。表示と操作対象を
@@ -82,11 +81,13 @@ var _bowl_discard_count := 0
 
 # 1人の客を複数の杯に分けて接客するとき（REACT に aggregate:true を持たせた客）の、
 # 退店までの集計。空辞書なら集計中の客はいない。形は
-#   { customer, rep_sum, rep_count, sale, servings }
-# 評判と提供記録は杯ごとではなく客1人分として退店時に1回だけ反映するため、ここに積む
+#   { customer, sale, servings, results, pending_favorite }
+# 提供記録は杯ごとではなく客1人分として退店時に1回だけ反映するため、ここに積む
 # （_flush_visit_tally）。鍋の消費と売上は杯ごとにその場で反映する（集計するのは
-# 評判と提供記録だけ）。客のrunnerがDONEになったとき、またはフェーズが替わるとき
-# （途中閉店・ゲームオーバー）に空にする＝二重に反映されない。
+# 提供記録だけ。評判はもう杯ごと・客ごとに積まず、日次ログ全体から閉店時に
+# GameState.settle_reputation()で1回だけ計算し直す＝④評判の更新）。客のrunnerが
+# DONEになったとき、またはフェーズが替わるとき（途中閉店・ゲームオーバー）に
+# 空にする＝二重に反映されない。
 var _visit_tally := {}
 
 # デバッグ用：今夜のモブ人数の強制指定（-1＝自動）。Day2-7ダミーデータ・モブ抽選独立化で、
@@ -109,6 +110,8 @@ var _scraps_base := false
 var _log_opening_money := 0
 var _log_opening_reputation := 0
 var _log_planned_cups := 0          # OPEN突入時、その日の全客のREACT servingsを合算
+var _log_judged_planned_cups := 0   # 同上のうちjudge:false（配達員の持ち帰り等）を除いた分。
+									 # ④評判の更新：当夜品質Qの分母に使う（_quality_score参照）
 var _log_water_used := 0            # [水を足す]を押した回数
 var _log_base_used := 0             # [ベースを足す]を押した回数
 var _log_closed_early := false      # 鍋不足等でCLOSEへ強制遷移したか
@@ -218,6 +221,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		_log_opening_money = GameState.money
 		_log_opening_reputation = GameState.reputation
 		_log_planned_cups = 0
+		_log_judged_planned_cups = 0
 		_log_water_used = 0
 		_log_base_used = 0
 		_log_closed_early = false
@@ -242,12 +246,18 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 日次ログ：その日の計画杯数（提供できたか否かに関わらず）を、実際の接客より前に
 		# 先読みして合算する。customer_events()はGameState.day_countとJSONキャッシュを
 		# 読むだけの副作用なし関数なので、ここで呼んでも以後の本編の進行に影響しない。
+		# _log_judged_planned_cupsは同時に、judge:falseの杯（配達員の持ち帰り等）を除いた
+		# 分も積む（④評判の更新：当夜品質Qの分母。判定対象ではない杯をQから除外するため）。
 		_log_planned_cups = 0
+		_log_judged_planned_cups = 0
 		for slot in _open.schedule:
 			for customer_id in slot.get("customers", []):
 				for ev in Day1Events.customer_events(str(customer_id)):
 					if ev.get("type", "") == "REACT":
-						_log_planned_cups += int(ev.get("servings", 0))
+						var ev_servings := int(ev.get("servings", 0))
+						_log_planned_cups += ev_servings
+						if bool(ev.get("judge", true)):
+							_log_judged_planned_cups += ev_servings
 		_load_current_customer()
 	elif phase == GameState.Phase.CLOSE:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
@@ -760,11 +770,11 @@ func _on_group_decline_pressed(ordered: int) -> void:
 ## REACT到達時、_pending_group_result（確認ボタンで確定済み）があるモブ客はこちらで処理する
 ## （_apply_event()のREACTケースから委譲。名前あり客・配達員は_pending_group_resultが
 ## 常に空なので、この関数自体を通らない＝既存の_serve_customer()のみ使う）。
-## actual（実際に提供する人数）が0なら「断り」＝判定・鍋消費・売上・評判のいずれも発生させない
+## actual（実際に提供する人数）が0なら「断り」＝判定・鍋消費・売上のいずれも発生させない
 ## （既存の[閉店]と同じ扱い。仕様7）。1以上なら、実際に消費するのはactual人分だけ
 ## （鍋・選んだ各具材とも）。判定（GREAT/GOOD/OK/BAD）はactualの大小に関係なく「何を
-## 入れたか」だけで決まり、評判もその結果に応じて1回だけ加算する（人数に比例させない。
-## §2確定仕様）。
+## 入れたか」だけで決まる（人数に比例させない。§2確定仕様）。評判は閉店時に
+## _log_quality_countsから一括で計算し直す（④評判の更新。杯ごとの即時加算はしない）。
 func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
 	var unserved: int = maxi(ordered - actual, 0)
 	if actual <= 0:
@@ -775,7 +785,6 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
 	var result := ""
 	if _open != null:
 		result = _open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
-	var delta: int = int(REPUTATION_MOB.get(result, 0))
 	for pick in _mob_picks:
 		if bool(pick["damaged"]):
 			GameState.remove_inventory_damaged(str(pick["id"]), actual)
@@ -784,7 +793,6 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
 	GameState.consume_soup(actual)
 	var sale: int = actual * GameState.PRICE_PER_SERVING
 	GameState.apply_money(sale)
-	GameState.apply_reputation(delta)
 	# 日次ログ：実際に提供した人数ぶんだけ加算する（①のplanned_cupsは注文人数のまま
 	# 先読み済みなので、ここをactualにするだけでunserved_cupsが自動的に正しくなる）。
 	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + actual
@@ -799,11 +807,13 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
 ## （DESIGN.md 確定事項「Event はデータ、処理は受け側」）。
 ## どの反応textを見せるかは表示側 _current_reaction_text() が都度選ぶ。
 ##
-## REACT のフラグ（どちらも既定値なら従来どおり＝判定して、評判・記録もその場で反映）：
-##   judge:false     … 判定しない（judge_bowl を呼ばない）。評判は動かない。評価も付かない
-##                     杯（例：配達員の持ち帰り）。鍋の消費と売上は通常どおり
-##   aggregate:true  … 鍋の消費と売上はその場で反映するが、評判と提供記録は _visit_tally に
+## REACT のフラグ（どちらも既定値なら従来どおり＝判定して、記録もその場で反映）：
+##   judge:false     … 判定しない（judge_bowl を呼ばない）。評価も付かない杯
+##                     （例：配達員の持ち帰り）。鍋の消費と売上は通常どおり
+##   aggregate:true  … 鍋の消費と売上はその場で反映するが、提供記録は _visit_tally に
 ##                     積み、退店時に客1人分として1回だけ反映する（_flush_visit_tally）
+## 評判は閉店時に_log_quality_countsから一括で計算し直す（④評判の更新。ここでは
+## GameState.apply_reputationのような即時適用は行わない）。
 func _serve_customer(ev: Dictionary) -> void:
 	var sale := int(ev.get("sale", 0))
 	var servings := int(ev.get("servings", 1))
@@ -816,22 +826,16 @@ func _serve_customer(ev: Dictionary) -> void:
 	var raw_favorite := str(ev.get("favorite", ""))
 	var favorite_for_judge := raw_favorite if GameState.knows_favorite(customer_id) else ""
 	var result := ""
-	var delta := 0
-	if judged:
-		if _open != null:
-			result = _open.judge_bowl(ev.get("wanted_tags", []), favorite_for_judge)
-		var table: Dictionary = REPUTATION_MOB if ev.get("is_mob", false) else REPUTATION_NAMED
-		delta = int(table.get(result, 0))
+	if judged and _open != null:
+		result = _open.judge_bowl(ev.get("wanted_tags", []), favorite_for_judge)
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
 	if aggregate:
 		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
 		# _flush_visit_tally() が退店の瞬間に1回だけ確定させる。
-		_add_to_visit_tally(customer_id, judged, delta, sale, servings, result, raw_favorite)
+		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite)
 		return
-	if judged:
-		GameState.apply_reputation(delta)
 	if judged and raw_favorite != "":
 		GameState.mark_favorite_known(customer_id)
 	# 日次ログ：判定結果ごとに集計する。judged=falseの杯（配達員の持ち帰り等）は
@@ -841,21 +845,17 @@ func _serve_customer(ev: Dictionary) -> void:
 		"servings": servings, "result": result })
 
 
-## 集計（_visit_tally）に1杯分を積む。判定した杯だけ評判の増減を積み（評価なしの杯は
-## 積まない）、売上と杯数は全杯を積む。
+## 集計（_visit_tally）に1杯分を積む。売上と杯数は全杯を積む。
 ## 日次ログ：resultsに判定結果ごとの杯数も積んでおく（_flush_visit_tallyで
 ## _log_quality_countsへ合算し、record_servedにも残す。判定なしの杯はresult=""のまま）。
 ## ③初回好物の開示：raw_favoriteが空でなければ_visit_tallyへ覚えておき（既に何か
 ## 覚えていれば上書きしない＝配達員3杯目のfavorite無しに負けない）、退店時の
 ## _flush_visit_tally()で1回だけ「知った」扱いにする。
-func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
+func _add_to_visit_tally(customer: String, judged: bool, sale: int,
 		servings: int, result: String = "", raw_favorite: String = "") -> void:
 	if _visit_tally.is_empty():
-		_visit_tally = { "customer": customer, "rep_sum": 0, "rep_count": 0,
+		_visit_tally = { "customer": customer,
 			"sale": 0, "servings": 0, "results": {}, "pending_favorite": "" }
-	if judged:
-		_visit_tally["rep_sum"] = int(_visit_tally["rep_sum"]) + delta
-		_visit_tally["rep_count"] = int(_visit_tally["rep_count"]) + 1
 	_visit_tally["sale"] = int(_visit_tally["sale"]) + sale
 	_visit_tally["servings"] = int(_visit_tally["servings"]) + servings
 	var results: Dictionary = _visit_tally["results"]
@@ -865,17 +865,11 @@ func _add_to_visit_tally(customer: String, judged: bool, delta: int, sale: int,
 
 
 ## 集計を客1人分として反映し、空にする（空なら何もしない＝何度呼んでも二重には効かない）。
-## 評判：判定した杯の増減の平均を、四捨五入した整数で1回だけ適用する。
-## roundi は半端を「ゼロから遠い側」へ丸める（Godot 4.4.1 で確認：roundi(2.5)=3、
-## roundi(-2.5)=-3）。整数の割り算は切り捨てになるので使わず、浮動小数で割る。
-## 例：GOOD(+2)とOK(0)→+1、GOOD(+2)とBAD(-2)→0、GREAT(+3)とGOOD(+2)→+3。
-## 判定した杯が1つも無ければ評判は動かさない。提供記録は売上・杯数の合計で1件残す。
+## 評判は閉店時に_log_quality_countsから一括で計算し直す（④評判の更新。旧・杯ごとの
+## 増減平均をここで即時適用する処理は廃止した）。提供記録は売上・杯数の合計で1件残す。
 func _flush_visit_tally() -> void:
 	if _visit_tally.is_empty():
 		return
-	var rep_count := int(_visit_tally["rep_count"])
-	if rep_count > 0:
-		GameState.apply_reputation(roundi(float(int(_visit_tally["rep_sum"])) / float(rep_count)))
 	# 日次ログ：この客の杯ごとの判定結果を、その日の集計へ合算する。
 	var results: Dictionary = _visit_tally.get("results", {})
 	for key in results:
@@ -994,8 +988,8 @@ func _on_runner_updated() -> void:
 
 ## 日次ログの本体（FlowController.day_ending。NEXT_DAY→WAKEの折り返しで、日次リセットの
 ## 前に発火する）。GameStateがまだその日の値のうちに集計を確定し、コンソールとファイルへ
-## 出す。経済数値・計算式には一切手を入れない、記録専用の処理（BALANCE_REDESIGN_PLAN.md
-## §8「①消費と鮮度の明確化・日次ログ」）。
+## 出す。④評判の更新（BALANCE_REDESIGN_PLAN.md§5）：ここで初めて、当夜品質Qから
+## GameState.settle_reputation()を1回だけ呼んで評判を確定させる（OPEN中は動かさない）。
 func _on_day_ending() -> void:
 	var served_cups := 0
 	var sale_total := 0
@@ -1005,6 +999,8 @@ func _on_day_ending() -> void:
 			sale_total += int(record.get("sale", 0))
 	var unserved_cups: int = maxi(_log_planned_cups - served_cups, 0)
 	var spoiled_value := _spoiled_value(_log_spoiled_items)
+	var quality := _quality_score(_log_quality_counts, _log_judged_planned_cups)
+	GameState.settle_reputation(quality)
 	var log_entry := {
 		"day": GameState.day_count,
 		"opening_money": _log_opening_money, "closing_money": GameState.money,
@@ -1012,14 +1008,15 @@ func _on_day_ending() -> void:
 		"planned_cups": _log_planned_cups, "served_cups": served_cups,
 		"unserved_cups": unserved_cups, "sale_total": sale_total,
 		"quality_counts": _log_quality_counts.duplicate(),
+		"judged_planned_cups": _log_judged_planned_cups, "quality": quality,
 		"spoiled_items": _log_spoiled_items.duplicate(),
 		"spoiled_value": spoiled_value,
 		"water_used": _log_water_used, "base_used": _log_base_used,
 		"closed_early": _log_closed_early,
 	}
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/ベース%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
-		log_entry["opening_reputation"], log_entry["closing_reputation"],
+		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
 		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
 		_log_water_used, _log_base_used, str(_log_closed_early), str(_log_quality_counts)])
 	_append_balance_log_file(log_entry)
@@ -1033,6 +1030,21 @@ func _spoiled_value(spoiled_items: Dictionary) -> int:
 	for item in spoiled_items:
 		total += int(spoiled_items[item].get("value", 0))
 	return total
+
+
+## 当夜品質Q（BALANCE_REDESIGN_PLAN.md§5）＝判定した杯の得点合計 ÷ 朝に確定した
+## 判定対象杯数（judge:falseの杯は数えない。judged_plannedはOPEN開始時に先読みした
+## _log_judged_planned_cups）。未提供の杯（部分提供の残り・早期閉店で届かなかった杯）は
+## 得点0のまま分母にだけ残る（quality_countsに積まれないため。指示文どおり、未提供への
+## 別の固定減点は重ねない）。judged_plannedが0（判定対象の杯が1つも無い日。実際には
+## 起こらない想定だがガードする）ならQは0とみなす。
+func _quality_score(counts: Dictionary, judged_planned: int) -> float:
+	if judged_planned <= 0:
+		return 0.0
+	var total := 0
+	for key in REPUTATION_SCORE:
+		total += int(REPUTATION_SCORE[key]) * int(counts.get(key, 0))
+	return float(total) / float(judged_planned)
 
 
 ## 日次ログをuser://配下へJSON Linesで追記する（1行1JSON。人が読むための整形は不要）。
@@ -1419,10 +1431,11 @@ func _format_open() -> String:
 		"open_done(さばき切った): %s" % str(_open.is_open_done()),
 		"pending(鍋の選択待ち): %s" % ("はい" if _pending_shortage_ev != null else "いいえ"),
 	])
-	# 1杯ずつ接客する客の集計中だけ出す（退店時に評判・提供記録として1回反映される）。
+	# 1杯ずつ接客する客の集計中だけ出す（退店時に提供記録として1回反映される。
+	# 評判はもう客ごとに積まないので、この表示からは外れた）。
 	if not _visit_tally.is_empty():
-		lines.append("visit(この客の集計): 評価%d件 評判増減の合計%d 売上%d %d杯" % [
-			int(_visit_tally["rep_count"]), int(_visit_tally["rep_sum"]),
+		lines.append("visit(この客の集計): 判定内訳%s 売上%d %d杯" % [
+			str(_visit_tally.get("results", {})),
 			int(_visit_tally["sale"]), int(_visit_tally["servings"])])
 	return "\n" + "\n".join(lines) + _format_bowl()
 
