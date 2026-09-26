@@ -20,10 +20,21 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 # 評価差は価格ではなく評判・翌日の客数へ反映する（高級具に追加料金は付けない）。
 const PRICE_PER_SERVING := 50
 
-# 場所代（みかじめ・PRICING_SPEC.md 4章）。徴収日のみ。チンピラのPAY Eventの金額と、
-# 未払いのまま閉店したときの特別請求（CURRENT_SPEC.md §11「未解決」の直し方）の
-# 両方で使う（別々の数字にならないよう1箇所に置く）。
-const RENT_PRICE := 150
+# 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
+# チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
+# §11「未解決」の直し方）の両方で使う（別々の数字にならないよう1箇所に置く）。
+const RENT_PRICE := 90
+
+# 水道代（徴収日のみ。_visit_water_stall()参照）。場所代と合わせて合計140
+# （BALANCE_REDESIGN_PLAN.md§2）。以前はdebug_panel.gd側にマジックナンバーとして
+# 直書きされていたのを、RENT_PRICEと同じ扱いにするためここへ切り出した。
+const WATER_PRICE := 50
+
+# 日々の運営費（新設。徴収日に関わらず7日間毎日発生。BALANCE_REDESIGN_PLAN.md§1・§2）。
+# WAKEに入るたびdebug_panel.gd._set_runner_for_phase(WAKE)が直接支払う（wake_events()の
+# 中にPAY Eventとしては置かない。WAKEは_phase_can_skip=trueで[次のPhase]によりrunnerを
+# 消化せず先へ進めてしまえるため、Event列に頼ると支払いを毎回回避できてしまう）。
+const DAILY_OPERATING_COST := 80
 
 # 最終日（DESIGN.md/CURRENT_SPEC：7日目のCLOSE後に「（終了）」を出し、翌朝1日目へ巻き戻す）。
 # 体験版では 3 にして使っていた。日数を変えるときはここを直接書き換える（切り替えUIは対象外）。
@@ -129,13 +140,25 @@ var served: Array = []
 # 「まだ払っていなければ特別請求する」判定に使う（CURRENT_SPEC.md §11「未解決」参照）。
 var rent_paid_today: bool = false
 
+# 支払い予定（表示専用。場所代・水道代の再編＋日々の運営費）。実際の天引きは各支払いの
+# 入口（WAKEでのDAILY_OPERATING_COST、チンピラのPAY Event・特別請求でのRENT_PRICE）で
+# 既に完了しており、これは「今日まだ物語上のけじめが付いていない金額」をプレイヤーに
+# 見せるだけの二次的な値（moneyそのものには影響しない）。水道代（WATER_PRICE）は含めない
+## ＝水場はプレイヤーが選んで押した瞬間にその場で金額が見えるインタラクティブな支払いなので、
+# 先出しで見せる必要が薄いため。set_pending_bills_for_today()（WAKE）で確定し、
+# settle_daily_cost_pending()（市場を出た瞬間）・mark_rent_paid()（場所代を払った瞬間）で
+# 減っていく。
+var pending_bills_today: int = 0
+
 
 ## 日次リセット。NEXT_DAY フェーズの処理から呼ぶ。
-## soup・served・rent_paid_today だけをクリアする。money/reputation/inventory は残す。
+## soup・served・rent_paid_today・pending_bills_todayだけをクリアする。
+## money/reputation/inventory は残す。
 func reset_for_new_day() -> void:
 	soup = null
 	served.clear()
 	rent_paid_today = false
+	pending_bills_today = 0
 
 
 ## 日を1つ進める。reset_for_new_day() の後に呼ぶ想定。
@@ -172,6 +195,19 @@ func reset_for_new_game() -> void:
 ## 7日版なので今は初日のみ。将来 day_count in [1, 7, 14] 等へ広げられる形にしておく。
 func is_collection_day() -> bool:
 	return day_count == 1
+
+
+## WAKEに入った瞬間、その日の支払い予定（表示専用。pending_bills_today参照）を確定させる。
+## 徴収日は場所代も含める（水道代は含めない）。実際の日々の運営費の天引きは
+## 呼び出し元（debug_panel.gd._set_runner_for_phase(WAKE)）が既にapply_moneyで済ませている。
+func set_pending_bills_for_today() -> void:
+	pending_bills_today = DAILY_OPERATING_COST + (RENT_PRICE if is_collection_day() else 0)
+
+
+## 日々の運営費ぶんの支払い予定を確定させる（市場を出た瞬間に呼ぶ。
+## debug_panel.gd._on_market_exit_pressed参照）。0未満にはならないようクランプする。
+func settle_daily_cost_pending() -> void:
+	pending_bills_today = maxi(pending_bills_today - DAILY_OPERATING_COST, 0)
 
 
 ## 評判からその夜の総需要（客数の中心値）を決め、中心-1/中心/中心+1を25%/50%/25%で
@@ -451,8 +487,12 @@ func record_served(record) -> void:
 ## 今日の場所代を払い終えたと記録する入口（apply_money 等と同じく、受け側から
 ## rent_paid_today を直接代入させない）。チンピラのPAY Event（kind:"rent"）が
 ## 実際に適用されたときと、閉店直前の特別請求が通ったときの両方から呼ぶ。
+## 場所代ぶんの支払い予定（pending_bills_today）もここで一緒に決済する
+## （どちらの経路で払っても「場所代を払い終えた」という事実は1つなので、
+## 表示の決済もこの1箇所にまとめる）。
 func mark_rent_paid() -> void:
 	rent_paid_today = true
+	pending_bills_today = maxi(pending_bills_today - RENT_PRICE, 0)
 
 
 ## ③初回好物の開示：この客の好物をもう知っているか（一度でも判定に使われる来店を

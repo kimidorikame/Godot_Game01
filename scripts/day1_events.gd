@@ -10,10 +10,19 @@ class_name Day1Events
 ## STEP 6: OPEN の客1人分。STEP 7: OPEN の客を3人に（キューを増やすだけで回る確認）。
 ## STEP 8: チンピラの REACT 後ろに場所代 PAY を1つ差す（専用 State なし・単なる Event）。
 
+## 日々の運営費（DAILY_OPERATING_COST）は、ここではなくDebugPanel._set_runner_for_phase
+## (WAKE)が直接支払う（Eventとしては持たない）。理由：WAKEは_phase_can_skip=trueで
+## [次のPhase]がrunnerを消化せず先へ進めるため、支払いをPAY Eventとして置くと毎回
+## スキップされてしまう（場所代・水道代の再編＋日々の運営費で確認済み）。ここに置く
+## 3つ目のTEXTは、既に支払い済みであることを見せるだけの表示専用の行（効果は持たない）。
+## 「共同水道と炭屋」という具体的な行き先にしているのは、実際に支払いが完了する
+## （物語上のけじめが付く）タイミングを市場を出るとき（prep_after_tier_events参照）に
+## 見せるため、ここでは「まとめて渡す分を先に取っておく」という前振りにしてある。
 static func wake_events() -> Array:
 	return [
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
+		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、市場を出るときにまとめて渡す分として先に取っておく。" % GameState.DAILY_OPERATING_COST },
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]
 
@@ -113,6 +122,10 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 		events.append_array(_talk("officer", _OFFICER_MARKET))
 	events.append({ "type": "MARKET", "text": "（市場をぶらつく）",
 		"options": _market_options(scraps_base) })
+	# 場所代・水道代の再編＋日々の運営費：市場を出た瞬間の物語上のけじめ（表示専用の
+	# TEXT。効果は持たない。実際の日々の運営費の天引きはWAKEで既に済んでおり、市場を
+	# 出た瞬間にDebugPanel._on_market_exit_pressedが支払い予定の表示だけを決済する）。
+	events.append({ "type": "TEXT", "text": "共同水道と炭屋に寄り、市場を出た。" })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
@@ -149,10 +162,9 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 ##   どの店も実際に買える（各店の商品は produce_goods など <店のid>_goods 参照）。
 ##   食肉仲卸のベース購入はPREPの先頭で自動で済むが、ここでは追加購入の店として入れる。
 ##   >= 2 なので3日目以降も開いたまま（店ごとに解禁日を変える仕組みは対象外）。
-## 水場は初日から常に押せる。
-## "text" は訪問時のセリフ（DESIGN.md 7.7「支払いのトーン」表：水場＝生活の愚痴混じり）。
-##   水場は市場外のEventとしては並べないので、この text をDebugPanel側が読んで表示する
-##   （_visit_water_stall 参照）。
+## 水場は市場のボタン一覧には出さない（場所代・水道代の再編＋日々の運営費：水道代は
+##   [市場を出る]で自動的に精算される。DebugPanel._on_market_exit_pressed /
+##   _visit_water_stall 参照）。水場専用の訪問セリフも同じ理由で廃止した。
 ## 注意: この enabled は prep_events() が呼ばれた瞬間（＝PREPに入った瞬間）に固定される。
 ##   Event データは読むだけで書き換えない原則のため、MARKET画面を表示したまま
 ##   day_count が変わっても、その場では反映されない（次にPREPへ入り直すまで）。
@@ -177,8 +189,6 @@ static func _market_options(scraps_base: bool = false) -> Array:
 		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": day2_unlocked },
 		{ "id": "seafood",        "label": "海鮮",       "enabled": day2_unlocked },
 		{ "id": "scraps",         "label": scraps_label, "enabled": day2_unlocked },
-		{ "id": "water",          "label": "水場",       "enabled": true,
-			"text": "「今月分、払っとけよ」「はいはい、分かってる」" },
 	]
 
 

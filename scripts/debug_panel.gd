@@ -59,10 +59,6 @@ var _pot_dashi_added := false
 # 市場（DESIGN.md 7.7）で水場に寄ったか。PREPに入るたびリセットする。
 var _market_visited_water := false
 
-# 直前に訪れた市場の店のセリフ（DESIGN.md 7.7「支払いのトーン」）。PREPに入るたび
-# リセットする。水場のように専用Eventを持たない店の text を表示するための一時状態。
-var _market_last_text := ""
-
 # 今どの店の中にいるか（例: "produce"）。空文字なら市場のトップ（7店舗選択）にいる。
 # 鍋モード（_pot_mode）と同じ「EventRunnerには触れないUIだけの入れ子」。
 # PREPに入るたびリセットする。
@@ -213,9 +209,8 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pot_mode = false
 	_pot_water_added = false
 	_pot_dashi_added = false
-	# 7.7: 市場の水場訪問フラグ・直前のセリフ・店の中にいるかも PREP に入るたびリセットする。
+	# 7.7: 市場の水場訪問フラグ・店の中にいるかも PREP に入るたびリセットする。
 	_market_visited_water = false
-	_market_last_text = ""
 	_market_shop = ""
 	# スマホも鍋・市場と同じくフェーズをまたいで持ち越さない（防御的リセット）。
 	_phone_mode = false
@@ -223,6 +218,7 @@ func _set_runner_for_phase(phase: int) -> void:
 	if phase == GameState.Phase.WAKE:
 		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
 		# 初期化する（前日の day_ending 発火はもう終わっている＝直前のログには影響しない）。
+		# opening_moneyは日々の運営費を引く前の値（その日入ってきた素の所持金）にする。
 		_log_opening_money = GameState.money
 		_log_opening_reputation = GameState.reputation
 		_log_planned_cups = 0
@@ -232,6 +228,19 @@ func _set_runner_for_phase(phase: int) -> void:
 		_log_closed_early = false
 		_log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
 		_log_spoiled_items = {}
+		# 日々の運営費（場所代・水道代の再編＋日々の運営費）：WAKEに入った瞬間に必ず1回
+		# 直接支払う。wake_events()側にPAY Eventとして置かないのは、WAKEが
+		# _phase_can_skip=true（[次のPhase]でrunnerを消化せず進める）なので、Event列に
+		# 頼ると支払いを毎回スキップできてしまうため（_visit_water_stall()と同じ
+		# 「Eventを介さず直接コードで払う」方式に揃える）。
+		# 支払えずゲームオーバーになったら、force_phase(GAME_OVER)が既に
+		# _set_runner_for_phase(GAME_OVER)を呼んでrunnerを組んでいるので、ここで
+		# wake_events()のrunnerに上書きしないよう即returnする。
+		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST):
+			return
+		# 支払い予定（表示専用）：今日まだ物語上のけじめが付いていない金額を確定させる。
+		# 徴収日は場所代ぶんも含む（GameState.set_pending_bills_for_today参照）。
+		GameState.set_pending_bills_for_today()
 		flow.set_runner(Day1Events.wake_events())
 	elif phase == GameState.Phase.PREP:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
@@ -468,8 +477,6 @@ func _on_phone_tab_selected(tab: String) -> void:
 ## 押せる状態にならない限りここには来ない（data側の"enabled"で塞いである）。
 func _on_market_stall_selected(id: String) -> void:
 	match id:
-		"water":
-			_visit_water_stall()
 		"produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps":
 			_market_shop = id  # 店内へ（鍋モードと同じ、UIだけの入れ子）
 		_:
@@ -542,42 +549,32 @@ func _on_shop_exit_pressed() -> void:
 	_refresh()
 
 
-## 水場を訪れる（水道代の支払い＋水汲みの効果）。市場中の[水場]ボタンからも、
-## 未訪問のまま[市場を出る]で抜けようとしたときの自動訪問からも呼ばれる。
+## 水場を訪れる（水道代の支払いのみ。会話・ボタンは廃止し、[市場を出る]の際に
+## 自動で1回だけ呼ばれる。場所代・水道代の再編＋日々の運営費：水場は市場のボタン
+## 一覧には出さない。_market_visited_waterは「今日もう払ったか」の防御用に残す）。
 ## 水道代が払えずゲームオーバーになったら false（呼び出し元は先へ進めないこと）。
 func _visit_water_stall() -> bool:
 	if GameState.is_collection_day():
-		if not _pay_or_game_over(50):
+		if not _pay_or_game_over(GameState.WATER_PRICE):
 			return false
 	_market_visited_water = true
-	_market_last_text = _market_option_text("water")
 	return true
-
-
-## 今の MARKET Event の options から、id に対応する "text"（セリフ）を探す。
-## 専用Eventを持たない店の会話を表示するために使う（例: 水場。_visit_water_stall 参照）。
-## 見つからなければ空文字（"text" を持たない店もあるので、その場合は何も表示しない）。
-func _market_option_text(id: String) -> String:
-	var r: EventRunner = flow.runner
-	if r == null:
-		return ""
-	var cur = r.current()
-	if not (cur is Dictionary):
-		return ""
-	for option in cur.get("options", []):
-		if str(option.get("id", "")) == id:
-			return str(option.get("text", ""))
-	return ""
 
 
 ## [市場を出る] のハンドラ（DESIGN.md 7.7）。水場に未訪問なら自動で訪れてから、
 ## [入力完了]と同じ手順（WAITING_INPUT解除→1つ進める→効果適用）で仕込みへ進む。
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
+## 場所代・水道代の再編＋日々の運営費：市場を出た瞬間に、日々の運営費ぶんの
+## 支払い予定（表示専用）を決済する（実際の天引きはWAKEで既に済んでいる。
+## GameState.settle_daily_cost_pending参照）。runnerはこの直後の
+## _complete_input_and_advance()でMARKETの次（新設のTEXT「共同水道と炭屋に
+## 寄り、市場を出た。」）へ進む。
 func _on_market_exit_pressed() -> void:
 	if not _market_visited_water:
 		# 水道代が払えずゲームオーバーになったら、仕込みへ進まずここで止まる。
 		if not _visit_water_stall():
 			return
+	GameState.settle_daily_cost_pending()
 	_complete_input_and_advance()
 
 
@@ -1333,8 +1330,6 @@ func _update_options_row() -> void:
 		for option in cur.get("options", []):
 			var id: String = str(option.get("id", ""))
 			var disabled: bool = not bool(option.get("enabled", true))
-			if id == "water" and _market_visited_water:
-				disabled = true
 			_add_pot_button(str(option.get("label", id)), disabled,
 				_on_market_stall_selected.bind(id))
 		_add_pot_button("市場を出る", false, _on_market_exit_pressed)
@@ -1392,7 +1387,10 @@ func _format_game_state() -> String:
 		]
 	# 表示する各項目の意味（GameState = 日をまたいで残る事実）:
 	#   day_count  … 今が何日目か。NEXT_DAYで+1
-	#   money      … 所持金。支払いで減り売上で増える
+	#   money      … 所持金。支払いで減り売上で増える。括弧の「支払い予定」は表示専用の
+	#                注記（GameState.pending_bills_today）で、実際の天引きはWAKE・
+	#                チンピラのPAY等で既に済んでいる。市場を出る・場所代を払うたびに
+	#                減っていき、0になったら注記自体が消える
 	#   reputation … 店の評判値。REACT の判定結果で増減する（7.6）
 	#   inventory  … 持っている具材・調味料の合計個数（辞書 { id: 個数 } の値を合計。7.7）
 	#   inventory_detail … 品目ごとの内訳（7.7：市場で複数品目を買うと合計数だけでは
@@ -1413,7 +1411,8 @@ func _format_game_state() -> String:
 	return "\n".join(PackedStringArray([
 		"── GameState（日をまたいで残る事実）──",
 		"day_count(日数): %d" % GameState.day_count,
-		"money(所持金): %d" % GameState.money,
+		"money(所持金): %d%s" % [GameState.money,
+			"（支払い予定%d）" % GameState.pending_bills_today if GameState.pending_bills_today > 0 else ""],
 		"reputation(評判): %d" % GameState.reputation,
 		"inventory(在庫数): %d 個" % _inventory_total(),
 		"inventory_detail(内訳): %s" % _format_inventory_detail(),
@@ -1569,10 +1568,6 @@ func _format_market() -> String:
 		"base(今日のベース): %s" % ("端材屋のクズ野菜（濃さ1スタート）" if _scraps_base else "食肉仲卸"),
 		"water(水場訪問済み): %s" % ("はい" if _market_visited_water else "いいえ"),
 	])
-	# 専用Eventを持たない店（水場等）のセリフはここでしか表示されないので、
-	# 空文字でなければ出す（訪問前は _market_last_text が空のまま＝何も足さない）。
-	if _market_last_text != "":
-		lines.append("last(直前の会話): %s" % _market_last_text)
 	return "\n" + "\n".join(lines)
 
 
