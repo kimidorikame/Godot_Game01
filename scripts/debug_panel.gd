@@ -14,6 +14,9 @@ extends PanelContainer
 @onready var _btn_close: Button = $Margin/VBox/EventRow/BtnClose as Button
 @onready var _btn_phone: Button = $Margin/VBox/EventRow/BtnPhone as Button
 @onready var _options_row: HBoxContainer = $Margin/VBox/OptionsRow as HBoxContainer
+# 調味料・具材のボタンを2行に分ける（C）：ADJUSTのときだけ調味料側をここに出す。
+# それ以外の文脈（市場・仕込み段階・鍋モード等）では空のまま（_options_rowのみ使う）。
+@onready var _seasoning_row: HBoxContainer = $Margin/VBox/SeasoningRow as HBoxContainer
 @onready var _btn_next_phase: Button = $Margin/VBox/PhaseRow/BtnNextPhase as Button
 @onready var _btn_day_plus: Button = $Margin/VBox/PhaseRow/BtnDayPlus as Button
 @onready var _btn_money_minus: Button = $Margin/VBox/PhaseRow/BtnMoneyMinus as Button
@@ -130,10 +133,22 @@ var _mob_picks: Array = []
 # （_pot_mode/_phone_modeと同じ「専用ボタン行に差し替える」パターン）。
 var _pending_group_choice := false
 
-# 確認ボタンで確定した結果（{"servings": 実際に提供する人数, "ordered": 注文人数}）。
-# 空でなければ、_apply_event()のREACTケースがこちらを使って_serve_mob_partial()へ
-# 委譲する（名前あり客・配達員のREACTは常にこれが空なので既存の経路のまま無影響）。
+# 確認ボタンで確定した結果（{"servings": 実際に提供する人数, "ordered": 注文人数,
+# "retry_remaining": 挑戦を選んだ場合の残り人数（挑戦しないときは省略/0）}）。
+# 空でなければ、_apply_event()のREACTケースがこちらを使って_serve_mob_partial()／
+# _serve_mob_recipe_and_retry()へ委譲する（名前あり客・配達員のREACTは常にこれが空
+# なので既存の経路のまま無影響）。
 var _pending_group_result := {}
+
+# 団体客の分割提供（最大2レシピ）：グループの元々の総注文人数（レシピ2でも変わらない。
+# _flush_visit_tally()でordered_servings/unserved_servingsを出すために覚えておく）。
+# 新しい客をロードするたびにのみ-1へ戻す（_reset_mob_group_state()には入れない。
+# こちらは[廃棄する]でも呼ばれるため、レシピ2の作り直し時に元注文数を消してしまう）。
+var _mob_original_ordered := -1
+
+# 今どちらのレシピを提供中か（1または2）。2に達したら「挑戦する」ボタンは出さない
+# （最大2レシピの打ち止め）。_mob_original_ordered と同じ理由で客のロード時にのみ1へ戻す。
+var _mob_recipe_number := 1
 
 
 func _ready() -> void:
@@ -297,6 +312,8 @@ func _set_runner_for_phase(phase: int) -> void:
 func _load_current_customer() -> void:
 	_bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	_reset_mob_group_state()   # ②拒否と部分提供：客が替わるたび選択中の具材・確認状態を破棄
+	_mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
+	_mob_recipe_number = 1
 	if _open != null and _open.has_more():
 		# モブの人数はDay1Events._mob_instances側で客ごとに覚えているので、ここでは
 		# 第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
@@ -727,14 +744,22 @@ func _apply_event(ev) -> void:
 				int(ev.get("water_doses", 0)))
 		"REACT":
 			# ②拒否と部分提供：モブ客はADJUST中の確認ボタン（_on_group_serve_pressed /
-			# _on_group_decline_pressed）で人数をすでに確定させているので、_serve_mob_partial()
-			# へ委譲する（下の「残量が足りない」判定は経由しない＝鍋不足も具材不足もADJUST側の
+			# _on_group_decline_pressed / _on_group_retry_pressed）で人数をすでに確定させて
+			# いるので、_serve_mob_partial() / _serve_mob_recipe_and_retry() へ委譲する
+			# （下の「残量が足りない」判定は経由しない＝鍋不足も具材不足もADJUST側の
 			# 達成可能人数の計算にすでに含まれているため）。名前あり客・配達員は
 			# _pending_group_result が常に空なので、この分岐には入らず既存のまま。
 			if not _pending_group_result.is_empty():
 				var result: Dictionary = _pending_group_result
 				_pending_group_result = {}
-				_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)))
+				var retry_remaining: int = int(result.get("retry_remaining", 0))
+				# 団体客の分割提供：「挑戦する」を選んだ（retry_remaining>0）ときだけ
+				# レシピ2を差し込む。それ以外（通常の提供／断る／レシピ2自身の確定）は
+				# 従来どおり最終レシピとして即flushする。
+				if retry_remaining > 0:
+					_serve_mob_recipe_and_retry(ev, int(result.get("servings", 0)), retry_remaining)
+				else:
+					_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)))
 				return
 			# 7.6: 提供しようとした時点で残量が servings に足りないとき、
 			# 条件1（名前あり客がもう残っていない）と条件2（水が無い）の成立具合で分かれる：
@@ -816,8 +841,11 @@ func _reset_mob_group_state() -> void:
 
 ## 「N人分を提供」ボタン。人数を確定してADJUST→SERVEへ進める（実際の消費・判定・売上・
 ## 評判・記録はREACT到達時の_serve_mob_partial()で行う。Event（データ）はここでは
-## 一切書き換えない）。
+## 一切書き換えない）。レシピ1のときだけ元注文数を覚える（レシピ2ではordered自体が
+## 「残り人数」になるため、_mob_original_orderedを上書きしない）。
 func _on_group_serve_pressed(n: int, ordered: int) -> void:
+	if _mob_recipe_number == 1:
+		_mob_original_ordered = ordered
 	_pending_group_result = { "servings": n, "ordered": ordered }
 	_pending_group_choice = false
 	_complete_input_and_advance()
@@ -825,7 +853,22 @@ func _on_group_serve_pressed(n: int, ordered: int) -> void:
 
 ## 「注文を断る」ボタン。人数0で確定させる（_serve_mob_partial側で「断り」として扱う）。
 func _on_group_decline_pressed(ordered: int) -> void:
+	if _mob_recipe_number == 1:
+		_mob_original_ordered = ordered
 	_pending_group_result = { "servings": 0, "ordered": ordered }
+	_pending_group_choice = false
+	_complete_input_and_advance()
+
+
+## 「残り◯人に別の具材で挑戦する」ボタン（団体客の分割提供：最大2レシピ）。達成可能分
+## （achievable）はこの場で確定・提供し、残り（ordered-achievable）人ぶんを2レシピ目の
+## ADJUSTへ回す。_mob_recipe_number==1のときしか出さないボタンなので、ここに来る時点で
+## 必ずレシピ1（_serve_mob_recipe_and_retry側でレシピ番号を2へ進める）。
+func _on_group_retry_pressed(achievable: int, ordered: int) -> void:
+	if _mob_recipe_number == 1:
+		_mob_original_ordered = ordered
+	_pending_group_result = { "servings": achievable, "ordered": ordered,
+		"retry_remaining": ordered - achievable }
 	_pending_group_choice = false
 	_complete_input_and_advance()
 
@@ -836,14 +879,14 @@ func _on_group_decline_pressed(ordered: int) -> void:
 ## actual（実際に提供する人数）が0なら「断り」＝判定・鍋消費・売上のいずれも発生させない
 ## （既存の[閉店]と同じ扱い。仕様7）。1以上なら、実際に消費するのはactual人分だけ
 ## （鍋・選んだ各具材とも）。判定（GREAT/GOOD/OK/BAD）はactualの大小に関係なく「何を
-## 入れたか」だけで決まる（人数に比例させない。§2確定仕様）。評判は閉店時に
-## _log_quality_countsから一括で計算し直す（④評判の更新。杯ごとの即時加算はしない）。
-func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
-	var unserved: int = maxi(ordered - actual, 0)
+## 入れたか」だけで決まる（人数に比例させない。§2確定仕様）。
+## 団体客の分割提供：記録は_visit_tallyへ積むだけにし、_log_quality_countsへの加算は
+## _flush_visit_tally()側に一本化する（ここで直接加算すると、2レシピ目のflush時に
+## resultsから再度合算されて二重加算になるため）。
+func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
+	var customer := str(ev.get("customer", ""))
 	if actual <= 0:
-		GameState.record_served({ "customer": ev.get("customer", ""), "sale": 0,
-			"servings": 0, "ordered_servings": ordered, "unserved_servings": unserved,
-			"declined": true, "result": "" })
+		_add_to_visit_tally(customer, false, 0, 0, "", "", _mob_original_ordered)
 		return
 	var result := ""
 	if _open != null:
@@ -856,12 +899,41 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
 	GameState.consume_soup(actual)
 	var sale: int = actual * GameState.PRICE_PER_SERVING
 	GameState.apply_money(sale)
-	# 日次ログ：実際に提供した人数ぶんだけ加算する（①のplanned_cupsは注文人数のまま
-	# 先読み済みなので、ここをactualにするだけでunserved_cupsが自動的に正しくなる）。
-	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + actual
-	GameState.record_served({ "customer": ev.get("customer", ""), "sale": sale,
-		"servings": actual, "ordered_servings": ordered, "unserved_servings": unserved,
-		"declined": false, "result": result })
+	_add_to_visit_tally(customer, true, sale, actual, result, str(ev.get("favorite", "")),
+		_mob_original_ordered)
+
+
+## この団体客への最後（または唯一）のレシピを確定し、その場で退店集計として確定させる
+## （客が変わるまで待つ通常の_flush_visit_tallyタイミングとは違い、モブは既存どおり
+## REACT到達の瞬間に確定させる。_visit_tally.is_empty()なら何もしない性質を使っているので、
+## レシピ1回だけの団体（従来どおりの2択のみ）でも同じ関数で正しく動く）。
+func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
+	_apply_mob_recipe(ev, actual)
+	_flush_visit_tally()
+
+
+## 「挑戦する」を選んだ場合の処理：レシピ1（achievable人分）をその場で確定・積算し、
+## 同じ客のrunnerへレシピ2用のADJUST→SERVE→REACTを動的に差し込む（末尾追加ではなく
+## 現在位置の直後へinsertする。モブ客の接客Event列に閉店会話等の追加Eventが後ろへ
+## 続く場合でも順序を壊さないため）。レシピ2のADJUSTはnew_bowl:trueにして
+## _apply_event()の既存ADJUSTケースに椀のリセット・_reset_mob_group_state()を任せる。
+func _serve_mob_recipe_and_retry(ev: Dictionary, actual: int, remaining: int) -> void:
+	_apply_mob_recipe(ev, actual)
+	_mob_recipe_number = 2
+	_mob_picks = []
+	var customer: String = str(ev.get("customer", ""))
+	var next_events := [
+		{ "type": "ADJUST", "customer": customer, "text": "（味を調える）",
+			"options": Day1Events._adjust_options(), "new_bowl": true },
+		{ "type": "SERVE", "customer": customer, "text": "「はいよ、お待ち。」" },
+		{ "type": "REACT", "customer": customer, "reactions": ev.get("reactions", {}),
+			"wanted_tags": ev.get("wanted_tags", []), "favorite": ev.get("favorite", ""),
+			"servings": remaining, "is_mob": true,
+			"sale": GameState.PRICE_PER_SERVING * remaining },
+	]
+	var insert_at: int = flow.runner.index + 1
+	for i in range(next_events.size()):
+		flow.runner.events.insert(insert_at + i, next_events[i])
 
 
 ## REACT の効果を実際に適用する（判定→評判→鍋の消費→売上→記録）。
@@ -914,11 +986,19 @@ func _serve_customer(ev: Dictionary) -> void:
 ## ③初回好物の開示：raw_favoriteが空でなければ_visit_tallyへ覚えておき（既に何か
 ## 覚えていれば上書きしない＝配達員3杯目のfavorite無しに負けない）、退店時の
 ## _flush_visit_tally()で1回だけ「知った」扱いにする。
+## 団体客の分割提供：ordered_servings（元の総注文人数）を渡すと、積み始めた瞬間
+## （_visit_tally が空だったとき）だけ記録する。2レシピ目以降は既に入っている値を
+## 上書きしない（レシピ2のorderedは「残り人数」であって元の総注文人数ではないため）。
+## 配達員の集計（この引数を渡さない呼び出し）はキー自体が付かず、今までどおりの
+## 4フィールド（customer/sale/servings/results）のまま変わらない。
 func _add_to_visit_tally(customer: String, judged: bool, sale: int,
-		servings: int, result: String = "", raw_favorite: String = "") -> void:
+		servings: int, result: String = "", raw_favorite: String = "",
+		ordered_servings: int = -1) -> void:
 	if _visit_tally.is_empty():
 		_visit_tally = { "customer": customer,
 			"sale": 0, "servings": 0, "results": {}, "pending_favorite": "" }
+		if ordered_servings >= 0:
+			_visit_tally["ordered_servings"] = ordered_servings
 	_visit_tally["sale"] = int(_visit_tally["sale"]) + sale
 	_visit_tally["servings"] = int(_visit_tally["servings"]) + servings
 	var results: Dictionary = _visit_tally["results"]
@@ -930,6 +1010,9 @@ func _add_to_visit_tally(customer: String, judged: bool, sale: int,
 ## 集計を客1人分として反映し、空にする（空なら何もしない＝何度呼んでも二重には効かない）。
 ## 評判は閉店時に_log_quality_countsから一括で計算し直す（④評判の更新。旧・杯ごとの
 ## 増減平均をここで即時適用する処理は廃止した）。提供記録は売上・杯数の合計で1件残す。
+## 団体客の分割提供：_visit_tallyにordered_servingsがある（＝モブの団体オーダー由来）
+## ときだけ、ordered_servings/unserved_servings/declinedも記録に足す（配達員の集計には
+## このキーが付かないので、既存の4フィールド形のまま変わらない）。
 func _flush_visit_tally() -> void:
 	if _visit_tally.is_empty():
 		return
@@ -942,9 +1025,16 @@ func _flush_visit_tally() -> void:
 	var pending_favorite := str(_visit_tally.get("pending_favorite", ""))
 	if pending_favorite != "":
 		GameState.mark_favorite_known(str(_visit_tally["customer"]))
-	GameState.record_served({ "customer": _visit_tally["customer"],
+	var record := { "customer": _visit_tally["customer"],
 		"sale": int(_visit_tally["sale"]), "servings": int(_visit_tally["servings"]),
-		"results": results })
+		"results": results }
+	if _visit_tally.has("ordered_servings"):
+		var ordered: int = int(_visit_tally["ordered_servings"])
+		var served: int = int(_visit_tally["servings"])
+		record["ordered_servings"] = ordered
+		record["unserved_servings"] = maxi(ordered - served, 0)
+		record["declined"] = served <= 0
+	GameState.record_served(record)
 	_visit_tally = {}
 
 
@@ -1216,6 +1306,11 @@ func _refresh() -> void:
 func _update_options_row() -> void:
 	for child in _options_row.get_children():
 		child.queue_free()
+	# 調味料と具材のボタンを2行に分ける：ADJUST以外の文脈（市場・仕込み段階・鍋モード・
+	# グループ確認ボタン等）では_seasoning_rowは使わないので、ここで毎回空にしておけば
+	# 何もしなくても空のまま維持される。
+	for child in _seasoning_row.get_children():
+		child.queue_free()
 
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
@@ -1294,14 +1389,22 @@ func _update_options_row() -> void:
 	# 「N人分を提供／注文を断る」の2択を出す（達成可能人数は毎回ここで計算し直すので、
 	# 鍋モードへ寄り道して水を足してから戻ってきても最新の値になる）。全員分そろっている
 	# ときも「注文を断る」は必ず出す（仕様6）。達成可能人数が0なら「断る」だけを出す。
+	# 団体客の分割提供（最大2レシピ）：達成可能人数が注文人数に満たない（0を含む）とき、
+	# レシピ1（_mob_recipe_number==1）に限り「残り◯人に別の具材で挑戦する」も出す。
+	# レシピ2ではこのボタンを出さない＝最大2レシピで打ち止め。
 	if _pending_group_choice:
 		var order := _react_for_now()
 		var ordered: int = int(order.get("servings", 0))
 		var achievable := _mob_achievable_servings(ordered)
 		if achievable >= 1:
-			_add_pot_button("%d人分を提供（注文%d人）" % [achievable, ordered], false,
+			var serve_label := "%d人分を提供（注文%d人）" if _mob_recipe_number == 1 \
+				else "%d人分を提供（残り%d人）"
+			_add_pot_button(serve_label % [achievable, ordered], false,
 				_on_group_serve_pressed.bind(achievable, ordered))
 		_add_pot_button("注文を断る", false, _on_group_decline_pressed.bind(ordered))
+		if _mob_recipe_number == 1 and achievable < ordered:
+			_add_pot_button("残り%d人に別の具材で挑戦する" % (ordered - achievable), false,
+				_on_group_retry_pressed.bind(achievable, ordered))
 		return
 
 	var r: EventRunner = flow.runner
@@ -1351,10 +1454,17 @@ func _update_options_row() -> void:
 		var own: int = GameState.damaged_count(opt_id) if opt_damaged else GameState.fresh_count(opt_id)
 		var out_of_stock: bool = own < 1
 		var btn := Button.new()
-		btn.text = str(option.get("label", opt_id if opt_id != "" else "?"))
+		# B: 所持数を表示（既に無効化判定に使っているownをそのまま表示に使うだけ）。
+		btn.text = "%s(%d)" % [str(option.get("label", opt_id if opt_id != "" else "?")), own]
 		btn.disabled = at_cap or out_of_stock
 		btn.pressed.connect(_on_ingredient_selected.bind(opt_id, opt_damaged))
-		_options_row.add_child(btn)
+		# C: 調味料（味の軸のみ）と具材（具の軸を持つ）で行を分ける。「具」の判定基準は
+		# 「具なしの椀は常に最低評価」で使っているIngredients.is_topping()をそのまま流用する
+		# （新しい分類基準を増やさないため。ADJUST以外の文脈はこのループを通らないので無影響）。
+		if Ingredients.is_topping(opt_id):
+			_options_row.add_child(btn)
+		else:
+			_seasoning_row.add_child(btn)
 	# [廃棄する]：枠が0〜3個どの状態でも／at_cap・在庫切れに関係なく押せるが、鍋の残量が
 	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
 	# MARKETの[市場を出る]と同じ「今のモードに常駐する専用ボタン」の扱い。
