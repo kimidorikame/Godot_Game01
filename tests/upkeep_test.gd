@@ -55,7 +55,7 @@ func run(t: SceneTree) -> int:
 	# （インスタンス化直後・最初のWAKEで即ゲームオーバーになるケースは、_ready()が
 	# flow.phase_changed.connect()より前に_set_runner_for_phase(WAKE)を呼ぶ構造上、
 	# force_phase(GAME_OVER)のシグナルをまだ誰も聞いておらずrunnerが組まれない。
-	# 実際のプレイではINITIAL_MONEY(300)がDAILY_OPERATING_COST(80)を必ず上回るため
+	# 実際のプレイではINITIAL_MONEY(600)がDAILY_OPERATING_COST(80)を必ず上回るため
 	# 初回WAKEでの資金不足は起こらない＝現状は影響しないが、テストではこの経路を避ける）。
 	var panel4 = _setup(t, 300, 1)
 	GameState.money = 50

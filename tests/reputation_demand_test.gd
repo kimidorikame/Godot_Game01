@@ -85,8 +85,8 @@ func run(t: SceneTree) -> int:
 		panel._log_planned_cups - panel._log_judged_planned_cups == 1)
 
 	# --- 5. 評判は接客中(OPEN)は動かない。名前あり客(granny)を1人提供した直後も朝の値のまま ---
-	# _setup_openの内部でreset_for_new_game()が走る(評判が0に戻る)ため、評判のセットは
-	# _setup_open()の戻り値を受け取った後に行う。
+	# _setup_openの内部でreset_for_new_game()が走る(評判がINITIAL_REPUTATION=30に戻る)ため、
+	# 評判のセットは_setup_open()の戻り値を受け取った後に行う。
 	var panel2 = _setup_open(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5 })
 	GameState.reputation = 30
 	_drive_to_adjust(panel2)

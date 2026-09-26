@@ -15,10 +15,10 @@ extends Node
 # force_phase で飛ぶ終端フェーズで、ここからはどこへも進まない。
 enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 
-# 一杯の売価（PRICING_SPEC.md：内容にかかわらず50固定）。
+# 一杯の売価（内容にかかわらず一律。BALANCE_REDESIGN_PLAN.md§1・§2で50→45）。
 # 客ごとのデータではなくゲーム共通のルールなのでここに置く（is_collection_day() と同じ扱い）。
 # 評価差は価格ではなく評判・翌日の客数へ反映する（高級具に追加料金は付けない）。
-const PRICE_PER_SERVING := 50
+const PRICE_PER_SERVING := 45
 
 # 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
 # チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
@@ -41,8 +41,12 @@ const DAILY_OPERATING_COST := 80
 const FINAL_DAY := 7
 
 # 新規ゲーム開始時の初期値。変数宣言と reset_for_new_game() の両方で使う
-# （別々の数字にならないよう1箇所に置く）。
-const INITIAL_MONEY := 300
+# （別々の数字にならないよう1箇所に置く）。BALANCE_REDESIGN_PLAN.md§1・§2で
+# 初期現金300→600。初期評判は元々定数化されておらず宣言側・reset_for_new_game()の
+# 2箇所に0が直書きされていたが、0→30への変更に合わせてINITIAL_MONEYと同じ
+# パターンで定数化した。
+const INITIAL_MONEY := 600
+const INITIAL_REPUTATION := 30
 
 # Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない。CURRENT_SPEC.md参照）。
 # ④評判の更新+⑤客数の決め方（BALANCE_REDESIGN_PLAN.md§5）で、Day2以降のモブ人数は
@@ -85,7 +89,7 @@ const DASHI_STRENGTH_DELTA := 2    # だし1回で上がる濃さ
 # --- 永続する事実 ---
 var day_count: int = 1
 var money: int = INITIAL_MONEY
-var reputation: int = 0
+var reputation: int = INITIAL_REPUTATION
 
 # 初期具材・調味料・購入した食材。{ id: 個数 } の辞書（DESIGN.md 7.7：
 # 市場での複数購入を表すため、文字列配列から数量辞書に変更）。
@@ -181,7 +185,7 @@ func is_final_day() -> bool:
 func reset_for_new_game() -> void:
 	day_count = 1
 	money = INITIAL_MONEY
-	reputation = 0
+	reputation = INITIAL_REPUTATION
 	inventory.clear()
 	perishable_batches.clear()
 	rumors.clear()

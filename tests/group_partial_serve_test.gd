@@ -48,7 +48,8 @@ func run(t: SceneTree) -> int:
 	panel._on_next_event_pressed()   # SERVE -> REACT
 	c.check("肉団子は3個消費される(在庫0)", not GameState.inventory.has("meat_ball"))
 	c.check("鍋残量は3減る", int(GameState.soup["remaining_servings"]) == 999 - 3)
-	c.check("売上は3人分(150)", GameState.money == money0 + 150, str(GameState.money - money0))
+	c.check("売上は3人分", GameState.money == money0 + 3 * GameState.PRICE_PER_SERVING,
+		str(GameState.money - money0))
 	# ④評判の更新：評判は閉店時に1回だけ確定するため、提供直後は動かない
 	# （tests/reputation_demand_test.gdで閉店時の確定を別途検証する）。
 	c.check("評判は提供直後には動かない(閉店時に一括確定)", GameState.reputation == rep0)
