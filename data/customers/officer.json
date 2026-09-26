@@ -28,11 +28,11 @@
     },
     "3": {
       "greet": [
-        "警官（HOT/POWER）"
+        "警官（SOUR/BITE）"
       ],
       "wanted_tags": [
-        "HOT",
-        "POWER"
+        "SOUR",
+        "BITE"
       ],
       "reactions": {
         "GREAT": [
@@ -52,11 +52,11 @@
     },
     "4": {
       "greet": [
-        "警官（HOT/POWER）"
+        "警官（SOUR/BITE）"
       ],
       "wanted_tags": [
-        "HOT",
-        "POWER"
+        "SOUR",
+        "BITE"
       ],
       "reactions": {
         "GREAT": [
@@ -76,11 +76,11 @@
     },
     "5": {
       "greet": [
-        "警官（HOT/POWER）"
+        "警官（SOUR/BITE）"
       ],
       "wanted_tags": [
-        "HOT",
-        "POWER"
+        "SOUR",
+        "BITE"
       ],
       "reactions": {
         "GREAT": [
@@ -100,11 +100,11 @@
     },
     "6": {
       "greet": [
-        "警官（HOT/POWER）"
+        "警官（SOUR/BITE）"
       ],
       "wanted_tags": [
-        "HOT",
-        "POWER"
+        "SOUR",
+        "BITE"
       ],
       "reactions": {
         "GREAT": [
@@ -124,11 +124,11 @@
     },
     "7": {
       "greet": [
-        "警官（HOT/POWER）"
+        "警官（SOUR/BITE）"
       ],
       "wanted_tags": [
-        "HOT",
-        "POWER"
+        "SOUR",
+        "BITE"
       ],
       "reactions": {
         "GREAT": [

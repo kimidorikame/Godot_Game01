@@ -12,12 +12,8 @@
         "mob": {
           "pool": [
             "dock_workers",
-            "security_guard",
             "inn_clerk",
-            "street_cleaners",
-            "general_store_clerk",
-            "market_porter",
-            "long_haul_driver"
+            "market_porter"
           ]
         }
       },

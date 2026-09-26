@@ -1,7 +1,7 @@
 {
   "is_mob": true,
   "greet": [
-    "市場の荷捌き人夫 %d人（HOT/POWER）"
+    "市場の荷捌き人夫 %d人（HOT/FILLING）"
   ],
   "reactions": {
     "GOOD": [
@@ -16,6 +16,6 @@
   },
   "wanted_tags": [
     "HOT",
-    "POWER"
+    "FILLING"
   ]
 }

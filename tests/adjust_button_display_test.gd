@@ -30,9 +30,11 @@ func run(t: SceneTree) -> int:
 
 	var panel = _setup(t)
 
-	# 初期在庫：nam_prik_pao等の調味料10個・offal等の具材4個（Day1Events.initial_inventory）。
+	# 初期在庫：nam_prik_pao等の調味料10個・具材はDay1Events.initial_inventory参照
+	# （Day1の13杯・モブ3種抽選に耐える数へ2026-09-26に増量。offal4/meat_ball6/
+	# tofu5/broken_wrapper5。詳細はinitial_inventory()のコメント）。
 	c.check("下準備: ナムプリックパオは10個", GameState.fresh_count("nam_prik_pao") == 10)
-	c.check("下準備: 肉団子は4個", GameState.fresh_count("meat_ball") == 4)
+	c.check("下準備: 肉団子は6個", GameState.fresh_count("meat_ball") == 6)
 
 	var seasoning_texts := []
 	for btn in panel._seasoning_row.get_children():
@@ -44,8 +46,8 @@ func run(t: SceneTree) -> int:
 	# --- B: 所持数がボタンのtextに表示される ---
 	c.check("ナムプリックパオのボタンに所持数(10)が表示される",
 		seasoning_texts.has("ナムプリックパオ(10)"), str(seasoning_texts))
-	c.check("肉団子のボタンに所持数(4)が表示される",
-		ingredient_texts.has("肉団子(4)"), str(ingredient_texts))
+	c.check("肉団子のボタンに所持数(6)が表示される",
+		ingredient_texts.has("肉団子(6)"), str(ingredient_texts))
 
 	# --- C: 調味料(味の軸のみ)は_seasoning_row、具材(具の軸を持つ)は_options_rowに入る ---
 	c.check("調味料(ナムプリックパオ・ココナッツミルク・薬膳ナンプラーだれ)は調味料の行のみに入る",
@@ -53,11 +55,11 @@ func run(t: SceneTree) -> int:
 		and seasoning_texts.has("ココナッツミルク(10)")
 		and seasoning_texts.has("薬膳ナンプラーだれ(10)"), str(seasoning_texts))
 	c.check("具材(肉団子・下処理したモツ・豆腐・割れた餃子皮)は具材の行のみに入る",
-		ingredient_texts.has("肉団子(4)") and ingredient_texts.has("下処理したモツ(4)")
-		and ingredient_texts.has("豆腐(4)") and ingredient_texts.has("割れた餃子皮(4)"),
+		ingredient_texts.has("肉団子(6)") and ingredient_texts.has("下処理したモツ(4)")
+		and ingredient_texts.has("豆腐(5)") and ingredient_texts.has("割れた餃子皮(5)"),
 		str(ingredient_texts))
 	c.check("調味料の行に具材(肉団子)は混ざらない",
-		not seasoning_texts.has("肉団子(4)"), str(seasoning_texts))
+		not seasoning_texts.has("肉団子(6)"), str(seasoning_texts))
 	c.check("具材の行に調味料(ナムプリックパオ)は混ざらない",
 		not ingredient_texts.has("ナムプリックパオ(10)"), str(ingredient_texts))
 	c.check("[廃棄する]は具材の行に入る", ingredient_texts.has("廃棄する"), str(ingredient_texts))

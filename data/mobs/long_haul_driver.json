@@ -1,7 +1,7 @@
 {
   "is_mob": true,
   "greet": [
-    "長距離運転手 %d人（HOT/POWER）"
+    "長距離運転手 %d人（SAVORY/TREAT）"
   ],
   "reactions": {
     "GOOD": [
@@ -15,7 +15,7 @@
     ]
   },
   "wanted_tags": [
-    "HOT",
-    "POWER"
+    "SAVORY",
+    "TREAT"
   ]
 }

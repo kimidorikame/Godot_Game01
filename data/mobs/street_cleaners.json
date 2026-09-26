@@ -1,7 +1,7 @@
 {
   "is_mob": true,
   "greet": [
-    "夜間清掃員 %d人（HOT/POWER）"
+    "夜間清掃員 %d人（SOUR/FILLING）"
   ],
   "reactions": {
     "GOOD": [
@@ -15,7 +15,7 @@
     ]
   },
   "wanted_tags": [
-    "HOT",
-    "POWER"
+    "SOUR",
+    "FILLING"
   ]
 }

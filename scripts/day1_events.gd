@@ -10,6 +10,15 @@ class_name Day1Events
 ## STEP 6: OPEN の客1人分。STEP 7: OPEN の客を3人に（キューを増やすだけで回る確認）。
 ## STEP 8: チンピラの REACT 後ろに場所代 PAY を1つ差す（専用 State なし・単なる Event）。
 
+## 名前あり客のid→表示名（予告メモ・営業メモ用。DebugPanel._format_tonight_memo()参照）。
+## 挨拶テキスト(greet)から名前を拾わないのは、delivery_manのDay1が専用Event列
+## （_delivery_man_events）で greet を持たない特殊形のため、日や実装状況に関わらず
+## 安定して名前を引ける場所を別に用意した。
+const CUSTOMER_NAMES := {
+	"delivery_man": "配達員", "thug": "チンピラ", "granny": "老婆",
+	"officer": "新人警官", "hooker": "夜の女", "streamer": "配信者",
+}
+
 ## 日々の運営費（DAILY_OPERATING_COST）は、ここではなくDebugPanel._set_runner_for_phase
 ## (WAKE)が直接支払う（Eventとしては持たない）。理由：WAKEは_phase_can_skip=trueで
 ## [次のPhase]がrunnerを消化せず先へ進めるため、支払いをPAY Eventとして置くと毎回
@@ -679,10 +688,26 @@ const _OFFICER_PAYMENT := [
 ##   調味料（少量で効く・味付け的な使い方）は多め＝各10個
 ##   具材（実際の食材として消費される）は少なめ＝各4個。初日から在庫を気にする場面を作る
 ## soup_base（食肉仲卸のベース）はここに含めない＝ADJUSTの対象外の別枠。
+## Day1経済監査（2026-09-26 planning/playtest_2026_09_26/agent_mechanics.md §2）で
+## 判明した不足の直し方：Day1の実際の注文は9杯ではなく13杯（配達員2杯・宵の口モブ
+## dock_workers4人・夜半モブ4人・チンピラ1杯・老婆1杯。配達員の3杯目はjudge:falseで
+## 判定に関わらないため上記からは除く）で、モツ4＋肉団子4＝POWER8個では
+## 「配達員2＋モブ8＝POWER10個」に2個足りていなかった。
+## さらに day_schedule.json のDay1・夜半モブは（作業ゲー化対策で全モブの要求タグを
+## 多様化したことに合わせて）dock_workers/inn_clerk/market_porterの3種から抽選する
+## ようにしたため、どの型が来ても初期在庫だけで応対できる数を計算し直した：
+##   dock_workers(HOT+POWER)なら POWER最大10個・HOT最大10個
+##   inn_clerk(MELLOW+GENTLE)なら GENTLE最大5個（チンピラ1＋モブ4）・MELLOW最大5個
+##   market_porter(HOT+FILLING)なら FILLING最大5個（老婆1＋モブ4）・HOT最大10個
+## のどれが来ても崩れないよう、POWER=10（モツ4+肉団子6）・GENTLE=5（豆腐）・
+## FILLING=5（割れた餃子皮）に増量した（HOT=10・MELLOW=10は元から十分）。
+## 各客が「要求タグ1つに具材1つだけ」の最小構成で作ることを前提にした値なので、
+## 余分な具材を追加で使うプレイだと市場が開くDay2を待たずに尽きる可能性がある
+## （在庫の余裕を持たせる場合は数値をさらに増やすこと）。
 static func initial_inventory() -> Dictionary:
 	return {
 		"nam_prik_pao": 10, "coconut_milk": 10, "herbal_sauce": 10,
-		"offal": 4, "meat_ball": 4, "tofu": 4, "broken_wrapper": 4,
+		"offal": 4, "meat_ball": 6, "tofu": 5, "broken_wrapper": 5,
 	}
 
 

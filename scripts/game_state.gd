@@ -452,6 +452,26 @@ func can_add_dashi() -> bool:
 		and int(soup.get("strength", 3)) + DASHI_STRENGTH_DELTA <= STRENGTH_MAX
 
 
+## 水を「今すぐ」ではなく「先にだしを1回入れれば」出せるかも含めて判定する
+## （鍋操作不能バグの修正）。can_add_water()は濃さが低すぎる（濃さ1で水を足すと
+## 0未満になる等）だとfalseを返すが、濃さはだしで先に上げられるので、
+## 「濃さが低くて水が出せない」だけなら詰みではない。旧実装は各所でcan_add_water()
+## を単独判定に使っていたため、残量0・濃さ1のような場面で「だし→水」という
+## 正しい回復手順があるにもかかわらず鍋関連のボタンが全滅し、詰む場合があった。
+## 判定の中身：水が今すぐ出せるならtrue。出せなくても、水の回数が残っており
+## （水の回数自体はだしで増やせない）、だしが1回以上あり、だしを入れた後の濃さで
+## 水を出せるならtrue。それ以外はfalse（本当にもう打つ手がない）。
+func water_reachable() -> bool:
+	if can_add_water():
+		return true
+	if soup == null or int(soup.get("water_doses", 0)) <= 0:
+		return false
+	if dashi_units < 1:
+		return false
+	var boosted_strength: int = mini(int(soup.get("strength", 3)) + DASHI_STRENGTH_DELTA, STRENGTH_MAX)
+	return boosted_strength - WATER_STRENGTH_DELTA >= STRENGTH_HARD_FLOOR
+
+
 ## 水を一回足す（DESIGN.md 7.6）。残量 +2 / 濃さ -2 / 水の回数 -1。
 ## apply_money のような「量は受け側が決める」形にしないのは、
 ## 「資源を1つ消費する」ことと「2つの数値が動く」ことが常にセットで、

@@ -100,6 +100,18 @@ var _visit_tally := {}
 # GameState には持たせない（本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
 var _debug_mob_count := -1
 
+# 今夜の客の並び（予告メモ・作業ゲー化対策）。以前はOPENに入る瞬間にcustomer_schedule()
+# を呼んで初めて決まっていた（＝プレイヤーは開店するまで客層も人数も分からなかった）ため、
+# WAKEに入った瞬間にここで1回だけ確定させ、OPENでは（デバッグ上書き中を除き）これを
+# そのまま使い回す。スマホの「SNS」タブ（_format_tonight_memo）が見せる内容も
+# ここを参照する＝スマホの開閉や表示の都合で再抽選されることはない。
+var _tonight_schedule: Array = []
+
+# 前日の営業成績（翌朝のWAKE先頭で一度だけ見せる一言サマリー）。_game_over_reasonと
+# 同じ「一度だけ消費するテキスト」の形。_on_day_ending()（day_ending。NEXT_DAY→WAKEの
+# 折り返し直前に発火）で組み立て、次にWAKEのrunnerを組むときに読んで空文字へ戻す。
+var _last_day_summary_text := ""
+
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
 var _scraps_base := false
@@ -256,7 +268,20 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 支払い予定（表示専用）：今日まだ物語上のけじめが付いていない金額を確定させる。
 		# 徴収日は場所代ぶんも含む（GameState.set_pending_bills_for_today参照）。
 		GameState.set_pending_bills_for_today()
-		flow.set_runner(Day1Events.wake_events())
+		# 予告（②）：今夜の客の並びをここで1回だけ確定させ、OPENでは（デバッグの一律
+		# 上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も人数も
+		# 分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
+		# 一つだったため、スマホの「SNS」タブ（_format_tonight_memo）で見せられる
+		# ようにする。
+		_tonight_schedule = Day1Events.customer_schedule(_debug_mob_count)
+		# 前日の成績（③）：day_ending（NEXT_DAY→WAKEの折り返し）で既に組み立て済みの
+		# 一言サマリーがあれば、今日の起床イベントの先頭に差し込む（読んだら消費する。
+		# _closed_early_reason/_game_over_reasonと同じ「一度だけ」パターン）。
+		var wake_ev := Day1Events.wake_events()
+		if _last_day_summary_text != "":
+			wake_ev = [{ "type": "TEXT", "text": _last_day_summary_text }] + wake_ev
+			_last_day_summary_text = ""
+		flow.set_runner(wake_ev)
 	elif phase == GameState.Phase.PREP:
 		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
@@ -270,7 +295,18 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
 		# デバッグ用の一律上書き値（_debug_mob_count。-1=自動）をそのまま渡すだけでよい。
-		_open = OpenController.new(Day1Events.customer_schedule(_debug_mob_count))
+		# 予告（②）：通常はWAKEで確定させた_tonight_scheduleをそのまま使う（客層・人数を
+		# 開店直前に変えない＝SNSタブで見せた内容と実際の客入りを一致させる）。
+		# デバッグの一律上書き中（_debug_mob_count>=0）は、ボタンの「次にOPENに入る
+		# ときから効く」という既存の挙動を保つため、ここで引き直す（QAの便宜。
+		# SNSタブの表示が直前の内容と食い違う可能性があるのは元からデバッグ専用機能
+		# なので許容する）。_tonight_scheduleが空（テスト等でWAKEを経由せずOPENへ直接
+		# 遷移した場合の防御）のときも同様に引き直す＝WAKEを通らなくても従来どおり
+		# 動く（この保険はデバッグ上書きが無い自動抽選でも効くので、テストからの
+		# 直接呼び出しでcustomer_schedule()が空振りする心配は無い）。
+		if _debug_mob_count >= 0 or _tonight_schedule.is_empty():
+			_tonight_schedule = Day1Events.customer_schedule(_debug_mob_count)
+		_open = OpenController.new(_tonight_schedule)
 		# 日次ログ：その日の計画杯数（提供できたか否かに関わらず）を、実際の接客より前に
 		# 先読みして合算する。customer_events()はGameState.day_countとJSONキャッシュを
 		# 読むだけの副作用なし関数なので、ここで呼んでも以後の本編の進行に影響しない。
@@ -648,7 +684,15 @@ func _is_awaiting_react() -> bool:
 func _pot_locked_until_water() -> bool:
 	if _pot_water_added:
 		return false
-	return GameState.soup != null and int(GameState.soup.get("remaining_servings", 0)) <= 0
+	if GameState.soup == null or int(GameState.soup.get("remaining_servings", 0)) > 0:
+		return false
+	# 鍋操作不能バグの修正：残量0でも、濃さが低すぎて「今すぐは」水を出せない
+	# （can_add_water()がfalse）場合はロックしない。ロックしたままだと、
+	# だしボタンも「水待ちロック中」を理由に塞がれ、濃さを上げる唯一の手段である
+	# だしすら使えなくなり、詰んでしまう（濃さが上がって初めて水が出せるように
+	# なる、という順序を考慮できていなかった）。水が今すぐ出せる状態でだけ
+	# 「まず水を」の順序を強制する。
+	return GameState.can_add_water()
 
 
 ## 濃さメカニクス三点セット：鍋モードに入った時点で濃さ0（提供不可）だった場合、
@@ -1040,9 +1084,14 @@ func _flush_visit_tally() -> void:
 
 ## もう水が無いか（DESIGN.md 7.6：自動閉店・選択待ちの条件2）。
 ## 残量を増やせるのは水だけ（だしは濃さを上げるだけで、量は増やさない）ので、
-## 不足を埋められるかの判定は水の有無だけを見る。
+## 不足を埋められるかの判定は水の有無だけを見る。ただし濃さが低すぎて今すぐは
+## 水を出せない（can_add_water()がfalse）だけの場合、だしを先に入れれば水を
+## 出せる手順が残っていることがあるため、GameState.water_reachable()で
+## その手順まで含めて判定する（鍋操作不能バグの修正。単独判定のcan_add_water()
+## だと、まだ回復可能な状況を「もう資源が無い」と誤判定し、詰んでいないのに
+## 自動閉店・強制ゲームオーバー相当の分岐へ落としてしまっていた）。
 func _no_resources_left() -> bool:
-	return not GameState.can_add_water()
+	return not GameState.water_reachable()
 
 
 ## 今の客の注文（servings）に、鍋の残量が足りないか。ADJUST中の提供・廃棄の共通ルール：
@@ -1203,6 +1252,35 @@ func _on_day_ending() -> void:
 		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
 		_log_water_used, _log_dashi_used, str(_log_closed_early), str(_log_quality_counts)])
 	_append_balance_log_file(log_entry)
+	# 日次の成績表示（③）：今日作ったlog_entryをそのまま人間向けの文にして、次のWAKE（別日）の先頭で一度だけ見せる。ここでのdebug_panel.gd内のローカル変数ではなくlog_entryの値だけを使うのは、日次ログファイルJSONと完全に同じ内容にして、二重の集計ロジックを作らないため。
+	_last_day_summary_text = _format_day_summary(log_entry)
+
+
+## 日次の成績表示（③）：_on_day_ending()が組み立てたlog_entry（opening/closingの所持金・評判、
+## 提供杯数、売上、品質内訳、廃棄額、水・だし回数、早期閉店）を、プレイヤー向けの
+## 日本語一言サマリーへ整形する。日内ログファイルJSONと同じlog_entryだけを参照し、新しい集計はしない。
+func _format_day_summary(log_entry: Dictionary) -> String:
+	var money_diff: int = int(log_entry["closing_money"]) - int(log_entry["opening_money"])
+	var counts: Dictionary = log_entry["quality_counts"]
+	var lines := PackedStringArray([
+		"◆前日（Day%d）の成績◆" % int(log_entry["day"]),
+		"所持金: %d → %d（%s%d）" % [
+			int(log_entry["opening_money"]), int(log_entry["closing_money"]),
+			"+" if money_diff >= 0 else "", money_diff],
+		"評判: %d → %d" % [
+			int(log_entry["opening_reputation"]), int(log_entry["closing_reputation"])],
+		"提供: %d/%d杯（未提供%d杯）　売上: %d" % [
+			int(log_entry["served_cups"]), int(log_entry["planned_cups"]),
+			int(log_entry["unserved_cups"]), int(log_entry["sale_total"])],
+		"品質: GREAT%d GOOD%d OK%d BAD%d（Q=%.1f）" % [
+			int(counts.get("GREAT", 0)), int(counts.get("GOOD", 0)),
+			int(counts.get("OK", 0)), int(counts.get("BAD", 0)), float(log_entry["quality"])],
+		"廃棄額: %d　水%d回／だし%d回" % [
+			int(log_entry["spoiled_value"]), int(log_entry["water_used"]), int(log_entry["dashi_used"])],
+	])
+	if bool(log_entry.get("closed_early", false)):
+		lines.append("（鍋が尽きて早めに閉店した）")
+	return "\n".join(lines)
 
 
 ## discard_spoiled_inventory()が返す各品目の"value"（ロットごとに実際に払った単価×個数の
@@ -1331,7 +1409,10 @@ func _update_options_row() -> void:
 	var strength_zero := _is_strength_zero()
 	var nothing_to_add: bool
 	if servings_short or strength_zero:
-		var can_fix_servings := servings_short and GameState.can_add_water()
+		# 鍋操作不能バグの修正：ここもcan_add_water()単独ではなく、だし経由の回復まで
+		# 含めたwater_reachable()で判定する（さもないと[鍋を見る]ボタン自体が
+		# 無効化され、回復手順に一歩も入れない）。
+		var can_fix_servings := servings_short and GameState.water_reachable()
 		var can_fix_strength := strength_zero and GameState.can_add_dashi()
 		nothing_to_add = not can_fix_servings and not can_fix_strength
 	else:
@@ -1600,10 +1681,47 @@ func _format_phone() -> String:
 		"news":
 			body = "ニュース：まだ届いていません"
 		"sns":
-			body = "SNS：まだ新着はありません"
+			body = _format_tonight_memo()
 		_:
 			body = "レシピ：まだ記録がありません"
 	return "── スマホ ──\n%s" % body
+
+
+## 予告（②）：SNSタブの本文。_tonight_schedule（WAKEで1回だけ確定した今夜の並び）
+## を、時間帯ごとに「誰が・何人・どんな味を求めているか」だけ分かる一言メモへ整形する。
+## 好物はknows_favorite()がtrueの客だけ添える（③初回好物の開示と同じ「知っているかどうか」
+## のルールに揃える。モブはそもそもfavoriteを持たないので対象外）。
+## _tonight_schedule がまだ空（起床前など）なら、旧来のプレースホルダ文言を返す。
+func _format_tonight_memo() -> String:
+	if _tonight_schedule.is_empty():
+		return "SNS：まだ新着はありません"
+	var lines := PackedStringArray(["◆本日の客足予報◆"])
+	for slot in _tonight_schedule:
+		var parts := PackedStringArray()
+		for customer_id in slot.get("customers", []):
+			var cid := str(customer_id)
+			var flavor := Day1Events._customer_flavor(cid)
+			var tags: Array = flavor.get("wanted_tags", [])
+			var tag_text := "/".join(PackedStringArray(tags)) if not tags.is_empty() else "？"
+			if bool(flavor.get("is_mob", false)):
+				# モブの表示名（「港湾労働者」等）はJSON側に構造化データを持たないため、
+				# greet[0]（例:「港湾労働者 4人（HOT/POWER）」）をそのまま使う。
+				var greet_lines: Array = flavor.get("greet", [])
+				if not greet_lines.is_empty():
+					parts.append(str(greet_lines[0]))
+				else:
+					parts.append("モブ %d人（%s）" % [int(flavor.get("servings", 0)), tag_text])
+			else:
+				var name: String = Day1Events.CUSTOMER_NAMES.get(cid, cid)
+				var fav_text := ""
+				var fav_id := str(flavor.get("favorite", ""))
+				if fav_id != "" and GameState.knows_favorite(cid):
+					fav_text = "／好物:%s" % Ingredients.name_for(fav_id)
+				parts.append("%s（%s%s）" % [name, tag_text, fav_text])
+		if parts.is_empty():
+			continue
+		lines.append("・%s：%s" % [str(slot.get("name", "")), "、".join(parts)])
+	return "\n".join(lines)
 
 
 func _format_runner() -> String:

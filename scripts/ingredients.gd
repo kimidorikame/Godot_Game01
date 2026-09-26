@@ -50,12 +50,16 @@ const _PERISHABLE := [
 	"cartilage", "tendon_meat", "shrimp", "clam",
 ]
 
-# 通知テキスト用の日本語名（「〜を入れる」ではない名詞形）。腐る品目の分だけ持つ。
+# 通知テキスト用の日本語名（「〜を入れる」ではない名詞形）。元は腐る品目の分だけ持って
+# いたが、②予告メモ（DebugPanel._format_tonight_memo）で客の好物（favorite）を表示する
+# ため、非生鮮の調味料・具材も含めた全品目分に拡張した。
 const _NAMES := {
-	"coconut_milk": "ココナッツミルク", "offal": "モツ", "meat_ball": "肉団子",
-	"tofu": "豆腐", "broken_wrapper": "割れた餃子皮", "bitter_melon": "苦瓜",
-	"cartilage": "軟骨", "tendon_meat": "すじ肉", "shrimp": "海老", "clam": "貝",
-	"fish_maw": "魚の浮き袋",
+	"nam_prik_pao": "ナムプリックパオ", "coconut_milk": "ココナッツミルク",
+	"pickled_lime": "塩漬けライム", "bitter_melon": "苦瓜", "herbal_sauce": "薬膳ナンプラーだれ",
+	"offal": "モツ", "meat_ball": "肉団子", "tofu": "豆腐",
+	"broken_wrapper": "割れた餃子皮", "winter_melon": "冬瓜",
+	"cartilage": "軟骨", "tendon_meat": "すじ肉", "dried_wood_ear": "乾燥きくらげ",
+	"rice_noodle": "米麺", "shrimp": "海老", "clam": "貝", "fish_maw": "魚の浮き袋",
 }
 
 

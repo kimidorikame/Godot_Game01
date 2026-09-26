@@ -1,7 +1,7 @@
 {
   "is_mob": true,
   "greet": [
-    "市場横の雑貨屋の夜番 %d人（HOT/POWER）"
+    "市場横の雑貨屋の夜番 %d人（BITTER/GENTLE）"
   ],
   "reactions": {
     "GOOD": [
@@ -15,7 +15,7 @@
     ]
   },
   "wanted_tags": [
-    "HOT",
-    "POWER"
+    "BITTER",
+    "GENTLE"
   ]
 }
