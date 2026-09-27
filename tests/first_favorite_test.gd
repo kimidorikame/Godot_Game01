@@ -29,8 +29,9 @@ func _drive_to_adjust(panel) -> void:
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
-	# --- 1〜2. 老婆（favorite: offal, 要求: SAVORY+FILLING）。1回目はGOOD止まり、
-	#     2回目（好物を知った後）は同じ構成でGREATになる ---
+	# --- 1〜2. 老婆（favorite: offal, 要求: SAVORY+FILLING）。F3 Judge v2（DESIGN.md 10.3.2）
+	#     で「判定には初回から好物を使う」に変更されたため、1回目からGREATになる
+	#     （表示だけは既知になるまで隠す。known_favoritesが空でも判定は真の値を使う）。 ---
 	var panel = _setup(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5, "offal": 5 })
 	_drive_to_adjust(panel)
 	c.check("下準備: 老婆はまだ好物を知られていない", not GameState.knows_favorite("granny"))
@@ -39,11 +40,11 @@ func run(t: SceneTree) -> int:
 	panel._on_ingredient_selected("offal")
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()   # SERVE -> REACT
-	c.check("初回：要求2つ一致+好物を入れてもGREATにならない(GOOD止まり)",
-		str(panel._open.current_bowl.get("result", "")) == "GOOD",
+	c.check("初回でも要求2つ一致+好物ありでGREATになる(F3: 判定には初回から好物を使う)",
+		str(panel._open.current_bowl.get("result", "")) == "GREAT",
 		str(panel._open.current_bowl.get("result", "")))
-	c.check("初回の判定に使ったfavoriteは空(current_bowl)",
-		str(panel._open.current_bowl.get("favorite", "")) == "")
+	c.check("初回でも判定には本来のfavoriteが使われる(current_bowl)",
+		str(panel._open.current_bowl.get("favorite", "")) == "offal")
 	c.check("退店(このREACTの直後)で老婆の好物は知った扱いになる", GameState.knows_favorite("granny"))
 
 	# --- 2回目の来店（同じ構成）：知っているのでGREATになる ---
@@ -79,7 +80,9 @@ func run(t: SceneTree) -> int:
 	panel2._load_current_customer()
 	c.check("下準備: 配達員はまだ好物を知られていない", not GameState.knows_favorite("delivery_man"))
 	var guard := 0
-	var picks := [["nam_prik_pao", "offal", "tofu"], ["nam_prik_pao", "tofu"], ["nam_prik_pao"]]
+	# F3 SaleRule：3杯目(持ち帰り)もnam_prik_pao単体だと具が無く[入力完了]が無効になる
+	# ため、tofuを足す（本題は3杯目まで通しで好物の既知化タイミングを見ること）。
+	var picks := [["nam_prik_pao", "offal", "tofu"], ["nam_prik_pao", "tofu"], ["nam_prik_pao", "tofu"]]
 	var ai := 0
 	while str(panel2._open.current_customer()) == "delivery_man" and guard < 400:
 		guard += 1

@@ -145,6 +145,12 @@ var _pending_group_choice := false
 # なので既存の経路のまま無影響）。
 var _pending_group_result := {}
 
+# F3 断る操作（DESIGN.md 10.3.6）：名前あり客・配達員のADJUST中に[客を断る]を押したか。
+# trueのままADJUST→SERVE→REACTへ進み、_apply_event()のREACTケースが判定・消費・売上を
+# 一切発生させずに未提供として記録する（_pending_group_resultと同じ「確認結果を持ち越す」
+# パターンだが、モブとは独立したフラグにして混線を避ける）。
+var _pending_decline := false
+
 # 団体客の分割提供（最大2レシピ）：グループの元々の総注文人数（レシピ2でも変わらない。
 # _flush_visit_tally()でordered_servings/unserved_servingsを出すために覚えておく）。
 # 新しい客をロードするたびにのみ-1へ戻す（_reset_mob_group_state()には入れない。
@@ -345,6 +351,7 @@ func _load_current_customer() -> void:
 	_reset_mob_group_state()   # ②拒否と部分提供：客が替わるたび選択中の具材・確認状態を破棄
 	_mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
 	_mob_recipe_number = 1
+	_pending_decline = false   # F3 断る操作：新しい客ごとにリセット
 	if _open != null and _open.has_more():
 		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
 		# ここでは第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
@@ -375,10 +382,15 @@ func _on_next_event_pressed() -> void:
 ## ②拒否と部分提供：モブ客のADJUST中に押した最初の一回は、まだ進めず
 ## 「N人分を提供／注文を断る」の確認ボタンへ差し替えるだけにする（_pot_mode等と同じ
 ## 「専用ボタン行に差し替える」パターン）。名前あり客・配達員は今までどおり即座に進む。
+## F3 SaleRule（DESIGN.md 10.3.1）：名前あり客・配達員は、味・具のどちらかが欠けた椀
+## だと進めない（ボタン側（_btn_complete_input.disabled）で既に無効化済みだが、二重に
+## 防ぐ。既存の_on_ingredient_selectedの在庫切れ二重チェックと同じ考え方）。
 func _on_complete_input_pressed() -> void:
 	if _is_current_mob_order() and not _pending_group_choice:
 		_pending_group_choice = true
 		_refresh()
+		return
+	if not _is_current_mob_order() and _is_bowl_unsellable_in_adjust():
 		return
 	_complete_input_and_advance()
 
@@ -800,6 +812,14 @@ func _apply_event(ev) -> void:
 				else:
 					_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)))
 				return
+			# F3 断る操作（DESIGN.md 10.3.6）：[客を断る]で既に確定させているので、
+			# 判定・鍋消費・売上を一切発生させず未提供として記録する（モブの
+			# _pending_group_resultと同じ「ADJUST側で確定済みの結果をここで反映するだけ」
+			# パターン）。
+			if _pending_decline:
+				_pending_decline = false
+				_serve_customer_decline(ev)
+				return
 			# 7.6: 提供しようとした時点で残量が servings に足りないとき、
 			# 条件1（名前あり客がもう残っていない）と条件2（水が無い）の成立具合で分かれる：
 			#   両方成立     → 自動的に閉店（_auto_close_kitchen。選ぶ余地が無い）
@@ -855,6 +875,14 @@ func _mob_achievable_servings(ordered: int) -> int:
 			achievable = 0
 	else:
 		achievable = 0
+	# F3 SaleRule（DESIGN.md 10.3.1）：味・具のどちらかが欠けた椀は、濃さ0と同じく
+	# 達成可能0にする（既存の「達成可能0→断るしか出せない」UIをそのまま使う。
+	# 新しい画面状態は増やさない）。SHORT_SERVINGS/STRENGTH_ZERO理由はこの関数が
+	# 既に別に計算しているので、ここではNO_FLAVOR/NO_TOPPINGだけを見る。
+	if _open != null:
+		var reasons: Array = SaleRule.check(_open.current_bowl, GameState.soup).get("reasons", [])
+		if reasons.has(SaleRule.NO_FLAVOR) or reasons.has(SaleRule.NO_TOPPING):
+			achievable = 0
 	var counts := {}   # "id|damaged" -> 選んだ回数
 	for pick in _mob_picks:
 		var key: String = "%s|%s" % [pick["id"], pick["damaged"]]
@@ -994,14 +1022,14 @@ func _serve_customer(ev: Dictionary) -> void:
 	var judged: bool = bool(ev.get("judge", true))
 	var aggregate: bool = bool(ev.get("aggregate", false))
 	var customer_id := str(ev.get("customer", ""))
-	# ③初回好物の開示：Event側の本来のfavorite（生の値。書き換えない）と、判定に実際に
-	# 使う値（まだ知らない客なら空にして隠す）を分けて持つ。current_bowlに残るfavorite/
-	# has_favoriteは「判定に使った値」の方になる（初回は好物を入れてもGREATにならない）。
+	# ③初回好物の開示 → F3 Judge v2（DESIGN.md 10.3.2）で更新：好物は「表示」こそ
+	# 既知になるまで隠す（_format_bowl()のfavorite_true行・SNSタブ等）が、「判定」には
+	# 初回から使う（入れていれば初回でもGREATになる）。以前はここでraw_favoriteを
+	# knows_favorite()でゲートしてから判定に渡していたが、そのゲート自体を廃止した。
 	var raw_favorite := str(ev.get("favorite", ""))
-	var favorite_for_judge := raw_favorite if GameState.knows_favorite(customer_id) else ""
 	var result := ""
 	if judged and _open != null:
-		result = _open.judge_bowl(ev.get("wanted_tags", []), favorite_for_judge)
+		result = _open.judge_bowl(ev.get("wanted_tags", []), raw_favorite)
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
 	if aggregate:
@@ -1017,6 +1045,31 @@ func _serve_customer(ev: Dictionary) -> void:
 	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + servings
 	GameState.record_served({ "customer": customer_id, "sale": sale,
 		"servings": servings, "result": result })
+
+
+## [客を断る]のハンドラ（F3・DESIGN.md 10.3.6）。名前あり客・配達員のADJUST中、いつでも
+## 押せる（達成可能かどうかを問わない。モブの「注文を断る」は既に無条件で選べるので対象外＝
+## _is_current_mob_order()のときはこのボタン自体を出さない）。判定・鍋消費・売上を一切
+## 発生させず、_pending_group_serveと同じ「ADJUST側で確定させてREACT到達時に反映する」
+## パターンでSERVE→REACTへ進める。
+func _on_customer_decline_pressed() -> void:
+	_pending_decline = true
+	_complete_input_and_advance()
+
+
+## _pending_decline経由でREACTに到達したときの処理。判定（judge_bowl）を呼ばない・
+## 鍋を消費しない・売上を発生させない。未提供として記録する（servings=0・declined=true・
+## result=""）。①の日次計画杯数（_log_planned_cups）は先読み済みのままなので、
+## 未提供杯数はGameState.servedへ加算しないことで自動的に正しくなる（既存のモブの
+## 「断る」と同じ考え方）。aggregate客（配達員）は退店時にまとめて1件反映する既存の
+## _visit_tally経路へ0杯ぶんとして積む（_apply_mob_recipeのactual<=0分岐と同じ形）。
+func _serve_customer_decline(ev: Dictionary) -> void:
+	var customer_id := str(ev.get("customer", ""))
+	if bool(ev.get("aggregate", false)):
+		_add_to_visit_tally(customer_id, false, 0, 0, "", "")
+		return
+	GameState.record_served({ "customer": customer_id, "sale": 0,
+		"servings": 0, "declined": true, "result": "" })
 
 
 ## 集計（_visit_tally）に1杯分を積む。売上と杯数は全杯を積む。
@@ -1129,6 +1182,18 @@ func _is_strength_zero() -> bool:
 ## [鍋を見る]・[閉店]を出す条件に使う（残量不足と同じ役割）。
 func _is_strength_zero_in_adjust() -> bool:
 	return _is_choosing_ingredients() and _is_strength_zero()
+
+
+## F3 SaleRule（DESIGN.md 10.3.1）：ADJUST中（椀を作っている最中）で、味・具の
+## どちらかの素材が欠けているか（＝このまま提供しても売れない椀か）。残量不足・濃さ0
+## （既存の_is_short_in_adjust/_is_strength_zero_in_adjust）とは独立した別条件として
+## [入力完了]を止める。SaleRule.check()のSHORT_SERVINGS/STRENGTH_ZERO理由はここでは見ない
+## （既存の2関数が別途担当しているため、二重に判定しない）。
+func _is_bowl_unsellable_in_adjust() -> bool:
+	if not _is_choosing_ingredients() or _open == null:
+		return false
+	var reasons: Array = SaleRule.check(_open.current_bowl, GameState.soup).get("reasons", [])
+	return reasons.has(SaleRule.NO_FLAVOR) or reasons.has(SaleRule.NO_TOPPING)
 
 
 ## [閉店]を押せるか。鍋不足の保留中、「ADJUST中で残量不足、かつ水が無い」、または
@@ -1426,10 +1491,13 @@ func _update_options_row() -> void:
 	# 濃さメカニクス三点セット：濃さ0も同じ扱い（モブは_mob_achievable_servings()が
 	# 強制的に0を返すので「断る」しか出せなくなる。名前あり客・配達員は塞ぐ）。
 	# 仕込み3段階化：PREP_TIER中は段階ボタン以外で抜けさせない（_is_in_marketと同じ理由）。
+	# F3 SaleRule（DESIGN.md 10.3.1）：具・味のどちらかが欠けた椀も同じ扱いで塞ぐ
+	# （モブは_mob_achievable_servings()側で達成可能0に落とすので、ここでは無視する）。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
 			or _is_in_market() or _is_in_prep_tier() or _phone_mode or _pending_group_choice \
 			or (_is_short_in_adjust() and not _is_current_mob_order()) \
-			or (_is_strength_zero_in_adjust() and not _is_current_mob_order())
+			or (_is_strength_zero_in_adjust() and not _is_current_mob_order()) \
+			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
@@ -1545,6 +1613,12 @@ func _update_options_row() -> void:
 	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
 	# MARKETの[市場を出る]と同じ「今のモードに常駐する専用ボタン」の扱い。
 	_add_pot_button("廃棄する", _is_short_now(), _on_discard_pressed)
+	# [客を断る]（F3・DESIGN.md 10.3.6）：名前あり客・配達員だけに出す。達成可能かどうかを
+	# 問わずいつでも押せる（常に有効）。モブはこのADJUST具材ループにも来る（[入力完了]を
+	# 押すまでは通常のADJUSTと同じ画面のため）が、モブには既に無条件の「注文を断る」が
+	# [入力完了]の後に出るので、二重に出さないようここで除外する。
+	if not _is_current_mob_order():
+		_add_pot_button("客を断る", false, _on_customer_decline_pressed)
 
 
 ## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。
@@ -1891,6 +1965,13 @@ func _format_bowl() -> String:
 		lines.append("favorite_true(本来の好物・デバッグ): %s (known=%s)" % [
 			raw_favorite, str(GameState.knows_favorite(customer_id))])
 	lines.append("judge(判定): %s" % judge_text)
+	# F3 減点の事前表示（DESIGN.md 10.3.1・10.3.2）：まだ判定していない椀（result==""）
+	# のときだけ、SaleRuleで提供不可なら理由を、提供はできるがJudgeで減点見込みなら
+	# その理由を1行足す。判定後（result!=""）は既存のjudge_text側の表示に任せる。
+	if result == "":
+		var sale_hint := _format_sale_hint()
+		if sale_hint != "":
+			lines.append(sale_hint)
 	# 廃棄回数（0回なら出さない）。椀自体は廃棄のたびに作り直されて消えるので、
 	# 「この客で何回作り直したか」は current_bowl とは別に _bowl_discard_count で持つ。
 	if _bowl_discard_count > 0:
@@ -1899,6 +1980,34 @@ func _format_bowl() -> String:
 	if reaction != "":
 		lines.append("reaction(反応): 【%s】%s" % [result, reaction])
 	return "\n" + "\n".join(PackedStringArray(lines))
+
+
+## F3 減点の事前表示（DESIGN.md 10.3.1・10.3.2・判断が必要な点4）。まだ判定していない
+## 椀について、SaleRuleで提供不可なら理由を（優先）、提供はできてもJudgeで濃さ・傷みの
+## 減点が見込まれるならその理由を返す。どちらも該当しなければ空文字（_format_bowl()側で
+## 行を足さない）。
+func _format_sale_hint() -> String:
+	if _open == null or not _open.current_bowl.has("customer_id"):
+		return ""
+	var reasons: Array = SaleRule.check(_open.current_bowl, GameState.soup).get("reasons", [])
+	var composition_reasons := PackedStringArray()
+	if reasons.has(SaleRule.NO_FLAVOR):
+		composition_reasons.append("味付けが入っていません")
+	if reasons.has(SaleRule.NO_TOPPING):
+		composition_reasons.append("具が入っていません")
+	if not composition_reasons.is_empty():
+		return "（このままでは提供できません：%s）" % "・".join(composition_reasons)
+	var used_spoiled: bool = bool(_open.current_bowl.get("used_spoiled", false))
+	var strength := int(GameState.soup.get("strength", 3)) if GameState.soup != null else 3
+	var bad_strength: bool = strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX
+	if bad_strength or used_spoiled:
+		var penalty_reasons := PackedStringArray()
+		if bad_strength:
+			penalty_reasons.append("濃さが%d" % strength)
+		if used_spoiled:
+			penalty_reasons.append("傷んだ具材を使っています")
+		return "（このままだと1段階下がります：%s）" % "・".join(penalty_reasons)
+	return ""
 
 
 ## 現在の Event が REACT のときだけ、判定結果に応じた反応textを選んで返す（STEP 16〜17.6）。

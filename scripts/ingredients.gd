@@ -70,6 +70,9 @@ static func is_perishable(id: String) -> bool:
 # 「具」側の軸（上のコメント参照）。judge_bowl の具なし判定（フェーズ1 ステップ3）で使う。
 const _TOPPING_TAGS := ["POWER", "GENTLE", "FILLING", "BITE", "TREAT"]
 
+# 「味」側の軸（上のコメント参照）。F3 SaleRule（DESIGN.md 10.3.1「味の素材が1つ以上」）で使う。
+const _FLAVOR_TAGS := ["HOT", "MELLOW", "SOUR", "BITTER", "SAVORY"]
+
 
 ## id が「具材」（具の軸のタグを1つでも持つ品目）かどうか。調味料（味の軸のみ）や
 ## タグ未定義の id は false。DESIGN.md「具なしの椀は常に最低評価」の判定に使う
@@ -77,6 +80,15 @@ const _TOPPING_TAGS := ["POWER", "GENTLE", "FILLING", "BITE", "TREAT"]
 static func is_topping(id: String) -> bool:
 	for tag in tags_for(id):
 		if _TOPPING_TAGS.has(tag):
+			return true
+	return false
+
+
+## id が「調味料」（味の軸のタグを1つでも持つ品目）かどうか。is_topping()の対（F3 SaleRule
+## 「味の素材が1つ以上」の判定に使う。DESIGN.md 10.3.1）。
+static func is_flavor(id: String) -> bool:
+	for tag in tags_for(id):
+		if _FLAVOR_TAGS.has(tag):
 			return true
 	return false
 

@@ -75,7 +75,10 @@ func run(t: SceneTree) -> int:
 	c.check("declined=falseで記録される", rec.get("declined") == false)
 
 	# --- 2. 全員分そろっていても「注文を断る」を選べ、断ると何も動かない ---
-	panel = _setup(t, 4, { "meat_ball": 10 })
+	# F3 SaleRule：味・具の両方を入れる（meat_ball=具のみだとSaleRuleで達成可能0に
+	# なってしまい、このテストの本来の検証（在庫が足りていること）にならないため）。
+	panel = _setup(t, 4, { "meat_ball": 10, "nam_prik_pao": 10 })
+	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("meat_ball", false)
 	panel._on_complete_input_pressed()
 	c.check("全員分そろっていても両方のボタン相当が成立(達成可能=注文人数)",
@@ -114,13 +117,17 @@ func run(t: SceneTree) -> int:
 		guard3 += 1
 		panel._on_next_event_pressed()
 	c.check("下準備: offalは新鮮2・傷み2", GameState.fresh_count("offal") == 2 and GameState.damaged_count("offal") == 2)
+	GameState.add_inventory("nam_prik_pao", 10)   # F3 SaleRule：味の素材も入れておく（本題はoffalの鮮度分離）
+	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("offal", false)   # 新鮮ボタン
 	panel._on_complete_input_pressed()
 	c.check("新鮮ボタンでは新鮮在庫数(2)が上限。傷みと合算した4にはならない",
 		panel._mob_achievable_servings(4) == 2, str(panel._mob_achievable_servings(4)))
 
 	# --- 4. 同じ具材(同バケツ)を2枠選ぶと、在庫数を選んだ回数で割る ---
-	panel = _setup(t, 4, { "meat_ball": 6 })
+	# F3 SaleRule：味の素材も入れておく（本題は同バケツの2枠分割）。
+	panel = _setup(t, 4, { "meat_ball": 6, "nam_prik_pao": 10 })
+	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("meat_ball", false)
 	panel._on_ingredient_selected("meat_ball", false)
 	panel._on_complete_input_pressed()
@@ -128,15 +135,20 @@ func run(t: SceneTree) -> int:
 		panel._mob_achievable_servings(4) == 3, str(panel._mob_achievable_servings(4)))
 
 	# --- 5. 鍋残量が具材より少ない場合(鍋律速) ---
-	panel = _setup(t, 4, { "meat_ball": 10 }, 2)
+	# F3 SaleRule：味の素材も入れておく（本題は鍋残量律速）。
+	panel = _setup(t, 4, { "meat_ball": 10, "nam_prik_pao": 10 }, 2)
+	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("meat_ball", false)
 	panel._on_complete_input_pressed()
 	c.check("鍋残量2が上限になる", panel._mob_achievable_servings(4) == 2)
 
-	# --- 6. 具材を1つも選ばなくても、鍋残量の範囲で提供できる(具材不足はゼロではない) ---
+	# --- 6. F3 SaleRule（DESIGN.md 10.3.1）：具材を1つも選ばない椀は、鍋残量に関わらず
+	#        達成可能0になる（「空の椀は売れない」。以前は鍋律速の人数まで提供扱いに
+	#        なっていたが、この仕様変更で置き換わった） ---
 	panel = _setup(t, 4, {})
 	panel._on_complete_input_pressed()
-	c.check("具材なしでも鍋律速の人数までは提供扱いになる", panel._mob_achievable_servings(4) == 4)
+	c.check("具材なしの椀はSaleRuleにより達成可能0になる(空の椀は売れない)",
+		panel._mob_achievable_servings(4) == 0)
 
 	# --- 7. 名前あり客(servings=1)は無変更で動く(回帰) ---
 	GameState.reset_for_new_game()
@@ -153,7 +165,10 @@ func run(t: SceneTree) -> int:
 		guard7 += 1
 		panel2._on_next_event_pressed()
 	c.check("名前あり客はis_mobでない", not panel2._is_current_mob_order())
+	# F3 SaleRule：味・具の両方を入れる（nam_prik_pao単体だと具が無く[入力完了]が
+	# 無効になるため、このテストの本題である「1回で即座に進む」の検証にならない）。
 	panel2._on_ingredient_selected("nam_prik_pao")
+	panel2._on_ingredient_selected("meat_ball", false)
 	panel2._on_complete_input_pressed()
 	c.check("名前あり客は[入力完了]1回で即座に進む(確認状態にならない)",
 		not panel2._pending_group_choice and panel2.flow.runner.current()["type"] == "SERVE")
