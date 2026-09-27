@@ -1,0 +1,459 @@
+{
+  "GOOD": {
+    "representativeDays": [
+      {
+        "day": 1,
+        "openingRep": 30,
+        "cups": 9,
+        "prep": 8,
+        "baseCost": 80,
+        "concentrate": 0,
+        "water": 1,
+        "orders": [
+          [
+            3,
+            2
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 44,
+        "ingredients": 115,
+        "profit": 110
+      },
+      {
+        "day": 2,
+        "openingRep": 44,
+        "cups": 9,
+        "prep": 8,
+        "baseCost": 80,
+        "concentrate": 0,
+        "water": 1,
+        "orders": [
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 53,
+        "ingredients": 115.71428571428572,
+        "profit": 109.28571428571428
+      },
+      {
+        "day": 3,
+        "openingRep": 53,
+        "cups": 11,
+        "prep": 8,
+        "baseCost": 96,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 60,
+        "ingredients": 151.28571428571428,
+        "profit": 147.71428571428572
+      },
+      {
+        "day": 4,
+        "openingRep": 60,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 65,
+        "ingredients": 183.14285714285714,
+        "profit": 220.8571428571429
+      },
+      {
+        "day": 5,
+        "openingRep": 65,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 68,
+        "ingredients": 191.14285714285714,
+        "profit": 212.8571428571429
+      },
+      {
+        "day": 6,
+        "openingRep": 68,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 70,
+        "ingredients": 191.14285714285714,
+        "profit": 212.8571428571429
+      },
+      {
+        "day": 7,
+        "openingRep": 70,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4,
+            4
+          ],
+          [
+            1,
+            3
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 75,
+        "nextRep": 72,
+        "ingredients": 183.14285714285714,
+        "profit": 220.8571428571429
+      }
+    ],
+    "representativeTotals": {
+      "cups": 85,
+      "profit": 1234.4285714285716
+    },
+    "enumeration": {
+      "cases": 729,
+      "probabilityMass": 1,
+      "meanCups": 85,
+      "meanProfit": 1238.4285714285668,
+      "meanClosingRep": 72,
+      "day7HighDemandProbability": 0,
+      "cupsRange": [
+        79,
+        91
+      ]
+    }
+  },
+  "MAIN_GREAT": {
+    "representativeDays": [
+      {
+        "day": 1,
+        "openingRep": 30,
+        "cups": 9,
+        "prep": 8,
+        "baseCost": 80,
+        "concentrate": 0,
+        "water": 1,
+        "orders": [
+          [
+            3,
+            2
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 86.11111111111111,
+        "nextRep": 47,
+        "ingredients": 149,
+        "profit": 76
+      },
+      {
+        "day": 2,
+        "openingRep": 47,
+        "cups": 11,
+        "prep": 8,
+        "baseCost": 96,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 81.81818181818181,
+        "nextRep": 57,
+        "ingredients": 168.28571428571428,
+        "profit": 130.71428571428572
+      },
+      {
+        "day": 3,
+        "openingRep": 57,
+        "cups": 11,
+        "prep": 8,
+        "baseCost": 96,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 81.81818181818181,
+        "nextRep": 64,
+        "ingredients": 171.28571428571428,
+        "profit": 127.71428571428572
+      },
+      {
+        "day": 4,
+        "openingRep": 64,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 80.35714285714286,
+        "nextRep": 69,
+        "ingredients": 219.14285714285714,
+        "profit": 184.8571428571429
+      },
+      {
+        "day": 5,
+        "openingRep": 69,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 80.35714285714286,
+        "nextRep": 72,
+        "ingredients": 211.14285714285714,
+        "profit": 192.8571428571429
+      },
+      {
+        "day": 6,
+        "openingRep": 72,
+        "cups": 14,
+        "prep": 11,
+        "baseCost": 126,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            3
+          ]
+        ],
+        "quality": 80.35714285714286,
+        "nextRep": 75,
+        "ingredients": 221.14285714285714,
+        "profit": 182.8571428571429
+      },
+      {
+        "day": 7,
+        "openingRep": 75,
+        "cups": 17,
+        "prep": 14,
+        "baseCost": 156,
+        "concentrate": 1,
+        "water": 2,
+        "orders": [
+          [
+            1,
+            4,
+            4
+          ],
+          [
+            1,
+            3,
+            3
+          ],
+          [
+            1
+          ]
+        ],
+        "quality": 79.41176470588235,
+        "nextRep": 76,
+        "ingredients": 259,
+        "profit": 250
+      }
+    ],
+    "representativeTotals": {
+      "cups": 90,
+      "profit": 1145
+    },
+    "enumeration": {
+      "cases": 729,
+      "probabilityMass": 1,
+      "meanCups": 89.68359375,
+      "meanProfit": 1146.1294642857129,
+      "meanClosingRep": 76,
+      "day7HighDemandProbability": 0.89453125,
+      "cupsRange": [
+        84,
+        95
+      ]
+    }
+  },
+  "boundaries": {
+    "finalDay18Cups": {
+      "baseCost": 172,
+      "concentrate": 2,
+      "water": 2,
+      "orders": [
+        [
+          1,
+          4,
+          4
+        ],
+        [
+          1,
+          4,
+          3
+        ],
+        [
+          1
+        ]
+      ]
+    },
+    "earlyRush10Cups": {
+      "baseCost": 96,
+      "concentrate": 1,
+      "water": 1,
+      "orders": [
+        [
+          1,
+          4
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ]
+      ]
+    },
+    "starterBasket": 224,
+    "starterConcentrate": 16,
+    "day1OpeningCashAfterCosts": 60,
+    "day1ClosingCash": 465
+  }
+}

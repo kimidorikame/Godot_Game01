@@ -1,0 +1,497 @@
+Godot Engine v4.4.1.stable.mono.official.49a5bc7b6 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2289)
+== res://tests/balance_log_test.gd ==
+  ok   discard_spoiled_inventoryはDictionaryを返す
+  ok   豆腐5個・モツ3個が個数付きで返る
+  ok   廃棄額はロットの実際に払った単価×個数の合計(豆腐4*5=20・モツ10*3=30)
+  ok   破棄後は在庫から消える
+  ok   prep_eventsの先頭に破棄の一言が入る
+  ok   腐る10品目すべてに価格がある
+  ok   dashiは含まない
+  ok   軟骨の価格はmeat_wholesale_goods()と一致
+  ok   Day1のplanned_cupsは13
+  ok   quality_countsの合計はserved_cups(廃棄除く)と一致する
+  ok   day_ending発火時、day_countはまだリセット前(1のまま)
+  ok   day_ending発火時、servedはまだ消えていない(1件)
+  ok   day_ending発火時、moneyはまだ当日の値
+  ok   day_ending後、通常の折り返しでservedは消える
+  ok   最終日のNEXT_DAY→WAKE折り返しでもday_endingが発火する
+失敗数: 0 / 15件
+== res://tests/first_favorite_test.gd ==
+  ok   下準備: 老婆はまだ好物を知られていない
+  ok   初回：要求2つ一致+好物を入れてもGREATにならない(GOOD止まり)
+  ok   初回の判定に使ったfavoriteは空(current_bowl)
+  ok   退店(このREACTの直後)で老婆の好物は知った扱いになる
+  ok   2回目：同じ構成でGREATになる
+  ok   2回目の判定に使ったfavoriteは本来の値(offal)
+  ok   _format_bowlに本来の好物とknown=trueが出る(2回目)
+  ok   下準備: 配達員はまだ好物を知られていない
+  ok   1杯目の判定直後もまだ知った扱いにならない(退店前)
+  ok   3杯すべて終えて退店した後は知った扱いになる
+  ok   リセット前は配達員が既知
+  ok   reset_for_new_game()でknown_favoritesが空になる
+  ok   モブの判定はGOOD(要求2つ一致・好物なしなのでGREATにはならない)
+  ok   モブはfavorite_true行が出ない(favoriteが常に空のため)
+  ok   _format_game_stateにknown_favoritesの一覧が出る
+失敗数: 0 / 15件
+== res://tests/group_partial_serve_test.gd ==
+  ok   在庫はまだ引かれない(選択時点)
+  ok   1回目の[入力完了]は進まず確認状態になる
+  ok   達成可能人数は3(具材律速)
+  ok   肉団子は3個消費される(在庫0)
+  ok   鍋残量は3減る
+  ok   売上は3人分
+  ok   評判は提供直後には動かない(閉店時に一括確定)
+  ok   代わりに_log_quality_countsのGOODが3(提供人数)だけ増える
+  ok   servings=3 / ordered_servings=4 / unserved_servings=1が記録される
+  ok   declined=falseで記録される
+  ok   全員分そろっていても両方のボタン相当が成立(達成可能=注文人数)
+  ok   断ると具材は減らない
+  ok   断ると鍋残量は減らない
+  ok   断ると所持金は変わらない
+  ok   断ると評判は変わらない(仕様7)
+  ok   断りはservings=0・declined=trueで記録される
+  ok   断りは判定されない(resultが空)
+  ok   下準備: offalは新鮮2・傷み2
+  ok   新鮮ボタンでは新鮮在庫数(2)が上限。傷みと合算した4にはならない
+  ok   肉団子6個を2枠で使うと達成可能人数は3(6÷2)
+  ok   鍋残量2が上限になる
+  ok   具材なしでも鍋律速の人数までは提供扱いになる
+  ok   名前あり客はis_mobでない
+  ok   名前あり客は[入力完了]1回で即座に進む(確認状態にならない)
+  ok   名前あり客は選んだ瞬間に在庫が減る(即時消費のまま)
+失敗数: 0 / 25件
+== res://tests/ingredient_pricing_test.gd ==
+  ok   winter_melon: 所持金が50だけ減る
+  ok   winter_melon: 在庫(winter_melon)が5個増える
+  ok   bitter_melon: 所持金が12だけ減る
+  ok   bitter_melon: 在庫(bitter_melon)が3個増える
+  ok   bitter_melon: 直近バッチの単価が4
+  ok   offal: 所持金が30だけ減る
+  ok   offal: 在庫(offal)が3個増える
+  ok   offal: 直近バッチの単価が10
+  ok   offal_single: 所持金が12だけ減る
+  ok   offal_single: 在庫(offal)が1個増える
+  ok   offal_single: 直近バッチの単価が12
+  ok   cartilage: 所持金が24だけ減る
+  ok   cartilage: 在庫(cartilage)が3個増える
+  ok   cartilage: 直近バッチの単価が8
+  ok   tendon_meat: 所持金が36だけ減る
+  ok   tendon_meat: 在庫(tendon_meat)が3個増える
+  ok   tendon_meat: 直近バッチの単価が12
+  ok   nam_prik_pao: 所持金が25だけ減る
+  ok   nam_prik_pao: 在庫(nam_prik_pao)が5個増える
+  ok   coconut_milk: 所持金が15だけ減る
+  ok   coconut_milk: 在庫(coconut_milk)が3個増える
+  ok   coconut_milk: 直近バッチの単価が5
+  ok   herbal_sauce: 所持金が25だけ減る
+  ok   herbal_sauce: 在庫(herbal_sauce)が5個増える
+  ok   pickled_lime: 所持金が20だけ減る
+  ok   pickled_lime: 在庫(pickled_lime)が5個増える
+  ok   dried_wood_ear: 所持金が50だけ減る
+  ok   dried_wood_ear: 在庫(dried_wood_ear)が5個増える
+  ok   tofu: 所持金が24だけ減る
+  ok   tofu: 在庫(tofu)が3個増える
+  ok   tofu: 直近バッチの単価が8
+  ok   rice_noodle: 所持金が40だけ減る
+  ok   rice_noodle: 在庫(rice_noodle)が5個増える
+  ok   shrimp: 所持金が54だけ減る
+  ok   shrimp: 在庫(shrimp)が3個増える
+  ok   shrimp: 直近バッチの単価が18
+  ok   shrimp_single: 所持金が20だけ減る
+  ok   shrimp_single: 在庫(shrimp)が1個増える
+  ok   shrimp_single: 直近バッチの単価が20
+  ok   clam: 所持金が48だけ減る
+  ok   clam: 在庫(clam)が3個増える
+  ok   clam: 直近バッチの単価が16
+  ok   fish_maw: 所持金が100だけ減る
+  ok   fish_maw: 在庫(fish_maw)が5個増える
+  ok   broken_wrapper: 所持金が18だけ減る
+  ok   broken_wrapper: 在庫(broken_wrapper)が3個増える
+  ok   broken_wrapper: 直近バッチの単価が6
+  ok   meat_ball: 所持金が24だけ減る
+  ok   meat_ball: 在庫(meat_ball)が3個増える
+  ok   meat_ball: 直近バッチの単価が8
+  ok   モツ：パック購入+小口購入で2つの別バッチになる
+  ok   モツ：1つ目のバッチは単価10・3個
+  ok   モツ：2つ目のバッチは単価12・1個
+  ok   モツ：在庫合計は4個
+  ok   モツ：同日・同単価のパック購入2回は1バッチに合算される
+  ok   モツ(パック購入)の廃棄額は実際に払った30円
+  ok   初期在庫(coconut_milk)は無料なので廃棄額0
+  ok   初期在庫(offal)は無料なので廃棄額0
+  ok   初期在庫(meat_ball)は無料なので廃棄額0
+  ok   初期在庫(tofu)は無料なので廃棄額0
+  ok   初期在庫(broken_wrapper)は無料なので廃棄額0
+  ok   初期在庫の腐る品目が少なくとも1つ検証できた(前提の崩れ検知)
+  ok   すじ肉1つでPOWER+BITEの要求2つに一致してGOODになる
+失敗数: 0 / 63件
+== res://tests/prep_tier_test.gd ==
+  ok   PREP_TIERSは3段階
+  ok   小仕込み: 80円8杯
+  ok   中仕込み: 110円11杯
+  ok   大仕込み: 140円14杯
+  ok   small: PREP_TIERで止まる
+  ok   small: 所持金が80だけ減る
+  ok   small: 鍋残量が8杯
+  ok   small: 濃さは3スタート
+  ok   medium: PREP_TIERで止まる
+  ok   medium: 所持金が110だけ減る
+  ok   medium: 鍋残量が11杯
+  ok   medium: 濃さは3スタート
+  ok   large: PREP_TIERで止まる
+  ok   large: 所持金が140だけ減る
+  ok   large: 鍋残量が14杯
+  ok   large: 濃さは3スタート
+  ok   所持金50(<80)ではPREP_TIERが出ない
+  ok   端材屋ルート: 支払い無し
+  ok   端材屋ルート: 杯数は小仕込みと同じ8
+  ok   端材屋ルート: 濃さ1スタート
+  ok   所持金不足の段階を選んでも所持金・進行が変わらない
+  ok   small: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)
+  ok   small: 明け方の自動+1を挟めば水を2回使い切れ、残量は12杯
+  ok   medium: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)
+  ok   medium: 明け方の自動+1を挟めば水を2回使い切れ、残量は15杯
+  ok   large: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)
+  ok   large: 明け方の自動+1を挟めば水を2回使い切れ、残量は18杯
+  ok   small: prep_after_tier_eventsの先頭はTEXT
+  ok   small: 末尾はSET_SOUPでservingsが一致
+  ok   medium: prep_after_tier_eventsの先頭はTEXT
+  ok   medium: 末尾はSET_SOUPでservingsが一致
+  ok   large: prep_after_tier_eventsの先頭はTEXT
+  ok   large: 末尾はSET_SOUPでservingsが一致
+  ok   Day2: MARKETより前に会話がある(officer talk挿入)
+  ok   prep_eventsの先頭に破棄の一言が入る(既存動作の回帰)
+  ok   その後、食肉売場のTEXT→PREP_TIER(3段階選択)の順で並ぶ
+失敗数: 0 / 36件
+== res://tests/reputation_demand_test.gd ==
+BALANCE_LOG: day=1 money=600→520 rep=30→48(Q=42.0) cups=0/0(計画0) 売上=0 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 1, "GOOD": 1, "OK": 1, "BAD": 1, "": 0 }
+  ok   評判はround(現評判*0.7+Q*0.3)どおりに閉店時1回だけ動く
+BALANCE_LOG: day=1 money=600→520 rep=30→35(Q=0.0) cups=0/0(計画0) 売上=0 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
+  ok   判定対象0杯ならQ=0とみなし、評判はround(50*0.7)=35になる
+  ok   _quality_scoreは分母0のとき例外を出さず0.0を返す
+  ok   空文字キー(judge:false)はQの計算から除外される
+  ok   Day1のjudged_planned_cupsは12
+  ok   planned_cupsとjudged_planned_cupsの差はちょうど1(配達員3杯目のみ)
+  ok   名前あり客を提供した直後も評判は朝の値のまま(閉店時に一括確定)
+  ok   Day1のtotal_demand_todayは常に9
+  ok   評判100は中心17±1の範囲(実測16)
+  ok   評判71は中心17±1の範囲(実測18)
+  ok   評判70は中心14±1の範囲(実測14)
+  ok   評判60は中心14±1の範囲(実測15)
+  ok   評判59は中心11±1の範囲(実測11)
+  ok   評判45は中心11±1の範囲(実測12)
+  ok   評判44は中心9±1の範囲(実測10)
+  ok   評判20は中心9±1の範囲(実測8)
+  ok   評判19は中心7±1の範囲(実測7)
+  ok   評判0は中心7±1の範囲(実測8)
+  ok   評判90: 中心値の比率がおよそ50%(実測0.492)
+  ok   評判90: 中心-1の比率がおよそ25%(実測0.259)
+  ok   評判90: 中心+1の比率がおよそ25%(実測0.249)
+  ok   評判65: 中心値の比率がおよそ50%(実測0.501)
+  ok   評判65: 中心-1の比率がおよそ25%(実測0.253)
+  ok   評判65: 中心+1の比率がおよそ25%(実測0.246)
+  ok   評判50: 中心値の比率がおよそ50%(実測0.494)
+  ok   評判50: 中心-1の比率がおよそ25%(実測0.256)
+  ok   評判50: 中心+1の比率がおよそ25%(実測0.251)
+  ok   評判30: 中心値の比率がおよそ50%(実測0.485)
+  ok   評判30: 中心-1の比率がおよそ25%(実測0.272)
+  ok   評判30: 中心+1の比率がおよそ25%(実測0.242)
+  ok   評判10: 中心値の比率がおよそ50%(実測0.500)
+  ok   評判10: 中心-1の比率がおよそ25%(実測0.259)
+  ok   評判10: 中心+1の比率がおよそ25%(実測0.241)
+  ok   _customer_total_servingsは配達員Day1で3
+  ok   _customer_total_servingsはthugで1
+  ok   1組(mob_cups=4)は夜半(index1)のみ
+  ok   2組(mob_cups=8)は宵の口(index0)+夜半(index1)
+  ok   3組(mob_cups=11)は宵4夜4明3(大きい組から)
+  ok   4組(mob_cups=16)は宵2(4+4)・夜半1(4)・明け方1(4)
+  ok   mob_cups=0なら組は無い
+  ok   明け方がモブなしの日、3組目(mob_cups=11)は夜半へ振り替わる
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測13)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測15)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day2: 3枠とも客がいる(自動抽選)
+  ok   Day2(評判65)の総杯数が中心14±1の範囲(実測14)
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7の明け方はgranny固定でモブが入らない
+  ok   Day7(高評判)は明け方の分が夜半へ振り替わり2組になることがある
+  ok   デバッグ上書きは総需要システムをバイパスし、全モブ枠に一律適用される
+失敗数: 0 / 193件
+== res://tests/schedule_test.gd ==
+  ok   day_schedule(1)にslotsがある
+  ok   day_schedule(8)はday_schedule(1)へフォールバック(未定義日)
+  ok   day_schedule(1)にslotsがある
+  ok   day_schedule(2)にslotsがある
+  ok   day_schedule(3)にslotsがある
+  ok   day_schedule(4)にslotsがある
+  ok   day_schedule(5)にslotsがある
+  ok   day_schedule(6)にslotsがある
+  ok   day_schedule(7)にslotsがある
+  ok   Day2は3枠に増えた(夜半・明け方が復活)
+  ok   thugのfavorite/wanted_tagsが読める
+  ok   thugのDay3はDay1へフォールバック(thug.jsonはDay1分のみ)
+  ok   thugの反応文にGREATキーがある
+  ok   delivery_manのfavorite/wanted_tagsはトップレベルに持つ
+  ok   delivery_manは2日目以降ぶんの通常フローデータ(greet/reactions/servings)も持つ
+  ok   officerはDay2のデータを持つ(favoriteは実データのまま)
+  ok   officerのDay3ぶんが読める(未設定なら1へフォールバックでも可)
+  ok   officerのDay4ぶんが読める(未設定なら1へフォールバックでも可)
+  ok   officerのDay5ぶんが読める(未設定なら1へフォールバックでも可)
+  ok   officerのDay6ぶんが読める(未設定なら1へフォールバックでも可)
+  ok   officerのDay7ぶんが読める(未設定なら1へフォールバックでも可)
+  ok   hookerのDay3ぶんが読める
+  ok   hookerのDay4ぶんが読める
+  ok   hookerのDay5ぶんが読める
+  ok   hookerのDay6ぶんが読める
+  ok   hookerのDay7ぶんが読める
+  ok   streamerのDay4ぶんが読める
+  ok   streamerのDay5ぶんが読める
+  ok   streamerのDay6ぶんが読める
+  ok   streamerのDay7ぶんが読める
+ERROR: ScheduleData: file not found: res://data/customers/no_such_customer_xyz.json
+   at: push_error (core/variant/variant_utility.cpp:1098)
+  ok   存在しない客idは空辞書
+  ok   main抽選プール: 除外したidは選ばれない
+  ok   main抽選プール: 残りの候補から選ばれる
+  ok   main指定はプールより優先
+  ok   main抽選プール枯渇時は選び直す(クラッシュしない)
+  ok   モブ抽選プール: 4種すべて出うる(重複除外なし)
+  ok   mob:trueは常にdock_workers
+  ok   mob:falseはモブなし
+  ok   mob無指定もモブなし
+  ok   デバッグ上書きの人数がそのまま入る
+  ok   _pick_mobの自動フォールバックはDAY1_MOB_COUNTを返す(評判に関わらず)
+  ok   Day1宵の口: 配達員+dock_workers(mob:true固定)
+  ok   Day1夜半: チンピラ+モブのインスタンスid
+  ok   Day1明け方: 老婆のみ(モブなし)
+  ok   Day1: モブ人数を0で上書きすると全枠モブなし
+  ok   Day1夜半のモブ種類は複数出うる(dock_workers固定ではなくなった)
+  ok   Day1宵の口のモブは常にdock_workers(mob:true)
+  ok   デバッグ上書き時は全モブ枠の人数が2で揃う
+  ok   デバッグ上書き中も種類はばらつく
+  ok   Day2: 3枠とも客がいる
+  ok   Day2宵の口はofficer固定
+  ok   Day2夜半・明け方はgranny/thug/delivery_manのいずれか
+  ok   モブのインスタンスidはis_mob_customerでtrue
+  ok   非モブ(thug)はis_mob_customerでfalse
+  ok   モブのflavorはfavoriteを持たない
+  ok   モブのservingsはインスタンスの人数と一致
+  ok   customer_events()がモブの会話を組み立てる
+  ok   %dを含む行は人数が埋め込まれる
+  ok   %dを含まない行はそのまま
+  ok   customer_flavor(モブ)のgreetにも同じ書式が適用される
+失敗数: 0 / 60件
+== res://tests/soup_strength_test.gd ==
+  ok   濃さ2から水1回で濃さ0
+  ok   濃さ2から水1回で残量+2(12杯)
+  ok   濃さ0ではもう水を足せない
+  ok   濃さ0・だしありでcan_add_dashiはtrue
+  ok   濃さ0からだし1回で濃さ2
+  ok   だしを使うとdashi_unitsが減る
+  ok   濃さ3+2=5は上限以内なのでcan_add_dashiはtrue
+  ok   1回目のだしで濃さ5になる
+  ok   濃さ5+2=7は上限超えなのでcan_add_dashiはfalse
+  ok   上限超えのadd_dashiは何もしない(濃さ・在庫とも不変)
+  ok   濃さ0のADJUST中は_is_strength_zero_in_adjustがtrue
+  ok   濃さ0・だし無しでは_can_close_nowが有効(ADJUST中から)
+  ok   濃さ0では判定が成立せずservedが増えない(保留に落ちる)
+  ok   濃さ0で保留に落ちた後も_can_close_nowが有効(_pending_shortage_ev経由)
+  ok   だしを入れると濃さが回復する(0→2)
+  ok   濃さ回復後は保留が解決してservedが増える
+  ok   濃さ0のモブは達成可能人数が0になる(具材・残量は十分でも)
+ERROR: ScheduleData: file not found: res://data/customers/dummy2.json
+   at: push_error (core/variant/variant_utility.cpp:1098)
+  ok   宵の口->夜半では濃さは変わらない
+ERROR: ScheduleData: file not found: res://data/customers/dummy3.json
+   at: push_error (core/variant/variant_utility.cpp:1098)
+  ok   夜半->明け方（最後の枠）で濃さ+1
+  ok   全枠さばき終えた後は濃さが変わらない(2回目の+1は起きない)
+  ok   濃縮だし購入で所持金が16減る
+  ok   濃縮だし購入でdashi_unitsが1増える
+  ok   濃縮だしは1周1回の制限が無く、何度でも買える
+  ok   dashi_unitsはreset_for_new_dayでは変化しない(日をまたいで持ち越す)
+  ok   dashi_unitsは新しい周回(reset_for_new_game)で0に戻る
+  ok   濃さ0で鍋モードに入った直後は_pot_locked_until_dashiがtrue
+  ok   だしを持っていなければ、ロック中でも[戻る]は塞がれない(出口は必ずある)
+  ok   だしを持っていれば、[戻る]はだしを入れるまで塞がれる
+  ok   だしを入れるとロックが解ける
+失敗数: 0 / 29件
+== res://tests/upkeep_test.gd ==
+  ok   RENT_PRICEは90
+  ok   WATER_PRICEは50
+  ok   DAILY_OPERATING_COSTは80
+  ok   場所代+水道代の合計は140
+  ok   Day1のWAKEで日々の運営費が引かれる(300-80=220)
+  ok   Day2のWAKEでも日々の運営費が引かれる(300-80=220)
+  ok   スキップ前の時点で既に220円に減っている
+  ok   [次のPhase]で即座にWAKEを抜けても運営費は二重に引かれない・戻らない
+  ok   WAKE後の所持金は150-80=70
+  ok   運営費差し引き後(70<80)なので端材屋ルートになる
+  ok   運営費(80)未満ならゲームオーバーになる
+  ok   支払えなかったので所持金は変化しない
+  ok   ゲームオーバー理由が水道代・場所代と同じ形式(必要額・所持額を含む)
+  ok   Day1のチンピラPAYは場所代90
+  ok   Day2はチンピラPAYが出ない(is_collection_dayでない)
+  ok   Day1の水道代は50
+  ok   Day2は水道代を払わない(is_collection_dayでない)
+  ok   未払いのまま閉店すると場所代90が特別請求される
+  ok   特別請求後はrent_paid_todayがtrueになる
+  ok   理由テキストに場所代を払った旨が追記される
+  ok   非徴収日のWAKE直後は支払い予定80のみ
+  ok   非徴収日：市場を出ると支払い予定が0になる
+  ok   非徴収日は水道代が発生しないので市場を出てもmoneyは動かない
+  ok   徴収日のWAKE直後は支払い予定80+90=170
+  ok   徴収日：市場を出ると支払い予定は場所代ぶんの90だけ残る
+  ok   場所代を払うと支払い予定が0になる
+  ok   MARKETの直後に市場を出た旨のTEXTが入る
+  ok   支払い予定がある間はmoney行に注記が出る
+  ok   市場を出た後は注記が90に更新される
+  ok   支払い予定が0になると注記自体が消える
+失敗数: 0 / 30件
+合計失敗数: 0

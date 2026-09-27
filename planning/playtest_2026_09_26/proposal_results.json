@@ -1,0 +1,483 @@
+{
+  "scope": "Independent design model: fixed 7-day schedule, 9 cups Day1, paid starter210, no free starting stock, announced groups with count ranges; not the shipped game.",
+  "seeds": 1000,
+  "settings": {
+    "recommended": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0
+    },
+    "bad_refund": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "badRefund": true
+    },
+    "fee70": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "fee": 70
+    },
+    "fee90": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "fee": 90
+    },
+    "fee100": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "fee": 100
+    },
+    "price40": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "price": 40
+    },
+    "price50": {
+      "single": true,
+      "partial": true,
+      "topThreshold": 71,
+      "starterOffal": 0,
+      "price": 50
+    }
+  },
+  "policies": {
+    "good": {},
+    "eight": {
+      "great": true,
+      "learn": true,
+      "greatLimit": 8
+    },
+    "nine": {
+      "great": true,
+      "learn": true,
+      "greatLimit": 9
+    },
+    "favorites": {
+      "great": true,
+      "learn": true
+    },
+    "mean": {
+      "forecast": "mean"
+    },
+    "preserve": {
+      "preserve": true
+    },
+    "two_bad": {
+      "mistakes": true
+    },
+    "refuse": {
+      "refusal": true
+    },
+    "low_rep": {
+      "repShockDay2": 10
+    },
+    "overbuy": {
+      "overbuy": true
+    }
+  },
+  "results": [
+    {
+      "setting": "recommended",
+      "policy": "good",
+      "cash": 1626.701,
+      "p10": 1514,
+      "p90": 1732,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 0.915,
+      "cash1600": 0.628,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "eight",
+      "cash": 1649.231,
+      "p10": 1542,
+      "p90": 1754,
+      "rep": 73,
+      "served": 89.279,
+      "spoil": 52.563,
+      "goodRate": 1,
+      "cash1500": 0.958,
+      "cash1600": 0.72,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "nine",
+      "cash": 1675.849,
+      "p10": 1569,
+      "p90": 1782,
+      "rep": 73.255,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 0.973,
+      "cash1600": 0.812,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "favorites",
+      "cash": 1605.451,
+      "p10": 1499,
+      "p90": 1709,
+      "rep": 75.808,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 0.897,
+      "cash1600": 0.554,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "mean",
+      "cash": 1627.449,
+      "p10": 1517,
+      "p90": 1735,
+      "rep": 71.143,
+      "served": 83.978,
+      "spoil": 55.241,
+      "goodRate": 0.9914874659307058,
+      "cash1500": 0.935,
+      "cash1600": 0.641,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "preserve",
+      "cash": 1442.017,
+      "p10": 1334,
+      "p90": 1541,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 49.651,
+      "goodRate": 1,
+      "cash1500": 0.258,
+      "cash1600": 0.019,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "two_bad",
+      "cash": 1495.218,
+      "p10": 1379,
+      "p90": 1604,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0.492,
+      "cash1600": 0.112,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "refuse",
+      "cash": 1385.239,
+      "p10": 1252,
+      "p90": 1528,
+      "rep": 69.242,
+      "served": 75.951,
+      "spoil": 82.435,
+      "goodRate": 0.9526888576007149,
+      "cash1500": 0.142,
+      "cash1600": 0.024,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "low_rep",
+      "cash": 1324.92,
+      "p10": 1216,
+      "p90": 1430,
+      "rep": 68,
+      "served": 72.983,
+      "spoil": 69.931,
+      "goodRate": 1,
+      "cash1500": 0.011,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "recommended",
+      "policy": "overbuy",
+      "cash": 644.861,
+      "p10": 596,
+      "p90": 691,
+      "rep": 71.994,
+      "served": 84.972,
+      "spoil": 229.167,
+      "goodRate": 0.9999027078762851,
+      "cash1500": 0,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "bad_refund",
+      "policy": "good",
+      "cash": 1626.701,
+      "p10": 1514,
+      "p90": 1732,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 0.915,
+      "cash1600": 0.628,
+      "bankrupt": 0
+    },
+    {
+      "setting": "bad_refund",
+      "policy": "favorites",
+      "cash": 1605.451,
+      "p10": 1499,
+      "p90": 1709,
+      "rep": 75.808,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 0.897,
+      "cash1600": 0.554,
+      "bankrupt": 0
+    },
+    {
+      "setting": "bad_refund",
+      "policy": "two_bad",
+      "cash": 1281.513,
+      "p10": 1159,
+      "p90": 1401,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0.006,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee70",
+      "policy": "good",
+      "cash": 1696.701,
+      "p10": 1584,
+      "p90": 1802,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 0.977,
+      "cash1600": 0.876,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee70",
+      "policy": "favorites",
+      "cash": 1675.451,
+      "p10": 1569,
+      "p90": 1779,
+      "rep": 75.808,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 0.97,
+      "cash1600": 0.807,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee70",
+      "policy": "two_bad",
+      "cash": 1565.218,
+      "p10": 1449,
+      "p90": 1674,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0.782,
+      "cash1600": 0.368,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee90",
+      "policy": "good",
+      "cash": 1556.701,
+      "p10": 1444,
+      "p90": 1662,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 0.76,
+      "cash1600": 0.325,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee90",
+      "policy": "favorites",
+      "cash": 1535.451,
+      "p10": 1429,
+      "p90": 1639,
+      "rep": 75.808,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 0.662,
+      "cash1600": 0.238,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee90",
+      "policy": "two_bad",
+      "cash": 1425.218,
+      "p10": 1309,
+      "p90": 1534,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0.206,
+      "cash1600": 0.016,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee100",
+      "policy": "good",
+      "cash": 1486.701,
+      "p10": 1374,
+      "p90": 1592,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 0.454,
+      "cash1600": 0.085,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee100",
+      "policy": "favorites",
+      "cash": 1465.355,
+      "p10": 1359,
+      "p90": 1569,
+      "rep": 75.806,
+      "served": 90.977,
+      "spoil": 52.139,
+      "goodRate": 0.9999659090909091,
+      "cash1500": 0.37,
+      "cash1600": 0.051,
+      "bankrupt": 0
+    },
+    {
+      "setting": "fee100",
+      "policy": "two_bad",
+      "cash": 1355.218,
+      "p10": 1239,
+      "p90": 1464,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0.042,
+      "cash1600": 0.001,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price40",
+      "policy": "good",
+      "cash": 1201.761,
+      "p10": 1092,
+      "p90": 1302,
+      "rep": 71.998,
+      "served": 84.98,
+      "spoil": 56.995,
+      "goodRate": 0.999964705882353,
+      "cash1500": 0,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price40",
+      "policy": "favorites",
+      "cash": 1150.16,
+      "p10": 1050,
+      "p90": 1249,
+      "rep": 75.801,
+      "served": 90.959,
+      "spoil": 52.139,
+      "goodRate": 0.999896673120659,
+      "cash1500": 0,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price40",
+      "policy": "two_bad",
+      "cash": 1100.303,
+      "p10": 987,
+      "p90": 1204,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 0,
+      "cash1600": 0,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price50",
+      "policy": "good",
+      "cash": 2051.616,
+      "p10": 1932,
+      "p90": 2162,
+      "rep": 72,
+      "served": 84.983,
+      "spoil": 56.995,
+      "goodRate": 1,
+      "cash1500": 1,
+      "cash1600": 1,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price50",
+      "policy": "favorites",
+      "cash": 2060.366,
+      "p10": 1947,
+      "p90": 2171,
+      "rep": 75.808,
+      "served": 90.983,
+      "spoil": 52.139,
+      "goodRate": 1,
+      "cash1500": 1,
+      "cash1600": 1,
+      "bankrupt": 0
+    },
+    {
+      "setting": "price50",
+      "policy": "two_bad",
+      "cash": 1890.133,
+      "p10": 1766,
+      "p90": 2003,
+      "rep": 68.251,
+      "served": 78.983,
+      "spoil": 59.134,
+      "goodRate": 0.9398088183320816,
+      "cash1500": 1,
+      "cash1600": 0.997,
+      "bankrupt": 0
+    }
+  ]
+}

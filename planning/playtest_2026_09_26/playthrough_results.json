@@ -1,0 +1,1551 @@
+{
+	"commit": "ed75f77",
+	"engine": {
+		"build": "official",
+		"hash": "49a5bc7b616bd04689a2c89e89bda41f50241464",
+		"hex": 263169,
+		"major": 4,
+		"minor": 4,
+		"patch": 1,
+		"status": "stable",
+		"string": "4.4.1-stable (official)",
+		"timestamp": 0
+	},
+	"policies": [
+		"band_good",
+		"band_favorites",
+		"always_small",
+		"always_large",
+		"power_only",
+		"bare_broth"
+	],
+	"runs": [
+		{
+			"actions": {
+				"confirm": 39,
+				"dashi": 2,
+				"group_choice": 16,
+				"ingredient": 66,
+				"market_exit": 7,
+				"next_text_event": 190,
+				"pot_back": 6,
+				"pot_open": 6,
+				"prep": 7,
+				"purchase": 40,
+				"shop_enter": 27,
+				"shop_exit": 21,
+				"water": 7
+			},
+			"cash": 1404,
+			"clicks": 434,
+			"closing_stock_units": {
+				"cartilage": 2,
+				"coconut_milk": 1,
+				"herbal_sauce": 4,
+				"meat_ball": 18,
+				"nam_prik_pao": 10,
+				"pickled_lime": 2
+			},
+			"completed": true,
+			"dashi": 2,
+			"incidents": [],
+			"policy": "band_good",
+			"purchases": 876,
+			"rep": 51,
+			"rows": [
+				{
+					"actions_cumulative": 60,
+					"cash": 810,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 0,
+						"GOOD": 8,
+						"GREAT": 0,
+						"OK": 3
+					},
+					"next_rep": 39,
+					"open_rep": 30,
+					"quality": 58.75,
+					"sales": 540,
+					"served": 12,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 4,
+						"coconut_milk": 5,
+						"herbal_sauce": 9,
+						"nam_prik_pao": 4,
+						"offal": 4
+					},
+					"unserved": 1,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 126,
+					"cash": 857,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 42,
+					"open_rep": 39,
+					"quality": 50.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 4,
+						"herbal_sauce": 8,
+						"meat_ball": 6,
+						"nam_prik_pao": 11,
+						"offal": 4,
+						"pickled_lime": 1,
+						"tofu": 2
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 174,
+					"cash": 931,
+					"dashi": 0,
+					"day": 3,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 4,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 39,
+					"open_rep": 42,
+					"quality": 33.3333333333333,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 7,
+						"herbal_sauce": 7,
+						"meat_ball": 11,
+						"nam_prik_pao": 7,
+						"offal": 4,
+						"tofu": 2
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 240,
+					"cash": 1062,
+					"dashi": 1,
+					"day": 4,
+					"demand": 10,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 10,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 50,
+					"open_rep": 39,
+					"quality": 75.0,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 2,
+						"cartilage": 4,
+						"coconut_milk": 2,
+						"herbal_sauce": 6,
+						"meat_ball": 9,
+						"nam_prik_pao": 4,
+						"pickled_lime": 5,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 307,
+					"cash": 1199,
+					"dashi": 1,
+					"day": 5,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 4,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 46,
+					"open_rep": 50,
+					"quality": 37.5,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 2,
+					"spoiled_value": 72,
+					"stock": {
+						"coconut_milk": 4,
+						"herbal_sauce": 1,
+						"meat_ball": 12,
+						"nam_prik_pao": 11,
+						"pickled_lime": 5,
+						"tofu": 2
+					},
+					"unserved": 2,
+					"water": 2
+				},
+				{
+					"actions_cumulative": 373,
+					"cash": 1313,
+					"dashi": 0,
+					"day": 6,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 5,
+						"GREAT": 0,
+						"OK": 3
+					},
+					"next_rep": 44,
+					"open_rep": 46,
+					"quality": 40.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 10,
+					"stock": {
+						"meat_ball": 15,
+						"nam_prik_pao": 16,
+						"pickled_lime": 2,
+						"tofu": 3
+					},
+					"unserved": 3,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 434,
+					"cash": 1404,
+					"dashi": 0,
+					"day": 7,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 8,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 51,
+					"open_rep": 44,
+					"quality": 66.6666666666667,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 40,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 1,
+						"herbal_sauce": 4,
+						"meat_ball": 18,
+						"nam_prik_pao": 10,
+						"pickled_lime": 2
+					},
+					"unserved": 0,
+					"water": 1
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 278
+		},
+		{
+			"actions": {
+				"confirm": 40,
+				"dashi": 2,
+				"group_choice": 17,
+				"ingredient": 90,
+				"market_exit": 7,
+				"next_text_event": 192,
+				"pot_back": 8,
+				"pot_open": 8,
+				"prep": 7,
+				"purchase": 53,
+				"shop_enter": 36,
+				"shop_exit": 30,
+				"water": 8
+			},
+			"cash": 1238,
+			"clicks": 498,
+			"closing_stock_units": {
+				"broken_wrapper": 2,
+				"cartilage": 2,
+				"coconut_milk": 1,
+				"herbal_sauce": 4,
+				"meat_ball": 12,
+				"nam_prik_pao": 8,
+				"offal": 1,
+				"pickled_lime": 6,
+				"shrimp": 1,
+				"tofu": 1
+			},
+			"completed": true,
+			"dashi": 1,
+			"incidents": [],
+			"policy": "band_favorites",
+			"purchases": 1132,
+			"rep": 65,
+			"rows": [
+				{
+					"actions_cumulative": 60,
+					"cash": 810,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 0,
+						"GOOD": 8,
+						"GREAT": 0,
+						"OK": 3
+					},
+					"next_rep": 39,
+					"open_rep": 30,
+					"quality": 58.75,
+					"sales": 540,
+					"served": 12,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 4,
+						"coconut_milk": 5,
+						"herbal_sauce": 9,
+						"nam_prik_pao": 4,
+						"offal": 4
+					},
+					"unserved": 1,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 128,
+					"cash": 857,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 4,
+						"GREAT": 2,
+						"OK": 0
+					},
+					"next_rep": 44,
+					"open_rep": 39,
+					"quality": 55.5555555555556,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 4,
+						"herbal_sauce": 8,
+						"meat_ball": 5,
+						"nam_prik_pao": 11,
+						"offal": 3,
+						"pickled_lime": 1,
+						"tofu": 2
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 187,
+					"cash": 867,
+					"dashi": 0,
+					"day": 3,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 4,
+						"GREAT": 2,
+						"OK": 0
+					},
+					"next_rep": 47,
+					"open_rep": 44,
+					"quality": 55.5555555555556,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 7,
+						"herbal_sauce": 7,
+						"meat_ball": 10,
+						"nam_prik_pao": 7,
+						"offal": 4,
+						"rice_noodle": 3,
+						"tofu": 1
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 266,
+					"cash": 1031,
+					"dashi": 1,
+					"day": 4,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 9,
+						"GREAT": 2,
+						"OK": 0
+					},
+					"next_rep": 55,
+					"open_rep": 47,
+					"quality": 72.9166666666667,
+					"sales": 495,
+					"served": 11,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 2,
+						"cartilage": 4,
+						"herbal_sauce": 6,
+						"meat_ball": 9,
+						"nam_prik_pao": 5,
+						"offal": 1,
+						"pickled_lime": 5,
+						"rice_noodle": 3,
+						"tofu": 1
+					},
+					"unserved": 1,
+					"water": 2
+				},
+				{
+					"actions_cumulative": 345,
+					"cash": 1071,
+					"dashi": 0,
+					"day": 5,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 7,
+						"GREAT": 2,
+						"OK": 0
+					},
+					"next_rep": 57,
+					"open_rep": 55,
+					"quality": 60.4166666666667,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 56,
+					"stock": {
+						"broken_wrapper": 2,
+						"coconut_milk": 2,
+						"herbal_sauce": 3,
+						"meat_ball": 9,
+						"nam_prik_pao": 11,
+						"offal": 2,
+						"pickled_lime": 4,
+						"tofu": 1
+					},
+					"unserved": 3,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 423,
+					"cash": 1085,
+					"dashi": 0,
+					"day": 6,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 7,
+						"GREAT": 2,
+						"OK": 0
+					},
+					"next_rep": 58,
+					"open_rep": 57,
+					"quality": 60.4166666666667,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 2,
+						"meat_ball": 14,
+						"nam_prik_pao": 16,
+						"offal": 2,
+						"pickled_lime": 1,
+						"rice_noodle": 4,
+						"shrimp": 1,
+						"tofu": 2
+					},
+					"unserved": 3,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 498,
+					"cash": 1238,
+					"dashi": 1,
+					"day": 7,
+					"demand": 11,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 8,
+						"GREAT": 3,
+						"OK": 0
+					},
+					"next_rep": 65,
+					"open_rep": 58,
+					"quality": 81.8181818181818,
+					"sales": 495,
+					"served": 11,
+					"soup_left": 1,
+					"spoiled_value": 48,
+					"stock": {
+						"broken_wrapper": 2,
+						"cartilage": 2,
+						"coconut_milk": 1,
+						"herbal_sauce": 4,
+						"meat_ball": 12,
+						"nam_prik_pao": 8,
+						"offal": 1,
+						"pickled_lime": 6,
+						"shrimp": 1,
+						"tofu": 1
+					},
+					"unserved": 0,
+					"water": 2
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 281
+		},
+		{
+			"actions": {
+				"close": 1,
+				"confirm": 38,
+				"dashi": 3,
+				"group_choice": 16,
+				"ingredient": 66,
+				"market_exit": 7,
+				"next_text_event": 189,
+				"pot_back": 6,
+				"pot_open": 6,
+				"prep": 7,
+				"purchase": 38,
+				"shop_enter": 24,
+				"shop_exit": 18,
+				"water": 7
+			},
+			"cash": 1303,
+			"clicks": 426,
+			"closing_stock_units": {
+				"coconut_milk": 1,
+				"herbal_sauce": 4,
+				"meat_ball": 17,
+				"nam_prik_pao": 6,
+				"pickled_lime": 2,
+				"tofu": 2
+			},
+			"completed": true,
+			"dashi": 1,
+			"incidents": [
+				{
+					"dashi": 0,
+					"day": 1,
+					"soup": {
+						"base_id": "bone_broth",
+						"remaining_servings": 2,
+						"strength": 0,
+						"tags": [
+							"meaty"
+						],
+						"water_doses": 0
+					},
+					"type": "forced_close"
+				}
+			],
+			"policy": "always_small",
+			"purchases": 827,
+			"rep": 50,
+			"rows": [
+				{
+					"actions_cumulative": 60,
+					"cash": 750,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 0,
+						"GOOD": 7,
+						"GREAT": 0,
+						"OK": 2
+					},
+					"next_rep": 36,
+					"open_rep": 30,
+					"quality": 49.5833333333333,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 2,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 6,
+						"herbal_sauce": 10,
+						"nam_prik_pao": 4,
+						"offal": 4,
+						"tofu": 1
+					},
+					"unserved": 3,
+					"water": 2
+				},
+				{
+					"actions_cumulative": 121,
+					"cash": 731,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 7,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 43,
+					"open_rep": 36,
+					"quality": 58.3333333333333,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 5,
+						"herbal_sauce": 9,
+						"meat_ball": 6,
+						"nam_prik_pao": 13,
+						"offal": 4,
+						"pickled_lime": 1
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 172,
+					"cash": 781,
+					"dashi": 0,
+					"day": 3,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 4,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 40,
+					"open_rep": 43,
+					"quality": 33.3333333333333,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 8,
+						"herbal_sauce": 8,
+						"meat_ball": 11,
+						"nam_prik_pao": 9,
+						"offal": 4,
+						"tofu": 3
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 235,
+					"cash": 936,
+					"dashi": 1,
+					"day": 4,
+					"demand": 10,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 10,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 51,
+					"open_rep": 40,
+					"quality": 75.0,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 2,
+						"cartilage": 4,
+						"coconut_milk": 2,
+						"herbal_sauce": 7,
+						"meat_ball": 9,
+						"nam_prik_pao": 6,
+						"pickled_lime": 5,
+						"tofu": 3
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 305,
+					"cash": 1049,
+					"dashi": 1,
+					"day": 5,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 4,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 47,
+					"open_rep": 51,
+					"quality": 37.5,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 2,
+					"spoiled_value": 56,
+					"stock": {
+						"coconut_milk": 4,
+						"herbal_sauce": 2,
+						"meat_ball": 12,
+						"nam_prik_pao": 13,
+						"pickled_lime": 5,
+						"tofu": 5
+					},
+					"unserved": 2,
+					"water": 2
+				},
+				{
+					"actions_cumulative": 364,
+					"cash": 1167,
+					"dashi": 0,
+					"day": 6,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 1
+					},
+					"next_rep": 45,
+					"open_rep": 47,
+					"quality": 40.4166666666667,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 2,
+					"spoiled_value": 34,
+					"stock": {
+						"cartilage": 1,
+						"meat_ball": 15,
+						"nam_prik_pao": 13,
+						"pickled_lime": 2
+					},
+					"unserved": 4,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 426,
+					"cash": 1303,
+					"dashi": 1,
+					"day": 7,
+					"demand": 11,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 9,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 50,
+					"open_rep": 45,
+					"quality": 61.3636363636364,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 0,
+					"spoiled_value": 24,
+					"stock": {
+						"coconut_milk": 1,
+						"herbal_sauce": 4,
+						"meat_ball": 17,
+						"nam_prik_pao": 6,
+						"pickled_lime": 2,
+						"tofu": 2
+					},
+					"unserved": 1,
+					"water": 1
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 276
+		},
+		{
+			"actions": {
+				"confirm": 39,
+				"group_choice": 16,
+				"ingredient": 66,
+				"market_exit": 7,
+				"next_text_event": 190,
+				"prep": 7,
+				"purchase": 38,
+				"shop_enter": 26,
+				"shop_exit": 20
+			},
+			"cash": 1091,
+			"clicks": 409,
+			"closing_stock_units": {
+				"cartilage": 2,
+				"coconut_milk": 1,
+				"herbal_sauce": 4,
+				"meat_ball": 17,
+				"nam_prik_pao": 9,
+				"pickled_lime": 2
+			},
+			"completed": true,
+			"dashi": 2,
+			"incidents": [],
+			"policy": "always_large",
+			"purchases": 844,
+			"rep": 50,
+			"rows": [
+				{
+					"actions_cumulative": 57,
+					"cash": 780,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 0,
+						"GOOD": 11,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 42,
+					"open_rep": 30,
+					"quality": 68.75,
+					"sales": 540,
+					"served": 12,
+					"soup_left": 2,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 4,
+						"coconut_milk": 5,
+						"herbal_sauce": 9,
+						"nam_prik_pao": 4,
+						"offal": 4
+					},
+					"unserved": 1,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 120,
+					"cash": 767,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 44,
+					"open_rep": 42,
+					"quality": 50.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 5,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 4,
+						"herbal_sauce": 8,
+						"meat_ball": 6,
+						"nam_prik_pao": 11,
+						"offal": 4,
+						"pickled_lime": 1,
+						"tofu": 2
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 168,
+					"cash": 781,
+					"dashi": 0,
+					"day": 3,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 4,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 41,
+					"open_rep": 44,
+					"quality": 33.3333333333333,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 7,
+					"spoiled_value": 0,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 7,
+						"herbal_sauce": 7,
+						"meat_ball": 11,
+						"nam_prik_pao": 7,
+						"offal": 4,
+						"tofu": 2
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 230,
+					"cash": 852,
+					"dashi": 0,
+					"day": 4,
+					"demand": 10,
+					"grades": {
+						"": 0,
+						"BAD": 0,
+						"GOOD": 10,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 51,
+					"open_rep": 41,
+					"quality": 75.0,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 4,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 2,
+						"cartilage": 4,
+						"coconut_milk": 2,
+						"herbal_sauce": 6,
+						"meat_ball": 9,
+						"nam_prik_pao": 4,
+						"pickled_lime": 5,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 289,
+					"cash": 945,
+					"dashi": 0,
+					"day": 5,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 4,
+						"GOOD": 6,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 47,
+					"open_rep": 51,
+					"quality": 37.5,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 4,
+					"spoiled_value": 72,
+					"stock": {
+						"coconut_milk": 4,
+						"herbal_sauce": 1,
+						"meat_ball": 12,
+						"nam_prik_pao": 11,
+						"pickled_lime": 5,
+						"tofu": 2
+					},
+					"unserved": 2,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 351,
+					"cash": 1015,
+					"dashi": 0,
+					"day": 6,
+					"demand": 12,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 5,
+						"GREAT": 0,
+						"OK": 3
+					},
+					"next_rep": 45,
+					"open_rep": 47,
+					"quality": 40.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 5,
+					"spoiled_value": 10,
+					"stock": {
+						"meat_ball": 15,
+						"nam_prik_pao": 16,
+						"pickled_lime": 2,
+						"tofu": 3
+					},
+					"unserved": 3,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 409,
+					"cash": 1091,
+					"dashi": 0,
+					"day": 7,
+					"demand": 11,
+					"grades": {
+						"": 0,
+						"BAD": 1,
+						"GOOD": 9,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 50,
+					"open_rep": 45,
+					"quality": 61.3636363636364,
+					"sales": 450,
+					"served": 10,
+					"soup_left": 4,
+					"spoiled_value": 40,
+					"stock": {
+						"cartilage": 2,
+						"coconut_milk": 1,
+						"herbal_sauce": 4,
+						"meat_ball": 17,
+						"nam_prik_pao": 9,
+						"pickled_lime": 2
+					},
+					"unserved": 1,
+					"water": 0
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 278
+		},
+		{
+			"actions": {
+				"confirm": 35,
+				"group_choice": 12,
+				"ingredient": 34,
+				"market_exit": 7,
+				"next_text_event": 175,
+				"pot_back": 2,
+				"pot_open": 2,
+				"prep": 7,
+				"purchase": 18,
+				"shop_enter": 7,
+				"shop_exit": 1,
+				"water": 2
+			},
+			"cash": 1504,
+			"clicks": 302,
+			"closing_stock_units": {
+				"herbal_sauce": 10,
+				"meat_ball": 1,
+				"nam_prik_pao": 10
+			},
+			"completed": true,
+			"dashi": 2,
+			"incidents": [],
+			"policy": "power_only",
+			"purchases": 416,
+			"rep": 13,
+			"rows": [
+				{
+					"actions_cumulative": 52,
+					"cash": 765,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 4,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 6
+					},
+					"next_rep": 26,
+					"open_rep": 30,
+					"quality": 17.5,
+					"sales": 495,
+					"served": 11,
+					"soup_left": 2,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10,
+						"tofu": 5
+					},
+					"unserved": 2,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 105,
+					"cash": 882,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 9,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 18,
+					"open_rep": 26,
+					"quality": 0.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"meat_ball": 3,
+						"nam_prik_pao": 10,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 140,
+					"cash": 989,
+					"dashi": 0,
+					"day": 3,
+					"demand": 7,
+					"grades": {
+						"": 0,
+						"BAD": 6,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 1
+					},
+					"next_rep": 14,
+					"open_rep": 18,
+					"quality": 5.0,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"meat_ball": 2,
+						"nam_prik_pao": 10,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 182,
+					"cash": 1141,
+					"dashi": 0,
+					"day": 4,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 2,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 6
+					},
+					"next_rep": 18,
+					"open_rep": 14,
+					"quality": 26.25,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 224,
+					"cash": 1269,
+					"dashi": 0,
+					"day": 5,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 7,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 1
+					},
+					"next_rep": 14,
+					"open_rep": 18,
+					"quality": 4.375,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"meat_ball": 1,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 266,
+					"cash": 1397,
+					"dashi": 0,
+					"day": 6,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 8,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 10,
+					"open_rep": 14,
+					"quality": 0.0,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"meat_ball": 2,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 302,
+					"cash": 1504,
+					"dashi": 0,
+					"day": 7,
+					"demand": 7,
+					"grades": {
+						"": 0,
+						"BAD": 3,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 4
+					},
+					"next_rep": 13,
+					"open_rep": 10,
+					"quality": 20.0,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"meat_ball": 1,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 259
+		},
+		{
+			"actions": {
+				"confirm": 35,
+				"group_choice": 12,
+				"market_exit": 7,
+				"next_text_event": 175,
+				"pot_back": 2,
+				"pot_open": 2,
+				"prep": 7,
+				"water": 2
+			},
+			"cash": 2010,
+			"clicks": 242,
+			"closing_stock_units": {
+				"herbal_sauce": 10,
+				"nam_prik_pao": 10
+			},
+			"completed": true,
+			"dashi": 0,
+			"incidents": [],
+			"policy": "bare_broth",
+			"purchases": 0,
+			"rep": 3,
+			"rows": [
+				{
+					"actions_cumulative": 46,
+					"cash": 855,
+					"dashi": 0,
+					"day": 1,
+					"demand": 13,
+					"grades": {
+						"": 1,
+						"BAD": 12,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 21,
+					"open_rep": 30,
+					"quality": 0.0,
+					"sales": 585,
+					"served": 13,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"meat_ball": 6,
+						"nam_prik_pao": 10,
+						"offal": 4,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 85,
+					"cash": 1100,
+					"dashi": 0,
+					"day": 2,
+					"demand": 9,
+					"grades": {
+						"": 0,
+						"BAD": 9,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 15,
+					"open_rep": 21,
+					"quality": 0.0,
+					"sales": 405,
+					"served": 9,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"meat_ball": 6,
+						"nam_prik_pao": 10,
+						"offal": 4,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 1
+				},
+				{
+					"actions_cumulative": 113,
+					"cash": 1255,
+					"dashi": 0,
+					"day": 3,
+					"demand": 7,
+					"grades": {
+						"": 0,
+						"BAD": 7,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 11,
+					"open_rep": 15,
+					"quality": 0.0,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"broken_wrapper": 5,
+						"coconut_milk": 10,
+						"herbal_sauce": 10,
+						"meat_ball": 6,
+						"nam_prik_pao": 10,
+						"offal": 4,
+						"tofu": 5
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 147,
+					"cash": 1455,
+					"dashi": 0,
+					"day": 4,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 8,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 8,
+					"open_rep": 11,
+					"quality": 0.0,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 180,
+					"cash": 1655,
+					"dashi": 0,
+					"day": 5,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 8,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 6,
+					"open_rep": 8,
+					"quality": 0.0,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 213,
+					"cash": 1855,
+					"dashi": 0,
+					"day": 6,
+					"demand": 8,
+					"grades": {
+						"": 0,
+						"BAD": 8,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 4,
+					"open_rep": 6,
+					"quality": 0.0,
+					"sales": 360,
+					"served": 8,
+					"soup_left": 0,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				},
+				{
+					"actions_cumulative": 242,
+					"cash": 2010,
+					"dashi": 0,
+					"day": 7,
+					"demand": 7,
+					"grades": {
+						"": 0,
+						"BAD": 7,
+						"GOOD": 0,
+						"GREAT": 0,
+						"OK": 0
+					},
+					"next_rep": 3,
+					"open_rep": 4,
+					"quality": 0.0,
+					"sales": 315,
+					"served": 7,
+					"soup_left": 1,
+					"spoiled_value": 0,
+					"stock": {
+						"herbal_sauce": 10,
+						"nam_prik_pao": 10
+					},
+					"unserved": 0,
+					"water": 0
+				}
+			],
+			"seed": 1,
+			"stalled": false,
+			"steps": 259
+		}
+	],
+	"seeds": 1
+}

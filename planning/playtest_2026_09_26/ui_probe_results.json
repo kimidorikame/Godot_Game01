@@ -1,0 +1,93 @@
+{
+	"adjust_geometry": {
+		"options_count": 8,
+		"options_minimum": "(759.0, 56.0)",
+		"options_size": "(1248.0, 56.0)",
+		"panel_size": "(1280.0, 720.0)",
+		"window_size": "(64, 64)"
+	},
+	"full_inventory_geometry": {
+		"options_count": 18,
+		"options_minimum": "(1371.0, 56.0)",
+		"options_size": "(1371.0, 56.0)",
+		"panel_size": "(1403.0, 720.0)"
+	},
+	"new_game_cash": 520,
+	"remaining0_strength0_water1_dashi1": {
+		"can_dashi": true,
+		"can_water": false,
+		"close_disabled": false,
+		"pot_buttons": [
+			{
+				"disabled": true,
+				"label": "水を足す（残量+2 濃さ-2）"
+			},
+			{
+				"disabled": true,
+				"label": "だしを足す（濃さ+2）"
+			},
+			{
+				"disabled": true,
+				"label": "戻る"
+			}
+		],
+		"pot_disabled": false
+	},
+	"remaining0_strength1_water1_dashi1": {
+		"can_dashi": true,
+		"can_water": false,
+		"close_disabled": false,
+		"pot_disabled": true
+	},
+	"remaining0_strength3_water1_dashi0": {
+		"can_dashi": false,
+		"can_water": true,
+		"close_disabled": true,
+		"pot_buttons": [
+			{
+				"disabled": false,
+				"label": "水を足す（残量+2 濃さ-2）"
+			},
+			{
+				"disabled": true,
+				"label": "だしを足す（濃さ+2）"
+			},
+			{
+				"disabled": true,
+				"label": "戻る"
+			}
+		],
+		"pot_disabled": false
+	},
+	"remaining1_strength0_water1_dashi1": {
+		"can_dashi": true,
+		"can_water": false,
+		"close_disabled": true,
+		"pot_buttons": [
+			{
+				"disabled": true,
+				"label": "水を足す（残量+2 濃さ-2）"
+			},
+			{
+				"disabled": false,
+				"label": "だしを足す（濃さ+2）"
+			},
+			{
+				"disabled": true,
+				"label": "戻る"
+			}
+		],
+		"pot_disabled": false
+	},
+	"wake_bills": {
+		"actual_unpaid": 140,
+		"cash": 520,
+		"pending_label": 170
+	},
+	"water_fee_game_over": {
+		"cash_after_buy": 30,
+		"cash_before_buy": 380,
+		"phase_after_exit": "GAME_OVER",
+		"reason": "{ \"type\": \"TEXT\", \"text\": \"所持金が足りない。支払えない（必要 ¥50／所持 ¥30）。\" }"
+	}
+}

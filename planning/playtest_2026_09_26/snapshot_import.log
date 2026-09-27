@@ -1,0 +1,88 @@
+Godot Engine v4.4.1.stable.mono.official.49a5bc7b6 - https://godotengine.org
+ERROR: Could not create editor cache directory: C:/Users/shima/AppData/Local/Godot
+   at: EditorPaths (editor/editor_paths.cpp:234)
+
+ERROR: .NET Sdk not found. The required version is '8.0.25'.
+   at: void GodotTools.GodotSharpEditor._EnablePlugin() (/root/godot/modules/mono/editor/GodotTools/GodotTools/GodotSharpEditor.cs:489)
+ERROR: Cannot open file 'C:/Users/shima/AppData/Local/Godot/editor_doc_cache-4.4.res'.
+   at: load (core/io/resource_format_binary.cpp:1225)
+ERROR: Failed loading resource: C:/Users/shima/AppData/Local/Godot/editor_doc_cache-4.4.res. Make sure resources have been imported by opening the project in the editor at least once.
+   at: _load (core/io/resource_loader.cpp:343)
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2289)
+first_scan_filesystem: begin: プロジェクトの初期化 steps: 5
+	first_scan_filesystem: step 0: ファイル構造をスキャン中...
+	first_scan_filesystem: step 1: グローバルクラス名を読み込み中...
+	first_scan_filesystem: step 2: GDExtensionを検証中...
+	first_scan_filesystem: step 3: 自動読み込みスクリプトを作成中...
+	first_scan_filesystem: step 4: プラグインを初期化中...
+	first_scan_filesystem: step 5: ファイルスキャンを開始...
+first_scan_filesystem: end
+ERROR: Cannot create file 'C:/Users/shima/AppData/Local/Godot/editor_doc_cache-4.4.res'.
+   at: save (core/io/resource_format_binary.cpp:2158)
+ERROR: Cannot save editor help cache (C:/Users/shima/AppData/Local/Godot/editor_doc_cache-4.4.res).
+   at: _gen_doc_thread (editor/editor_help.cpp:2981)
+update_scripts_classes: begin: グローバルクラスを登録中... steps: 22
+	update_scripts_classes: step 0: 
+	update_scripts_classes: step 1: 
+	update_scripts_classes: step 2: Day1Events
+	update_scripts_classes: step 3: 
+	update_scripts_classes: step 4: EventRunner
+	update_scripts_classes: step 5: FlowController
+	update_scripts_classes: step 6: 
+	update_scripts_classes: step 7: Ingredients
+	update_scripts_classes: step 8: OpenController
+	update_scripts_classes: step 9: ScheduleData
+	update_scripts_classes: step 10: 
+	update_scripts_classes: step 11: 
+	update_scripts_classes: step 12: 
+	update_scripts_classes: step 13: 
+	update_scripts_classes: step 14: 
+	update_scripts_classes: step 15: 
+	update_scripts_classes: step 16: 
+	update_scripts_classes: step 17: 
+	update_scripts_classes: step 18: 
+	update_scripts_classes: step 19: 
+	update_scripts_classes: step 20: TestCheck
+	update_scripts_classes: step 21: 
+update_scripts_classes: end
+reimport: begin: アセットを(再)インポート中 steps: 1
+	reimport: step 0: 再インポートするファイルを準備中...
+	reimport: step 0: 再インポート前の操作を実行中...
+	reimport: step 0: icon.svg
+	reimport: step 1: アセットインポートを終了しています...
+reimport: end
+update_script_paths_documentation: begin: スクリプトドキュメントを更新中 steps: 22
+	update_script_paths_documentation: step 0: playthroughs.gd
+	update_script_paths_documentation: step 1: run_playthroughs.gd
+	update_script_paths_documentation: step 2: day1_events.gd
+	update_script_paths_documentation: step 3: debug_panel.gd
+	update_script_paths_documentation: step 4: event_runner.gd
+	update_script_paths_documentation: step 5: flow_controller.gd
+	update_script_paths_documentation: step 6: game_state.gd
+	update_script_paths_documentation: step 7: ingredients.gd
+	update_script_paths_documentation: step 8: open_controller.gd
+	update_script_paths_documentation: step 9: schedule_data.gd
+	update_script_paths_documentation: step 10: adjust_button_display_test.gd
+	update_script_paths_documentation: step 11: balance_log_test.gd
+	update_script_paths_documentation: step 12: first_favorite_test.gd
+	update_script_paths_documentation: step 13: group_partial_serve_test.gd
+	update_script_paths_documentation: step 14: ingredient_pricing_test.gd
+	update_script_paths_documentation: step 15: prep_tier_test.gd
+	update_script_paths_documentation: step 16: reputation_demand_test.gd
+	update_script_paths_documentation: step 17: run_tests.gd
+	update_script_paths_documentation: step 18: schedule_test.gd
+	update_script_paths_documentation: step 19: soup_strength_test.gd
+	update_script_paths_documentation: step 20: test_check.gd
+	update_script_paths_documentation: step 21: upkeep_test.gd
+update_script_paths_documentation: end
+reimport: begin: アセットを(再)インポート中 steps: 1
+	reimport: step 0: 再インポート後の操作を実行中...
+reimport: end
+loading_editor_layout: begin: エディターの読み込み steps: 5
+	loading_editor_layout: step 0: エディターレイアウトを読み込み中...
+loading_editor_layout: end
+ERROR: Can't save resource to empty path. Provide non-empty path or a Resource with non-empty resource_path.
+   at: save (core/io/resource_saver.cpp:106)
+ERROR: Error saving editor settings to 
+   at: save (editor/editor_settings.cpp:1321)

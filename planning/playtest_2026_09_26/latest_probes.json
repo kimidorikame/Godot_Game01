@@ -1,0 +1,121 @@
+{
+	"all_stock_layout": {
+		"panel": "(1280.0, 720.0)",
+		"seasoning_minimum": "(622.0, 56.0)",
+		"topping_minimum": "(1103.0, 56.0)"
+	},
+	"commit": "1eadb70",
+	"day1": {
+		"actual_cups": 13,
+		"actual_unpaid": 140,
+		"cash_after_upkeep": 520,
+		"dashi": 0,
+		"demand_function": 9,
+		"initial_inventory": {
+			"broken_wrapper": 5,
+			"coconut_milk": 10,
+			"herbal_sauce": 10,
+			"meat_ball": 6,
+			"nam_prik_pao": 10,
+			"offal": 4,
+			"tofu": 5
+		},
+		"memo": "◆本日の客足予報◆\n・宵の口：配達員（HOT/POWER）、港湾労働者 4人（HOT/POWER）\n・夜半：チンピラ（MELLOW/GENTLE）、港湾労働者 4人（HOT/POWER）\n・明け方：老婆（SAVORY/FILLING）",
+		"pending_bill_label": 170,
+		"shops": [
+			{
+				"enabled": false,
+				"id": "meat_wholesale",
+				"label": "食肉仲卸（訪問済み）"
+			},
+			{
+				"enabled": false,
+				"id": "produce",
+				"label": "青果"
+			},
+			{
+				"enabled": false,
+				"id": "dry_goods",
+				"label": "乾物調味料"
+			},
+			{
+				"enabled": false,
+				"id": "tofu_noodles",
+				"label": "豆腐麺"
+			},
+			{
+				"enabled": false,
+				"id": "seafood",
+				"label": "海鮮"
+			},
+			{
+				"enabled": false,
+				"id": "scraps",
+				"label": "端材半端物"
+			}
+		]
+	},
+	"no_taste_but_favorite": "GOOD",
+	"pot_recovery": [
+		{
+			"after": {
+				"base_id": "bone_broth",
+				"remaining_servings": 2,
+				"strength": 2,
+				"tags": [],
+				"water_doses": 0
+			},
+			"back_in_order": true,
+			"buttons_before": [
+				{
+					"disabled": true,
+					"text": "水を足す（残量+2 濃さ-2）"
+				},
+				{
+					"disabled": false,
+					"text": "だしを足す（濃さ+2）"
+				},
+				{
+					"disabled": true,
+					"text": "戻る"
+				}
+			],
+			"pot_enabled": true,
+			"strength": 0
+		},
+		{
+			"after": {
+				"base_id": "bone_broth",
+				"remaining_servings": 2,
+				"strength": 3,
+				"tags": [],
+				"water_doses": 0
+			},
+			"back_in_order": true,
+			"buttons_before": [
+				{
+					"disabled": true,
+					"text": "水を足す（残量+2 濃さ-2）"
+				},
+				{
+					"disabled": false,
+					"text": "だしを足す（濃さ+2）"
+				},
+				{
+					"disabled": false,
+					"text": "戻る"
+				}
+			],
+			"pot_enabled": true,
+			"strength": 1
+		}
+	],
+	"two_penalties": "OK",
+	"volume_after_water_dashi_water": {
+		"base_id": "bone_broth",
+		"remaining_servings": 18,
+		"strength": 1,
+		"tags": [],
+		"water_doses": 0
+	}
+}

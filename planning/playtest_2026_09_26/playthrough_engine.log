@@ -1,0 +1,53 @@
+Godot Engine v4.4.1.stable.mono.official.49a5bc7b6 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2289)
+BALANCE_LOG: day=1 money=600→810 rep=30→39(Q=58.8) cups=12/1(計画13) 売上=540 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 8, "OK": 3, "BAD": 0, "": 1 }
+BALANCE_LOG: day=2 money=810→857 rep=39→42(Q=50.0) cups=9/0(計画9) 売上=405 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=3 money=857→931 rep=42→39(Q=33.3) cups=7/2(計画9) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 4, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=4 money=931→1062 rep=39→50(Q=75.0) cups=10/0(計画10) 売上=450 廃棄額=0 水1/だし1 早期閉店=false 評価={ "GREAT": 0, "GOOD": 10, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=5 money=1062→1199 rep=50→46(Q=37.5) cups=10/2(計画12) 売上=450 廃棄額=72 水2/だし1 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 0, "BAD": 4, "": 0 }
+BALANCE_LOG: day=6 money=1199→1313 rep=46→44(Q=40.0) cups=9/3(計画12) 売上=405 廃棄額=10 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 5, "OK": 3, "BAD": 1, "": 0 }
+BALANCE_LOG: day=7 money=1313→1404 rep=44→51(Q=66.7) cups=9/0(計画9) 売上=405 廃棄額=40 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 8, "OK": 0, "BAD": 1, "": 0 }
+PLAYTEST_PROGRESS band_good 1 runs
+BALANCE_LOG: day=1 money=600→810 rep=30→39(Q=58.8) cups=12/1(計画13) 売上=540 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 8, "OK": 3, "BAD": 0, "": 1 }
+BALANCE_LOG: day=2 money=810→857 rep=39→44(Q=55.6) cups=9/0(計画9) 売上=405 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 2, "GOOD": 4, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=3 money=857→867 rep=44→47(Q=55.6) cups=7/2(計画9) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 2, "GOOD": 4, "OK": 0, "BAD": 1, "": 0 }
+BALANCE_LOG: day=4 money=867→1031 rep=47→55(Q=72.9) cups=11/1(計画12) 売上=495 廃棄額=0 水2/だし1 早期閉店=false 評価={ "GREAT": 2, "GOOD": 9, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=5 money=1031→1071 rep=55→57(Q=60.4) cups=9/3(計画12) 売上=405 廃棄額=56 水1/だし0 早期閉店=false 評価={ "GREAT": 2, "GOOD": 7, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=6 money=1071→1085 rep=57→58(Q=60.4) cups=9/3(計画12) 売上=405 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 2, "GOOD": 7, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=7 money=1085→1238 rep=58→65(Q=81.8) cups=11/0(計画11) 売上=495 廃棄額=48 水2/だし1 早期閉店=false 評価={ "GREAT": 3, "GOOD": 8, "OK": 0, "BAD": 0, "": 0 }
+PLAYTEST_PROGRESS band_favorites 1 runs
+BALANCE_LOG: day=1 money=600→750 rep=30→36(Q=49.6) cups=10/3(計画13) 売上=450 廃棄額=0 水2/だし0 早期閉店=true 評価={ "GREAT": 0, "GOOD": 7, "OK": 2, "BAD": 0, "": 1 }
+BALANCE_LOG: day=2 money=750→731 rep=36→43(Q=58.3) cups=7/2(計画9) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 7, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=3 money=731→781 rep=43→40(Q=33.3) cups=7/2(計画9) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 4, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=4 money=781→936 rep=40→51(Q=75.0) cups=10/0(計画10) 売上=450 廃棄額=0 水1/だし1 早期閉店=false 評価={ "GREAT": 0, "GOOD": 10, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=5 money=936→1049 rep=51→47(Q=37.5) cups=10/2(計画12) 売上=450 廃棄額=56 水2/だし1 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 0, "BAD": 4, "": 0 }
+BALANCE_LOG: day=6 money=1049→1167 rep=47→45(Q=40.4) cups=8/4(計画12) 売上=360 廃棄額=34 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 1, "BAD": 1, "": 0 }
+BALANCE_LOG: day=7 money=1167→1303 rep=45→50(Q=61.4) cups=10/1(計画11) 売上=450 廃棄額=24 水1/だし1 早期閉店=false 評価={ "GREAT": 0, "GOOD": 9, "OK": 0, "BAD": 1, "": 0 }
+PLAYTEST_PROGRESS always_small 1 runs
+BALANCE_LOG: day=1 money=600→780 rep=30→42(Q=68.8) cups=12/1(計画13) 売上=540 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 11, "OK": 0, "BAD": 0, "": 1 }
+BALANCE_LOG: day=2 money=780→767 rep=42→44(Q=50.0) cups=9/0(計画9) 売上=405 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=3 money=767→781 rep=44→41(Q=33.3) cups=7/2(計画9) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 4, "OK": 0, "BAD": 3, "": 0 }
+BALANCE_LOG: day=4 money=781→852 rep=41→51(Q=75.0) cups=10/0(計画10) 売上=450 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 10, "OK": 0, "BAD": 0, "": 0 }
+BALANCE_LOG: day=5 money=852→945 rep=51→47(Q=37.5) cups=10/2(計画12) 売上=450 廃棄額=72 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 6, "OK": 0, "BAD": 4, "": 0 }
+BALANCE_LOG: day=6 money=945→1015 rep=47→45(Q=40.0) cups=9/3(計画12) 売上=405 廃棄額=10 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 5, "OK": 3, "BAD": 1, "": 0 }
+BALANCE_LOG: day=7 money=1015→1091 rep=45→50(Q=61.4) cups=10/1(計画11) 売上=450 廃棄額=40 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 9, "OK": 0, "BAD": 1, "": 0 }
+PLAYTEST_PROGRESS always_large 1 runs
+BALANCE_LOG: day=1 money=600→765 rep=30→26(Q=17.5) cups=11/2(計画13) 売上=495 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 6, "BAD": 4, "": 1 }
+BALANCE_LOG: day=2 money=765→882 rep=26→18(Q=0.0) cups=9/0(計画9) 売上=405 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 9, "": 0 }
+BALANCE_LOG: day=3 money=882→989 rep=18→14(Q=5.0) cups=7/0(計画7) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 1, "BAD": 6, "": 0 }
+BALANCE_LOG: day=4 money=989→1141 rep=14→18(Q=26.3) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 6, "BAD": 2, "": 0 }
+BALANCE_LOG: day=5 money=1141→1269 rep=18→14(Q=4.4) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 1, "BAD": 7, "": 0 }
+BALANCE_LOG: day=6 money=1269→1397 rep=14→10(Q=0.0) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 8, "": 0 }
+BALANCE_LOG: day=7 money=1397→1504 rep=10→13(Q=20.0) cups=7/0(計画7) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 4, "BAD": 3, "": 0 }
+PLAYTEST_PROGRESS power_only 1 runs
+BALANCE_LOG: day=1 money=600→855 rep=30→21(Q=0.0) cups=13/0(計画13) 売上=585 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 12, "": 1 }
+BALANCE_LOG: day=2 money=855→1100 rep=21→15(Q=0.0) cups=9/0(計画9) 売上=405 廃棄額=0 水1/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 9, "": 0 }
+BALANCE_LOG: day=3 money=1100→1255 rep=15→11(Q=0.0) cups=7/0(計画7) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 7, "": 0 }
+BALANCE_LOG: day=4 money=1255→1455 rep=11→8(Q=0.0) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 8, "": 0 }
+BALANCE_LOG: day=5 money=1455→1655 rep=8→6(Q=0.0) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 8, "": 0 }
+BALANCE_LOG: day=6 money=1655→1855 rep=6→4(Q=0.0) cups=8/0(計画8) 売上=360 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 8, "": 0 }
+BALANCE_LOG: day=7 money=1855→2010 rep=4→3(Q=0.0) cups=7/0(計画7) 売上=315 廃棄額=0 水0/だし0 早期閉店=false 評価={ "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 7, "": 0 }
+PLAYTEST_PROGRESS bare_broth 1 runs
+PLAYTEST_COMPLETE 6

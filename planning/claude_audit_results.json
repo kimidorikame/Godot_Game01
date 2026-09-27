@@ -1,0 +1,718 @@
+{
+  "assumptions": {
+    "recipeSlots": 3,
+    "uniqueIngredientCombinations": 833,
+    "retainedClamp": [
+      1,
+      5
+    ],
+    "potVolumeCap": null,
+    "maximumWaterUses": 3,
+    "initialFreeReserveUnitsInCurrentCode": 10,
+    "reserveUnitsPerAddition": 2,
+    "warning": "Consumes reserve at16 per addition; actual purchases are80 per5 additions. Existing initial reserve is free unless explicitly removed."
+  },
+  "potCounterexamples": {
+    "fifteen": {
+      "servings": 15,
+      "strength": 2,
+      "waters": 2,
+      "bases": 1,
+      "consumedAdditionalCost": 56,
+      "reservePurchaseCashIfNoneOwned": 80,
+      "trace": [
+        {
+          "op": "prepare",
+          "servings": 8,
+          "strength": 3
+        },
+        {
+          "op": "water",
+          "servings": 11,
+          "strength": 1
+        },
+        {
+          "op": "water",
+          "servings": 14,
+          "strength": 1
+        },
+        {
+          "op": "base",
+          "servings": 15,
+          "strength": 2
+        }
+      ]
+    },
+    "eighteen": {
+      "servings": 18,
+      "strength": 2,
+      "waters": 3,
+      "bases": 1,
+      "consumedAdditionalCost": 76,
+      "reservePurchaseCashIfNoneOwned": 80,
+      "trace": [
+        {
+          "op": "prepare",
+          "servings": 8,
+          "strength": 3
+        },
+        {
+          "op": "water",
+          "servings": 11,
+          "strength": 1
+        },
+        {
+          "op": "water",
+          "servings": 14,
+          "strength": 1
+        },
+        {
+          "op": "water",
+          "servings": 17,
+          "strength": 1
+        },
+        {
+          "op": "base",
+          "servings": 18,
+          "strength": 2
+        }
+      ]
+    },
+    "upperClampExamples": [
+      {
+        "servings": 13,
+        "strength": 3,
+        "waters": 1,
+        "bases": 2,
+        "consumedAdditionalCost": 52,
+        "reservePurchaseCashIfNoneOwned": 80,
+        "trace": [
+          {
+            "op": "prepare",
+            "servings": 8,
+            "strength": 3
+          },
+          {
+            "op": "base",
+            "servings": 9,
+            "strength": 4
+          },
+          {
+            "op": "base",
+            "servings": 10,
+            "strength": 5
+          },
+          {
+            "op": "water",
+            "servings": 13,
+            "strength": 3
+          }
+        ]
+      },
+      {
+        "servings": 18,
+        "strength": 3,
+        "waters": 1,
+        "bases": 7,
+        "consumedAdditionalCost": 132,
+        "reservePurchaseCashIfNoneOwned": 160,
+        "trace": [
+          {
+            "op": "prepare",
+            "servings": 8,
+            "strength": 3
+          },
+          {
+            "op": "base",
+            "servings": 9,
+            "strength": 4
+          },
+          {
+            "op": "base",
+            "servings": 10,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 11,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 12,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 13,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 14,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 15,
+            "strength": 5
+          },
+          {
+            "op": "water",
+            "servings": 18,
+            "strength": 3
+          }
+        ]
+      },
+      {
+        "servings": 33,
+        "strength": 3,
+        "waters": 1,
+        "bases": 22,
+        "consumedAdditionalCost": 372,
+        "reservePurchaseCashIfNoneOwned": 400,
+        "trace": [
+          {
+            "op": "prepare",
+            "servings": 8,
+            "strength": 3
+          },
+          {
+            "op": "base",
+            "servings": 9,
+            "strength": 4
+          },
+          {
+            "op": "base",
+            "servings": 10,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 11,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 12,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 13,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 14,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 15,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 16,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 17,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 18,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 19,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 20,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 21,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 22,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 23,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 24,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 25,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 26,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 27,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 28,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 29,
+            "strength": 5
+          },
+          {
+            "op": "base",
+            "servings": 30,
+            "strength": 5
+          },
+          {
+            "op": "water",
+            "servings": 33,
+            "strength": 3
+          }
+        ]
+      }
+    ],
+    "unboundedSupplyFormula": "For any base additions b >= 2 before one water: volume=11+b, strength=3, additional consumed cost=20+16*b. Bounded by cash and morning inventory, not by water supply."
+  },
+  "mobRecipes": [
+    {
+      "id": "dock_workers",
+      "wanted": [
+        "HOT",
+        "POWER",
+        "FILLING"
+      ],
+      "good": {
+        "cost": 6,
+        "recipes": [
+          [
+            "meat_ball",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 8,
+        "recipes": [
+          [
+            "nam_prik_pao",
+            "meat_ball"
+          ],
+          [
+            "nam_prik_pao",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 8,
+        "recipes": [
+          [
+            "nam_prik_pao",
+            "meat_ball"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 11,
+        "recipes": [
+          [
+            "nam_prik_pao",
+            "meat_ball",
+            "broken_wrapper"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "inn_clerk",
+      "wanted": [
+        "MELLOW",
+        "GENTLE",
+        "POWER"
+      ],
+      "good": {
+        "cost": 7,
+        "recipes": [
+          [
+            "meat_ball",
+            "tofu"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 8,
+        "recipes": [
+          [
+            "coconut_milk",
+            "meat_ball"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 9,
+        "recipes": [
+          [
+            "coconut_milk",
+            "tofu"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 12,
+        "recipes": [
+          [
+            "coconut_milk",
+            "meat_ball",
+            "tofu"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "market_porter",
+      "wanted": [
+        "SAVORY",
+        "FILLING",
+        "POWER"
+      ],
+      "good": {
+        "cost": 6,
+        "recipes": [
+          [
+            "meat_ball",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 8,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "meat_ball"
+          ],
+          [
+            "herbal_sauce",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 8,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 11,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "meat_ball",
+            "broken_wrapper"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "security_guard",
+      "wanted": [
+        "SAVORY",
+        "BITE",
+        "GENTLE"
+      ],
+      "good": {
+        "cost": 9,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "tofu"
+          ],
+          [
+            "tofu",
+            "cartilage"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 9,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "tofu"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 10,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "cartilage"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 14,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "tofu",
+            "cartilage"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "street_cleaners",
+      "wanted": [
+        "SOUR",
+        "FILLING",
+        "GENTLE"
+      ],
+      "good": {
+        "cost": 7,
+        "recipes": [
+          [
+            "broken_wrapper",
+            "tofu"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 8,
+        "recipes": [
+          [
+            "pickled_lime",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 8,
+        "recipes": [
+          [
+            "pickled_lime",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 12,
+        "recipes": [
+          [
+            "pickled_lime",
+            "broken_wrapper",
+            "tofu"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "general_store_clerk",
+      "wanted": [
+        "BITTER",
+        "GENTLE",
+        "FILLING"
+      ],
+      "good": {
+        "cost": 7,
+        "recipes": [
+          [
+            "broken_wrapper",
+            "tofu"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 8,
+        "recipes": [
+          [
+            "bitter_melon",
+            "broken_wrapper"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 9,
+        "recipes": [
+          [
+            "bitter_melon",
+            "tofu"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 12,
+        "recipes": [
+          [
+            "bitter_melon",
+            "broken_wrapper",
+            "tofu"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "long_haul_driver",
+      "wanted": [
+        "SAVORY",
+        "TREAT",
+        "BITE"
+      ],
+      "good": {
+        "cost": 10,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "cartilage"
+          ]
+        ]
+      },
+      "goodRequiringTaste": {
+        "cost": 10,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "cartilage"
+          ]
+        ]
+      },
+      "goodRequiringBasic": {
+        "cost": 16,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "clam"
+          ]
+        ]
+      },
+      "great": {
+        "cost": 21,
+        "recipes": [
+          [
+            "herbal_sauce",
+            "cartilage",
+            "clam"
+          ]
+        ]
+      }
+    }
+  ],
+  "recipeMeans": {
+    "good": 7.428571428571429,
+    "goodRequiringTaste": 8.428571428571429,
+    "goodRequiringBasic": 9.714285714285714,
+    "great": 13.285714285714286,
+    "greatToGood": 1.7884615384615385,
+    "greatToTasteRequiredGood": 1.576271186440678,
+    "greatToBasicRequiredGood": 1.3676470588235297
+  },
+  "dualTagItems": {
+    "tendon": {
+      "combinedPackPrice": 40,
+      "separatePackPrice": 40,
+      "simultaneousRequiredTagMatch": []
+    },
+    "fishMaw": {
+      "combinedPackPrice": 70,
+      "separatePackPrice": 70,
+      "simultaneousRequiredTagMatch": []
+    },
+    "limitation": "Separate same-age five-unit packs weakly dominate the combined five-unit pack for listed demands when no inventory-slot limit exists."
+  },
+  "cashArithmetic": [
+    {
+      "day": 1,
+      "openingRep": 0,
+      "demand": 9,
+      "purchases": 140,
+      "rent": 150,
+      "closingCash": 560
+    },
+    {
+      "day": 2,
+      "openingRep": 8,
+      "demand": 8,
+      "purchases": 240,
+      "rent": 0,
+      "closingCash": 720
+    },
+    {
+      "day": 3,
+      "openingRep": 17,
+      "demand": 11,
+      "purchases": 290,
+      "rent": 0,
+      "closingCash": 980
+    },
+    {
+      "day": 4,
+      "openingRep": 26,
+      "demand": 14,
+      "purchases": 400,
+      "rent": 300,
+      "closingCash": 980
+    },
+    {
+      "day": 5,
+      "openingRep": 35,
+      "demand": 14,
+      "purchases": 380,
+      "rent": 0,
+      "closingCash": 1300
+    },
+    {
+      "day": 6,
+      "openingRep": 44,
+      "demand": 14,
+      "purchases": 380,
+      "rent": 0,
+      "closingCash": 1620
+    },
+    {
+      "day": 7,
+      "openingRep": 53,
+      "demand": 11,
+      "purchases": 320,
+      "rent": 700,
+      "closingCash": 1150
+    }
+  ],
+  "cashConclusion": "Column arithmetic matches1150, but item-level baskets, reserve stock, water fees, customer draws and spoilage are unspecified; this is not a reproducible gameplay simulation.",
+  "currentCodeScopeDependencies": [
+    "BASE_PRICE is shared by ordinary prep and reserve purchase;120 versus80 needs separation.",
+    "Daily rent150/300/700 needs both collection-day logic and price lookup; current is_collection_day only permits Day1.",
+    "The water-stall fee also calls is_collection_day; changing that function changes water bills unless separated.",
+    "reserve_base_purchase_remaining/day hold only one batch; unlimited purchases need multi-batch expiry or an explicit nonperishable rule.",
+    "_no_resources_left checks only water, and pot UI can lock base until water when empty; volume-granting base needs shortage/UI updates.",
+    "Daily telemetry and deterministic headless comparison are new work outside the six-row mutation list."
+  ]
+}
