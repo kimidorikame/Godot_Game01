@@ -262,11 +262,12 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 支払えずゲームオーバーになったら、force_phase(GAME_OVER)が既に
 		# _set_runner_for_phase(GAME_OVER)を呼んでrunnerを組んでいるので、ここで
 		# wake_events()のrunnerに上書きしないよう即returnする。
-		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST):
+		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
 			return
-		# 支払い予定（表示専用）：今日まだ物語上のけじめが付いていない金額を確定させる。
-		# 徴収日は場所代ぶんも含む（GameState.set_pending_bills_for_today参照）。
-		GameState.set_pending_bills_for_today()
+		# F4 帳簿：今日まだ物語上のけじめが付いていない金額を「確保」として記帳する
+		# （旧GameState.set_pending_bills_for_today()。徴収日は場所代ぶんも含む。
+		# Ledger.pending_bills_today()がこの記帳から確保額を計算し直す）。
+		Ledger.record("reserve", -(GameState.DAILY_OPERATING_COST + (GameState.RENT_PRICE if GameState.is_collection_day() else 0)))
 		# 予告（②）：今夜の客の並びをここで1回だけ確定させ、OPENでは（デバッグの一律
 		# 上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も人数も
 		# 分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
@@ -575,11 +576,14 @@ func _on_shop_item_selected(shop: String, id: String) -> void:
 				if GameState.money >= price:
 					GameState.apply_money(-price)
 					GameState.buy_dashi()
+					Ledger.record("dashi", -price, "dashi", 1, price)
 			elif GameState.money >= price:
 				var item = good.get("item", id)
 				var count: int = int(good.get("count", 1))
+				var unit_price: int = int(price / count) if count > 0 else price
 				GameState.apply_money(-price)
-				GameState.add_inventory(item, count, int(price / count) if count > 0 else price)
+				GameState.add_inventory(item, count, unit_price)
+				Ledger.record("market", -price, str(item), count, unit_price)
 			break
 	_refresh()
 
@@ -599,6 +603,7 @@ func _on_prep_tier_selected(tier_id: String) -> void:
 	if GameState.money < price:
 		return   # ボタン側で無効化済みのはずの二重チェック（防御的）
 	GameState.apply_money(-price)
+	Ledger.record("prep", -price, tier_id, 0, price)
 	flow.set_runner(Day1Events.prep_after_tier_events(tier, false))
 	_refresh()
 
@@ -615,7 +620,7 @@ func _on_shop_exit_pressed() -> void:
 ## 水道代が払えずゲームオーバーになったら false（呼び出し元は先へ進めないこと）。
 func _visit_water_stall() -> bool:
 	if GameState.is_collection_day():
-		if not _pay_or_game_over(GameState.WATER_PRICE):
+		if not _pay_or_game_over(GameState.WATER_PRICE, "water"):
 			return false
 	_market_visited_water = true
 	return true
@@ -624,17 +629,16 @@ func _visit_water_stall() -> bool:
 ## [市場を出る] のハンドラ（DESIGN.md 7.7）。水場に未訪問なら自動で訪れてから、
 ## [入力完了]と同じ手順（WAITING_INPUT解除→1つ進める→効果適用）で仕込みへ進む。
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
-## 場所代・水道代の再編＋日々の運営費：市場を出た瞬間に、日々の運営費ぶんの
-## 支払い予定（表示専用）を決済する（実際の天引きはWAKEで既に済んでいる。
-## GameState.settle_daily_cost_pending参照）。runnerはこの直後の
-## _complete_input_and_advance()でMARKETの次（新設のTEXT「共同水道と炭屋に
-## 寄り、市場を出た。」）へ進む。
+## F4 帳簿：市場を出た瞬間に、日々の運営費ぶんの確保を「release」として記帳する
+## （実際の天引きはWAKEで既に済んでいる。旧GameState.settle_daily_cost_pending）。
+## runnerはこの直後の_complete_input_and_advance()でMARKETの次（新設のTEXT
+## 「共同水道と炭屋に寄り、市場を出た。」）へ進む。
 func _on_market_exit_pressed() -> void:
 	if not _market_visited_water:
 		# 水道代が払えずゲームオーバーになったら、仕込みへ進まずここで止まる。
 		if not _visit_water_stall():
 			return
-	GameState.settle_daily_cost_pending()
+	Ledger.record("release", GameState.DAILY_OPERATING_COST)
 	_complete_input_and_advance()
 
 
@@ -773,8 +777,13 @@ func _apply_event(ev) -> void:
 			# 払える所持金のときしかイベント自体が組まれない（クズ野菜ベースへ自動で切り替わる）。
 			# kind:"rent"（チンピラの場所代）が実際に払えたときだけ、払い終えた印を付ける
 			# （閉店直前の特別請求が二重にならないようにするため。§11「未解決」の直し方）。
-			if _pay_or_game_over(int(ev.get("amount", 0))) and ev.get("kind", "") == "rent":
+			# F4 帳簿：kind:"rent"のときだけLedgerの"rent"カテゴリで記帳し、WAKE時点の
+			# 確保（reserve）を「release」で決済する（旧mark_rent_paid()内のpending減算）。
+			var pay_kind := str(ev.get("kind", ""))
+			if _pay_or_game_over(int(ev.get("amount", 0)), "rent" if pay_kind == "rent" else "") \
+					and pay_kind == "rent":
 				GameState.mark_rent_paid()
+				Ledger.record("release", GameState.RENT_PRICE)
 		"ADD_ITEM":
 			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"REMOVE_ITEM":
@@ -1045,6 +1054,8 @@ func _serve_customer(ev: Dictionary) -> void:
 	_log_quality_counts[result] = int(_log_quality_counts.get(result, 0)) + servings
 	GameState.record_served({ "customer": customer_id, "sale": sale,
 		"servings": servings, "result": result })
+	if sale > 0:
+		Ledger.record("sale", sale, customer_id, servings)
 
 
 ## [客を断る]のハンドラ（F3・DESIGN.md 10.3.6）。名前あり客・配達員のADJUST中、いつでも
@@ -1127,6 +1138,8 @@ func _flush_visit_tally() -> void:
 		record["unserved_servings"] = maxi(ordered - served, 0)
 		record["declined"] = served <= 0
 	GameState.record_served(record)
+	if int(record["sale"]) > 0:
+		Ledger.record("sale", int(record["sale"]), str(record["customer"]), int(record["servings"]))
 	_visit_tally = {}
 
 
@@ -1229,8 +1242,14 @@ func _no_named_customers_remaining() -> bool:
 
 ## 義務的な支払い（水道代・場所代）。払えれば true。払えなければ支払いを実行せず
 ## （所持金はマイナスにならない）ゲームオーバーにして false を返す。
-func _pay_or_game_over(amount: int) -> bool:
+## F4 帳簿：category（"daily_cost"/"water"/"rent"）を渡すと、実際に払えたときだけ
+## Ledger.record(category, -amount)を記帳する（水道代・場所代・運営費という「義務的な
+## 支払い」の共有入口なので、記帳もここに一本化する）。categoryを省略した呼び出し元は
+## 記帳しない（既定値""はLedger.CATEGORIESに無い値なので、record()を呼ばない目印にする）。
+func _pay_or_game_over(amount: int, category: String = "") -> bool:
 	if GameState.try_pay(amount):
+		if category != "":
+			Ledger.record(category, -amount)
 		return true
 	_game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
 	return false
@@ -1268,9 +1287,10 @@ func _auto_close_kitchen() -> void:
 func _reason_after_collecting_rent(base_reason: String) -> String:
 	if not GameState.is_collection_day() or GameState.rent_paid_today:
 		return base_reason
-	if not _pay_or_game_over(GameState.RENT_PRICE):
+	if not _pay_or_game_over(GameState.RENT_PRICE, "rent"):
 		return ""
 	GameState.mark_rent_paid()
+	Ledger.record("release", GameState.RENT_PRICE)
 	return base_reason + "（今月の場所代は、閉店前にきっちり払わせてもらった。）"
 
 
@@ -1305,6 +1325,9 @@ func _on_day_ending() -> void:
 		"spoiled_value": spoiled_value,
 		"water_used": _log_water_used, "dashi_used": _log_dashi_used,
 		"closed_early": _log_closed_early,
+		# F4 前日成績v2（DESIGN.md 10.8.4）：Ledgerから初めて出せるようになった追加情報。
+		# 既存キーは1つも変更していない（balance_log.jsonlの互換性を保つため、追加のみ）。
+		"spend_by_category": Ledger.spend_by_category_today(),
 	}
 	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
@@ -1338,9 +1361,32 @@ func _format_day_summary(log_entry: Dictionary) -> String:
 		"廃棄額: %d　水%d回／だし%d回" % [
 			int(log_entry["spoiled_value"]), int(log_entry["water_used"]), int(log_entry["dashi_used"])],
 	])
+	# F4 前日成績v2：Ledgerのカテゴリ別支出をそのまま並べる（新しい集計はしない。
+	# spend_by_categoryはLedger.spend_by_category_today()の結果をそのまま持つ）。
+	var spend_line := _format_spend_by_category(log_entry.get("spend_by_category", {}))
+	if spend_line != "":
+		lines.append(spend_line)
 	if bool(log_entry.get("closed_early", false)):
 		lines.append("（鍋が尽きて早めに閉店した）")
 	return "\n".join(lines)
+
+
+## F4 前日成績v2：Ledger.spend_by_category_today()の結果を「運営費80／場所代90」の
+## ような1行にする。固定の並び順で、支出が無かったカテゴリ（0または未記帳）は出さない。
+## 全カテゴリ0（何も支出が無い日）なら空文字を返す（_format_day_summary側で行を足さない）。
+func _format_spend_by_category(spend: Dictionary) -> String:
+	const CATEGORY_LABELS := {
+		"daily_cost": "運営費", "rent": "場所代", "water": "水道代",
+		"kit": "初日セット", "prep": "仕込み", "market": "市場", "dashi": "だし",
+	}
+	var parts := PackedStringArray()
+	for category in ["daily_cost", "rent", "water", "kit", "prep", "market", "dashi"]:
+		var amount: int = int(spend.get(category, 0))
+		if amount > 0:
+			parts.append("%s%d" % [CATEGORY_LABELS[category], amount])
+	if parts.is_empty():
+		return ""
+	return "支出内訳: %s" % "／".join(parts)
 
 
 ## discard_spoiled_inventory()が返す各品目の"value"（ロットごとに実際に払った単価×個数の
@@ -1570,7 +1616,17 @@ func _update_options_row() -> void:
 			for good in _shop_goods(_market_shop):
 				var gid: String = str(good.get("id", ""))
 				var price: int = int(good.get("price", 0))
-				_add_pot_button("%s（-%d）" % [str(good.get("label", gid)), price],
+				# F4：個数・単価を表示する（DESIGN.md 10.4「豆腐 3個24／単価8／在庫2」）。
+				# dashiのようにcountを持たない商品は従来どおり価格のみ表示する。
+				var label: String = str(good.get("label", gid))
+				var btn_label: String
+				if good.has("count"):
+					var count: int = int(good.get("count", 1))
+					var unit_price: int = int(price / count) if count > 0 else price
+					btn_label = "%s（-%d・%d個入り・単価%d）" % [label, price, count, unit_price]
+				else:
+					btn_label = "%s（-%d）" % [label, price]
+				_add_pot_button(btn_label,
 					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid))
 			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
 			return
@@ -1647,10 +1703,11 @@ func _format_game_state() -> String:
 		]
 	# 表示する各項目の意味（GameState = 日をまたいで残る事実）:
 	#   day_count  … 今が何日目か。NEXT_DAYで+1
-	#   money      … 所持金。支払いで減り売上で増える。括弧の「支払い予定」は表示専用の
-	#                注記（GameState.pending_bills_today）で、実際の天引きはWAKE・
-	#                チンピラのPAY等で既に済んでいる。市場を出る・場所代を払うたびに
-	#                減っていき、0になったら注記自体が消える
+	#   money      … 所持金。支払いで減り売上で増える
+	#   budget     … F4予算表示（DESIGN.md 10.4）「残金／確保／使える」。確保は
+	#                Ledger.pending_bills_today()（旧pending_bills_today。実際の天引きは
+	#                WAKE・チンピラのPAY等で既に済んでいる「まだ物語上のけじめが付いて
+	#                いない金額」）。使える＝残金−確保。常時表示（0でも行は消さない）
 	#   reputation … 店の評判値。REACT の判定結果で増減する（7.6）
 	#   inventory  … 持っている具材・調味料の合計個数（辞書 { id: 個数 } の値を合計。7.7）
 	#   inventory_detail … 品目ごとの内訳（7.7：市場で複数品目を買うと合計数だけでは
@@ -1671,8 +1728,10 @@ func _format_game_state() -> String:
 	return "\n".join(PackedStringArray([
 		"── GameState（日をまたいで残る事実）──",
 		"day_count(日数): %d" % GameState.day_count,
-		"money(所持金): %d%s" % [GameState.money,
-			"（支払い予定%d）" % GameState.pending_bills_today if GameState.pending_bills_today > 0 else ""],
+		"money(所持金): %d" % GameState.money,
+		"budget(残金/確保/使える): %d / %d / %d" % [
+			GameState.money, Ledger.pending_bills_today(),
+			GameState.money - Ledger.pending_bills_today()],
 		"reputation(評判): %d" % GameState.reputation,
 		"inventory(在庫数): %d 個" % _inventory_total(),
 		"inventory_detail(内訳): %s" % _format_inventory_detail(),

@@ -153,15 +153,14 @@ var served: Array = []
 # 「まだ払っていなければ特別請求する」判定に使う（CURRENT_SPEC.md §11「未解決」参照）。
 var rent_paid_today: bool = false
 
-# 支払い予定（表示専用。場所代・水道代の再編＋日々の運営費）。実際の天引きは各支払いの
-# 入口（WAKEでのDAILY_OPERATING_COST、チンピラのPAY Event・特別請求でのRENT_PRICE）で
-# 既に完了しており、これは「今日まだ物語上のけじめが付いていない金額」をプレイヤーに
-# 見せるだけの二次的な値（moneyそのものには影響しない）。水道代（WATER_PRICE）は含めない
-## ＝水場はプレイヤーが選んで押した瞬間にその場で金額が見えるインタラクティブな支払いなので、
-# 先出しで見せる必要が薄いため。set_pending_bills_for_today()（WAKE）で確定し、
-# settle_daily_cost_pending()（市場を出た瞬間）・mark_rent_paid()（場所代を払った瞬間）で
-# 減っていく。
-var pending_bills_today: int = 0
+# 帳簿（F4・DESIGN.md 10.8.4）。周回を通して蓄積する（reset_for_new_dayではクリアしない
+# ＝結果画面(フェーズ4)が周回全体を集計できるようにするため。reset_for_new_gameでのみ
+# クリアする）。書き手はLedger（静的クラス）だけで、GameState自身はここへ書き込まない
+# （Day1Events等と同じく、他の静的クラスを呼ぶのは受け側＝DebugPanelの役目）。
+# 旧pending_bills_today（表示専用の支払い予定額）はLedgerの"reserve"/"release"カテゴリの
+# 記帳から計算し直す形に置き換えた（Ledger.pending_bills_today()参照。DESIGN.md原則6
+# 「会計は帳簿から導く」）。
+var ledger: Array = []
 
 # その日の計画（F2・DESIGN.md 10.8.2）。DayPlanner.build()が唯一の書き手（WAKEで1回だけ
 # 呼ぶ）。OPENはこれを使い回す（客層・人数を開店直前に変えない＝予報と実際を一致させる）。
@@ -173,13 +172,12 @@ var today_plan: Dictionary = {}
 
 
 ## 日次リセット。NEXT_DAY フェーズの処理から呼ぶ。
-## soup・served・rent_paid_today・pending_bills_today・today_planだけをクリアする。
-## money/reputation/inventory は残す。
+## soup・served・rent_paid_today・today_planだけをクリアする。
+## money/reputation/inventory/ledger は残す（ledgerは周回を通して蓄積する。上の宣言参照）。
 func reset_for_new_day() -> void:
 	soup = null
 	served.clear()
 	rent_paid_today = false
-	pending_bills_today = 0
 	today_plan = { "day": -1, "slots": [], "mob_instances": {} }
 
 
@@ -209,6 +207,7 @@ func reset_for_new_game() -> void:
 	rumors.clear()
 	dashi_units = 0
 	known_favorites.clear()
+	ledger.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
 
@@ -217,19 +216,6 @@ func reset_for_new_game() -> void:
 ## 7日版なので今は初日のみ。将来 day_count in [1, 7, 14] 等へ広げられる形にしておく。
 func is_collection_day() -> bool:
 	return day_count == 1
-
-
-## WAKEに入った瞬間、その日の支払い予定（表示専用。pending_bills_today参照）を確定させる。
-## 徴収日は場所代も含める（水道代は含めない）。実際の日々の運営費の天引きは
-## 呼び出し元（debug_panel.gd._set_runner_for_phase(WAKE)）が既にapply_moneyで済ませている。
-func set_pending_bills_for_today() -> void:
-	pending_bills_today = DAILY_OPERATING_COST + (RENT_PRICE if is_collection_day() else 0)
-
-
-## 日々の運営費ぶんの支払い予定を確定させる（市場を出た瞬間に呼ぶ。
-## debug_panel.gd._on_market_exit_pressed参照）。0未満にはならないようクランプする。
-func settle_daily_cost_pending() -> void:
-	pending_bills_today = maxi(pending_bills_today - DAILY_OPERATING_COST, 0)
 
 
 ## 評判からその夜の総需要（客数の中心値）を決め、中心-1/中心/中心+1を25%/50%/25%で
@@ -529,12 +515,11 @@ func record_served(record) -> void:
 ## 今日の場所代を払い終えたと記録する入口（apply_money 等と同じく、受け側から
 ## rent_paid_today を直接代入させない）。チンピラのPAY Event（kind:"rent"）が
 ## 実際に適用されたときと、閉店直前の特別請求が通ったときの両方から呼ぶ。
-## 場所代ぶんの支払い予定（pending_bills_today）もここで一緒に決済する
-## （どちらの経路で払っても「場所代を払い終えた」という事実は1つなので、
-## 表示の決済もこの1箇所にまとめる）。
+## F4 帳簿：場所代ぶんの支払い予定の決済（旧pending_bills_today）は、呼び出し側
+## （debug_panel.gd）がこの関数と同じタイミングでLedger.record("release", RENT_PRICE)を
+## 呼ぶ形に分離した（GameStateはLedgerを呼ばない方針。3-4のPlan参照）。
 func mark_rent_paid() -> void:
 	rent_paid_today = true
-	pending_bills_today = maxi(pending_bills_today - RENT_PRICE, 0)
 
 
 ## ③初回好物の開示：この客の好物をもう知っているか（一度でも判定に使われる来店を

@@ -116,5 +116,39 @@ func run(t: SceneTree) -> int:
 	c.check("最終日のNEXT_DAY→WAKE折り返しでもday_endingが発火する", fired["v"])
 	flow2.queue_free()
 
+	# --- 8. F4帳簿：balance_log.jsonlの既存キーがLedger導入後も全て揃っている
+	#    （DESIGN.md 10.8.4「自動試遊の比較を続けられる形を保つ」の互換性確認。
+	#    実際に日次ログを1件書き出し、user://balance_log.jsonlの最終行をパースして
+	#    キー集合を見る＝指示文が提案した「実際に出力してdiffを取る」方法） ---
+	GameState.reset_for_new_game()
+	GameState.day_count = 1
+	var panel2 = load("res://scenes/debug_panel.tscn").instantiate()
+	t.root.add_child(panel2)
+	panel2._on_day_ending()
+	var log_path := "user://balance_log.jsonl"
+	var f := FileAccess.open(log_path, FileAccess.READ)
+	var last_line := ""
+	while f != null and not f.eof_reached():
+		var line := f.get_line()
+		if line != "":
+			last_line = line
+	if f != null:
+		f.close()
+	var parsed = JSON.parse_string(last_line)
+	c.check("balance_log.jsonlの最終行がパースできる", parsed is Dictionary, last_line)
+	var required_keys := ["day", "opening_money", "closing_money", "opening_reputation",
+		"closing_reputation", "planned_cups", "served_cups", "unserved_cups", "sale_total",
+		"quality_counts", "judged_planned_cups", "quality", "spoiled_items", "spoiled_value",
+		"water_used", "dashi_used", "closed_early"]
+	var missing := []
+	if parsed is Dictionary:
+		for key in required_keys:
+			if not parsed.has(key):
+				missing.append(key)
+	c.check("F4導入前からの既存キーが1つも欠けていない(削除・改名されていない)",
+		missing.is_empty(), str(missing))
+	c.check("spend_by_category(F4で新規追加のキー)が出力される",
+		parsed is Dictionary and parsed.has("spend_by_category"), str(parsed))
+
 	print("失敗数: ", c.fails, " / ", c.checks, "件")
 	return c.fails

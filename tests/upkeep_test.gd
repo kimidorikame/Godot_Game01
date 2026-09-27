@@ -101,31 +101,33 @@ func run(t: SceneTree) -> int:
 	c.check("理由テキストに場所代を払った旨が追記される",
 		close_reason.contains("店じまい") and close_reason.contains("場所代"), close_reason)
 
-	# --- 9. 支払い予定(pending_bills_today、表示専用)：非徴収日はWAKE直後80、
-	#    市場を出ると0になる（GameStateは単一のシングルトンなので、徴収日のケースと
-	#    混ざらないよう各シナリオでresetから作り直して自己完結させる） ---
+	# --- 9. F4帳簿：確保額(Ledger.pending_bills_today()、旧pending_bills_today)：
+	#    非徴収日はWAKE直後80、市場を出ると0になる（GameStateは単一のシングルトンなので、
+	#    徴収日のケースと混ざらないよう各シナリオでresetから作り直して自己完結させる） ---
 	var panel8 = _setup(t, 300, 2)
-	c.check("非徴収日のWAKE直後は支払い予定80のみ", GameState.pending_bills_today == 80,
-		str(GameState.pending_bills_today))
+	c.check("非徴収日のWAKE直後は確保80のみ", Ledger.pending_bills_today() == 80,
+		str(Ledger.pending_bills_today()))
 	var money_before8: int = GameState.money
 	panel8._on_market_exit_pressed()
-	c.check("非徴収日：市場を出ると支払い予定が0になる", GameState.pending_bills_today == 0,
-		str(GameState.pending_bills_today))
+	c.check("非徴収日：市場を出ると確保が0になる", Ledger.pending_bills_today() == 0,
+		str(Ledger.pending_bills_today()))
 	c.check("非徴収日は水道代が発生しないので市場を出てもmoneyは動かない",
 		GameState.money == money_before8, str(GameState.money))
 
-	# --- 10. 支払い予定：徴収日はWAKE直後170、市場を出ると場所代ぶんの90だけ残る
+	# --- 10. F4帳簿：徴収日はWAKE直後170、市場を出ると場所代ぶんの90だけ残る
 	#    （水道代の自動訪問も同時に起きるのでmoneyはここで動く）、場所代を払うと0になる
-	#    (通常のREACT経路・特別請求経路のどちらから呼ばれても同じmark_rent_paid()の
-	#    1箇所で決済される) ---
+	#    (通常のREACT経路・特別請求経路のどちらから呼ばれても、mark_rent_paid()と
+	#    Ledger.record("release", RENT_PRICE)を同じタイミングで呼ぶペアで決済される。
+	#    ここではそのペアを直接呼んで検証する) ---
 	var panel9 = _setup(t, 300, 1)
-	c.check("徴収日のWAKE直後は支払い予定80+90=170", GameState.pending_bills_today == 170,
-		str(GameState.pending_bills_today))
+	c.check("徴収日のWAKE直後は確保80+90=170", Ledger.pending_bills_today() == 170,
+		str(Ledger.pending_bills_today()))
 	panel9._on_market_exit_pressed()
-	c.check("徴収日：市場を出ると支払い予定は場所代ぶんの90だけ残る",
-		GameState.pending_bills_today == 90, str(GameState.pending_bills_today))
+	c.check("徴収日：市場を出ると確保は場所代ぶんの90だけ残る",
+		Ledger.pending_bills_today() == 90, str(Ledger.pending_bills_today()))
 	GameState.mark_rent_paid()
-	c.check("場所代を払うと支払い予定が0になる", GameState.pending_bills_today == 0)
+	Ledger.record("release", GameState.RENT_PRICE)
+	c.check("場所代を払うと確保が0になる", Ledger.pending_bills_today() == 0)
 
 	# --- 12. prep_after_tier_events(): MARKETの直後に「共同水道と炭屋に寄り、
 	#    市場を出た。」という表示専用のTEXTが入る ---
@@ -141,16 +143,19 @@ func run(t: SceneTree) -> int:
 			and str(tail[market_idx + 1].get("text", "")).contains("共同水道と炭屋"),
 		str(tail))
 
-	# --- 13. STATE VIEWERのmoney行に支払い予定の注記が出る／消える ---
+	# --- 13. F4帳簿：STATE VIEWERのbudget行（残金/確保/使える）が確保額の変化を反映する
+	#    （常時表示。0になっても行自体は消えない） ---
 	var panel10 = _setup(t, 300, 1)
-	c.check("支払い予定がある間はmoney行に注記が出る",
-		panel10._format_game_state().contains("支払い予定170"), panel10._format_game_state())
+	c.check("WAKE直後はbudget行が残金220(300-運営費80)/確保170/使える50になる",
+		panel10._format_game_state().contains("budget(残金/確保/使える): 220 / 170 / 50"),
+		panel10._format_game_state())
 	panel10._on_market_exit_pressed()
-	c.check("市場を出た後は注記が90に更新される",
-		panel10._format_game_state().contains("支払い予定90"), panel10._format_game_state())
+	c.check("市場を出た後は確保が90に更新される", panel10._format_game_state().contains("/ 90 /"),
+		panel10._format_game_state())
 	GameState.mark_rent_paid()
-	c.check("支払い予定が0になると注記自体が消える",
-		not panel10._format_game_state().contains("支払い予定"), panel10._format_game_state())
+	Ledger.record("release", GameState.RENT_PRICE)
+	c.check("確保が0になっても行自体は残る(常時表示)", panel10._format_game_state().contains("/ 0 /"),
+		panel10._format_game_state())
 
 	print("失敗数: ", c.fails, " / ", c.checks, "件")
 	return c.fails
