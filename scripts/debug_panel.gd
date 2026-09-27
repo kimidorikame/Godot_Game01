@@ -100,13 +100,6 @@ var _visit_tally := {}
 # GameState には持たせない（本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
 var _debug_mob_count := -1
 
-# 今夜の客の並び（予告メモ・作業ゲー化対策）。以前はOPENに入る瞬間にcustomer_schedule()
-# を呼んで初めて決まっていた（＝プレイヤーは開店するまで客層も人数も分からなかった）ため、
-# WAKEに入った瞬間にここで1回だけ確定させ、OPENでは（デバッグ上書き中を除き）これを
-# そのまま使い回す。スマホの「SNS」タブ（_format_tonight_memo）が見せる内容も
-# ここを参照する＝スマホの開閉や表示の都合で再抽選されることはない。
-var _tonight_schedule: Array = []
-
 # 前日の営業成績（翌朝のWAKE先頭で一度だけ見せる一言サマリー）。_game_over_reasonと
 # 同じ「一度だけ消費するテキスト」の形。_on_day_ending()（day_ending。NEXT_DAY→WAKEの
 # 折り返し直前に発火）で組み立て、次にWAKEのrunnerを組むときに読んで空文字へ戻す。
@@ -272,8 +265,10 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も人数も
 		# 分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
 		# 一つだったため、スマホの「SNS」タブ（_format_tonight_memo）で見せられる
-		# ようにする。
-		_tonight_schedule = Day1Events.customer_schedule(_debug_mob_count)
+		# ようにする。F2 DayPlan（DESIGN.md 10.8.2）：GameState.today_planへ確定させる
+		# のはDayPlanner.build()の役目（GameStateへ移す前はここでDay1Events.customer_
+		# schedule()を直接呼び、戻り値をDebugPanel自身の_tonight_scheduleへ保持していた）。
+		DayPlanner.build(_debug_mob_count)
 		# 前日の成績（③）：day_ending（NEXT_DAY→WAKEの折り返し）で既に組み立て済みの
 		# 一言サマリーがあれば、今日の起床イベントの先頭に差し込む（読んだら消費する。
 		# _closed_early_reason/_game_over_reasonと同じ「一度だけ」パターン）。
@@ -295,18 +290,18 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
 		# デバッグ用の一律上書き値（_debug_mob_count。-1=自動）をそのまま渡すだけでよい。
-		# 予告（②）：通常はWAKEで確定させた_tonight_scheduleをそのまま使う（客層・人数を
-		# 開店直前に変えない＝SNSタブで見せた内容と実際の客入りを一致させる）。
+		# 予告（②）：通常はWAKEで確定させたGameState.today_plan["slots"]をそのまま使う
+		# （客層・人数を開店直前に変えない＝SNSタブで見せた内容と実際の客入りを一致させる）。
 		# デバッグの一律上書き中（_debug_mob_count>=0）は、ボタンの「次にOPENに入る
 		# ときから効く」という既存の挙動を保つため、ここで引き直す（QAの便宜。
 		# SNSタブの表示が直前の内容と食い違う可能性があるのは元からデバッグ専用機能
-		# なので許容する）。_tonight_scheduleが空（テスト等でWAKEを経由せずOPENへ直接
+		# なので許容する）。today_plan["slots"]が空（テスト等でWAKEを経由せずOPENへ直接
 		# 遷移した場合の防御）のときも同様に引き直す＝WAKEを通らなくても従来どおり
 		# 動く（この保険はデバッグ上書きが無い自動抽選でも効くので、テストからの
 		# 直接呼び出しでcustomer_schedule()が空振りする心配は無い）。
-		if _debug_mob_count >= 0 or _tonight_schedule.is_empty():
-			_tonight_schedule = Day1Events.customer_schedule(_debug_mob_count)
-		_open = OpenController.new(_tonight_schedule)
+		if _debug_mob_count >= 0 or GameState.today_plan.get("slots", []).is_empty():
+			DayPlanner.build(_debug_mob_count)
+		_open = OpenController.new(GameState.today_plan.get("slots", []))
 		# 日次ログ：その日の計画杯数（提供できたか否かに関わらず）を、実際の接客より前に
 		# 先読みして合算する。customer_events()はGameState.day_countとJSONキャッシュを
 		# 読むだけの副作用なし関数なので、ここで呼んでも以後の本編の進行に影響しない。
@@ -351,8 +346,8 @@ func _load_current_customer() -> void:
 	_mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
 	_mob_recipe_number = 1
 	if _open != null and _open.has_more():
-		# モブの人数はDay1Events._mob_instances側で客ごとに覚えているので、ここでは
-		# 第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
+		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
+		# ここでは第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
 		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
 	else:
 		flow.set_runner([])
@@ -1687,16 +1682,18 @@ func _format_phone() -> String:
 	return "── スマホ ──\n%s" % body
 
 
-## 予告（②）：SNSタブの本文。_tonight_schedule（WAKEで1回だけ確定した今夜の並び）
-## を、時間帯ごとに「誰が・何人・どんな味を求めているか」だけ分かる一言メモへ整形する。
-## 好物はknows_favorite()がtrueの客だけ添える（③初回好物の開示と同じ「知っているかどうか」
-## のルールに揃える。モブはそもそもfavoriteを持たないので対象外）。
-## _tonight_schedule がまだ空（起床前など）なら、旧来のプレースホルダ文言を返す。
+## 予告（②）：SNSタブの本文。GameState.today_plan["slots"]（WAKEでDayPlanner.build()が
+## 1回だけ確定した今夜の並び）を、時間帯ごとに「誰が・何人・どんな味を求めているか」
+## だけ分かる一言メモへ整形する。好物はknows_favorite()がtrueの客だけ添える
+## （③初回好物の開示と同じ「知っているかどうか」のルールに揃える。モブはそもそも
+## favoriteを持たないので対象外）。today_plan["slots"]がまだ空（起床前など）なら、
+## 旧来のプレースホルダ文言を返す。
 func _format_tonight_memo() -> String:
-	if _tonight_schedule.is_empty():
+	var slots: Array = GameState.today_plan.get("slots", [])
+	if slots.is_empty():
 		return "SNS：まだ新着はありません"
 	var lines := PackedStringArray(["◆本日の客足予報◆"])
-	for slot in _tonight_schedule:
+	for slot in slots:
 		var parts := PackedStringArray()
 		for customer_id in slot.get("customers", []):
 			var cid := str(customer_id)

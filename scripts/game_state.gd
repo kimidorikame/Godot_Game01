@@ -163,15 +163,24 @@ var rent_paid_today: bool = false
 # 減っていく。
 var pending_bills_today: int = 0
 
+# その日の計画（F2・DESIGN.md 10.8.2）。DayPlanner.build()が唯一の書き手（WAKEで1回だけ
+# 呼ぶ）。OPENはこれを使い回す（客層・人数を開店直前に変えない＝予報と実際を一致させる）。
+# slotsはcustomer_schedule()と同じ戻り値の形（[{name, customers[]}, ...]）。
+# mob_instancesは旧Day1Events._mob_instances（instance_id→{type,count}のフラット辞書）の
+# 実体をここへ移したもの。forecast/bills_due/seed/demand_center/demand_actualは
+# 3-5以降で使い始めるまでフィールド自体を作らない（YAGNI。必要になった手順で追加する）。
+var today_plan: Dictionary = {}
+
 
 ## 日次リセット。NEXT_DAY フェーズの処理から呼ぶ。
-## soup・served・rent_paid_today・pending_bills_todayだけをクリアする。
+## soup・served・rent_paid_today・pending_bills_today・today_planだけをクリアする。
 ## money/reputation/inventory は残す。
 func reset_for_new_day() -> void:
 	soup = null
 	served.clear()
 	rent_paid_today = false
 	pending_bills_today = 0
+	today_plan = { "day": -1, "slots": [], "mob_instances": {} }
 
 
 ## 日を1つ進める。reset_for_new_day() の後に呼ぶ想定。

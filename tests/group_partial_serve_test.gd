@@ -28,7 +28,7 @@ func _setup(t: SceneTree, mob_count: int, inventory: Dictionary, kettle_remainin
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	Day1Events._mob_instances[MOB_ID] = { "type": "dock_workers", "count": mob_count }
+	GameState.today_plan["mob_instances"][MOB_ID] = { "type": "dock_workers", "count": mob_count }
 	panel._open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
@@ -105,7 +105,7 @@ func run(t: SceneTree) -> int:
 	panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
 	GameState.phase = GameState.Phase.OPEN
-	Day1Events._mob_instances[MOB_ID] = { "type": "dock_workers", "count": 4 }
+	GameState.today_plan["mob_instances"][MOB_ID] = { "type": "dock_workers", "count": 4 }
 	panel._open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()

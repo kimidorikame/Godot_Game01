@@ -93,18 +93,18 @@ func run(t: SceneTree) -> int:
 		sched_day1_m0[0]["customers"] == ["delivery_man"] and sched_day1_m0[1]["customers"] == ["thug"])
 
 	# --- 6. モブの枠ごとの独立抽選（種類がばらつきうること） ---
-	# _mob_instancesを直接見て、同日2枠(宵の口=固定dock_workers/夜半=プール抽選)で
-	# 型が独立して決まりうることを確認する。
+	# GameState.today_plan["mob_instances"]（F2 DayPlan）を直接見て、同日2枠
+	# (宵の口=固定dock_workers/夜半=プール抽選)で型が独立して決まりうることを確認する。
 	var types_at_night := {}
 	for i in range(300):
 		Day1Events.customer_schedule(-1)
 		var night_id: String = "mob#1"   # Day1は宵の口(mob#0固定dock_workers)→夜半(mob#1)の順
-		if Day1Events._mob_instances.has(night_id):
-			types_at_night[Day1Events._mob_instances[night_id]["type"]] = true
+		if GameState.today_plan["mob_instances"].has(night_id):
+			types_at_night[GameState.today_plan["mob_instances"][night_id]["type"]] = true
 	c.check("Day1夜半のモブ種類は複数出うる(dock_workers固定ではなくなった)",
 		types_at_night.size() > 1, str(types_at_night))
 	c.check("Day1宵の口のモブは常にdock_workers(mob:true)",
-		Day1Events._mob_instances.get("mob#0", {}).get("type", "") == "dock_workers")
+		GameState.today_plan["mob_instances"].get("mob#0", {}).get("type", "") == "dock_workers")
 
 	# --- 7. デバッグ上書き: 全モブ枠の人数が揃う（種類は揃わなくてよい） ---
 	GameState.day_count = 2
@@ -112,8 +112,8 @@ func run(t: SceneTree) -> int:
 	var types2 := {}
 	for i in range(50):
 		Day1Events.customer_schedule(2)
-		for id in Day1Events._mob_instances:
-			var inst: Dictionary = Day1Events._mob_instances[id]
+		for id in GameState.today_plan["mob_instances"]:
+			var inst: Dictionary = GameState.today_plan["mob_instances"][id]
 			counts[int(inst["count"])] = true
 			types2[str(inst["type"])] = true
 	c.check("デバッグ上書き時は全モブ枠の人数が2で揃う", counts.keys() == [2], str(counts))
@@ -140,7 +140,7 @@ func run(t: SceneTree) -> int:
 	var mob_flavor: Dictionary = Day1Events._customer_flavor(night_mob_id2)
 	c.check("モブのflavorはfavoriteを持たない", mob_flavor.get("favorite", "?") == "")
 	c.check("モブのservingsはインスタンスの人数と一致",
-		mob_flavor["servings"] == Day1Events._mob_instances[night_mob_id2]["count"])
+		mob_flavor["servings"] == GameState.today_plan["mob_instances"][night_mob_id2]["count"])
 	var mob_events: Array = Day1Events.customer_events(night_mob_id2)
 	var greet_types := []
 	for e in mob_events:
@@ -153,7 +153,7 @@ func run(t: SceneTree) -> int:
 	# （会話文は調整中で行数・内容が変わりうるため）。
 	c.check("%dを含む行は人数が埋め込まれる", Day1Events._format_mob_greet("%d人", 4) == "4人")
 	c.check("%dを含まない行はそのまま", Day1Events._format_mob_greet("素の台詞", 4) == "素の台詞")
-	Day1Events._mob_instances["mob_test_dw"] = {"type": "dock_workers", "count": 4}
+	GameState.today_plan["mob_instances"]["mob_test_dw"] = {"type": "dock_workers", "count": 4}
 	var dw_flavor: Dictionary = Day1Events._customer_flavor("mob_test_dw")
 	c.check("customer_flavor(モブ)のgreetにも同じ書式が適用される",
 		not dw_flavor["greet"].is_empty(), str(dw_flavor["greet"]))

@@ -105,7 +105,7 @@ func run(t: SceneTree) -> int:
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	Day1Events._mob_instances["mob_strength_test"] = { "type": "dock_workers", "count": 4 }
+	GameState.today_plan["mob_instances"]["mob_strength_test"] = { "type": "dock_workers", "count": 4 }
 	panel3._open = OpenController.new([{ "name": "宵の口", "customers": ["mob_strength_test"] }])
 	GameState.add_inventory("nam_prik_pao", 10)
 	GameState.add_inventory("meat_ball", 10)

@@ -213,7 +213,7 @@ func run(t: SceneTree) -> int:
 	var override_ok := true
 	for slot in sched_override:
 		for cid in slot.get("customers", []):
-			if Day1Events.is_mob_customer(str(cid)) and int(Day1Events._mob_instances[str(cid)]["count"]) != 3:
+			if Day1Events.is_mob_customer(str(cid)) and int(GameState.today_plan["mob_instances"][str(cid)]["count"]) != 3:
 				override_ok = false
 	c.check("デバッグ上書きは総需要システムをバイパスし、全モブ枠に一律適用される", override_ok)
 

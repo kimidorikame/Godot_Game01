@@ -326,12 +326,12 @@ static func close_events() -> Array:
 ## モブの独立抽選（Day2-7ダミーデータ・モブ抽選独立化 → ④評判の更新+⑤客数の決め方で
 ## Day2以降のauto経路をtotal_demand_today()ベースへ置き換え）。
 ## 枠ごとに決めたモブの（型・人数）は、customersに積む文字列自体を"mob#N"という
-## その日だけのインスタンスidにし、_mob_instancesへ退避しておく（客の番が来て
-## customer_events()→_customer_flavor()が呼ばれるときに引けるようにするため。
-## OpenController・debug_panel.gdはcustomersを不透明な文字列としてしか見ないので、
-## この2つは無改修で動く）。_mob_instancesはここで毎回clear()するので、次の日の
-## customer_schedule()呼び出しで自動的に前日の分が消える（明示的なリセットフックは
-## 不要と判断した）。
+## その日だけのインスタンスidにし、GameState.today_plan["mob_instances"]へ退避しておく
+## （客の番が来てcustomer_events()→_customer_flavor()が呼ばれるときに引けるようにする
+## ため。OpenController・debug_panel.gdはcustomersを不透明な文字列としてしか見ないので、
+## この2つは無改修で動く）。F2 DayPlan（DESIGN.md 10.8.2）：この辞書はGameStateへ移した
+## ので、customer_schedule()の呼び出しごとに明示的に空へ差し替える（前日分・前回呼び出し
+## 分を持ち越さない）。
 ##
 ## debug_mob_count（-1=自動、0以上=QA用の一律上書き）とDay1は、従来どおり
 ## 枠（宵の口・夜半・明け方）ごとに独立して_pick_mob()を呼ぶ（Day1はCURRENT_SPEC.md
@@ -340,7 +340,7 @@ static func close_events() -> Array:
 ## それ以外（Day2以降のauto）だけ、その夜の総需要からメイン客の合計杯数を引いた
 ## モブ杯数を先に決め、_plan_mob_groups()で組へ配分してから枠へ割り当てる。
 static func customer_schedule(debug_mob_count: int = -1) -> Array:
-	_mob_instances.clear()
+	GameState.today_plan["mob_instances"] = {}
 	var slots: Array = ScheduleData.day_schedule(GameState.day_count).get("slots", [])
 	var chosen_mains := []   # 同日内の重複禁止（main_poolの抽選用。§9-C確定仕様）
 	var main_ids := []
@@ -374,14 +374,14 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 					continue
 				var instance_id := "mob#%d" % mob_seq
 				mob_seq += 1
-				_mob_instances[instance_id] = { "type": type_id, "count": size }
+				GameState.today_plan["mob_instances"][instance_id] = { "type": type_id, "count": size }
 				customers.append(instance_id)
 		else:
 			var mob := _pick_mob(slot, debug_mob_count)
 			if not mob.is_empty():
 				var instance_id := "mob#%d" % mob_seq
 				mob_seq += 1
-				_mob_instances[instance_id] = mob
+				GameState.today_plan["mob_instances"][instance_id] = mob
 				customers.append(instance_id)
 		result.append({ "name": str(slot.get("name", "")), "customers": customers })
 	return result
@@ -504,12 +504,6 @@ static func _pick_mob_type(slot: Dictionary) -> String:
 ## 「これより後に名前あり客が残っているか」を問い合わせるために公開する。
 static func is_mob_customer(customer_id: String) -> bool:
 	return bool(_customer_flavor(customer_id).get("is_mob", false))
-
-
-## その日だけのモブのインスタンスid（"mob#0"等）→{type, count}。customer_schedule()が
-## 枠を組み立てる際に書き込み、customer_schedule()の次回呼び出し（＝翌日のOPEN開始）で
-## clear()される。_customer_flavor()がここを見てモブの型・人数を引く。
-static var _mob_instances: Dictionary = {}
 
 
 ## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。
@@ -776,17 +770,18 @@ static func _adjust_options() -> Array:
 ##   返すため、その間は is_mob・wanted_tags・favorite だけ使う。2日目以降に配達員が
 ##   再来店したときは（客の番数請求は1杯に減る）、他の客と同じ下の汎用の返り値を使う
 ##   （customers/delivery_man.json の "days"."1" エントリへフォールバックする内容）。
-## モブ（DESIGN.md 7.6）は、まず_mob_instances（customer_schedule()が枠ごとに独立抽選
-##   した結果）を見る。あれば、そのインスタンスの型でScheduleData.mob_data()を読む
-##   （favorite は持たない＝GREAT は出ない。個人の好物は「その人を知っているから分かる」
-##   もので、一見の集団には無い。servingsはそのインスタンスの人数）。引数のmob_countは
-##   モブに対しては使わない（枠ごとに独立して決めた人数を使うため。互換のため引数
-##   自体は残す）。
+## モブ（DESIGN.md 7.6）は、まずGameState.today_plan["mob_instances"]（customer_schedule()
+##   が枠ごとに独立抽選した結果。F2 DayPlan）を見る。あれば、そのインスタンスの型で
+##   ScheduleData.mob_data()を読む（favorite は持たない＝GREAT は出ない。個人の好物は
+##   「その人を知っているから分かる」もので、一見の集団には無い。servingsはそのインスタンス
+##   の人数）。引数のmob_countはモブに対しては使わない（枠ごとに独立して決めた人数を
+##   使うため。互換のため引数自体は残す）。
 ## 未知 id（JSONファイルが無い等）は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）
 ##   でフォールバックする（既存どおり。ScheduleDataは空辞書を返すのでそこで判別する）。
 static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Dictionary:
-	if _mob_instances.has(customer_id):
-		var inst: Dictionary = _mob_instances[customer_id]
+	var mob_instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	if mob_instances.has(customer_id):
+		var inst: Dictionary = mob_instances[customer_id]
 		var mob := ScheduleData.mob_data(str(inst.get("type", "")))
 		if mob.is_empty():
 			return _unknown_customer_flavor()
