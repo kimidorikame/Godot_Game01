@@ -1,0 +1,28 @@
+{
+  "id": "week7",
+  "final_day": 7,
+  "weeks": [{ "from": 1, "to": 7, "theme": "learn" }],
+  "economy": {
+    "initial_money": 600, "initial_reputation": 30,
+    "price_per_serving": 45, "daily_operating_cost": 80,
+    "prep_tiers": [[8, 80], [11, 110], [14, 140]],
+    "pot_capacity": 14, "water_doses": 2, "dashi_price": 16,
+    "demand_table": [[71, 17], [60, 14], [45, 11], [20, 9], [0, 7]],
+    "reputation_weight": 0.3, "penalty_stacking": false
+  },
+  "bills": [
+    { "id": "rent",  "amount": 90, "days": [1], "reserve": "WAKE", "scene": "thug" },
+    { "id": "water", "amount": 50, "days": [1], "reserve": "WAKE", "scene": "water_stall" }
+  ],
+  "market_open_from_day": 2,
+  "day_overrides": {
+    "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact",
+           "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },
+                    { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
+  },
+  "forecast": { "regulars": "base_order", "total": "range", "range_width": 1 },
+  "goals": { "cash_standard": 1500, "cash_challenge": 1600,
+             "good_rate": 0.85, "regular_great": 8 },
+  "regular_schedule": "week7_regulars",
+  "news": "week7"
+}

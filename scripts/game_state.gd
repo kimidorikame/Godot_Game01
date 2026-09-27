@@ -18,7 +18,9 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
 # 一杯の売価（内容にかかわらず一律。BALANCE_REDESIGN_PLAN.md§1・§2で50→45）。
 # 客ごとのデータではなくゲーム共通のルールなのでここに置く（is_collection_day() と同じ扱い）。
 # 評価差は価格ではなく評判・翌日の客数へ反映する（高級具に追加料金は付けない）。
-const PRICE_PER_SERVING := 45
+# F1キャンペーン設定（DESIGN.md 10.8.1）：値そのものはdata/campaigns/week7.jsonへ移し、
+# ここはRules経由の読み取り口として残す（既存の参照側は無改修のまま動く）。
+static var PRICE_PER_SERVING := Rules.price_per_serving()
 
 # 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
 # チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
@@ -34,19 +36,22 @@ const WATER_PRICE := 50
 # WAKEに入るたびdebug_panel.gd._set_runner_for_phase(WAKE)が直接支払う（wake_events()の
 # 中にPAY Eventとしては置かない。WAKEは_phase_can_skip=trueで[次のPhase]によりrunnerを
 # 消化せず先へ進めてしまえるため、Event列に頼ると支払いを毎回回避できてしまう）。
-const DAILY_OPERATING_COST := 80
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
+static var DAILY_OPERATING_COST := Rules.daily_operating_cost()
 
 # 最終日（DESIGN.md/CURRENT_SPEC：7日目のCLOSE後に「（終了）」を出し、翌朝1日目へ巻き戻す）。
 # 体験版では 3 にして使っていた。日数を変えるときはここを直接書き換える（切り替えUIは対象外）。
-const FINAL_DAY := 7
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
+static var FINAL_DAY := Rules.final_day()
 
 # 新規ゲーム開始時の初期値。変数宣言と reset_for_new_game() の両方で使う
 # （別々の数字にならないよう1箇所に置く）。BALANCE_REDESIGN_PLAN.md§1・§2で
 # 初期現金300→600。初期評判は元々定数化されておらず宣言側・reset_for_new_game()の
 # 2箇所に0が直書きされていたが、0→30への変更に合わせてINITIAL_MONEYと同じ
 # パターンで定数化した。
-const INITIAL_MONEY := 600
-const INITIAL_REPUTATION := 30
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
+static var INITIAL_MONEY := Rules.initial_money()
+static var INITIAL_REPUTATION := Rules.initial_reputation()
 
 # Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない。CURRENT_SPEC.md参照）。
 # ④評判の更新+⑤客数の決め方（BALANCE_REDESIGN_PLAN.md§5）で、Day2以降のモブ人数は
@@ -59,7 +64,10 @@ const DAY1_MOB_COUNT := 4
 # 評判 → その夜の総需要（中心値。BALANCE_REDESIGN_PLAN.md§5「客数の決め方」）。
 # [評判の下限, 中心値] を大きい順に並べ、最初に当たった行を使う。実際の需要は
 # 中心-1/中心/中心+1を25%/50%/25%で引く（total_demand_today()）。Day1は9固定。
-const DEMAND_TABLE := [[71, 17], [60, 14], [45, 11], [20, 9], [0, 7]]
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。DAY1_DEMANDは
+# week7.jsonのday_overrides."1".fixed_demandに対応する値だが、day_overrides自体は
+# 3-2/3-5で読み始めるまで宣言のみなので、ここは変えずcurrent値の定数のまま残す。
+static var DEMAND_TABLE := Rules.demand_table()
 const DAY1_DEMAND := 9
 
 # 具材の腐敗（購入日を1日目に数える経過日数。どの品目が腐るかは Ingredients.is_perishable）。
@@ -77,13 +85,14 @@ const SPOIL_DISCARD_DAY := 4
 const STRENGTH_MIN := 1            # 濃さの下限（水っぽい）。評価1段階低下の境界
 const STRENGTH_MAX := 5            # 濃さの上限（煮詰まりすぎ）。評価1段階低下の境界
 const STRENGTH_HARD_FLOOR := 0     # 水を足せるかどうかの下限。0＝提供不可（別の・より重い結果）
-const WATER_DOSES_PER_NIGHT := 2   # 毎朝汲める水の回数（PRICING_SPEC 4章。持ち越さない）
+static var WATER_DOSES_PER_NIGHT := Rules.water_doses()   # 毎朝汲める水の回数（F1キャンペーン設定。PRICING_SPEC 4章。持ち越さない）
 const WATER_SERVINGS := 2          # 水1回： 残量 +2
 const WATER_STRENGTH_DELTA := 2    # 水1回で下がる濃さ
 # 濃縮だし（予備ベース／add_base()の後継。BALANCE_REDESIGN_PLAN.md§1・§2）。
 # 予備ベースと違い「1周1回」の制限・期限・傷みの概念は無い＝市場で毎日何度でも買える
 # 単純なカウンタ（dashi_units）。量は増やさず濃さだけ上げる。
-const DASHI_PRICE := 16            # 1回分の価格（食肉仲卸で購入）
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
+static var DASHI_PRICE := Rules.dashi_price()   # 1回分の価格（食肉仲卸で購入）
 const DASHI_STRENGTH_DELTA := 2    # だし1回で上がる濃さ
 
 # --- 永続する事実 ---

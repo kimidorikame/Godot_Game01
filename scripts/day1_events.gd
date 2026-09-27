@@ -40,11 +40,25 @@ static func wake_events() -> Array:
 ## *_goods()と同じ置き場所・schema思想（id/label/price + この場合はservings）。
 ## 小仕込みの価格(80)は独立した定数（旧GameState.BASE_PRICEは予備ベース購入専用の
 ## 値だったが、濃さメカニクス三点セットで予備ベースごと廃止した）。
-const PREP_TIERS := [
-	{ "id": "small",  "label": "小仕込み", "price": 80,  "servings": 8 },
-	{ "id": "medium", "label": "中仕込み", "price": 110, "servings": 11 },
-	{ "id": "large",  "label": "大仕込み", "price": 140, "servings": 14 },
-]
+## F1キャンペーン設定（DESIGN.md 10.8.1）：価格・杯数の実体はRules.prep_tiers()
+## （data/campaigns/week7.jsonのeconomy.prep_tiers、[servings, price]の数値ペア配列）
+## へ移した。id/labelは表示用でキャンペーン設定のスキーマに無いため、ここでRules側の
+## 並び順に対応づけて重ねる（_PREP_TIER_IDSの並びとJSON配列の並びが一致している前提。
+## 既存の呼び出し側（prep_tier_options()・prep_tier_by_id()・PREP_TIERS[0]等）が読む形
+## {id, label, price, servings} は変えていないので無改修で動く）。
+const _PREP_TIER_IDS := ["small", "medium", "large"]
+const _PREP_TIER_LABELS := { "small": "小仕込み", "medium": "中仕込み", "large": "大仕込み" }
+static var PREP_TIERS := _build_prep_tiers()
+
+
+static func _build_prep_tiers() -> Array:
+	var pairs := Rules.prep_tiers()
+	var result := []
+	for i in range(pairs.size()):
+		var id: String = _PREP_TIER_IDS[i]
+		result.append({ "id": id, "label": _PREP_TIER_LABELS[id],
+			"servings": int(pairs[i][0]), "price": int(pairs[i][1]) })
+	return result
 
 
 ## PREP_TIER Eventのoptionsとして渡す（呼び出し側が書き換えても本体に影響しないよう複製）。
