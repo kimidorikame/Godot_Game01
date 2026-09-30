@@ -40,6 +40,36 @@ DESIGN.md が「これから作る指示書」なのに対し、こちらは「�
 - 本番UIへ処理を直接コピーしない。本番UIを作る段階で同じ処理が必要になったときだけ、
   DebugPanelと本番UIが共有できるControllerへの分離を検討する。
 
+**（2026-09-28追記・F1〜F4実装済み）** 上記4部品＋DebugPanelに加え、経済・判定のルールそのものは小さな静的クラス（`Day1Events`・`Ingredients`と同じ形）へ分離されている：`Rules`（キャンペーン設定`data/campaigns/week7.json`の読み取り口）・`DayPlanner`（`GameState.today_plan`の構築）・`SaleRule`（提供前チェック）・`Judge`（判定v2）・`Ledger`（`GameState.ledger`への記録・集計）。いずれも状態は持たず（状態は`GameState`のフィールド側）、GameStateの分割や汎用エンジン化ではない（`DESIGN.md`10.2原則10）。
+
+  - `Rules`（`scripts/rules.gd`）：`data/campaigns/week7.json`を読み込んでキャッシュする
+    だけの読み取り専用口。`price_per_serving()`・`daily_operating_cost()`・
+    `dashi_price()`・`water_doses()`・`demand_table()`・`prep_tiers()`・
+    `initial_money()`・`initial_reputation()`・`pot_capacity()`・`final_day()`・
+    `bills()`・`day_overrides(day)`等を持つ。値そのものは7日版で変わっていない
+    （600/30/45/80/…がコードのconstからJSON参照に変わっただけ）。
+  - `DayPlanner`（`scripts/day_planner.gd`）：`build(debug_mob_count=-1)`が
+    `Day1Events.customer_schedule()`を呼び、結果を`GameState.today_plan`
+    （`{day, slots, mob_instances}`）へ書く。WAKEで1回だけ呼ぶことで「その日の
+    客組みを1回決めて使い回す」を保証する（DESIGN.md 10.2原則2）。
+  - `SaleRule`（`scripts/sale_rule.gd`）：`check(bowl, soup, order={})`が
+    `{ok, reasons[]}`を返す「提供できるか」の事前ゲート。`reasons`は
+    `NO_FLAVOR`（味付け0）・`NO_TOPPING`（具0）・`STRENGTH_ZERO`（鍋の濃さ0）・
+    `SHORT_SERVINGS`（注文数に対して残量不足）の4種。判定（Judge）より前に、
+    在庫・鍋・売上を一切動かさずに呼べる。
+  - `Judge`（`scripts/judge.gd`）：`grade(bowl, soup, order)`が
+    `{grade, base_grade, penalties[], favorite_hit, match_count}`を返す判定v2。
+    一致数どおりのbase_gradeに対し、濃さ1/5・傷んだ具材の各penaltyで最大1段階だけ
+    下げる（重ね掛けなし）。favoriteは**初回から**判定に使われ、`match_count>=2`
+    のときだけGREATへ上げる（1軸一致＋favoriteはOKのまま。DESIGN.md 10.3.2）。
+  - `Ledger`（`scripts/ledger.gd`）：`record(category, amount, item="", count=0,
+    unit_price=0, ref="")`で`GameState.ledger`（Array、日をまたいで残る）へ1件追記
+    する。`category`は`daily_cost`/`rent`/`water`/`kit`/`prep`/`market`/`dashi`/
+    `sale`/`fund`/`reserve`/`release`の11種（DESIGN.md 10.4）。`pending_bills_today()`
+    が`reserve`−`release`の当日差分から「支払い予定」を、`spend_by_category_today()`
+    が当日のカテゴリ別支出集計を計算する（どちらも読み取り専用の集計関数で、
+    money自体には触れない）。
+
 ---
 
 ## 2. GameState（日をまたいで残る実行中の事実）
@@ -58,9 +88,14 @@ phase       : Phase = WAKE  # 今どのフェーズか
 soup        : null          # 今日の鍋（仕込み前は null）※日次リセット対象
 served      : Array = []    # 今夜の提供実績 ※日次リセット対象
 rent_paid_today : bool = false # 今日の場所代を払い終えたか ※日次リセット対象
-pending_bills_today : int = 0  # 表示専用の「支払い予定」額 ※日次リセット対象
-                                # （実装済み・2026-09-26改訂：場所代・水道代の
-                                # 再編＋日々の運営費。§6「WAKE」参照）
+ledger      : Array = []    # 支出・売上の記録（F4・実装済み・2026-09-28追記）。
+                             # {category, amount, item, count, unit_price, ref, day}。
+                             # 日をまたいで残る（reset_for_new_game()でのみクリア）。
+                             # 旧`pending_bills_today`はここから`Ledger.pending_bills_today()`
+                             # で計算する形に置き換えられ、フィールド自体は削除された
+                             # （下記「支払い予定」参照）
+today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09-28追記）。
+                             # {day, slots, mob_instances}。※日次リセット対象
 ```
 
 ### 状態変更の入口（受け側はここだけを通す）
@@ -90,14 +125,17 @@ pending_bills_today : int = 0  # 表示専用の「支払い予定」額 ※日�
   （水は`STRENGTH_HARD_FLOOR`(0)以上、だしは`STRENGTH_MAX`(5)以下）に収まるか
 - `record_served(record)` … 提供実績を1件記録
 - `mark_rent_paid()` … 今日の場所代を払い終えたと記録する（実装済み・§5「未解決」の
-  直し方で追加。`rent_paid_today`を直接代入させない入口。2026-09-26改訂：
-  `pending_bills_today`から場所代ぶんを差し引く決済もここで一緒に行う）
-- `set_pending_bills_for_today()` / `settle_daily_cost_pending()`（実装済み・
-  2026-09-26改訂・場所代/水道代の再編＋日々の運営費）… 表示専用の「支払い予定」
-  （`pending_bills_today`）の確定・決済専用の入口。moneyには一切触れない
-  （詳細は下記「支払い予定」参照）
-- `reset_for_new_day()` … soup・served・rent_paid_today・pending_bills_today
-  をクリア（money 等は残す）
+  直し方で追加。`rent_paid_today`を直接代入させない入口。2026-09-28追記：
+  `pending_bills_today`を差し引く決済処理は削除され、代わりに呼び出し側
+  （`debug_panel.gd`）が`Ledger.record("release", ...)`を呼ぶ形に置き換わった）
+- `set_pending_bills_for_today()` / `settle_daily_cost_pending()` は
+  **2026-09-28追記・F4実装により削除**。表示専用の「支払い予定」は
+  `Ledger.pending_bills_today()`が`ledger`の`reserve`/`release`エントリから
+  都度計算する形に置き換わった（moneyには一切触れない点は変わらない。
+  詳細は下記「支払い予定」参照）
+- `reset_for_new_day()` … soup・served・rent_paid_today・today_plan
+  をクリア（money・ledger 等は残す。2026-09-28追記：`pending_bills_today`は
+  フィールド自体が削除されたためここでは触らない）
 - `advance_day()` … day_count +1
 - `is_collection_day()` … 今日が徴収日か。`day_count == 1`（**決定済み：7日版に
   戻しても増やさない**。徴収日が初日のみのため、通常プレイでは水道代・場所代に
@@ -354,10 +392,40 @@ FlowController（フェーズ）
   「挑戦する」からレシピ2への遷移・断った場合に材料が減らないことを目視確認済み。
   コミット：`9c9da7e`。
 
+### 名前あり客・配達員の「客を断る」（F3・実装済み・2026-09-30追記）
+
+`DESIGN.md`10.3.6。上記の団体客（モブ）向け「注文を断る」はコミット`c19ed80`で
+既にあったが、**名前あり客・配達員は対象外**だった。F3実装で名前あり客・配達員の
+ADJUST中にも`[客を断る]`ボタンが追加され（`_is_current_mob_order()`のときは
+モブ側の「断る」と重複するためこのボタン自体を出さない）、達成可能かどうかに
+関わらずいつでも押せる。
+
+- `_on_customer_decline_pressed()`が`_pending_decline`を立てて
+  `_complete_input_and_advance()`を呼ぶ（`_pending_group_choice`と同じ
+  「ADJUST側で確定させてREACT到達時に反映する」パターン）。
+- `_serve_customer_decline(ev)`：`judge_bowl()`を呼ばない・鍋を消費しない・
+  売上を発生させない。`GameState.record_served({customer, sale:0, servings:0,
+  declined:true, result:""})`として未提供を記録する（配達員＝`aggregate:true`の
+  ときは`_visit_tally`へ0杯ぶんとして積み、退店時にまとめて反映）。
+- ADJUST中の事前警告（`_format_sale_hint()`。F3・DESIGN.md 10.3.1/10.3.2）：
+  まだ判定していない椀について、`SaleRule.check()`が`NO_FLAVOR`/`NO_TOPPING`を
+  返すなら「（このままでは提供できません：味付けが入っていません・具が入って
+  いません）」を、提供はできても濃さ1/5または傷んだ具材使用でJudgeの減点が
+  見込まれるなら「（このままだと1段階下がります：…）」を表示する。どちらも
+  該当しなければ何も表示しない。残量不足（`_is_short_in_adjust`）・濃さ0
+  （`_is_strength_zero_in_adjust`）は既存の別ロジックが担当するため、
+  `_is_bowl_unsellable_in_adjust()`はSaleRuleの`NO_FLAVOR`/`NO_TOPPING`だけを見る
+  （二重判定を避ける）。`NO_FLAVOR`/`NO_TOPPING`のときは`[入力完了]`も止まる。
+
 ### 初期在庫（`initial_inventory()`・実装済み）
 
 Day1 開始時点で最初から持っている分。市場で買う前でも Day1 の3人＋モブに
 対応できる最小セットとして確定。
+
+> **【2026-09-26改訂・実装済み】** 具材3品目（下記表）を詰みポイント対策
+> （Day1の実際の注文13杯に対し初期在庫が9杯想定分しかなく足りなくなる問題）
+> として増量した。ナムプリックパオ・ココナッツミルク・薬膳ナンプラーだれ
+> （調味料3種）と offal（モツ）は変更なし。
 
 | 種別 | id | 個数 |
 |------|----|----:|
@@ -365,9 +433,9 @@ Day1 開始時点で最初から持っている分。市場で買う前でも Da
 | 調味料 | coconut_milk（ココナッツミルク） | 10 |
 | 調味料 | herbal_sauce（薬膳ナンプラーだれ） | 10 |
 | 具材 | offal（下処理したモツ） | 4 |
-| 具材 | meat_ball（くず肉団子） | 4 |
-| 具材 | tofu（豆腐） | 4 |
-| 具材 | broken_wrapper（割れた餃子皮） | 4 |
+| 具材 | meat_ball（くず肉団子） | 6（2026-09-26改訂：4→6） |
+| 具材 | tofu（豆腐） | 5（2026-09-26改訂：4→5） |
+| 具材 | broken_wrapper（割れた餃子皮） | 5（2026-09-26改訂：4→5） |
 
 - 具材の個数は当初「2」で合意していたが、実装確認時に「4」になっていたため
   ユーザーに確認 → **4個で確定（意図的な変更）**。以後この値が正。
@@ -512,8 +580,7 @@ ADJUSTで1〜2個選ぶ → [廃棄する]
 
 #### 初回好物の開示（実装済み・2026-09-23）
 
-> **【2026-09-26更新】** 下記の「まだ知らない客に好物を入れてもGREATにはならない（一致数どおりGOOD止まり）」は、7日版MVPの判定v2（`planning/DESIGN_MVP7_2026_09_26.md`
-> 10.3.2）で**判定の扱いが変わる**：favoriteは2軸一致のときに限り初回からGREATへ1段上げる（1軸一致＋favoriteはOKのまま）。好物を**表示する**タイミング（`mark_favorite_known`。既知になるまで隠す）は変えない——変わるのは「隠れている間も判定には使う」という点だけ。
+> **【2026-09-28追記・実装済み】** 下記の「まだ知らない客に好物を入れてもGREATにはならない（一致数どおりGOOD止まり）」は**もう現在の実装ではない**。7日版MVPの判定v2（`scripts/judge.gd`・`DESIGN.md`10.3.2）で判定の扱いが変わった：favoriteは**初回から**判定に使われ、2軸一致のときに限りGREATへ1段上げる（1軸一致＋favoriteはOKのまま）。`debug_panel.gd`側でも`knows_favorite()`によるゲート（判定に渡す前に既知でなければ空へ差し替える処理）を廃止し、常に生の`favorite`を`judge_bowl()`へ渡す形に変わっている。好物を**表示する**タイミング（`mark_favorite_known`。既知になるまでSTATE VIEWER上では隠す）だけは変えていない——変わったのは「隠れている間も判定には使う」という点。下記の本文（`_serve_customer()`の説明を含む）は当時の実装の記録として残す。
 
 `BALANCE_REDESIGN_PLAN.md`§8③のうち「初回は退店時に好物を知る」だけを実装した
 （商品の購入単位・客数の決め方＝評判式は対象外・今回は無変更。コミット`8867c84`）。
@@ -524,9 +591,12 @@ ADJUSTで1〜2個選ぶ → [廃棄する]
   でクリアする（新しい周回では全員また初対面から）。`knows_favorite(id)`／
   `mark_favorite_known(id)`の2つの入口経由でのみ読み書きする（`mark_rent_paid()`と
   同じ形）。
-- `_serve_customer()`が`judge_bowl()`に渡す好物を、Event側の生の`favorite`ではなく
-  「知っていれば生の値・知らなければ空」に差し替える。**まだ知らない客に好物を
-  入れてもGREATにはならない**（一致数どおりGOOD止まりなど）。
+- 実装当初は`_serve_customer()`が`judge_bowl()`に渡す好物を、Event側の生の`favorite`ではなく「知っていれば生の値・知らなければ空」に差し替えていた（**まだ知らない客に好物を入れてもGREATにはならない**、一致数どおりGOOD止まり）。
+  **2026-09-28追記・F3実装により変更**：このゲートは廃止され、`_serve_customer()`は
+  常に生の`favorite`を`judge_bowl()`へ渡す（`debug_panel.gd`該当箇所のコメント
+  「knows_favorite()でゲートしてから判定に渡していたが、そのゲート自体を廃止した」）。
+  今は**初回から**favoriteが判定に使われる（2軸一致のときだけGREATへ、上記の
+  判定v2更新note参照）。表示（既知になるまで隠す）と判定（初回から使う）が分離された。
 - 「知った」扱いにする（`mark_favorite_known()`）タイミングは退店時：
   - 名前あり客（1回の接客＝1杯）はその場（判定直後）で確定してよい。
   - **配達員（`aggregate:true`・1杯ずつ3回接客）は1杯目の判定直後では確定させず、
@@ -1203,6 +1273,17 @@ ADJUSTで不足（残量 < servings）
 
 ### 支払い予定（`pending_bills_today`・表示専用・実装済み・2026-09-26改訂）
 
+> **【2026-09-28追記・F4実装済み】** 以下は`pending_bills_today`フィールドが
+> 存在していた時点の記録（履歴として残す）。F4（帳簿）の実装により
+> `pending_bills_today`・`set_pending_bills_for_today()`・
+> `settle_daily_cost_pending()`はすべて削除された。表示専用の「支払い予定」は
+> 今は`Ledger.pending_bills_today()`（`GameState.ledger`から`reserve`/`release`の
+> 差分を都度計算）に置き換わっている。STATE VIEWERの表示も
+> `budget(残金/確保/使える): N / M / N-M`という形に変わった（`debug_panel.gd`
+> `_format_game_state()`）。moneyそのものに影響しない二次的な値、という性質は
+> 変わっていない。以下の`set_pending_bills_for_today()`等の説明は当時の実装の
+> 記録として残す。
+
 日々の運営費は実際にはWAKEで即天引き済みだが、プレイヤーへは「今日まだ物語上の
 けじめが付いていない金額」として、STATE VIEWERのmoney行に`（支払い予定NN）`の
 注記で見せる（`GameState.pending_bills_today`。moneyそのものには影響しない
@@ -1415,6 +1496,11 @@ Event」パターンを流用）。
   同じにしたまま`id`だけ変えた別要素を追加する（モツ・海老の小口購入がこの形）。
   `_on_shop_item_selected()`は`item`/`count`を読んで`GameState.add_inventory(item,
   count, unit_price)`を呼ぶ（`unit_price = price / count`）。
+- **市場ボタンの表示に個数・単価を追加（F4・実装済み・2026-09-30追記）**：
+  ボタン文言が`"%s（-%d・%d個入り・単価%d）" % [label, price, count, unit_price]`に
+  変わり、値段だけでなく1回の購入で増える個数と単価もボタン上に出るようになった
+  （`debug_panel.gd`のPREP以外の通常市場ボタン生成箇所）。仕入れ判断に必要な情報を
+  増やしただけで、購入時の処理（`_on_shop_item_selected()`）自体は変わっていない。
 - **ロットごとの実際に払った単価を記録**（同日）：`add_inventory()`に`unit_price`
   引数が増え、`perishable_batches`の各ロットが`unit_price`を持つ（詳細は上記
   「具材の腐敗」参照）。同じ品目を同じ日にパックと小口の両方で買うと、単価が違う
@@ -1489,16 +1575,21 @@ CLOSEに来た日も同じ（理由テキスト＋閉店TEXT×3＋（終了）�
   → [次のPhase] でreset_for_new_game() が走り、1日目のWAKEへ
 ```
 
-- **全状態初期化**：`day_count`（→1）・`money`（→300）・`reputation`（→0）・
-  `inventory`（クリア）・`stocked_day`（クリア）・`rumors`（クリア）・
-  `dashi_units`（→0）・`phase`（→WAKE）・`soup`・`served`・
-  `rent_paid_today`・`pending_bills_today`（どちらも`reset_for_new_day()`と
-  同じくクリア）の**12個すべて**が対象
-  （`rent_paid_today`は「閉店で場所代を避けられる」不具合の修正で追加、
-  `pending_bills_today`は場所代・水道代の再編＋日々の運営費で追加。2026-09-26改訂：
-  予備ベース関連の`reserve_base_units`/`reserve_base_purchased`/
+- **全状態初期化**：`day_count`（→1）・`money`（→`INITIAL_MONEY`＝600）・
+  `reputation`（→`INITIAL_REPUTATION`＝30）・`inventory`（クリア）・
+  `perishable_batches`（クリア）・`rumors`（クリア）・`dashi_units`（→0）・
+  `known_favorites`（クリア）・`ledger`（クリア）・`phase`（→WAKE）・
+  `soup`・`served`・`rent_paid_today`・`today_plan`（この4つは
+  `reset_for_new_game()`内で呼ぶ`reset_for_new_day()`がクリア）が対象
+  （`rent_paid_today`は「閉店で場所代を避けられる」不具合の修正で追加。
+  2026-09-26改訂：予備ベース関連の`reserve_base_units`/`reserve_base_purchased`/
   `reserve_base_purchase_remaining`/`reserve_base_purchase_day`（4個）は削除され、
-  後継の`dashi_units`（1個）に統合された。§5・§11参照）。
+  後継の`dashi_units`（1個）に統合された。§5・§11参照。**2026-09-28追記・
+  F1〜F4実装により変更**：`money`/`reputation`の初期値は`Rules`経由
+  （`data/campaigns/week7.json`）の読み取りに変わった（値そのものは同じ600/30）。
+  `pending_bills_today`はフィールド自体が削除され対象外に。`ledger`（F4）と
+  `known_favorites`（好物の既知状態）が新たに初期化対象へ加わった。項目数の
+  「12個」という数え方はここで実質的な意味を失ったため以後は数えない）。
 - **初期在庫の積み直しは`DebugPanel`側の責務**：`GameState`はDay1の台本
   （`Day1Events`）を知らない設計を保つため、`reset_for_new_game()`自体は
   在庫を空にするだけで、`Day1Events.initial_inventory()`を積み直さない。
@@ -1647,6 +1738,12 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/day1_events.gd` | Day1 の Event データ（wake/prep/customer/close）+ 分岐 |
 | `scripts/debug_panel.gd` | State Viewer 表示 ＋ 受け側（_apply_event） |
 | `scenes/debug_panel.tscn` | DebugPanel のシーン（デバッグ用の`[所持金 -50/+50]`含む） |
+| `scripts/rules.gd` | F1・キャンペーン設定（`data/campaigns/week7.json`）の読み取り口（2026-09-28追記） |
+| `scripts/day_planner.gd` | F2・`GameState.today_plan`の構築（2026-09-28追記） |
+| `scripts/sale_rule.gd` | F3・提供前チェック（味/トッピング/濃さ0/杯数不足。2026-09-28追記） |
+| `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
+| `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記） |
+| `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 
 ※ Graybox（graybox_open）は STEP 17.5 の検証後に削除した。
 具材が増えて計器盤で操作しきれなくなった段階で作り直す。
