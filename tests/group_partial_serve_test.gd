@@ -155,7 +155,10 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 1
 	var panel2 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel2)
-	panel2._seed_initial_inventory()
+	# 3-5：initial_inventory()は空になったため、_seed_initial_inventory()はもう何も
+	# 積まない。このテストで使う分を直接積む。
+	GameState.add_inventory("nam_prik_pao", 10)
+	GameState.add_inventory("meat_ball", 10)
 	GameState.phase = GameState.Phase.OPEN
 	panel2._open = OpenController.new([{ "name": "宵の口", "customers": ["thug"] }])
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)

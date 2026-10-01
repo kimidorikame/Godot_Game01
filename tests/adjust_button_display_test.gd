@@ -9,10 +9,19 @@ func _setup(t: SceneTree):
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
-	t.root.add_child(panel)   # _ready()が自動でinitial_inventory()を積む
-	# 苦瓜(bitter_melon)は初期在庫に無い品目なので、ADJUSTのoptionsスナップショットに
-	# 含めるため客をロードする前に積んでおく（options は接客開始時の1回だけの
-	# スナップショットなので、後から積んでも今夜のADJUSTには反映されない）。
+	t.root.add_child(panel)   # _ready()が自動でinitial_inventory()を積むが、3-5で空になった
+	# （無料在庫0。初日セットはPREPの購入イベント経由でのみ積まれる）。このテストは
+	# ADJUSTボタンの表示（B/C）だけを見るので、旧initial_inventoryと同じ内容を客の
+	# ロード前に直接積む（offalは初日セットに含まれない品目だが、下処理したモツの
+	# 表示確認に必要なので任意の個数を別途足す。苦瓜(bitter_melon)も同様に任意追加。
+	# optionsは接客開始時の1回だけのスナップショットなので、後から積んでも反映されない）。
+	GameState.add_inventory("nam_prik_pao", 10)
+	GameState.add_inventory("coconut_milk", 10)
+	GameState.add_inventory("herbal_sauce", 10)
+	GameState.add_inventory("offal", 4)
+	GameState.add_inventory("meat_ball", 6)
+	GameState.add_inventory("tofu", 5)
+	GameState.add_inventory("broken_wrapper", 5)
 	GameState.add_inventory("bitter_melon", 2)
 	GameState.phase = GameState.Phase.OPEN
 	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug"] }])
@@ -30,9 +39,8 @@ func run(t: SceneTree) -> int:
 
 	var panel = _setup(t)
 
-	# 初期在庫：nam_prik_pao等の調味料10個・具材はDay1Events.initial_inventory参照
-	# （Day1の13杯・モブ3種抽選に耐える数へ2026-09-26に増量。offal4/meat_ball6/
-	# tofu5/broken_wrapper5。詳細はinitial_inventory()のコメント）。
+	# 下準備：_setup()で直接積んだ在庫がそのまま反映されていることの確認（3-5で
+	# Day1Events.initial_inventory()は空になったため、もう自動シードには頼らない）。
 	c.check("下準備: ナムプリックパオは10個", GameState.fresh_count("nam_prik_pao") == 10)
 	c.check("下準備: 肉団子は6個", GameState.fresh_count("meat_ball") == 6)
 

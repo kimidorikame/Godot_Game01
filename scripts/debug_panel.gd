@@ -265,9 +265,14 @@ func _set_runner_for_phase(phase: int) -> void:
 		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
 			return
 		# F4 帳簿：今日まだ物語上のけじめが付いていない金額を「確保」として記帳する
-		# （旧GameState.set_pending_bills_for_today()。徴収日は場所代ぶんも含む。
-		# Ledger.pending_bills_today()がこの記帳から確保額を計算し直す）。
-		Ledger.record("reserve", -(GameState.DAILY_OPERATING_COST + (GameState.RENT_PRICE if GameState.is_collection_day() else 0)))
+		# （旧GameState.set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で
+		# 徴収日は場所代に加え水道代ぶんも確保対象に含めた（実際の支払いタイミングは
+		# 変えていない＝水道代は今までどおり水場訪問時に払う。Ledger.pending_bills_today()
+		# がこの記帳から確保額を計算し直す）。
+		var reserve_amount := GameState.DAILY_OPERATING_COST
+		if GameState.is_collection_day():
+			reserve_amount += GameState.RENT_PRICE + GameState.WATER_PRICE
+		Ledger.record("reserve", -reserve_amount)
 		# 予告（②）：今夜の客の並びをここで1回だけ確定させ、OPENでは（デバッグの一律
 		# 上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も人数も
 		# 分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
@@ -622,6 +627,9 @@ func _visit_water_stall() -> bool:
 	if GameState.is_collection_day():
 		if not _pay_or_game_over(GameState.WATER_PRICE, "water"):
 			return false
+		# F4/3-5：水道代もWAKEで確保対象に含めた（上記reserve_amount参照）ので、
+		# 実際に払ったこの瞬間に場所代と同じ形でreleaseする。
+		Ledger.record("release", GameState.WATER_PRICE)
 	_market_visited_water = true
 	return true
 
@@ -779,13 +787,24 @@ func _apply_event(ev) -> void:
 			# （閉店直前の特別請求が二重にならないようにするため。§11「未解決」の直し方）。
 			# F4 帳簿：kind:"rent"のときだけLedgerの"rent"カテゴリで記帳し、WAKE時点の
 			# 確保（reserve）を「release」で決済する（旧mark_rent_paid()内のpending減算）。
+			# 3-5：kind:"kit"（初日セット）はLedgerの"kit"カテゴリで記帳するだけで、
+			# 場所代のような「支払い済み」フラグや確保の決済は不要（一度きりの固定購入で、
+			# 未払いのまま閉店する経路が無いため）。
 			var pay_kind := str(ev.get("kind", ""))
-			if _pay_or_game_over(int(ev.get("amount", 0)), "rent" if pay_kind == "rent" else "") \
-					and pay_kind == "rent":
+			var pay_category := "rent" if pay_kind == "rent" else ("kit" if pay_kind == "kit" else "")
+			if _pay_or_game_over(int(ev.get("amount", 0)), pay_category) and pay_kind == "rent":
 				GameState.mark_rent_paid()
 				Ledger.record("release", GameState.RENT_PRICE)
 		"ADD_ITEM":
-			GameState.add_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+			# 3-5：初日セットの濃縮だし（idが"dashi"）は在庫ではないので、市場の購入
+			# ハンドラ（_on_shop_item_selected）と同じ前例でGameState.buy_dashi()へ
+			# 振り分ける。unit_priceは腐る品目のバッチ単価に使う（初期値0＝無料のまま）。
+			var add_item_id := str(ev.get("item", ""))
+			if add_item_id == "dashi":
+				for i in range(int(ev.get("amount", 1))):
+					GameState.buy_dashi()
+			else:
+				GameState.add_inventory(add_item_id, int(ev.get("amount", 1)), int(ev.get("unit_price", 0)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
 		"ADJUST":

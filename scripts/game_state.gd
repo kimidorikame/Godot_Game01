@@ -53,22 +53,18 @@ static var FINAL_DAY := Rules.final_day()
 static var INITIAL_MONEY := Rules.initial_money()
 static var INITIAL_REPUTATION := Rules.initial_reputation()
 
-# Day1のモブ人数は台本どおり固定（チュートリアルなので揺らさない。CURRENT_SPEC.md参照）。
-# ④評判の更新+⑤客数の決め方（BALANCE_REDESIGN_PLAN.md§5）で、Day2以降のモブ人数は
-# total_demand_today()ベースの配分へ置き換えたが、Day1だけはこの定数を使う従来どおりの
-# 枠ごと独立抽選（Day1Events._pick_mob経由）のまま据え置く（宵の口のdock_workers演出を
-# 変えないため）。旧・評判→モブ人数の直接テーブル（MOB_COUNT_TABLE/mob_count_for_reputation/
-# mob_count_today）はDay2以降がtotal_demand_today()に置き換わったことで役目を終えたので削除した。
+# デバッグ上書き専用のモブ人数フォールバック（Day1Events._pick_mob()のdebug_count<0側）。
+# 3-5でDay1本編の客構成はRules.day_overrides(1).mobs（week7.json）から決まるように
+# なったため、この定数が実際に使われるのは「モブ人数の一律上書き」デバッグ機能を
+# オフのまま_pick_mob()が呼ばれる経路（デバッグ上書き中の型抽選）だけになった。
+# tests/schedule_test.gdが_pick_mob()を直接ユニットテストしているため定数自体は残す。
 const DAY1_MOB_COUNT := 4
 
 # 評判 → その夜の総需要（中心値。BALANCE_REDESIGN_PLAN.md§5「客数の決め方」）。
 # [評判の下限, 中心値] を大きい順に並べ、最初に当たった行を使う。実際の需要は
-# 中心-1/中心/中心+1を25%/50%/25%で引く（total_demand_today()）。Day1は9固定。
-# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。DAY1_DEMANDは
-# week7.jsonのday_overrides."1".fixed_demandに対応する値だが、day_overrides自体は
-# 3-2/3-5で読み始めるまで宣言のみなので、ここは変えずcurrent値の定数のまま残す。
+# 中心-1/中心/中心+1を25%/50%/25%で引く（total_demand_today()）。
+# F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
 static var DEMAND_TABLE := Rules.demand_table()
-const DAY1_DEMAND := 9
 
 # 具材の腐敗（購入日を1日目に数える経過日数。どの品目が腐るかは Ingredients.is_perishable）。
 #   1〜2日目 … 新鮮／3日目 … 傷んでいる（使えるが判定が-1段階）／4日目以降 … 自動破棄
@@ -212,19 +208,31 @@ func reset_for_new_game() -> void:
 	reset_for_new_day()
 
 
-## 今日が場所代（みかじめ）の徴収日か。GameState は事実だけ持つのでここに置く。
-## 7日版なので今は初日のみ。将来 day_count in [1, 7, 14] 等へ広げられる形にしておく。
+## 今日が場所代・水道代の徴収日か。GameState は事実だけ持つのでここに置く。
+## F1 day_overrides（DESIGN.md 10.9）：day_count==1直書きから、week7.jsonのbills[].days
+## （どのbillも[1]と宣言済み）に基づく判定へ置き換えた。値そのものは変えていない
+## （7日版では引き続き初日のみtrueになる）。
 func is_collection_day() -> bool:
-	return day_count == 1
+	for bill in Rules.bills():
+		for d in bill.get("days", []):
+			# JSONの数値はfloatとして読まれるため、Array.has(day_count)（int）は
+			# 型が違うと一致しない（1.0.has(1)がfalseになる）。要素ごとにintへ
+			# 変換してから比べる（デバッグで実際に踏んだ不具合。要素数が少ないので
+			# 都度ループしても性能上の問題は無い）。
+			if int(d) == day_count:
+				return true
+	return false
 
 
 ## 評判からその夜の総需要（客数の中心値）を決め、中心-1/中心/中心+1を25%/50%/25%で
 ## 引く（乱数を引くので呼ぶたびに値が変わり得る。BALANCE_REDESIGN_PLAN.md§5）。
-## Day1は9固定（DAY1_MOB_COUNTと同じく台本どおり・評判では揺らさない）。
+## F1 day_overrides（DESIGN.md 10.9）：day_count==1直書きから、week7.jsonの
+## day_overrides."1".fixed_demandに基づく判定へ置き換えた。値そのものは9のまま変えていない。
 ## 呼び出し側は「その日のEvent列を作る時点で1回だけ」呼んで、結果を使い回すこと。
 func total_demand_today() -> int:
-	if day_count == 1:
-		return DAY1_DEMAND
+	var day_override := Rules.day_overrides(day_count)
+	if day_override.has("fixed_demand"):
+		return int(day_override["fixed_demand"])
 	var center := 7
 	for row in DEMAND_TABLE:
 		if reputation >= int(row[0]):

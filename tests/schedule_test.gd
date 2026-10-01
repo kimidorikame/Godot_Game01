@@ -92,19 +92,24 @@ func run(t: SceneTree) -> int:
 	c.check("Day1: モブ人数を0で上書きすると全枠モブなし",
 		sched_day1_m0[0]["customers"] == ["delivery_man"] and sched_day1_m0[1]["customers"] == ["thug"])
 
-	# --- 6. モブの枠ごとの独立抽選（種類がばらつきうること） ---
-	# GameState.today_plan["mob_instances"]（F2 DayPlan）を直接見て、同日2枠
-	# (宵の口=固定dock_workers/夜半=プール抽選)で型が独立して決まりうることを確認する。
+	# --- 6. 3-5（DESIGN.md 10.3.3・10.9）：デバッグ上書きが無いDay1（自動）は
+	#        Rules.day_overrides(1).mobsに固定された編成になり、抽選ではなくなった
+	#        （以前はday_schedule.jsonの生のmob:{"pool":[...]}を独立抽選していたが、
+	#        F1 day_overrides.mobsが優先されるようになったため）。 ---
 	var types_at_night := {}
-	for i in range(300):
+	for i in range(20):
 		Day1Events.customer_schedule(-1)
-		var night_id: String = "mob#1"   # Day1は宵の口(mob#0固定dock_workers)→夜半(mob#1)の順
+		var night_id: String = "mob#1"   # Day1は宵の口(mob#0)→夜半(mob#1)の順
 		if GameState.today_plan["mob_instances"].has(night_id):
 			types_at_night[GameState.today_plan["mob_instances"][night_id]["type"]] = true
-	c.check("Day1夜半のモブ種類は複数出うる(dock_workers固定ではなくなった)",
-		types_at_night.size() > 1, str(types_at_night))
-	c.check("Day1宵の口のモブは常にdock_workers(mob:true)",
+	c.check("Day1夜半のモブ種類は安宿の夜勤受付(inn_clerk)に固定される(抽選ではない)",
+		types_at_night.keys() == ["inn_clerk"], str(types_at_night))
+	c.check("Day1夜半のモブ人数は2(day_overrides.mobs固定)",
+		int(GameState.today_plan["mob_instances"]["mob#1"]["count"]) == 2)
+	c.check("Day1宵の口のモブは港湾労働者(dock_workers)に固定される",
 		GameState.today_plan["mob_instances"].get("mob#0", {}).get("type", "") == "dock_workers")
+	c.check("Day1宵の口のモブ人数は2(day_overrides.mobs固定)",
+		int(GameState.today_plan["mob_instances"]["mob#0"]["count"]) == 2)
 
 	# --- 7. デバッグ上書き: 全モブ枠の人数が揃う（種類は揃わなくてよい） ---
 	GameState.day_count = 2

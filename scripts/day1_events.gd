@@ -110,6 +110,17 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 			names.append(Ingredients.name_for(str(id)))
 		events.append({ "type": "TEXT",
 			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
+	# 初日セット（DESIGN.md 10.3.4）：day_overrides.kit（Day1のみ"day1_kit"）が
+	# 宣言されている日だけ、仕込み量を選ぶ前に固定の購入イベントを差し込む。
+	# 自由な買い物ではない（DESIGN.md §6「Day1は自由な買い物なし」を維持）ので
+	# MARKETのようなプレイヤー操作は挟まず、進行に乗せるだけの一方向イベントにする。
+	# _scraps_base（このすぐ後の分岐）はWAKE直後・このセット購入前の所持金で
+	# 既に決まっている（debug_panel.gd._set_runner_for_phase(PREP)参照）。Day1の
+	# 初期現金(600)では購入順序を入れ替えても結果は変わらない数値のため、あえて
+	# 処理順序（_scraps_base判定→PREP突入→このセット購入）の入れ替えはしない。
+	var kit_id := str(Rules.day_overrides(GameState.day_count).get("kit", ""))
+	if kit_id != "":
+		events.append_array(_kit_purchase_events(kit_id))
 	if scraps_base:
 		# 値切る／譲ってもらう。食肉仲卸で仕込みを選ぶ淡々としたトーンと対比させる。
 		events.append_array([
@@ -123,6 +134,29 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 			{ "type": "PREP_TIER", "text": "「いつもの、って言われてもな。今日はどれだけ仕込む？」",
 				"options": prep_tier_options() },
 		])
+	return events
+
+
+## 初日セット（DESIGN.md 10.3.4）の購入Event列。kit_idからdata/kits/<id>.jsonを読み、
+## 合計額をPAY（kind:"kit"）で払い、各品目をADD_ITEM（unit_price付き）で受け取る。
+## 濃縮だし（idが"dashi"）は在庫ではないため、受け側（debug_panel.gd._apply_event）が
+## 市場の購入ハンドラ（_on_shop_item_selected）と同じ前例でGameState.buy_dashi()へ
+## 振り分ける。
+static func _kit_purchase_events(kit_id: String) -> Array:
+	var kit := ScheduleData.kit_data(kit_id)
+	var items: Array = kit.get("items", [])
+	var total := 0
+	for good in items:
+		total += int(good.get("price", 0))
+	var events := [
+		{ "type": "TEXT", "text": "いつもの仕入れ先で、仕込みに使う分をまとめて受け取った。" },
+		{ "type": "PAY", "amount": total, "kind": "kit", "text": "初日セット" },
+	]
+	for good in items:
+		var count: int = int(good.get("count", 1))
+		var price: int = int(good.get("price", 0))
+		events.append({ "type": "ADD_ITEM", "item": str(good.get("item", "")),
+			"amount": count, "unit_price": int(price / count) if count > 0 else price })
 	return events
 
 
@@ -333,12 +367,16 @@ static func close_events() -> Array:
 ## ので、customer_schedule()の呼び出しごとに明示的に空へ差し替える（前日分・前回呼び出し
 ## 分を持ち越さない）。
 ##
-## debug_mob_count（-1=自動、0以上=QA用の一律上書き）とDay1は、従来どおり
-## 枠（宵の口・夜半・明け方）ごとに独立して_pick_mob()を呼ぶ（Day1はCURRENT_SPEC.md
-## 「チュートリアルなので評判では揺らさない」の明記どおり据え置き。デバッグ上書きは
-## 総需要システムを丸ごとバイパスして全モブ枠へ一律適用する既存挙動を維持）。
-## それ以外（Day2以降のauto）だけ、その夜の総需要からメイン客の合計杯数を引いた
-## モブ杯数を先に決め、_plan_mob_groups()で組へ配分してから枠へ割り当てる。
+## debug_mob_count（-1=自動、0以上=QA用の一律上書き）が無いとき、その日にF1
+## day_overrides（DESIGN.md 10.9・10.3.3）で固定モブ編成が宣言されていれば（Day1の
+## week7.json day_overrides."1".mobsが該当）、それを最優先で使う。data/day_schedule.json
+## 側のDay1夜半"mob":{"pool":[...]}は、この固定編成に優先権を譲るためあえて
+## 変更していない（実データとして残るが、Day1では参照されない。デバッグ上書き中は
+## 従来どおりslotの生の"mob"フィールドを_pick_mob()経由で見る）。
+## day_overridesが無い日（Day2以降）はDay2-7ダミーデータ・モブ抽選独立化のとおり、
+## その夜の総需要からメイン客の合計杯数を引いたモブ杯数を先に決め、_plan_mob_groups()
+## で組へ配分してから枠へ割り当てる。デバッグ上書きは総需要システムを丸ごとバイパスして
+## 全モブ枠へ一律適用する既存挙動のまま（_pick_mob()経由）。
 static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	GameState.today_plan["mob_instances"] = {}
 	var slots: Array = ScheduleData.day_schedule(GameState.day_count).get("slots", [])
@@ -350,7 +388,10 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 		if main_id != "":
 			chosen_mains.append(main_id)
 
-	var use_demand_system: bool = debug_mob_count < 0 and GameState.day_count > 1
+	var fixed_mobs: Array = Rules.day_overrides(GameState.day_count).get("mobs", []) \
+		if debug_mob_count < 0 else []
+	var use_fixed_mobs: bool = not fixed_mobs.is_empty()
+	var use_demand_system: bool = debug_mob_count < 0 and not use_fixed_mobs and GameState.day_count > 1
 	var mob_groups_by_index := {}
 	if use_demand_system:
 		var main_total := 0
@@ -364,10 +405,21 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	var result := []
 	for i in range(slots.size()):
 		var slot: Dictionary = slots[i]
+		var slot_name := str(slot.get("name", ""))
 		var customers := []
 		if main_ids[i] != "":
 			customers.append(main_ids[i])
-		if use_demand_system:
+		if use_fixed_mobs:
+			for mob_override in fixed_mobs:
+				if str(mob_override.get("slot", "")) != slot_name:
+					continue
+				var instance_id := "mob#%d" % mob_seq
+				mob_seq += 1
+				GameState.today_plan["mob_instances"][instance_id] = {
+					"type": str(mob_override.get("type", "")),
+					"count": int(mob_override.get("count", 0)) }
+				customers.append(instance_id)
+		elif use_demand_system:
 			for size in mob_groups_by_index.get(i, []):
 				var type_id := _pick_mob_type(slot)
 				if type_id == "":
@@ -383,7 +435,7 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 				mob_seq += 1
 				GameState.today_plan["mob_instances"][instance_id] = mob
 				customers.append(instance_id)
-		result.append({ "name": str(slot.get("name", "")), "customers": customers })
+		result.append({ "name": slot_name, "customers": customers })
 	return result
 
 
@@ -606,12 +658,18 @@ static func _delivery_man_events() -> Array:
 		"reactions": _delivery_reactions_second(), "wanted_tags": flavor["wanted_tags"],
 		"favorite": flavor["favorite"], "is_mob": false, "aggregate": true })
 	events.append_array(_talk(id, _DELIVERY_AFTER_SECOND))
-	# 三杯目（持ち帰り・評価なし）
+	# 三杯目（持ち帰り。F3 SaleRule/Judge・10.3.7で「今日の頼み」の通常注文へ変更）：
+	# judge:falseを外し、wanted_tags（MELLOW+GENTLE＝「噛まなくても食えるやつ」）を
+	# 持たせて判定・当夜品質の分母の対象にする。反応の台詞は出さない（持ち帰り先が
+	# その場にいないため。reactionsは空のまま）。favoriteは追加しない（配達員本人の
+	# 好物は1・2杯目が対象で、3杯目は「今日の頼み」のみという10.3.7の書きぶりに従う。
+	# raw_favoriteが空のままなので、_add_to_visit_tally()のpending_favorite上書きは
+	# 起きない＝1・2杯目で確定した好物開示のタイミングに影響しないことを確認済み）。
 	events.append({ "type": "ADJUST", "customer": id,
 		"text": "（持ち帰り用。辛さ控えめ、豆腐多め）", "options": options, "new_bowl": true })
 	events.append({ "type": "SERVE", "customer": id, "text": "（店主は蓋つきの容器を袋へ入れる）" })
 	events.append({ "type": "REACT", "customer": id, "servings": 1, "sale": sale,
-		"reactions": {}, "is_mob": false, "judge": false, "aggregate": true })
+		"reactions": {}, "wanted_tags": ["MELLOW", "GENTLE"], "is_mob": false, "aggregate": true })
 	events.append_array(_talk(id, _DELIVERY_EXIT))
 	return events
 
@@ -690,33 +748,13 @@ const _OFFICER_PAYMENT := [
 ## 移した（重複を避けるため関数としては持たない。中身を見るならJSON側を参照）。
 
 
-## Day1開始時の初期在庫（DESIGN.md 7.7）。塩漬けライム・苦瓜は含めない
-## （苦瓜は市場で買って初めて手に入る、という導線を保つため。定義自体はIngredientsに残したまま）。
-## 調味料3種と具材4種で数量に差をつける：
-##   調味料（少量で効く・味付け的な使い方）は多め＝各10個
-##   具材（実際の食材として消費される）は少なめ＝各4個。初日から在庫を気にする場面を作る
-## soup_base（食肉仲卸のベース）はここに含めない＝ADJUSTの対象外の別枠。
-## Day1経済監査（2026-09-26 planning/playtest_2026_09_26/agent_mechanics.md §2）で
-## 判明した不足の直し方：Day1の実際の注文は9杯ではなく13杯（配達員2杯・宵の口モブ
-## dock_workers4人・夜半モブ4人・チンピラ1杯・老婆1杯。配達員の3杯目はjudge:falseで
-## 判定に関わらないため上記からは除く）で、モツ4＋肉団子4＝POWER8個では
-## 「配達員2＋モブ8＝POWER10個」に2個足りていなかった。
-## さらに day_schedule.json のDay1・夜半モブは（作業ゲー化対策で全モブの要求タグを
-## 多様化したことに合わせて）dock_workers/inn_clerk/market_porterの3種から抽選する
-## ようにしたため、どの型が来ても初期在庫だけで応対できる数を計算し直した：
-##   dock_workers(HOT+POWER)なら POWER最大10個・HOT最大10個
-##   inn_clerk(MELLOW+GENTLE)なら GENTLE最大5個（チンピラ1＋モブ4）・MELLOW最大5個
-##   market_porter(HOT+FILLING)なら FILLING最大5個（老婆1＋モブ4）・HOT最大10個
-## のどれが来ても崩れないよう、POWER=10（モツ4+肉団子6）・GENTLE=5（豆腐）・
-## FILLING=5（割れた餃子皮）に増量した（HOT=10・MELLOW=10は元から十分）。
-## 各客が「要求タグ1つに具材1つだけ」の最小構成で作ることを前提にした値なので、
-## 余分な具材を追加で使うプレイだと市場が開くDay2を待たずに尽きる可能性がある
-## （在庫の余裕を持たせる場合は数値をさらに増やすこと）。
+## Day1開始時の無料在庫（DESIGN.md 10.3.4「無料在庫0」）。3-5でこれまでの無料在庫
+## （調味料10個・具材4〜6個の増量版）を廃止し、代わりにPREPで「初日セット」を
+## 固定購入するようにした（prep_events()の_kit_purchase_events()参照。中身は
+## data/kits/day1_kit.json）。市場は初日はまだ開いていない（market_open_from_day=2）
+## ため、このセットがDay1に使える具材の唯一の出どころになる。
 static func initial_inventory() -> Dictionary:
-	return {
-		"nam_prik_pao": 10, "coconut_milk": 10, "herbal_sauce": 10,
-		"offal": 4, "meat_ball": 6, "tofu": 5, "broken_wrapper": 5,
-	}
+	return {}
 
 
 ## ADJUSTボタンの表示文言。id→ラベルのみで、

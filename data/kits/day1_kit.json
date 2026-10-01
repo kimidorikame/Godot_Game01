@@ -1,0 +1,12 @@
+{
+  "label": "いつもの仕入れ",
+  "items": [
+    { "item": "nam_prik_pao", "label": "ナムプリックパオ", "count": 5, "price": 25 },
+    { "item": "coconut_milk", "label": "ココナッツミルク", "count": 6, "price": 30 },
+    { "item": "herbal_sauce", "label": "薬膳ナンプラーだれ", "count": 5, "price": 25 },
+    { "item": "meat_ball", "label": "肉団子", "count": 6, "price": 48 },
+    { "item": "tofu", "label": "豆腐", "count": 6, "price": 48 },
+    { "item": "broken_wrapper", "label": "割れた餃子皮", "count": 3, "price": 18 },
+    { "item": "dashi", "label": "濃縮だし", "count": 1, "price": 16 }
+  ]
+}

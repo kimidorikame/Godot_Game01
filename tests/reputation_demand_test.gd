@@ -73,16 +73,17 @@ func run(t: SceneTree) -> int:
 	c.check("空文字キー(judge:false)はQの計算から除外される",
 		panel._quality_score(with_unjudged, 2) == panel._quality_score(without_unjudged, 2))
 
-	# --- 4. Day1のjudged_planned_cupsは12(配達員3杯目=judge:falseの1杯を除く。
-	#        planned_cups(13)との差はちょうど1) ---
+	# --- 4. 3-5（DESIGN.md 10.3.7）：配達員3杯目(持ち帰り)もjudge:falseを外して
+	#        通常の注文にしたため、Day1のjudged_planned_cupsはplanned_cups(9)と
+	#        一致する(判定対象外の杯が無くなった) ---
 	panel = _setup(t)
 	panel._seed_initial_inventory()
 	GameState.phase = GameState.Phase.OPEN
 	panel._set_runner_for_phase(GameState.Phase.OPEN)
-	c.check("Day1のjudged_planned_cupsは12", panel._log_judged_planned_cups == 12,
+	c.check("Day1のjudged_planned_cupsは9", panel._log_judged_planned_cups == 9,
 		str(panel._log_judged_planned_cups))
-	c.check("planned_cupsとjudged_planned_cupsの差はちょうど1(配達員3杯目のみ)",
-		panel._log_planned_cups - panel._log_judged_planned_cups == 1)
+	c.check("planned_cupsとjudged_planned_cupsの差は0(判定対象外の杯が無い)",
+		panel._log_planned_cups - panel._log_judged_planned_cups == 0)
 
 	# --- 5. 評判は接客中(OPEN)は動かない。名前あり客(granny)を1人提供した直後も朝の値のまま ---
 	# _setup_openの内部でreset_for_new_game()が走る(評判がINITIAL_REPUTATION=30に戻る)ため、

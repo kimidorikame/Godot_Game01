@@ -88,9 +88,11 @@ func run(t: SceneTree) -> int:
 	c.check("モツ(パック購入)の廃棄額は実際に払った30円",
 		int(spoiled.get("offal", {}).get("value", -1)) == 30, str(spoiled))
 
-	# --- 5. 初期在庫(無料)が腐って破棄されても、廃棄額は0円 ---
+	# --- 5. 無料で積んだ在庫(unit_price省略=0)が腐って破棄されても、廃棄額は0円 ---
+	# 3-5でDay1Events.initial_inventory()が空になった（無料在庫0）ため、
+	# _seed_initial_inventory()はもう何も積まない。無料入手の状況を直接再現する。
 	panel = _setup(t)
-	panel._seed_initial_inventory()
+	GameState.add_inventory("offal", 3)
 	GameState.day_count = 4
 	var spoiled_free: Dictionary = GameState.discard_spoiled_inventory()
 	var free_perishable_found := false

@@ -19,6 +19,7 @@ class_name ScheduleData
 const _DAY_SCHEDULE_PATH := "res://data/day_schedule.json"
 const _CUSTOMERS_DIR := "res://data/customers/"
 const _MOBS_DIR := "res://data/mobs/"
+const _KITS_DIR := "res://data/kits/"
 
 # 日ごとの枠構成データが無い日（Day3〜7）は "1"（Day1）へフォールバックする
 # （CURRENT_SPEC.md §9-C。今回のタスクで実装するフォールバックの唯一の場所）。
@@ -28,6 +29,7 @@ static var _day_schedule_all: Dictionary = {}
 static var _day_schedule_loaded := false
 static var _customer_cache: Dictionary = {}   # id(String) -> 生のJSON全体（Dictionary）
 static var _mob_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
+static var _kit_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
 
 
 ## JSON読み込みの共通処理。ファイルが無い・パースに失敗した場合は空辞書を返す
@@ -95,6 +97,14 @@ static func mob_data(id: String) -> Dictionary:
 	return _mob_cache[id]
 
 
+## 購入セット1種のデータ（F1 day_overrides.kit・DESIGN.md 10.8.1。日をまたいで
+## 変わらないのでフォールバック不要。mob_data()と同じキャッシュパターン）。
+static func kit_data(id: String) -> Dictionary:
+	if not _kit_cache.has(id):
+		_kit_cache[id] = _load_json(_KITS_DIR + id + ".json")
+	return _kit_cache[id]
+
+
 ## テスト用：キャッシュを空にする（JSONファイルを書き換えてから読み直したいときに使う。
 ## 通常のゲーム実行では呼ばない）。
 static func clear_cache() -> void:
@@ -102,3 +112,4 @@ static func clear_cache() -> void:
 	_day_schedule_loaded = false
 	_customer_cache.clear()
 	_mob_cache.clear()
+	_kit_cache.clear()

@@ -76,6 +76,11 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(panel2)
 	GameState.phase = GameState.Phase.OPEN
 	panel2._open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
+	# 3-5：Day1Events.initial_inventory()は空になった（無料在庫0）ため、_ready()の
+	# 自動シードに頼らず、このテストで使う分（下のpicks参照）を直接積む。
+	GameState.add_inventory("nam_prik_pao", 10)
+	GameState.add_inventory("offal", 5)
+	GameState.add_inventory("tofu", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel2._load_current_customer()
 	c.check("下準備: 配達員はまだ好物を知られていない", not GameState.knows_favorite("delivery_man"))

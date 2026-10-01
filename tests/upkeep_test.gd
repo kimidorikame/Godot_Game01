@@ -114,13 +114,15 @@ func run(t: SceneTree) -> int:
 	c.check("非徴収日は水道代が発生しないので市場を出てもmoneyは動かない",
 		GameState.money == money_before8, str(GameState.money))
 
-	# --- 10. F4帳簿：徴収日はWAKE直後170、市場を出ると場所代ぶんの90だけ残る
-	#    （水道代の自動訪問も同時に起きるのでmoneyはここで動く）、場所代を払うと0になる
+	# --- 10. F4帳簿/3-5（DESIGN.md 10.3.5）：徴収日はWAKE直後220（運営費80+場所代90+
+	#    水道代50。3-5で水道代も確保対象に加えた）、市場を出ると場所代ぶんの90だけ残る
+	#    （水道代の自動訪問も同時に起きて水道代ぶんもreleaseされる。moneyもここで動く）、
+	#    場所代を払うと0になる
 	#    (通常のREACT経路・特別請求経路のどちらから呼ばれても、mark_rent_paid()と
 	#    Ledger.record("release", RENT_PRICE)を同じタイミングで呼ぶペアで決済される。
 	#    ここではそのペアを直接呼んで検証する) ---
 	var panel9 = _setup(t, 300, 1)
-	c.check("徴収日のWAKE直後は確保80+90=170", Ledger.pending_bills_today() == 170,
+	c.check("徴収日のWAKE直後は確保80+90+50=220", Ledger.pending_bills_today() == 220,
 		str(Ledger.pending_bills_today()))
 	panel9._on_market_exit_pressed()
 	c.check("徴収日：市場を出ると確保は場所代ぶんの90だけ残る",
@@ -146,8 +148,8 @@ func run(t: SceneTree) -> int:
 	# --- 13. F4帳簿：STATE VIEWERのbudget行（残金/確保/使える）が確保額の変化を反映する
 	#    （常時表示。0になっても行自体は消えない） ---
 	var panel10 = _setup(t, 300, 1)
-	c.check("WAKE直後はbudget行が残金220(300-運営費80)/確保170/使える50になる",
-		panel10._format_game_state().contains("budget(残金/確保/使える): 220 / 170 / 50"),
+	c.check("WAKE直後はbudget行が残金220(300-運営費80)/確保220(運営費80+場所代90+水道代50)/使える0になる",
+		panel10._format_game_state().contains("budget(残金/確保/使える): 220 / 220 / 0"),
 		panel10._format_game_state())
 	panel10._on_market_exit_pressed()
 	c.check("市場を出た後は確保が90に更新される", panel10._format_game_state().contains("/ 90 /"),

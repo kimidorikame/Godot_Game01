@@ -55,9 +55,9 @@ func run(t: SceneTree) -> int:
 	panel._seed_initial_inventory()
 	GameState.phase = GameState.Phase.OPEN
 	panel._set_runner_for_phase(GameState.Phase.OPEN)
-	# Day1: 配達員3(1+1+1) + 宵の口モブ4(mob:true固定) + チンピラ1 + 夜半モブ(独立抽選、
-	# GameState.mob_count_today()と同じ値=Day1は固定4) + 老婆1 = 13
-	c.check("Day1のplanned_cupsは13", panel._log_planned_cups == 13, str(panel._log_planned_cups))
+	# 3-5（DESIGN.md 10.3.3）：配達員3(1+1+1) + 宵の口港湾労働者2(day_overrides.mobs固定)
+	# + チンピラ1 + 夜半安宿受付2(day_overrides.mobs固定) + 老婆1 = 9
+	c.check("Day1のplanned_cupsは9", panel._log_planned_cups == 9, str(panel._log_planned_cups))
 
 	# --- 5. quality_counts: 合計が served_cups(廃棄した椀を除く)と一致する ---
 	GameState.reset_for_new_game()
