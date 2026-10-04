@@ -452,9 +452,15 @@ func deepen_soup(delta: int = 1) -> void:
 ## STRENGTH_HARD_FLOOR（0）を下回らないか）。濃さメカニクス三点セット：
 ## 「上限・下限で効果を切り捨てない（超える操作はボタン側で無効化）」ため、
 ## add_water()側でclampiせずに済むよう、ここで事前にガードする。
+## 3-6 鍋の同時容量（DESIGN.md 10.3.8）：残量がRules.pot_capacity()-WATER_SERVINGS
+## （14-2=12）以下のときだけ足せる（足した後に容量14を超えないための事前ガード）。
+## 大仕込み（14杯）は仕込み直後から残量が12を超えているため、水を1回も足せない
+## （意図どおりの挙動）。一晩の総供給上限18（14＋水2回×2）という表示上の理論値は
+## 変えていないが、容量ガードのため実際に18杯へ達する経路は無い。
 func can_add_water() -> bool:
 	return soup != null and int(soup.get("water_doses", 0)) > 0 \
-		and int(soup.get("strength", 3)) - WATER_STRENGTH_DELTA >= STRENGTH_HARD_FLOOR
+		and int(soup.get("strength", 3)) - WATER_STRENGTH_DELTA >= STRENGTH_HARD_FLOOR \
+		and int(soup.get("remaining_servings", 0)) <= Rules.pot_capacity() - WATER_SERVINGS
 
 
 ## 濃縮だしを足せるか（鍋があり、だしが1回分以上あり、かつ足した結果の濃さが
@@ -473,10 +479,14 @@ func can_add_dashi() -> bool:
 ## 判定の中身：水が今すぐ出せるならtrue。出せなくても、水の回数が残っており
 ## （水の回数自体はだしで増やせない）、だしが1回以上あり、だしを入れた後の濃さで
 ## 水を出せるならtrue。それ以外はfalse（本当にもう打つ手がない）。
+## 3-6：容量条件（残量が容量-WATER_SERVINGS以下）は、だしでは回復できない
+## （だしは濃さしか変えない）ので、だし経由の判定の前に独立したガードとして見る。
 func water_reachable() -> bool:
 	if can_add_water():
 		return true
 	if soup == null or int(soup.get("water_doses", 0)) <= 0:
+		return false
+	if int(soup.get("remaining_servings", 0)) > Rules.pot_capacity() - WATER_SERVINGS:
 		return false
 	if dashi_units < 1:
 		return false

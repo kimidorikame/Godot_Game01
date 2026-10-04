@@ -86,26 +86,59 @@ func run(t: SceneTree) -> int:
 	c.check("所持金不足の段階を選んでも所持金・進行が変わらない",
 		GameState.money == before_money3 and panel3.flow.runner.index == before_index3)
 
-	# --- 5. 水を2回使い切った場合の残量上限が段階ごとに12/15/18になる(鍋容量拡大の確認)。
-	#    濃さメカニクス三点セット：濃さ3スタートのまま水を連続2回は使えない
-	#    （1回目で3→1、2回目は1-2<0でブロックされる）。明け方の自動+1相当
-	#    （GameState.deepen_soup()）を間に挟んで初めて2回使い切れる、という
-	#    「一晩の最大供給」の前提を検証する。 ---
-	var water_cases := [["small", 12], ["medium", 15], ["large", 18]]
-	for wcase in water_cases:
-		var tier_id2: String = wcase[0]
-		var expected_max: int = wcase[1]
-		var panel4 = _setup(t, 1000, 3)
-		_drive_to_waiting_input(panel4)
-		panel4._on_prep_tier_selected(tier_id2)
-		_drive_after_tier(panel4)
-		GameState.add_water()   # 濃さ3→1
-		c.check("%s: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)" % tier_id2,
-			not GameState.can_add_water(), str(GameState.soup))
-		GameState.deepen_soup()   # 明け方の自動+1相当。濃さ1→2
-		GameState.add_water()   # 濃さ2→0
-		c.check("%s: 明け方の自動+1を挟めば水を2回使い切れ、残量は%d杯" % [tier_id2, expected_max],
-			int(GameState.soup.get("remaining_servings", -1)) == expected_max, str(GameState.soup))
+	# --- 5. 水の使える回数と残量上限（濃さメカニクス三点セット＋3-6 鍋の同時容量14。
+	#    DESIGN.md 10.3.8）。濃さ3スタートのまま水を連続2回は使えない（1回目で3→1、
+	#    2回目は1-2<0でブロックされる）ため、明け方の自動+1相当（GameState.deepen_soup()）
+	#    を間に挟む必要がある。さらに3-6で、水は残量が12以下のときだけ足せる（足した後に
+	#    容量14を超えないための事前ガード）ようになったため、仕込み量によって「水を使える
+	#    回数」自体が変わる（以前は3段階とも2回使い切れて12/15/18杯になっていた）。
+	#      small(8)  : 8→10→12。2回とも容量内で使え、従来どおり12杯。
+	#      medium(11): 11→13。1回目は通るが、2回目は残量13が12を超えるため、濃さが
+	#                  回復しても容量でブロックされ、水は1回だけ（13杯）。
+	#      large(14) : 最初から残量14が12を超えるため、1回目から容量でブロックされ、
+	#                  水は1回も使えない（濃さも3のまま。14杯）。 ---
+
+	# small：従来どおり2回とも使え、残量12杯になる
+	var panel4 = _setup(t, 1000, 3)
+	_drive_to_waiting_input(panel4)
+	panel4._on_prep_tier_selected("small")
+	_drive_after_tier(panel4)
+	GameState.add_water()   # 濃さ3→1
+	c.check("small: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)",
+		not GameState.can_add_water(), str(GameState.soup))
+	GameState.deepen_soup()   # 明け方の自動+1相当。濃さ1→2
+	GameState.add_water()   # 濃さ2→0
+	c.check("small: 明け方の自動+1を挟めば水を2回使い切れ、残量は12杯",
+		int(GameState.soup.get("remaining_servings", -1)) == 12, str(GameState.soup))
+
+	# medium：1回目は容量内(11→13)で使えるが、2回目は残量13が容量12を超えるため
+	# 濃さが回復していても使えない（3-6で新しく出た制約）
+	panel4 = _setup(t, 1000, 3)
+	_drive_to_waiting_input(panel4)
+	panel4._on_prep_tier_selected("medium")
+	_drive_after_tier(panel4)
+	GameState.add_water()   # 濃さ3→1・残量11→13
+	c.check("medium: 1回目は容量内(11→13)で使え、濃さ1になる",
+		int(GameState.soup.get("strength", -1)) == 1
+		and int(GameState.soup.get("remaining_servings", -1)) == 13, str(GameState.soup))
+	GameState.deepen_soup()   # 濃さ1→2（濃さだけなら2回目も可能になる）
+	c.check("medium: 濃さは回復しても残量13が容量12を超えるため2回目は使えない",
+		not GameState.can_add_water(), str(GameState.soup))
+	GameState.add_water()   # no-opのはず
+	c.check("medium: 2回目は適用されず残量は13杯のまま(水は1回だけ)",
+		int(GameState.soup.get("remaining_servings", -1)) == 13, str(GameState.soup))
+
+	# large：最初から残量14が容量12を超えているため、1回目から水を足せない
+	panel4 = _setup(t, 1000, 3)
+	_drive_to_waiting_input(panel4)
+	panel4._on_prep_tier_selected("large")
+	_drive_after_tier(panel4)
+	c.check("large: 残量14は既に容量上限(12)を超えており、仕込み直後から水を足せない",
+		not GameState.can_add_water(), str(GameState.soup))
+	GameState.add_water()   # no-opのはず
+	c.check("large: 1回目から容量でブロックされ、濃さ・残量とも変わらない",
+		int(GameState.soup.get("strength", -1)) == 3
+		and int(GameState.soup.get("remaining_servings", -1)) == 14, str(GameState.soup))
 
 	# --- 6. prep_after_tier_events(): 先頭は必ずTEXT(index 0の効果スキップ対策)、
 	#        末尾はSET_SOUPでservingsが選んだ段階と一致 ---

@@ -176,5 +176,30 @@ func run(t: SceneTree) -> int:
 	panel6._on_add_dashi_pressed()
 	c.check("だしを入れるとロックが解ける", not panel6._pot_locked_until_dashi())
 
+	# --- 10. 3-6 鍋の同時容量14（DESIGN.md 10.3.8）：水は残量12以下のときだけ足せる。
+	#    自動試遊レポートが指摘した「14杯・濃さ3・水2・だし1から水→だし→水で同時残量18」
+	#    という不整合の直接確認。濃さ・水の回数が足りていても、残量が13以上なら
+	#    can_add_water()もwater_reachable()もfalseのままになる ---
+	GameState.reset_for_new_game()
+	GameState.set_soup("bone_broth", ["meaty"], 12, 3, 2)
+	c.check("残量12・濃さ3・水2なら水を足せる（容量境界の内側）", GameState.can_add_water())
+	GameState.set_soup("bone_broth", ["meaty"], 13, 3, 2)
+	c.check("残量13は容量14に対して水+2が収まらないので足せない", not GameState.can_add_water())
+	var cap_before: int = int(GameState.soup["remaining_servings"])
+	GameState.add_water()
+	c.check("容量超過のadd_waterは何もしない(残量・濃さ・水の回数とも不変)",
+		int(GameState.soup["remaining_servings"]) == cap_before
+		and int(GameState.soup["strength"]) == 3 and int(GameState.soup["water_doses"]) == 2)
+	GameState.set_soup("bone_broth", ["meaty"], 14, 3, 2)
+	GameState.dashi_units = 1
+	c.check("残量14・濃さ3・水2・だし1でも、容量超過ならwater_reachableはfalse"
+		+ "（だしでは容量を回復できない）", not GameState.water_reachable())
+	GameState.set_soup("bone_broth", ["meaty"], 12, 1, 2)
+	GameState.dashi_units = 1
+	c.check("濃さ1・残量12は濃さが足りず今は足せない", not GameState.can_add_water())
+	c.check("残量12(容量内)・だし1ならだし経由でwater_reachableはtrue", GameState.water_reachable())
+	GameState.dashi_units = 0
+	GameState.reset_for_new_game()
+
 	print("失敗数: ", c.fails, " / ", c.checks, "件")
 	return c.fails
