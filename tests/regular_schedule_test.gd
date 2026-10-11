@@ -1,8 +1,8 @@
 extends RefCounted
 ## 常連の固定日程（21枠）とモブの抽選ルールのデータ（フェーズ4-3・DESIGN.md 10.5.1・10.8.1）の
 ## 検証。対象：data/schedules/week7_regulars.json、mob_rules.json、ScheduleData の読み込みと
-## 互換層（compose_day_schedule）。customer_schedule()が実際にこの日程どおりに来るか
-## （コミット②）の確認も、このスイートの後半に置く。
+## 互換層（compose_day_schedule・day_schedule）、customer_schedule() が実際にこの日程どおりに
+## 来ること（抽選ではない・同じ日を何度呼んでも同じ・モブ杯数＝総需要−常連の杯数）。
 
 const SLOTS := ["宵の口", "夜半", "明け方"]
 
@@ -102,23 +102,17 @@ func run(_t: SceneTree) -> int:
 	c.check("既定は3枠ともモブ可", rules.get("default", {}).get("slots", {}) ==
 		{ "宵の口": true, "夜半": true, "明け方": true })
 
-	# --- 5. 互換層：旧day_scheduleと同じ形で、常連は固定・モブの出方は旧データと同じ ---
+	# --- 5. 互換層：day_scheduleは組み立てた枠（常連は固定・モブの出方は従来どおり） ---
 	for d in range(1, 8):
 		var comp := ScheduleData.compose_day_schedule(d)
-		var old := ScheduleData.day_schedule(d)
-		c.check("Day%d：組み立てた枠は3つ（name/main/mob）" % d,
+		c.check("Day%d：day_schedule()は組み立てた枠と同じ" % d, ScheduleData.day_schedule(d) == comp)
+		c.check("Day%d：枠は3つ（name/main/mob）" % d,
 			comp.get("slots", []).size() == 3
 				and comp["slots"].all(func(s): return s.has("name") and s.has("main") and s.has("mob")))
 		for i in range(3):
 			var cs: Dictionary = comp["slots"][i]
-			var os: Dictionary = old["slots"][i]
 			c.check("Day%d %s：常連は表どおり固定（main_poolではない）" % [d, SLOTS[i]],
 				str(cs["main"]) == TABLE[d][i] and not cs.has("main_pool"))
-			c.check("Day%d %s：モブの可否は旧データと同じ" % [d, SLOTS[i]],
-				Day1Events._slot_mob_eligible(cs) == Day1Events._slot_mob_eligible(os))
-			if d >= 2 and Day1Events._slot_mob_eligible(cs):
-				c.check("Day%d %s：モブのプールは旧データと同じ" % [d, SLOTS[i]],
-					(cs["mob"] as Dictionary)["pool"] == (os["mob"] as Dictionary)["pool"])
 	var comp1 := ScheduleData.compose_day_schedule(1)
 	c.check("Day1宵の口のモブはdock_workers固定", comp1["slots"][0]["mob"] == { "pool": ["dock_workers"] })
 	c.check("Day1夜半のモブは3種のプール（デバッグ上書き用）",
@@ -129,7 +123,68 @@ func run(_t: SceneTree) -> int:
 		[2, 3, 4, 5, 6].all(func(d): return ScheduleData.compose_day_schedule(d)["slots"].all(
 			func(s): return s["mob"] == { "pool": MOB_POOL })))
 	c.check("定義の無い日（Day8）はDay1と同じ（フォールバック）",
-		ScheduleData.compose_day_schedule(8) == ScheduleData.compose_day_schedule(1))
+		ScheduleData.compose_day_schedule(8) == ScheduleData.compose_day_schedule(1)
+			and ScheduleData.day_schedule(8) == ScheduleData.day_schedule(1))
+
+	# --- 6. customer_schedule()：常連は日程どおり（抽選ではない）・同じ日は何度呼んでも同じ ---
+	for d in range(1, 8):
+		GameState.reset_for_new_game()
+		GameState.day_count = d
+		GameState.reputation = 65
+		var first_regs := []
+		var all_same := true
+		for i in range(30):
+			var sched: Array = Day1Events.customer_schedule(-1)
+			var regs := []
+			for slot in sched:
+				var cust: Array = slot["customers"]
+				regs.append(str(cust[0]) if not cust.is_empty() else "")
+			if i == 0:
+				first_regs = regs
+			elif regs != first_regs:
+				all_same = false
+		c.check("Day%d：customer_schedule()の常連は表どおり・枠の順（30回とも同じ）" % d,
+			first_regs == TABLE[d] and all_same, str(first_regs))
+
+	# --- 7. モブ：Day1は固定編成・Day1/Day7の明け方はモブなし・Day2〜6のモブ杯数＝総需要−常連 ---
+	GameState.reset_for_new_game()
+	GameState.day_count = 1
+	var s1: Array = Day1Events.customer_schedule(-1)
+	var mi1: Dictionary = GameState.today_plan["mob_instances"]
+	c.check("Day1は固定編成（宵の口＝港湾労働者2・夜半＝安宿の夜勤受付2）",
+		str(mi1["mob#0"]["type"]) == "dock_workers" and int(mi1["mob#0"]["count"]) == 2
+			and str(mi1["mob#1"]["type"]) == "inn_clerk" and int(mi1["mob#1"]["count"]) == 2
+			and mi1.size() == 2, str(mi1))
+	c.check("Day1の明け方は老婆のみ（モブなし）", s1[2]["customers"] == ["granny"])
+	GameState.day_count = 7
+	GameState.reputation = 100   # 組数が多くなる（明け方の分が夜半へ振り替わる）
+	for i in range(30):
+		var s7: Array = Day1Events.customer_schedule(-1)
+		if s7[2]["customers"] != ["granny"]:
+			c.check("Day7の明け方は老婆のみ（モブなし）", false, str(s7[2]))
+			break
+	c.check("Day7の明け方は老婆のみ（30回）", true)
+	for d in [2, 3, 4, 5, 6]:
+		GameState.reset_for_new_game()
+		GameState.day_count = d
+		GameState.reputation = 65   # 中心14
+		var ok := true
+		var detail := ""
+		for i in range(30):
+			var sched: Array = Day1Events.customer_schedule(-1)
+			var mob_cups := 0
+			for id in GameState.today_plan["mob_instances"]:
+				mob_cups += int(GameState.today_plan["mob_instances"][id]["count"])
+			var reg_cups := 0
+			for slot in sched:
+				for cid in slot["customers"]:
+					if not Day1Events.is_mob_customer(str(cid)):
+						reg_cups += Day1Events._customer_total_servings(str(cid))
+			var center := GameState.demand_center_today()
+			if reg_cups != 3 or mob_cups + reg_cups < center - 1 or mob_cups + reg_cups > center + 1:
+				ok = false
+				detail = "reg=%d mob=%d center=%d" % [reg_cups, mob_cups, center]
+		c.check("Day%d：常連3杯＋モブ杯数が総需要（中心±1）に収まる（30回）" % d, ok, detail)
 
 	print("失敗数: ", c.fails, " / ", c.checks, "件")
 	return c.fails

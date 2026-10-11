@@ -7,8 +7,10 @@ class_name ScheduleData
 ## `Ingredients`の定数キャッシュと同じ考え方。プロセスを再起動しない限りは
 ## 一度読めば十分＝接客のたびにディスクI/Oしない）。
 ##
-## day_schedule.json のモデル（CURRENT_SPEC.md §9-C）：
-##   { "<day>": { "slots": [ { "name", "main" or "main_pool", "mob": bool }, ... ] } }
+## 日ごとの枠構成（4-3から）：常連の固定日程（data/schedules/week7_regulars.json）と
+## モブの抽選ルール（data/schedules/mob_rules.json）から day_schedule(day) が組み立てる
+##   { "slots": [ { "name", "main", "mob": false | { "pool": [...] } }, ... ] }
+## （旧 data/day_schedule.json は4-3で廃止した）。
 ## customers/<id>.json のモデル：
 ##   { "is_mob", "favorite", "days": { "<day>": { "greet", "wanted_tags", "reactions", "servings" } } }
 ##   delivery_man.json だけ例外的に "days" を持たない最小限（is_mob/favoriteのみ。
@@ -16,7 +18,6 @@ class_name ScheduleData
 ## mobs/<id>.json のモデル：
 ##   { "is_mob", "greet", "reactions", "wanted_tags" }（日をまたいで変わらない＝days無し）。
 
-const _DAY_SCHEDULE_PATH := "res://data/day_schedule.json"
 # 4-3：常連の固定日程（week7.jsonのregular_schedule＝"week7_regulars"から引く）と、
 # モブの抽選ルール（既定＋日別の上書き）。DESIGN.md 10.8.1。
 const _SCHEDULES_DIR := "res://data/schedules/"
@@ -29,8 +30,6 @@ const _KITS_DIR := "res://data/kits/"
 # （CURRENT_SPEC.md §9-C。今回のタスクで実装するフォールバックの唯一の場所）。
 const _FALLBACK_DAY := "1"
 
-static var _day_schedule_all: Dictionary = {}
-static var _day_schedule_loaded := false
 static var _customer_cache: Dictionary = {}   # id(String) -> 生のJSON全体（Dictionary）
 static var _mob_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
 static var _kit_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
@@ -58,16 +57,12 @@ static func _load_json(path: String) -> Dictionary:
 	return parsed
 
 
-## 指定日の枠構成（{"slots": [...]}）。day_schedule.json に無い日は"1"（Day1）へ
-## フォールバックする（Day3〜7はこれで現状のDay1固定並びと同じ見た目になる）。
+## 指定日の枠構成（{"slots": [...]}）。常連の固定日程（10.5.1）とモブの抽選ルールから
+## 組み立てる（compose_day_schedule）。定義の無い日（Day8以降）は"1"（Day1）へフォールバック。
+## customer_schedule()・Forecast・DayPlannerが読む口として残している互換層で、4-4でDayPlan
+## が常連の日程を直接読む形になったら消す。
 static func day_schedule(day: int) -> Dictionary:
-	if not _day_schedule_loaded:
-		_day_schedule_all = _load_json(_DAY_SCHEDULE_PATH)
-		_day_schedule_loaded = true
-	var key := str(day)
-	if _day_schedule_all.has(key):
-		return _day_schedule_all[key]
-	return _day_schedule_all.get(_FALLBACK_DAY, {})
+	return compose_day_schedule(day)
 
 
 ## 常連の固定日程（DESIGN.md 10.5.1・21枠）。week7.jsonのregular_schedule（schedule id）の
@@ -96,7 +91,7 @@ static func mob_rules_data() -> Dictionary:
 ## 常連の固定日程とモブの抽選ルールから、指定日の枠構成を、旧day_schedule.jsonと同じ形
 ## （{"slots": [ { "name", "main", "mob" }, ... ]}）で組み立てる（4-3の互換層。
 ## customer_schedule()・Forecast・DayPlannerを変えないため。4-4でDayPlanが常連の日程を
-## 直接読む形になったら、この関数とday_schedule()の旧経路ごと消す）。
+## 直接読む形になったら、day_schedule()とこの関数を消す）。
 ## 日程の定義が無い日（Day8以降）は、常連もモブ規則も"1"（Day1）へフォールバックする。
 ## モブの値は、false（その枠はモブなし）または {"pool": [...]}（その枠で抽選する種類）。
 static func compose_day_schedule(day: int) -> Dictionary:
@@ -127,7 +122,7 @@ static func compose_day_schedule(day: int) -> Dictionary:
 
 ## 客1人ぶんのデータ。トップレベル（is_mob/favoriteなど。"days"を除く）と、その日の内容
 ## （days[day]）をマージして返す。該当日が無ければ、その客データの中で"1"（1日目）へ
-## フォールバックする（day_schedule.json側のフォールバックとは別に、客データ自身も
+## フォールバックする（日程側のフォールバックとは別に、客データ自身も
 ## 独立してフォールバックする。例：Day3でチンピラが再登場しても、thug.jsonに"3"が
 ## 無ければ"1"の会話を使う）。
 ## "days"を持たない客（delivery_manの最小限JSON。is_mob/favorite/wanted_tagsを
@@ -170,8 +165,6 @@ static func kit_data(id: String) -> Dictionary:
 ## テスト用：キャッシュを空にする（JSONファイルを書き換えてから読み直したいときに使う。
 ## 通常のゲーム実行では呼ばない）。
 static func clear_cache() -> void:
-	_day_schedule_all = {}
-	_day_schedule_loaded = false
 	_customer_cache.clear()
 	_mob_cache.clear()
 	_kit_cache.clear()

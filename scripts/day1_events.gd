@@ -350,10 +350,12 @@ static func close_events() -> Array:
 ## OPEN の客の並び（DESIGN.md 9章 / 7.6 / §9-C「データの外部化」）。STEP 6: 配達員1人
 ## → STEP 7: 3人 → §9-C: 日ごとの構成をScheduleData.day_schedule()のJSONから組み立てる
 ## 汎用ロジックに変更（day1_events.gd側にはもう客IDのif/matchを持たない）。
+## 4-3：常連は抽選ではなく固定日程（data/schedules/week7_regulars.json・10.5.1の21枠）。
+## モブの抽選ルールはdata/schedules/mob_rules.jsonで、day_schedule()が両方を合成する。
 ## 7.6: フラットな配列をやめ、**時間帯で区切る**（宵の口 / 夜半 / 明け方）。
 ##   時間帯名と客リストを1つの辞書に同居させる（名前を別配列で並行管理しない）。
-## §9-C: day_schedule.jsonに無い日（Day3〜7）はScheduleData側で"1"（Day1）へ
-##   フォールバックする。ここでは「今日の枠構成」をそのまま信じて組み立てるだけでよい。
+## 定義の無い日（Day8以降）はScheduleData側で"1"（Day1）へフォールバックする。
+##   ここでは「今日の枠構成」をそのまま信じて組み立てるだけでよい。
 ## 時間帯に客がいない（＝main/main_poolを持たない）ことは今回は無い想定だが、
 ##   将来そういう枠を足しても "id": "" のまま customers=[] になるだけで安全。
 ##
@@ -369,10 +371,10 @@ static func close_events() -> Array:
 ##
 ## debug_mob_count（-1=自動、0以上=QA用の一律上書き）が無いとき、その日にF1
 ## day_overrides（DESIGN.md 10.9・10.3.3）で固定モブ編成が宣言されていれば（Day1の
-## week7.json day_overrides."1".mobsが該当）、それを最優先で使う。data/day_schedule.json
-## 側のDay1夜半"mob":{"pool":[...]}は、この固定編成に優先権を譲るためあえて
-## 変更していない（実データとして残るが、Day1では参照されない。デバッグ上書き中は
-## 従来どおりslotの生の"mob"フィールドを_pick_mob()経由で見る）。
+## week7.json day_overrides."1".mobsが該当）、それを最優先で使う。mob_rules.jsonの
+## Day1の日別上書き（夜半のプール等）は、この固定編成に優先権を譲るためあえて
+## 残している（自動編成のDay1では参照されない。デバッグ上書き中は従来どおりslotの
+## "mob"フィールドを_pick_mob()経由で見る）。
 ## day_overridesが無い日（Day2以降）はDay2-7ダミーデータ・モブ抽選独立化のとおり、
 ## その夜の総需要からメイン客の合計杯数を引いたモブ杯数を先に決め、_plan_mob_groups()
 ## で組へ配分してから枠へ割り当てる。デバッグ上書きは総需要システムを丸ごとバイパスして
@@ -452,7 +454,7 @@ static func _customer_total_servings(customer_id: String) -> int:
 
 
 ## モブ杯数を1〜4人の組へ均等配分し（大きい組から先。BALANCE_REDESIGN_PLAN.md§5原文）、
-## その日の枠index（day_schedule.jsonの並び順）へ割り当てる。返り値は
+## その日の枠index（日程の枠の並び順）へ割り当てる。返り値は
 ## { 枠index: [組のサイズ, ...] }（同じ枠に複数の組が入ることもある）。
 ## 組数は ceil(モブ杯数/4)。総需要の上限(18)とメイン客合計の下限(3)から、組数は
 ## 理論上4を超えない（_GROUP_SLOT_PRIORITYが4件しか無いのはこのため）。
@@ -500,7 +502,9 @@ static func _slot_mob_eligible(slot: Dictionary) -> bool:
 	return bool(spec)
 
 
-## 1枠ぶんのメイン客idを決める（day_schedule.jsonの読み込みからは独立させた純粋関数。
+## 1枠ぶんのメイン客idを決める（日程の読み込みからは独立させた純粋関数。4-3から日程の
+## データは常に"main"（固定）で、"main_pool"の抽選はデータでは使わない＝この分岐とテストは
+## 4-4で customer_schedule() を常連日程の直接読みに置き換えるときに消す）。
 ## §9-Cで確定：固定("main")と抽選プール("main_pool")の2値のみ。特別な「初登場」
 ## 「最後に固定」用のフィールドは作らない）。
 ## main_poolの抽選は、その日すでに選ばれた客（chosen）を除外して選ぶ（同日内で同じ
