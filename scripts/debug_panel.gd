@@ -1434,6 +1434,9 @@ func _on_day_ending() -> void:
 	var unserved_cups: int = maxi(_log_planned_cups - served_cups, 0)
 	var spoiled_value := _spoiled_value(_log_spoiled_items)
 	var quality := _quality_score(_log_quality_counts, _log_judged_planned_cups)
+	# 4-2：常連（名前あり客）への提供の杯数・GREAT・GOOD以上と、その日に来た常連のid。
+	# 結果画面の「常連GREAT」「客との間に残ったこと」の元になる（Result.regular_stats）。
+	var regulars := Result.regular_stats(GameState.served)
 	GameState.settle_reputation(quality)
 	var log_entry := {
 		"day": GameState.day_count,
@@ -1450,6 +1453,10 @@ func _on_day_ending() -> void:
 		# F4 前日成績v2（DESIGN.md 10.8.4）：Ledgerから初めて出せるようになった追加情報。
 		# 既存キーは1つも変更していない（balance_log.jsonlの互換性を保つため、追加のみ）。
 		"spend_by_category": Ledger.spend_by_category_today(),
+		# 4-2 結果画面用（追加のみ）：常連の杯数・GREAT・GOOD以上・来店した常連のid。
+		"regular_cups": int(regulars["cups"]), "regular_great": int(regulars["great"]),
+		"regular_good_plus": int(regulars["good_plus"]),
+		"regular_visits": regulars["visits"],
 	}
 	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
@@ -1457,6 +1464,9 @@ func _on_day_ending() -> void:
 		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
 		_log_water_used, _log_dashi_used, str(_log_closed_early), str(_log_quality_counts)])
 	_append_balance_log_file(log_entry)
+	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
+	# 続きからで戻した朝より後の日は持たない）。
+	GameState.record_day(log_entry)
 	# 日次の成績表示（③）：今日作ったlog_entryをそのまま人間向けの文にして、次のWAKE（別日）の先頭で一度だけ見せる。ここでのdebug_panel.gd内のローカル変数ではなくlog_entryの値だけを使うのは、日次ログファイルJSONと完全に同じ内容にして、二重の集計ロジックを作らないため。
 	_last_day_summary_text = _format_day_summary(log_entry)
 

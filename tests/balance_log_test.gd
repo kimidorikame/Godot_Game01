@@ -149,6 +149,13 @@ func run(t: SceneTree) -> int:
 		missing.is_empty(), str(missing))
 	c.check("spend_by_category(F4で新規追加のキー)が出力される",
 		parsed is Dictionary and parsed.has("spend_by_category"), str(parsed))
+	var result_keys := ["regular_cups", "regular_great", "regular_good_plus", "regular_visits"]
+	var result_missing := result_keys.filter(
+		func(k): return not (parsed is Dictionary and parsed.has(k)))
+	c.check("結果画面用の常連のキー(4-2で追加)が出力される", result_missing.is_empty(), str(result_missing))
+	c.check("日次ログと同じ内容が周回の累計（day_records）にも1件入る",
+		GameState.day_records.size() == 1 and int(GameState.day_records[0]["day"]) == 1,
+		str(GameState.day_records))
 
 	print("失敗数: ", c.fails, " / ", c.checks, "件")
 	return c.fails

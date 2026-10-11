@@ -58,6 +58,10 @@ func _fill_every_field() -> void:
 			{ "name": "夜", "customers": ["granny"] }],
 		"mob_instances": { "mob#0": { "type": "dock_workers", "count": 2 } },
 	}
+	GameState.day_records = [
+		{ "day": 1, "served_cups": 9, "regular_great": 1, "quality_counts": { "GOOD": 8, "GREAT": 1 } },
+		{ "day": 2, "served_cups": 10, "regular_great": 0, "quality_counts": { "GOOD": 10 } },
+	]
 
 
 func run(t: SceneTree) -> int:
@@ -148,6 +152,12 @@ func run(t: SceneTree) -> int:
 	bad = env.duplicate(true)
 	bad["state"]["today_plan"].erase("slots")
 	c.check("DayPlanの形が壊れていればfalse", not MorningSave.is_valid(bad))
+	bad = env.duplicate(true)
+	bad["state"]["day_records"] = [1, 2]
+	c.check("day_recordsの行が辞書でなければfalse", not MorningSave.is_valid(bad))
+	bad = env.duplicate(true)
+	bad["state"].erase("day_records")
+	c.check("day_recordsの欠けはfalse（版1のセーブ相当）", not MorningSave.is_valid(bad))
 	bad = env.duplicate(true)
 	bad["day"] = 5
 	c.check("dayとstate.day_countの不一致はfalse", not MorningSave.is_valid(bad))
@@ -262,6 +272,19 @@ func run(t: SceneTree) -> int:
 	c.check("壊れた封筒ならretry_from_morningはfalse", not panel5.retry_from_morning())
 	c.check("壊れた封筒では状態は変わらない", GameState.money == 123)
 
+	# --- 10b. 4-2：再挑戦で1日の記録（day_records）が二重に数えられない ---
+	var panel7 = _setup(t, 600, 1)
+	c.check("朝のday_recordsは空（Day1の朝）", GameState.day_records.is_empty())
+	panel7._on_day_ending()   # Day1の終わりの記録
+	c.check("Day1の終わりに1件入る", GameState.day_records.size() == 1)
+	GameState.money = 5
+	panel7._game_over("テスト")
+	panel7.retry_from_morning()   # Day1の朝へ戻る（記録は朝の値＝空）
+	c.check("Day1の朝へ戻ると、Day1の記録は戻る（空）", GameState.day_records.is_empty())
+	panel7._on_day_ending()
+	c.check("やり直してもう一度終わらせても1件のまま（二重に数えない）",
+		GameState.day_records.size() == 1 and int(GameState.day_records[0]["day"]) == 1)
+
 	# --- 11. reset_for_new_gameで朝の記録は消える（結果画面の「もう一度」は4-2で別途保持する） ---
 	var panel6 = _setup(t, 600, 1)
 	c.check("朝の記録がある", not GameState.morning_snapshots.is_empty())
@@ -280,7 +303,7 @@ func run(t: SceneTree) -> int:
 			and not GameState.morning_snapshots.has(6))
 
 	GameState.reset_for_new_game()
-	for p in [panel, panel2, panel3, panel4, panel5, panel6]:
+	for p in [panel, panel2, panel3, panel4, panel5, panel6, panel7]:
 		if is_instance_valid(p):
 			p.free()
 	print("失敗数: ", c.fails, " / ", c.checks, "件")

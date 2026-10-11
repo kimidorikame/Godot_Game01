@@ -13,14 +13,14 @@ class_name MorningSave
 ## 再挑戦では変わりうる（客・需要・組は変わらない）。
 
 ## 封筒の版。形を変えたら上げる（古い版のファイルはis_valid()で弾いて新規ゲームにする）。
-const VERSION := 1
+const VERSION := 2
 
 ## state の各項目の型（is_valid用）。GameState.SAVED_FIELDS と同じ項目を持つ。
 const _FIELD_TYPES := {
 	"day_count": TYPE_INT, "money": TYPE_INT, "reputation": TYPE_INT,
 	"inventory": TYPE_DICTIONARY, "perishable_batches": TYPE_DICTIONARY,
 	"rumors": TYPE_ARRAY, "dashi_units": TYPE_INT, "known_favorites": TYPE_DICTIONARY,
-	"ledger": TYPE_ARRAY, "today_plan": TYPE_DICTIONARY,
+	"ledger": TYPE_ARRAY, "today_plan": TYPE_DICTIONARY, "day_records": TYPE_ARRAY,
 }
 
 
@@ -67,6 +67,9 @@ static func is_valid(envelope) -> bool:
 		for key in ["day", "amount"]:
 			if typeof((row as Dictionary).get(key)) != TYPE_INT:
 				return false
+	for rec in state["day_records"]:
+		if not (rec is Dictionary) or typeof((rec as Dictionary).get("day")) != TYPE_INT:
+			return false
 	var plan: Dictionary = state["today_plan"]
 	if typeof(plan.get("day")) != TYPE_INT or typeof(plan.get("demand_center")) != TYPE_INT \
 			or typeof(plan.get("slots")) != TYPE_ARRAY \

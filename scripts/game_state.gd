@@ -175,6 +175,15 @@ var today_plan: Dictionary = {}
 # 中身が封筒を持つ入れ子になるのを避けるため。下のTRANSIENT_FIELDS参照）。
 var morning_snapshots: Dictionary = {}
 
+# 1日ごとの記録（4-2・DESIGN.md 10.6「店の成績」）。DebugPanel._on_day_ending()が組む
+# log_entry（balance_log.jsonlと同じ辞書。常連の杯数・来店した常連のidを含む）を、
+# その日の終わりに1件ずつ足す。結果画面（Result.summarize）が周回全体の成績
+# （GOOD以上率・常連GREAT・未提供・廃棄）をここから集計する（帳簿には評価・未提供・
+# 廃棄が無いため。金額＝現金・修繕額は引き続き帳簿とmoneyから導く）。
+# 朝の辞書（SAVED_FIELDS）に含める＝再挑戦・続きからで、戻した朝より後の日の記録は
+# 持たない（やり直した日を二重に数えない）。reset_for_new_gameでクリアする。
+var day_records: Array = []
+
 # F7の保存対象（to_dict()/from_dict()が通す項目）。朝の辞書は「その日が始まる直前」
 # の状態なので、日ごとの使い捨て（soup・served・rent_paid_today・phase）は含めない
 # （from_dict()がreset_for_new_day()と同じ初期値に戻す）。F5「来店記録」を足すときは
@@ -182,7 +191,7 @@ var morning_snapshots: Dictionary = {}
 # どちらにも載っていない変数を検出する）。
 const SAVED_FIELDS := [
 	"day_count", "money", "reputation", "inventory", "perishable_batches", "rumors",
-	"dashi_units", "known_favorites", "ledger", "today_plan",
+	"dashi_units", "known_favorites", "ledger", "today_plan", "day_records",
 ]
 # 保存しない項目（朝には初期値になっている、または保存の仕組み自身の置き場）。
 const TRANSIENT_FIELDS := [
@@ -219,6 +228,17 @@ func from_dict(d: Dictionary) -> void:
 ## 同じ朝を何度通っても1件のまま）。
 func record_morning(morning: Dictionary) -> void:
 	morning_snapshots[int(morning.get("day", day_count))] = morning.duplicate(true)
+
+
+## 1日の記録を足す（4-2）。同じ日の記録が既にあれば置き換える（同じ日のday_endingを
+## 直接呼ぶ試遊・テストでも二重に数えない）。呼び出しはその日の終わり（DebugPanel）だけ。
+func record_day(entry: Dictionary) -> void:
+	var day := int(entry.get("day", day_count))
+	for i in range(day_records.size()):
+		if int((day_records[i] as Dictionary).get("day", -1)) == day:
+			day_records[i] = entry.duplicate(true)
+			return
+	day_records.append(entry.duplicate(true))
 
 
 ## 戻れる最後の朝（日番号が最大のもの）の封筒。1件も無ければ空の辞書。
@@ -275,6 +295,7 @@ func reset_for_new_game() -> void:
 	known_favorites.clear()
 	ledger.clear()
 	morning_snapshots.clear()
+	day_records.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
 
