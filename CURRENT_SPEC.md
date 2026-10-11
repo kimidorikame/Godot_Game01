@@ -181,7 +181,7 @@ today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09
   個数の合計）をさらに追加。呼び出し元は変わらず`for id in spoiled`とキーを回すだけなので、
   この拡張でも無改修**）
 - `is_final_day()` … 今日が最終日か。`day_count >= FINAL_DAY`（`is_collection_day()`と同じ形）
-- `reset_for_new_game()` … 最終日のNEXT_DAY→WAKEで呼ばれる全状態初期化
+- `reset_for_new_game()` … 全状態初期化。**【4-2で変更】結果画面の「新しい周」から呼ばれる**（以前は最終日のNEXT_DAY→WAKEで呼ばれていた）
   （下記「状態変数12個すべてが対象」参照）
 
 ### ゲーム共通の定数（GameState に置く）
@@ -230,7 +230,7 @@ WAKE → PREP → OPEN → CLOSE → NEXT_DAY →（WAKE へ折り返し）
 ```
 
 - **一方向。前に戻らない。** これが「一日一鍋・仕込み直し不可」を構造で保証する。
-- NEXT_DAY→WAKE の折り返しで分岐する（実装済み）：
+- NEXT_DAY→WAKE の折り返しで分岐する（実装済み。**【2026-10-11・4-2で変更】最終日は日次リセットも日数加算もせず`Phase.RESULT`へ入る。最終日の項目は4-2以前の記述**。§6「結果画面（4-2）」参照）：
   - 最終日でなければ今まで通り `reset_for_new_day()` ＋ `advance_day()`
   - **最終日（`GameState.is_final_day()`）なら `reset_for_new_day()` の代わりに
     `GameState.reset_for_new_game()` を呼び、`game_restarted` シグナルを発火する**。
@@ -238,7 +238,7 @@ WAKE → PREP → OPEN → CLOSE → NEXT_DAY →（WAKE へ折り返し）
 - `advance_phase()` でフェーズを1つ進める。`[次のPhase]` ボタンから叩く。
 - **`GAME_OVER`（実装済み）**：`Phase` enum の末尾に追加した終端フェーズ
   （既存の `WAKE=0 / PREP=1 / OPEN=2 / CLOSE=3 / NEXT_DAY=4` の番号は変えていない。
-  `GAME_OVER=5`）。通常の一方向連鎖（WAKE→…→NEXT_DAY→WAKE）とは別枠で、
+  `GAME_OVER=5`、4-2で`RESULT=6`を追加）。通常の一方向連鎖（WAKE→…→NEXT_DAY→WAKE）とは別枠で、
   水道代・場所代が払えないときにここへ入る（詳細・確認手順は§6「ゲームオーバー」参照）。
   `advance_phase()` は先頭で `phase == GAME_OVER` ならガードして何もしないため、
   `[次のPhase]` が効かなくなる。（【2026-10-11追記・4-1】仮ボタン[同じ朝からやり直す]で、最後に記録された朝へ戻れるようになった。`[次のPhase]`では復帰しない点は変わらない。）
@@ -1742,10 +1742,10 @@ CLOSEに来た日も同じ（理由テキスト＋閉店TEXT×3＋（終了）�
 折り返し処理が走ってWAKEへ進む（リセットは2回目のボタン操作で起きる）。
 
 - 最終日でなければ：日次リセット（soup / served クリア）＋ day_count +1
-- **最終日なら**：日次リセットの代わりに`GameState.reset_for_new_game()`
+- **最終日なら**：【4-2で変更：日次リセットも日数加算もせず`Phase.RESULT`へ入る。以下は4-2以前の記述】日次リセットの代わりに`GameState.reset_for_new_game()`
   （下記「終了日」参照）
 
-### 終了日（実装済み）
+### 終了日（実装済み。**4-2で最終日の先が変わった**→「結果画面（4-2）」参照。以下は4-2以前の記述を含む）
 
 `FINAL_DAY`（7日・本番版。体験版の3日から変更済み）で終了する。以下の仕組み
 自体は日数によらず共通。
@@ -1754,7 +1754,7 @@ CLOSEに来た日も同じ（理由テキスト＋閉店TEXT×3＋（終了）�
 最終日のCLOSE
   → 閉店TEXT×3 → 「（終了）」TEXT
   → [次のPhase] でNEXT_DAYへ（中継）
-  → [次のPhase] でreset_for_new_game() が走り、1日目のWAKEへ
+  → [次のPhase] でreset_for_new_game() が走り、1日目のWAKEへ（4-2以降：RESULTへ入り、新しい周は結果画面の選択肢から）
 ```
 
 - **全状態初期化**：`day_count`（→1）・`money`（→`INITIAL_MONEY`＝600）・
@@ -1955,8 +1955,8 @@ GameState.try_pay(amount) -> bool
   （DayPlanを含む）。保存しない項目（`TRANSIENT_FIELDS`）：`phase`・`soup`・`served`・
   `rent_paid_today`・`morning_snapshots`。保存しない項目は朝の初期値で、`from_dict()`が
   `phase`をWAKEに戻す。**新しいGameState変数は、どちらかに分類しないと`save_state_test`が落ちる**
-  （F5の来店記録を足すときは`SAVED_FIELDS`に入れる）。辞書は往復とも深いコピー。
-- **封筒**（`MorningSave.capture()`）：`{version: 1, campaign, day, state: GameState.to_dict(),
+  （F5の来店記録を足すときは`SAVED_FIELDS`に入れる）。辞書は往復とも深いコピー。**【4-2で`day_records`を追加】**
+- **封筒**（`MorningSave.capture()`）：`{version: 2（4-1は1。4-2で上げた）, campaign, day, state: GameState.to_dict(),
   panel: {day_summary_text}}`。`is_valid()`が版・キャンペーンID・各項目の型を確かめる。
   `panel`は画面側の最小限の付随情報で、前日成績の一言だけ（戻った朝にも同じ文を見せる）。
 - **WAKEの処理順（4-1で変更）**：旧は「運営費→reserve→`DayPlanner.build()`」。新は
@@ -1984,13 +1984,65 @@ GameState.try_pay(amount) -> bool
 - **読めないとき**：無い・空・別の内容・途中切れ・版違い・別キャンペーン・型崩れは、例外なく
   新規ゲーム扱い（ファイルは消さず、次の朝の保存で上書き）。破損ファイルではGodotが
   `Error when trying to decode Variant`を出力するが、例外にはならない。
-- **未対応・4-2以降で決めること**：(1) 結果画面の「もう一度（Day1から）」は、
+- **（(1)は4-2で解決済み。「結果画面（4-2）」参照）未対応・4-2以降で決めること**：(1) 結果画面の「もう一度（Day1から）」は、
   `reset_for_new_game()`が`morning_snapshots`を消すため、Day1の朝の記録を残す手段（実行前に
   退避して戻す／Day1の記録は消さない）が要る。Day1の再現は**Day1の客・需要のみ**で、2日目以降は
   評判次第で引き直しになる。(2) `balance_log.jsonl`は再挑戦した日が二重に記録される。
   (3) 実機での[続きから]の確認（保存→終了→再起動→同じ朝・同じ予報）は未実施。
   (4) 1枠セーブの書き換えは「古いファイルを消してから置き換える」順で、その一瞬の中断では
   セーブが消えうる（仮機能として許容）。
+
+### 結果画面（Phase.RESULT・4-2実装済み・2026-10-11・DESIGN.md 10.6）
+
+7日目の閉店後に結果画面が出て、そこから再挑戦などを選べる。コミットは`8a804eb`（累計データと
+結果の集計。画面なし）と`33a70b4`（結果画面と`Phase.RESULT`）。テストは761件成功（4-1の672件に
+`result_test`・`save_state_test`／`balance_log_test`の追加分で711件、`result_flow_test` 50件で761件。
+既存テストの書き換えなし）。自動試遊は3シード×13方針で運営費65の結果と39/39周が完全一致し、
+結果画面の集計値と日別集計も36/36周で一致した（残り3周は空の椀のゲームオーバーでRESULTに入らない）。
+画面は仮表示（本番UIはフェーズ6）。
+
+- **フェーズと最終日の流れ**：`Phase`の末尾に`RESULT=6`（`GAME_OVER=5`の次。既存の番号は変えていない）。
+  `GAME_OVER`と同じ終端で、`advance_phase()`の先頭ガードで`[次のPhase]`は効かない。最終日の
+  NEXT_DAYでは、`day_ending`を発火して最終日の記録を累計に足し、**日次リセットも日数加算もせず**
+  `RESULT`へ入る。旧版の「最終日の翌朝に`reset_for_new_game()`＋`game_restarted`」は廃止で、
+  `game_restarted`が発火するのは結果画面の「新しい周」だけ。最終日のあとは何も初期化しない
+  （`day_count`は7のまま、`morning_snapshots`・`day_records`も残る）。
+- **累計**：`GameState.day_records`（`SAVED_FIELDS`。`reset_for_new_game()`でクリア）。
+  `DebugPanel._on_day_ending()`が組む`log_entry`（`balance_log.jsonl`と同じ辞書）を
+  `record_day()`で1日ずつ足し、**同じ日の記録があれば置き換える**（試遊・テストが同じ日の
+  `day_ending`を直接呼んでも二重にならない）。朝の辞書に入るので、再挑戦・続きからで戻した朝より
+  後の日の記録は持たない（やり直した日を二重に数えない）。`log_entry`には4-2で追加キー
+  `regular_cups`・`regular_great`・`regular_good_plus`・`regular_visits`を足した（キー追加のみ）。
+  帳簿（`ledger`）には評価・未提供・廃棄が無いため、成績は帳簿ではなくこの記録から出す
+  （金額＝現金・修繕額は引き続き`money`と帳簿から導く）。
+- **集計と目標**（`Result`・静的クラス。画面から分離した純粋関数）：`summarize`／`judge_goals`／
+  `format_report`／`format_goals`／`format_story`。定義は3-8の試遊と同じ。GOOD以上率＝
+  Σ(GOOD＋GREAT)÷Σ評価対象需要（`judged_planned_cups`。未提供も分母に残す）。常連GREAT＝名前あり客
+  （`customer`が`mob#`で始まらない）への提供でGREATだった**杯数**。未提供＝Σ(計画杯数−提供杯数)。
+  廃棄＝Σ廃棄**額**（品目数も併記）。現金＋修繕額＝所持金＋帳簿`fund`の支出合計（修繕基金は4-9。
+  今は常に0）。目標は`Rules.goals()`（標準1500／挑戦1600／料理0.85／常連GREAT 8杯）で、完走・
+  標準・挑戦・料理・常連の順に判定する。**表示のみで、ゲーム状態には影響しない**（未達でも物語や
+  続きのプレイを失わない）。GOOD以上率の境界（ちょうど85%）は杯数同士で比べて取りこぼさない。
+  3-8の試遊では基本GOODの方針は常連GREATが0.0杯で、好物を狙う方針で14〜20杯。
+- **結果画面の表示**：`_set_runner_for_phase(RESULT)`がTEXTイベント3本を積む（店の成績／目標／
+  仮の物語欄）。物語欄（街で起きたこと／客との間に残ったこと）は、評判の上下・早期閉店の有無・好物を
+  知った客のID・来た常連のID（と来店日数）だけで、**成績の数値・語は出さない**（料理成績を人間関係の
+  善悪や真エンド条件にしない）。表示名は客データに無いためIDのまま。本文は4-4〜4-8。
+- **選択肢**（`ResultRow`・RESULTのときだけ表示）：[もう一度（Day1の朝から）]＝
+  `retry_from_morning(1)`でDay1の朝へ戻り、累計も戻る（戻した日より後の朝の記録は捨てる。
+  ボタンに「Day1の客・需要のみ同じ。2日目以降は評判次第で変わる」と表示。**[続きから]で始めた周は
+  Day1の朝の記録が無いので押せず、理由が出る**）／[最後の朝からやり直す]＝
+  `retry_from_morning()`（最終日の朝）／[新しい周]＝`reset_for_new_game()`→`game_restarted`→
+  Day1のWAKE（画面側の一時状態も初期化）／[終わる（フェーズ6）]＝押せない仮ボタン。
+  `retry_from_morning(day := -1)`は日番号を指定して戻れる（`GameState.morning_of(day)`）。存在しない
+  日・記録が無い日を指定した場合は何もしない。
+- **セーブの扱い**：結果画面に入ってもセーブファイルは消さない（最後の朝＝最終日の朝が残り、次回の
+  [続きから]は最終日の朝のやり直しになる）。新しい周のDay1の朝の保存で自然に上書きされる。
+  封筒の版は2に上げたので、4-1のセーブは読めない扱い（新規ゲーム）になる。
+- **未確認・今後**：結果画面と各ボタンの実機確認は未実施。[続きから]の実機確認も未実施（4-1）。
+  `balance_log.jsonl`は再挑戦した日が二重に記録される。修繕額は4-9まで常に0。
+  「街で起きたこと／客との間に残ったこと」の本文は来店記録（F5）・場面データ（F6）・ニュースの後
+  （4-4〜4-8）。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2040,7 +2092,9 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
 | `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記）。3-7で`usable_cash()`追加 |
 | `scripts/forecast.gd` | 朝の一画面（SNSタブの客足予報）の集計。3-7実装・2026-10-11追記 |
-| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記 |
+| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記。4-2で版2・`day_records`の型検査 |
+| `scripts/result.gd` | 結果の集計と目標判定（`regular_stats`／`summarize`／`judge_goals`／`format_*`）。4-2実装・2026-10-11追記 |
+| `tests/result_test.gd`・`tests/result_flow_test.gd` | 集計・目標判定・累計の保存（4-2コミット①）／最終日の流れ・結果画面の選択肢（50件。4-2コミット②）。2026-10-11追記 |
 | `tests/save_state_test.gd`・`tests/save_file_test.gd` | 朝の保存・再挑戦（66件）／1枠セーブのファイル入出力（50件）。4-1実装・2026-10-11追記 |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
@@ -2279,7 +2333,7 @@ DESIGN.md 9.5「ビルド順・第2フェーズ」の縦切りは **STEP 17.6 �
      在庫は品目単位の簡易管理・個別ロット追跡はしない）
 [済] クズ野菜ベース（所持金がBASE_PRICE未満の日は食肉仲卸の代わりに端材屋へ。
      代金なし・濃さ1スタート。デバッグ用の[所持金 -50/+50]ボタンも追加）
-[済] 終了日（最終日CLOSEに「（終了）」テキスト、NEXT_DAYでreset_for_new_game()
+[済]【4-2で流れ変更】終了日（最終日CLOSEに「（終了）」テキスト、NEXT_DAYでreset_for_new_game()
      により状態変数14個すべてを初期化して1日目に戻る）
 [済] 7日版に戻す（FINAL_DAY を3→7に変更。徴収日はday_count==1のまま据え置き
      ＝意図した割り切り。Godot実機で7日通しプレイを確認済み）
