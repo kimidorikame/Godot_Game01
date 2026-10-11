@@ -68,7 +68,12 @@ DESIGN.md が「これから作る指示書」なのに対し、こちらは「�
     `sale`/`fund`/`reserve`/`release`の11種（DESIGN.md 10.4）。`pending_bills_today()`
     が`reserve`−`release`の当日差分から「支払い予定」を、`spend_by_category_today()`
     が当日のカテゴリ別支出集計を計算する（どちらも読み取り専用の集計関数で、
-    money自体には触れない）。
+    money自体には触れない）。3-7で`usable_cash()`（`GameState.money - pending_bills_today()`）
+    を追加した。STATE VIEWERの`budget`行の第3項とSNSタブの「使える現金」が共用する。
+  - `Forecast`（`scripts/forecast.gd`・3-7）：朝の一画面（SNSタブの客足予報）の集計。
+    状態を持たない静的クラスで、`GameState.today_plan`と`GameState.inventory`から計算し、
+    数値・辞書を返す（文字列の組み立ては`DebugPanel._format_tonight_memo()`）。詳細は
+    下記「スマホUI」の「SNSタブ（客足予報）」参照。
 
 ---
 
@@ -95,7 +100,8 @@ ledger      : Array = []    # 支出・売上の記録（F4・実装済み・202
                              # で計算する形に置き換えられ、フィールド自体は削除された
                              # （下記「支払い予定」参照）
 today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09-28追記）。
-                             # {day, slots, mob_instances}。※日次リセット対象
+                             # {day, slots, mob_instances, demand_center}。※日次リセット対象
+                             # demand_centerは3-7で追加（WAKEでDayPlanner.build()が保存）
 ```
 
 ### 状態変更の入口（受け側はここだけを通す）
@@ -157,7 +163,12 @@ today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09
   `DEMAND_TABLE`（評判の下限→中心値）から中心値を引き、±1に25/50/25%で振れる。
   モブの人数は名前付き客の杯数を差し引いた残りとして`Day1Events._plan_mob_groups()`が
   組に分けて配分する（詳細は下記「客数の決め方」参照。旧`mob_count_for_reputation(reputation)`・
-  `mob_count_today()`は廃止）
+  `mob_count_today()`は廃止）。
+  **3-7（2026-10-11）**：中心値を引く処理を`demand_center_today()`（乱数なし。
+  `fixed_demand`がある日はその値）へ分離し、`total_demand_today()`はこれを呼んで
+  ±1を抽選するだけになった（`DEMAND_TABLE`を参照する箇所は1箇所）。朝の予報は
+  抽選結果ではなくこの中心を基準に幅を出す。`DayPlanner.build()`がWAKEで
+  `today_plan["demand_center"]`へ保存する
 - `fresh_count(id)` / `damaged_count(id)` … 品目の「傷んでいない/傷んだ」在庫数
   （購入日ごとのロット`perishable_batches[id]`から集計。実装済み・鮮度選択。§5参照）
 - `remove_inventory_fresh(id, count)` / `remove_inventory_damaged(id, count)` …
@@ -1184,12 +1195,51 @@ GameState.dashi_units   # 濃縮だしの保有回数分
   `[スマホ]`自身をすべて無効化**し、会話・調理・フェーズ進行を完全に止める
   （デバッグ用の`[Day+1]` `[所持金±50]` `[モブ人数]`は対象外。従来通り押せる）。
 - 中身は**レシピ／ニュース／SNSの3タブ＋`[閉じる]`**。今のタブのボタンは自身を
-  無効化する（押し直せない）。**今回はどのタブもプレースホルダー文言のみ**
-  （例：「レシピ：まだ記録がありません」）。実データ（レシピ一覧・日ごとのニュース・
-  SNSメッセージ）は、Day3以降の日別コンテンツ制作と合わせて別タスクで実装する
-  （§9「まだ無いもの」参照）。
+  無効化する（押し直せない）。**SNSタブだけは実データ（客足予報。下記）が入っている**。
+  レシピ・ニュースは**プレースホルダー文言のみ**（例：「レシピ：まだ記録がありません」）。
+  実データ（レシピ一覧・日ごとのニュース）は、Day3以降の日別コンテンツ制作と合わせて
+  別タスクで実装する（§9「まだ無いもの」参照）。
 - `_set_runner_for_phase()`（フェーズが変わるたび）で`_phone_mode`・選択中タブを
   既定値にリセットする（鍋モード・市場モードの防御的リセットと同じ扱い）。
+
+#### SNSタブ（客足予報・朝の一画面）（3-7実装済み・2026-10-11・DESIGN.md 10.4）
+
+`_format_tonight_memo()`が、WAKEで確定した`GameState.today_plan["slots"]`を
+時間帯ごとに並べ、その下に集計を足す。`today_plan["slots"]`が空（起床前など）なら
+「SNS：まだ新着はありません」。**表示のみで、ここから仕入れる操作（自動購入）は無い**。
+集計は`Forecast`（`scripts/forecast.gd`）が返す。
+
+- **予報の精度は`Forecast.mode()`で2通り**：`Rules.day_overrides(day).forecast`が
+  `"exact"`の日（Day1）は`"exact"`、それ以外は`Rules.forecast().total`（`"range"`）。
+- **exact（Day1・見出し「本日の客足予報（確定）」）**：総杯数は実際の合計（9杯）。
+  配達員は`Forecast.orders_of(cid)`（`customer_events()`のREACTを走査。
+  `Day1Events._customer_total_servings()`と同じ流儀で、3杯目の`wanted_tags`を
+  別定数に重複させない）から「HOT/POWER×2・MELLOW/GENTLE×1」のように出る。
+  モブは「港湾労働者2人（HOT/POWER）」と人数つきで出る。必要数は実際のplanから
+  （案は「確定」の1つ）。
+- **range（Day2以降）**：総杯数は**実際に引いた値ではなく`today_plan["demand_center"]`
+  ±`Rules.forecast().range_width`（1）**の幅（例：「10〜12杯」）。「中心＝実際」に
+  読めないための設計。モブは「客層:港湾労働者（HOT/POWER）」と**種類のみ（重複除去・
+  人数も組数も出さない）**。種類名は`data/mobs/*.json`の`"name"`
+  （`Day1Events.mob_display_name(type_id)`。無ければ種類idをそのまま返す）。
+  名前あり客は基本注文（その日の`customer_data`）と、既知の好物のみ。「今日の頼み」は
+  会話で判明するので出さない。
+- **必要な味・具の数は2案（range日）**：全タグ合計÷2で実際の総杯数が逆算されて
+  幅の意味が無くなるのを避けるため、名前あり客は基本注文から正確に、モブ分は
+  「モブ杯数＝`max(案の総杯数−名前あり客の合計杯数, 0)`をplanに出るモブの種類へ
+  均等に割り振る」推定にした（`required_estimated()`）。**平均案**＝中心、
+  **上限案**＝中心＋幅。実際の組の人数配分は使わない（人数・組数が漏れない）。
+  exact日は`required_exact()`（実際のplan）。表示順は味の軸→具の軸（`Forecast.TAG_ORDER`）。
+- **在庫との過不足**：`Forecast.supply_tags()`が`GameState.inventory`を
+  `Ingredients.tags_for()`でタグ換算（複数タグの品目は各タグに1個ずつ。傷み・鮮度は
+  区別せず1個＝1個）、`shortages()`が必要数との差のうち不足のタグだけ「HOTあと2個」の
+  形で返す。**タグ単位の個数比較の目安**で、1杯が味＋具の組み合わせでできる点までは
+  見ない。案ごとに「不足なし」または不足タグを出す。
+- **使える現金**：`Ledger.usable_cash()`＝残金−確保。「使える現金: N円（残金N／確保N）」。
+  STATE VIEWERの`budget`行の第3項と同じ値。
+- **テスト**：`tests/morning_forecast_test.gd`（22件。Day1完全公開・範囲が中心基準・
+  モブは種類のみ・使える現金とbudget行の一致・`demand_center_today()`と
+  `total_demand_today()`の整合）。全556件成功（コミット`6ea34f1`）。
 - **DESIGN.md 6章「スマホ＝操作解禁の合図」との関係**：WAKEには既に
   「スマホを見る。」という一言（`WAIT_INPUT`。演出のみで今回のスマホUIとは無関係の
   別の仕組み）があるが、今回は変更していない。本物のスマホが押せるようになったことで
@@ -1886,7 +1936,8 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/day_planner.gd` | F2・`GameState.today_plan`の構築（2026-09-28追記） |
 | `scripts/sale_rule.gd` | F3・提供前チェック（味/トッピング/濃さ0/杯数不足。2026-09-28追記） |
 | `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
-| `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記） |
+| `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記）。3-7で`usable_cash()`追加 |
+| `scripts/forecast.gd` | 朝の一画面（SNSタブの客足予報）の集計。3-7実装・2026-10-11追記 |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
 
