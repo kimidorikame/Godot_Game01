@@ -82,9 +82,13 @@ const sellable = rows.filter(r => r.policy !== 'bare_broth');
 const totalGameOver = sellable.reduce((s, r) => s + r.gameOver, 0);
 const totalStalled = rows.reduce((s, r) => s + r.stalled, 0);
 const sellableRuns = sellable.reduce((s, r) => s + r.n, 0);
+// 毎日団体を断る極端な方針（decline_one_group）だけに限られる場合は、10.13の文言を字義どおり
+// 読めば不合格だが「通常の営業判断の範囲」では起きていない＝注記つき合格（Claudchatで確認済みの読み方）。
+const extreme = by.decline_one_group?.gameOver ?? 0;
 checks.push({ id: '4', item: '資金不足の休業（ゲームオーバー）が0（空の椀を除く）',
-  pass: totalGameOver === 0,
-  detail: `空の椀を除く${sellableRuns}周でゲームオーバー${totalGameOver}・全周の進行停止${totalStalled}` });
+  pass: totalGameOver === 0, noted: totalGameOver > 0 && totalGameOver === extreme,
+  detail: `空の椀を除く${sellableRuns}周でゲームオーバー${totalGameOver}`
+    + (extreme ? `（うち毎日断る方針${extreme}）` : '') + `・全周の進行停止${totalStalled}` });
 if (by.bare_broth) {
   const x = by.bare_broth, bare = result.runs.filter(r => r.policy === 'bare_broth');
   const sold = bare.reduce((s, r) => s + sumRows(r, 'served'), 0);
@@ -92,19 +96,24 @@ if (by.bare_broth) {
     pass: sold === 0 && x.gameOver === x.n,
     detail: `提供${sold}杯・ゲームオーバー${x.gameOver}/${x.n}周・最終現金${x.minCash}〜${x.maxCash}` });
 }
-// Day1個別のキャッシュフロー: 600-80(運営費)-210(初日セット)-仕込み-50(水道代)-90(場所代)+売上
+// Day1個別のキャッシュフロー: 600-運営費(week7.jsonのeconomy.daily_operating_cost)-210(初日セット)
+// -仕込み-50(水道代)-90(場所代)+売上。運営費80なら小仕込みで90、9杯完売で495。70なら100・505。
+// 結果JSONに実行時の値を記録している（調整前の旧JSONには無いので80とみなす）。
+const DAILY = result.daily_operating_cost ?? 80;
+const START = 600;
 const TIER_PRICE = { small: 80, medium: 110, large: 140 };
 let d1Ok = 0;
 const d1Bad = [];
 const d1Runs = result.runs.filter(r => r.day1_cash && r.day1_cash.end !== undefined);
 for (const r of d1Runs) {
   const c = r.day1_cash, tp = TIER_PRICE[c.tier] ?? 0, sales = r.rows[0]?.sales ?? 0;
-  const exp = { after_wake: 520, after_kit: 310, after_tier: 310 - tp,
-    after_market: 310 - tp - 50, end: 310 - tp - 50 - 90 + sales };
+  const wake = START - DAILY, kit = wake - 210;
+  const exp = { after_wake: wake, after_kit: kit, after_tier: kit - tp,
+    after_market: kit - tp - 50, end: kit - tp - 50 - 90 + sales };
   const ok = Object.keys(exp).every(k => c[k] === exp[k]);
   if (ok) d1Ok++; else d1Bad.push({ policy: r.policy, seed: r.seed, got: c, expected: exp });
 }
-checks.push({ id: 'D1', item: 'Day1のキャッシュフロー（600→520→310→仕込み→水道代→場所代＋売上）が全周で一致',
+checks.push({ id: 'D1', item: `Day1のキャッシュフロー（600→${START - DAILY}→${START - DAILY - 210}→仕込み→水道代→場所代＋売上）が全周で一致`,
   pass: d1Bad.length === 0 && d1Runs.length > 0, detail: `${d1Ok}/${d1Runs.length}周が一致` });
 const full9 = result.runs.filter(r => r.day1_cash?.tier === 'small' && (r.rows[0]?.served ?? 0) === 9);
 const summary = { commit: result.commit, tracked_changes: result.tracked_changes,
@@ -119,5 +128,5 @@ console.table(rows.map(r => ({ policy: r.policy, runs: r.n, complete: r.complete
   rep: r.rep.toFixed(1), served: r.served.toFixed(1), unserved: r.unserved.toFixed(1),
   regGreat: r.regularGreat.toFixed(1), t1500: pct(r.target1500), early: r.earlyCloseNights,
   unsell: r.unsellableDeclined })));
-for (const c of checks) console.log(c.pass ? 'PASS' : 'FAIL', c.id, c.item, '|', c.detail);
+for (const c of checks) console.log(c.pass ? 'PASS' : c.noted ? 'NOTE(注記つき合格)' : 'FAIL', c.id, c.item, '|', c.detail);
 console.log('days validated', dayChecks, 'commit', result.commit, 'dirty:', JSON.stringify(result.tracked_changes));

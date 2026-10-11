@@ -60,7 +60,8 @@ func run(t: SceneTree) -> void:
 		print("PLAYTEST_PROGRESS ", p, " ", n, " runs")
 	var f := FileAccess.open(OUT + out_name, FileAccess.WRITE)
 	f.store_string(JSON.stringify({ "commit": git_head(), "tracked_changes": git_dirty(),
-		"engine": Engine.get_version_info(), "seeds_old": seeds_old, "seeds_new": seeds_new,
+		"engine": Engine.get_version_info(), "daily_operating_cost": Rules.daily_operating_cost(),
+		"seeds_old": seeds_old, "seeds_new": seeds_new,
 		"policies": policies, "runs": results }, "\t"))
 	f.close()
 	print("PLAYTEST_COMPLETE ", results.size())
