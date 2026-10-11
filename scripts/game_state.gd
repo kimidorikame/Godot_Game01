@@ -162,8 +162,10 @@ var ledger: Array = []
 # 呼ぶ）。OPENはこれを使い回す（客層・人数を開店直前に変えない＝予報と実際を一致させる）。
 # slotsはcustomer_schedule()と同じ戻り値の形（[{name, customers[]}, ...]）。
 # mob_instancesは旧Day1Events._mob_instances（instance_id→{type,count}のフラット辞書）の
-# 実体をここへ移したもの。forecast/bills_due/seed/demand_center/demand_actualは
-# 3-5以降で使い始めるまでフィールド自体を作らない（YAGNI。必要になった手順で追加する）。
+# 実体をここへ移したもの。demand_centerは3-7（朝の一画面・予報の幅）で追加した、
+# その夜の総需要の「中心」（DayPlanner.build()がWAKEで保存する。予報はこの値を読み、
+# 表示のたびに評判から再計算しない）。forecast/bills_due/seed/demand_actualは
+# 使い始める手順で追加する（YAGNI）。
 var today_plan: Dictionary = {}
 
 
@@ -174,7 +176,7 @@ func reset_for_new_day() -> void:
 	soup = null
 	served.clear()
 	rent_paid_today = false
-	today_plan = { "day": -1, "slots": [], "mob_instances": {} }
+	today_plan = { "day": -1, "slots": [], "mob_instances": {}, "demand_center": -1 }
 
 
 ## 日を1つ進める。reset_for_new_day() の後に呼ぶ想定。
@@ -230,6 +232,24 @@ func is_collection_day() -> bool:
 ## day_overrides."1".fixed_demandに基づく判定へ置き換えた。値そのものは9のまま変えていない。
 ## 呼び出し側は「その日のEvent列を作る時点で1回だけ」呼んで、結果を使い回すこと。
 func total_demand_today() -> int:
+	# fixed_demandがある日（Day1）は抽選しない。中心がそのまま実際の総需要。
+	if Rules.day_overrides(day_count).has("fixed_demand"):
+		return demand_center_today()
+	var center := demand_center_today()
+	var roll := randf()
+	if roll < 0.25:
+		return center - 1
+	elif roll < 0.75:
+		return center
+	return center + 1
+
+
+## その夜の総需要の「中心」だけを返す（乱数を引かない）。3-7 朝の一画面の予報の幅
+## （DESIGN.md 10.4）は、実際に引いた値ではなくこの中心を基準に出す（実際の値を
+## 中心に幅を出すと「真ん中＝実際」と読めてしまうため）。day_overridesに
+## fixed_demandがある日（Day1）はその値をそのまま返す。評判→中心のテーブル
+## （DEMAND_TABLE）を参照する箇所はここ1箇所にまとめた（total_demand_today()も使う）。
+func demand_center_today() -> int:
 	var day_override := Rules.day_overrides(day_count)
 	if day_override.has("fixed_demand"):
 		return int(day_override["fixed_demand"])
@@ -238,12 +258,7 @@ func total_demand_today() -> int:
 		if reputation >= int(row[0]):
 			center = int(row[1])
 			break
-	var roll := randf()
-	if roll < 0.25:
-		return center - 1
-	elif roll < 0.75:
-		return center
-	return center + 1
+	return center
 
 
 ## 金額の増減をまとめて通す入口。

@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "夜勤警備員",
   "greet": [
     "夜勤警備員 %d人（SAVORY/BITE）"
   ],

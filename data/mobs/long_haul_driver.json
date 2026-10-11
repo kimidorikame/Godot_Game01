@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "長距離運転手",
   "greet": [
     "長距離運転手 %d人（SAVORY/TREAT）"
   ],

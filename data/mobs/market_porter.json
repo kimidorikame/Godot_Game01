@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "市場の荷捌き人夫",
   "greet": [
     "市場の荷捌き人夫 %d人（HOT/FILLING）"
   ],

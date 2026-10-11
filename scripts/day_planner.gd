@@ -20,3 +20,6 @@ static func build(debug_mob_count: int = -1) -> void:
 	var slots := Day1Events.customer_schedule(debug_mob_count)
 	GameState.today_plan["day"] = GameState.day_count
 	GameState.today_plan["slots"] = slots
+	# 3-7：予報の幅（DESIGN.md 10.4）の基準になる総需要の中心を、計画と一緒に確定
+	# させる（乱数を引かない。実際の総需要の抽選はcustomer_schedule()内で済んでいる）。
+	GameState.today_plan["demand_center"] = GameState.demand_center_today()

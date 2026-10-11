@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "夜間清掃員",
   "greet": [
     "夜間清掃員 %d人（SOUR/FILLING）"
   ],

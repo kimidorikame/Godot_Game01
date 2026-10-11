@@ -41,6 +41,12 @@ static func pending_bills_today() -> int:
 	return -total
 
 
+## 使える現金（残金−確保）。STATE VIEWERのbudget行と、SNSタブの朝の一画面（3-7）の
+## 両方がこの1箇所の計算式を使う（表示ロジックの重複を避けるため）。
+static func usable_cash() -> int:
+	return GameState.money - pending_bills_today()
+
+
 ## 今日のカテゴリ別支出（前日成績v2用）。sale（収入）・reserve/release（表示専用の
 ## 二重計上を避けるため）は含めない。金額は正の値（見せる用）で返す。
 static func spend_by_category_today() -> Dictionary:

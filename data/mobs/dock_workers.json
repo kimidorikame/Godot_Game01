@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "港湾労働者",
   "greet": [
     "港湾労働者 %d人（HOT/POWER）"
   ],

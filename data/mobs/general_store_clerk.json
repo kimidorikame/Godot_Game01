@@ -1,5 +1,6 @@
 {
   "is_mob": true,
+  "name": "市場横の雑貨屋の夜番",
   "greet": [
     "市場横の雑貨屋の夜番 %d人（BITTER/GENTLE）"
   ],

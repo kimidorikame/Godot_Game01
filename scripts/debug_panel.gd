@@ -1749,8 +1749,7 @@ func _format_game_state() -> String:
 		"day_count(日数): %d" % GameState.day_count,
 		"money(所持金): %d" % GameState.money,
 		"budget(残金/確保/使える): %d / %d / %d" % [
-			GameState.money, Ledger.pending_bills_today(),
-			GameState.money - Ledger.pending_bills_today()],
+			GameState.money, Ledger.pending_bills_today(), Ledger.usable_cash()],
 		"reputation(評判): %d" % GameState.reputation,
 		"inventory(在庫数): %d 個" % _inventory_total(),
 		"inventory_detail(内訳): %s" % _format_inventory_detail(),
@@ -1834,43 +1833,84 @@ func _format_phone() -> String:
 	return "── スマホ ──\n%s" % body
 
 
-## 予告（②）：SNSタブの本文。GameState.today_plan["slots"]（WAKEでDayPlanner.build()が
-## 1回だけ確定した今夜の並び）を、時間帯ごとに「誰が・何人・どんな味を求めているか」
-## だけ分かる一言メモへ整形する。好物はknows_favorite()がtrueの客だけ添える
-## （③初回好物の開示と同じ「知っているかどうか」のルールに揃える。モブはそもそも
-## favoriteを持たないので対象外）。today_plan["slots"]がまだ空（起床前など）なら、
-## 旧来のプレースホルダ文言を返す。
+## 予告（②）＋朝の一画面（3-7・DESIGN.md 10.4）：SNSタブの本文。GameState.today_plan
+## （WAKEでDayPlanner.build()が1回だけ確定した今夜の並び）を、時間帯ごとの客層メモと、
+## 総杯数・必要な味/具の数・在庫との過不足・使える現金の集計へ整形する。集計そのものは
+## Forecastクラス（DebugPanelの外）が行い、ここは文字列に組み立てるだけ。
+## 精度（10.4）：Day1（exact）は完全公開（配達員の3杯内訳・モブの人数も）。
+## Day2以降（range）は常連の基本注文・既知の好物＋モブの客層（種類の一覧・重複除去。
+## 人数・組数は出さない）＋総杯数の幅（需要の中心±幅）。「今日の頼み」は出さない。
+## 自動購入はしない（表示のみ）。起床前などtoday_plan["slots"]が空なら旧来の文言を返す。
 func _format_tonight_memo() -> String:
 	var slots: Array = GameState.today_plan.get("slots", [])
 	if slots.is_empty():
 		return "SNS：まだ新着はありません"
-	var lines := PackedStringArray(["◆本日の客足予報◆"])
+	var exact: bool = Forecast.mode() == "exact"
+	var total := Forecast.total()
+	var lines := PackedStringArray(["◆本日の客足予報%s◆" % ("（確定）" if exact else "")])
+	if exact:
+		lines.append("総杯数: %d杯" % int(total["low"]))
+	else:
+		lines.append("総杯数: %d〜%d杯" % [int(total["low"]), int(total["high"])])
 	for slot in slots:
 		var parts := PackedStringArray()
+		var mob_types_shown := []   # この枠で既に出したモブの種類（重複除去用）
 		for customer_id in slot.get("customers", []):
 			var cid := str(customer_id)
 			var flavor := Day1Events._customer_flavor(cid)
-			var tags: Array = flavor.get("wanted_tags", [])
-			var tag_text := "/".join(PackedStringArray(tags)) if not tags.is_empty() else "？"
 			if bool(flavor.get("is_mob", false)):
-				# モブの表示名（「港湾労働者」等）はJSON側に構造化データを持たないため、
-				# greet[0]（例:「港湾労働者 4人（HOT/POWER）」）をそのまま使う。
-				var greet_lines: Array = flavor.get("greet", [])
-				if not greet_lines.is_empty():
-					parts.append(str(greet_lines[0]))
-				else:
-					parts.append("モブ %d人（%s）" % [int(flavor.get("servings", 0)), tag_text])
+				var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(cid, {})
+				var type_id := str(inst.get("type", ""))
+				var mob_tags: Array = flavor.get("wanted_tags", [])
+				var mob_tag_text := "/".join(PackedStringArray(mob_tags)) if not mob_tags.is_empty() else "？"
+				var mob_name := Day1Events.mob_display_name(type_id)
+				if exact:
+					parts.append("%s%d人（%s）" % [mob_name, int(inst.get("count", 0)), mob_tag_text])
+				elif not mob_types_shown.has(type_id):
+					mob_types_shown.append(type_id)
+					parts.append("客層:%s（%s）" % [mob_name, mob_tag_text])
 			else:
 				var name: String = Day1Events.CUSTOMER_NAMES.get(cid, cid)
 				var fav_text := ""
 				var fav_id := str(flavor.get("favorite", ""))
 				if fav_id != "" and GameState.knows_favorite(cid):
 					fav_text = "／好物:%s" % Ingredients.name_for(fav_id)
-				parts.append("%s（%s%s）" % [name, tag_text, fav_text])
+				parts.append("%s（%s%s）" % [name, _format_orders_for_memo(Forecast.orders_of(cid)), fav_text])
 		if parts.is_empty():
 			continue
 		lines.append("・%s：%s" % [str(slot.get("name", "")), "、".join(parts)])
+	for plan_case in Forecast.cases():
+		var req: Dictionary = plan_case["required"]
+		var short := Forecast.shortages(req)
+		var short_parts := PackedStringArray()
+		for tag in Forecast.TAG_ORDER:
+			if short.has(tag):
+				short_parts.append("%sあと%d個" % [tag, int(short[tag])])
+		lines.append("必要（%s）: %s" % [str(plan_case["label"]), Forecast.format_tags(req)])
+		lines.append("　在庫との過不足: %s" % ("不足なし" if short_parts.is_empty() else "・".join(short_parts)))
+	lines.append("使える現金: %d円（残金%d／確保%d）" % [
+		Ledger.usable_cash(), GameState.money, Ledger.pending_bills_today()])
 	return "\n".join(lines)
+
+
+## 名前あり客の注文を「HOT/POWER」「HOT/POWER×2・MELLOW/GENTLE×1」のように整形する
+## （配達員のDay1は3杯が並ぶ）。同じタグ組・同じ並びの注文は杯数をまとめる。
+func _format_orders_for_memo(orders: Array) -> String:
+	var order_keys := []
+	var counts := {}
+	for order in orders:
+		var tags: Array = order.get("tags", [])
+		var key := "/".join(PackedStringArray(tags)) if not tags.is_empty() else "？"
+		if not counts.has(key):
+			counts[key] = 0
+			order_keys.append(key)
+		counts[key] = int(counts[key]) + int(order.get("servings", 1))
+	if order_keys.size() == 1 and int(counts[order_keys[0]]) == 1:
+		return order_keys[0]
+	var parts := PackedStringArray()
+	for key in order_keys:
+		parts.append("%s×%d" % [key, int(counts[key])])
+	return "・".join(parts)
 
 
 func _format_runner() -> String:

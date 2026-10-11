@@ -552,6 +552,13 @@ static func _pick_mob_type(slot: Dictionary) -> String:
 	return ""
 
 
+## モブの種類id（"dock_workers"等）→表示名（"港湾労働者"等）。3-7 朝の一画面（予報）が
+## 人数・組数を出さずに客層の種類だけを並べるために、data/mobs/*.jsonの"name"を読む。
+## 未知の種類・"name"の無いデータは種類id自体を返す（クラッシュしない）。
+static func mob_display_name(type_id: String) -> String:
+	return str(ScheduleData.mob_data(type_id).get("name", type_id))
+
+
 ## id がモブ客か（DESIGN.md 7.6）。自動閉店の判定などで、受け側が
 ## 「これより後に名前あり客が残っているか」を問い合わせるために公開する。
 static func is_mob_customer(customer_id: String) -> bool:
