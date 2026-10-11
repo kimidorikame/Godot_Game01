@@ -13,7 +13,10 @@ extends Node
 # --- フェーズ（今どのフェーズか、を GameState が知るためだけに持つ） ---
 # GAME_OVER は末尾に足す（既存の0〜4の値は変えない）。水道代・場所代が払えないときに
 # force_phase で飛ぶ終端フェーズで、ここからはどこへも進まない。
-enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER }
+# RESULT（4-2）も末尾に足す（GAME_OVER=5の次の6）。最終日のNEXT_DAYの先で入る終端
+# フェーズで、[次のPhase]では進まない。出口は結果画面の選択肢（もう一度／最後の朝から／
+# 新しい周）だけ（debug_panel.gd）。
+enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER, RESULT }
 
 # 一杯の売価（内容にかかわらず一律。BALANCE_REDESIGN_PLAN.md§1・§2で50→45）。
 # 客ごとのデータではなくゲーム共通のルールなのでここに置く（is_collection_day() と同じ扱い）。
@@ -39,7 +42,8 @@ const WATER_PRICE := 50
 # F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
 static var DAILY_OPERATING_COST := Rules.daily_operating_cost()
 
-# 最終日（DESIGN.md/CURRENT_SPEC：7日目のCLOSE後に「（終了）」を出し、翌朝1日目へ巻き戻す）。
+# 最終日（DESIGN.md/CURRENT_SPEC：7日目のCLOSE後に「（終了）」を出す。4-2から、その後は
+# 結果画面（Phase.RESULT）に入る。1日目へ巻き戻すのは結果画面の「新しい周」）。
 # 体験版では 3 にして使っていた。日数を変えるときはここを直接書き換える（切り替えUIは対象外）。
 # F1キャンペーン設定：Rules経由（PRICE_PER_SERVINGと同じ扱い）。
 static var FINAL_DAY := Rules.final_day()
@@ -239,6 +243,13 @@ func record_day(entry: Dictionary) -> void:
 			day_records[i] = entry.duplicate(true)
 			return
 	day_records.append(entry.duplicate(true))
+
+
+## 指定した日の朝の封筒（4-2：結果画面の「もう一度」がDay1の朝を指す）。無ければ空の辞書。
+func morning_of(day: int) -> Dictionary:
+	if not morning_snapshots.has(day):
+		return {}
+	return (morning_snapshots[day] as Dictionary).duplicate(true)
 
 
 ## 戻れる最後の朝（日番号が最大のもの）の封筒。1件も無ければ空の辞書。

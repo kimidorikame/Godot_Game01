@@ -113,6 +113,79 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 	}
 
 
+## 店の成績ブロック（結果画面の1枚目）。数値はsummarize()の値をそのまま並べる。
+static func format_report(s: Dictionary) -> String:
+	var lines := PackedStringArray([
+		"◆結果：店の成績（%d日間）◆" % int(s.get("days", 0)),
+		"現金: %d ＋ 支払済み修繕額: %d ＝ %d" % [
+			int(s.get("cash", 0)), int(s.get("repair_paid", 0)), int(s.get("cash_plus_repair", 0))],
+		"GOOD以上率: %.1f%%（GOOD以上 %d杯／評価対象 %d杯。未提供も分母に残す）" % [
+			float(s.get("good_rate", 0.0)) * 100.0, int(s.get("good_plus_cups", 0)),
+			int(s.get("judged_cups", 0))],
+		"常連GREAT: %d杯（常連への提供 %d杯のうち）" % [
+			int(s.get("regular_great", 0)), int(s.get("regular_cups", 0))],
+		"未提供: %d杯（計画 %d杯・提供 %d杯）" % [
+			int(s.get("unserved_cups", 0)), int(s.get("planned_cups", 0)), int(s.get("served_cups", 0))],
+		"廃棄: ¥%d（%d個）　早期閉店: %d夜" % [
+			int(s.get("spoiled_value", 0)), int(s.get("spoiled_units", 0)),
+			int(s.get("early_close_days", 0))],
+	])
+	return "\n".join(lines)
+
+
+## 目標ブロック（結果画面の2枚目）。judge_goals()の結果を並べる。表示のみ。
+static func format_goals(results: Array) -> String:
+	var lines := PackedStringArray(["◆目標（表示のみ。未達でも物語や続きのプレイは失われない）◆"])
+	for r in results:
+		var value := ""
+		if str(r.get("id", "")) == "good_rate":
+			value = "（%.1f%%）" % (float(r.get("value", 0.0)) * 100.0)
+		else:
+			value = "（%d）" % int(r.get("value", 0))
+		lines.append("%s %s %s" % ["【達成】" if bool(r.get("achieved", false)) else "【未達】",
+			str(r.get("label", "")), value])
+	return "\n".join(lines)
+
+
+## 物語の欄（結果画面の3枚目：街で起きたこと／客との間に残ったこと）。**成績の数値
+## （GOOD率・杯数・現金・廃棄）は出さない**（DESIGN.md 10.6：料理成績を人間関係の善悪や
+## 真エンド条件にしない）。4-2では今あるデータだけの最小の仮の文で、本文は後の手順
+## （4-4〜4-8：来店記録・場面データ）で入る。known_favoritesは好物を知った客のid。
+static func format_story(s: Dictionary, known_favorites: Array) -> String:
+	var rep_start := int(s.get("reputation_start", 0))
+	var rep_end := int(s.get("reputation_end", 0))
+	var rep_text := "評判は変わらなかった。"
+	if rep_end > rep_start:
+		rep_text = "評判は上がった。"
+	elif rep_end < rep_start:
+		rep_text = "評判は下がった。"
+	var early_text := "鍋が尽きて早めに店を閉めた夜があった。" \
+		if int(s.get("early_close_days", 0)) > 0 else "鍋が尽きて早く閉めた夜は無かった。"
+	var known_text := "まだ誰の好物も知らない。"
+	if not known_favorites.is_empty():
+		var ids := PackedStringArray()
+		for id in known_favorites:
+			ids.append(str(id))
+		known_text = "好物を知った客: %s" % "、".join(ids)
+	var visit_days: Dictionary = s.get("regular_visit_days", {})
+	var visit_text := "店に来た常連はいなかった。"
+	if not visit_days.is_empty():
+		var parts := PackedStringArray()
+		for id in visit_days:
+			parts.append("%s（%d日）" % [str(id), int(visit_days[id])])
+		visit_text = "店に来た常連: %s" % "、".join(parts)
+	return "\n".join(PackedStringArray([
+		"◆街で起きたこと◆",
+		rep_text,
+		early_text,
+		"（出来事の本文は、場面データができる後の手順で入る）",
+		"◆客との間に残ったこと◆",
+		known_text,
+		visit_text,
+		"（客との場面の本文は、場面データができる後の手順で入る）",
+	]))
+
+
 ## 目標の判定（表示用。ゲーム状態には影響させない）。goalsはRules.goals()の形
 ## （cash_standard / cash_challenge / good_rate / regular_great）。final_dayは完走の日数。
 ## 戻り値：[{ id, label, achieved, value, target }, ...] を 完走・標準・挑戦・料理・常連 の順で。

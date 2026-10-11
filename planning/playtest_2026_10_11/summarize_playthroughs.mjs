@@ -115,6 +115,30 @@ for (const r of d1Runs) {
 }
 checks.push({ id: 'D1', item: `Day1のキャッシュフロー（600→${START - DAILY}→${START - DAILY - 210}→仕込み→水道代→場所代＋売上）が全周で一致`,
   pass: d1Bad.length === 0 && d1Runs.length > 0, detail: `${d1Ok}/${d1Runs.length}周が一致` });
+// 結果画面の集計（Result.summarize）が、スクリプト内の日別集計と全周で一致するか（4-2）。
+let r1Ok = 0;
+const r1Bad = [];
+const r1Runs = result.runs.filter(r => r.result_summary && Object.keys(r.result_summary).length > 0);
+const sumR = (r, f) => r.rows.reduce((s, d) => s + f(d), 0);
+for (const r of r1Runs) {
+  const s = r.result_summary;
+  const exp = {
+    days: r.rows.length, cash: r.cash,
+    served_cups: sumR(r, d => d.served), unserved_cups: sumR(r, d => d.unserved),
+    planned_cups: sumR(r, d => d.demand), judged_cups: sumR(r, d => d.judged_demand),
+    good_plus_cups: sumR(r, d => (d.grades.GOOD ?? 0) + (d.grades.GREAT ?? 0)),
+    regular_great: sumR(r, d => d.regular_great), regular_good_plus: sumR(r, d => d.regular_good_plus),
+    regular_cups: sumR(r, d => d.regular_cups), spoiled_value: sumR(r, d => d.spoiled_value),
+    early_close_days: r.rows.filter(d => d.closed_early).length,
+  };
+  const bad = Object.keys(exp).filter(k => s[k] !== exp[k]);
+  if (r.result_phase !== 'RESULT') bad.push('phase=' + r.result_phase);
+  if (bad.length === 0) r1Ok++; else r1Bad.push({ policy: r.policy, seed: r.seed, bad, got: s, expected: exp });
+}
+if (r1Runs.length > 0) {
+  checks.push({ id: 'R1', item: '結果画面の集計（Result.summarize）が日別集計と全周で一致し、最終日の先がRESULT',
+    pass: r1Bad.length === 0, detail: `${r1Ok}/${r1Runs.length}周が一致` });
+}
 const full9 = result.runs.filter(r => r.day1_cash?.tier === 'small' && (r.rows[0]?.served ?? 0) === 9);
 const summary = { commit: result.commit, tracked_changes: result.tracked_changes,
   seeds_old: result.seeds_old, seeds_new: result.seeds_new, totalRuns: result.runs.length,

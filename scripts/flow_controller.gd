@@ -10,8 +10,9 @@ class_name FlowController
 
 signal phase_changed(phase: int)
 signal runner_updated()
-# 最終日の翌朝に新規ゲームの状態へ戻したとき（GameState.reset_for_new_game() の直後、
-# phase_changed の前）に発火する。受け側が Day1 の初期在庫を積み直すための合図。
+# 新規ゲームの状態へ戻したとき（GameState.reset_for_new_game() の直後、phase_changed の前）
+# に発火する。受け側が Day1 の初期在庫を積み直すための合図。4-2から、発火するのは
+# 結果画面の「新しい周」（DebugPanelが reset_for_new_game() の後に emit する）だけ。
 signal game_restarted()
 # NEXT_DAY→WAKE の折り返しで、日次リセット（GameState.reset_for_new_day() /
 # reset_for_new_game()）を呼ぶ**前**に発火する（日次ログ導入）。served・reputation・
@@ -60,13 +61,13 @@ func is_advance_blocked() -> bool:
 
 
 ## 次のフェーズへ進める。NEXT_DAY→WAKE の折り返し時だけ日次処理を挟む
-## （最終日なら日次処理の代わりに新規ゲームへの巻き戻し）。
+## （最終日なら日次処理も日数の加算もせず、結果画面 Phase.RESULT へ入る。4-2）。
 ## DONE 必須フェーズで runner が未 DONE のときは、何もせず return（phase も
 ## runner も日次処理も一切動かさない）。
 func advance_phase() -> void:
-	# ゲームオーバーは終端。_phase_order に無いので、ここで止めないと find が -1 になって
-	# PREP へ進んでしまう。
-	if GameState.phase == GameState.Phase.GAME_OVER:
+	# ゲームオーバー・結果画面は終端。_phase_order に無いので、ここで止めないと find が -1
+	# になって PREP へ進んでしまう（出口は結果画面の選択肢＝debug_panel.gd）。
+	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.RESULT:
 		return
 	if is_advance_blocked():
 		return
@@ -80,9 +81,11 @@ func advance_phase() -> void:
 		# （最終日も含めて必ず出す。reset_for_new_game() 側にも入る前）。
 		day_ending.emit()
 		if GameState.is_final_day():
-			# 最終日は次の日へ進まず、すべてを初期化して1日目に戻る。
-			GameState.reset_for_new_game()
-			game_restarted.emit()
+			# 最終日は次の日へ進まず、何も初期化せずに結果画面へ入る（4-2。旧版はここで
+			# reset_for_new_game()＋game_restarted。新しい周は結果画面の選択肢で始める）。
+			GameState.phase = GameState.Phase.RESULT
+			phase_changed.emit(GameState.Phase.RESULT)
+			return
 		else:
 			GameState.reset_for_new_day()
 			GameState.advance_day()

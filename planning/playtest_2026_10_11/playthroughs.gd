@@ -107,6 +107,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 	var before_market := false
 	var seen_prep := false
 	var seen_open := false
+	var result_phase := ""
+	var result_summary := {}
 	while not done and steps < 6000:
 		steps += 1
 		if steps % 12 == 0:
@@ -127,8 +129,13 @@ func play(p: String, run_seed: int) -> Dictionary:
 			if GameState.day_count == 1:
 				day1_cash["end"] = GameState.money
 			if GameState.day_count == 7:
-				# 実際の日次確定を走らせるが、自動の新規ゲームリセットの手前で止める。
-				panel._on_day_ending()
+				# 実際の最終日の流れ（4-2）：advance_phase()がday_endingを発火して最終日の
+				# 記録を累計（day_records）へ足し、結果画面（Phase.RESULT）へ入る。新しい周へは
+				# 進めない（reset_for_new_gameは呼ばれない）。結果画面の集計（Result.summarize）を
+				# 記録し、集計スクリプトがこのスクリプト内の日別集計と突き合わせる。
+				panel.flow.advance_phase()
+				result_phase = str(GameState.Phase.keys()[GameState.phase])
+				result_summary = Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
 				done = true
 				break
 			seed(run_seed * 1000 + GameState.day_count + 1)
@@ -194,6 +201,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 		"rows": rows, "incidents": incidents.duplicate(true), "actions": counts.duplicate(),
 		"clicks": clicks, "purchases": purchases, "steps": steps, "day1_cash": day1_cash.duplicate(),
 		"failures": failure_log.duplicate(true),
+		"result_phase": result_phase, "result_summary": result_summary,
 		"closing_stock_units": GameState.inventory.duplicate(), "dashi": GameState.dashi_units }
 	panel.queue_free()
 	await tree.process_frame

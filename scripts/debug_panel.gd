@@ -24,6 +24,12 @@ extends PanelContainer
 @onready var _btn_mob_debug: Button = $Margin/VBox/PhaseRow/BtnMobDebug as Button
 @onready var _btn_retry: Button = $Margin/VBox/PhaseRow/BtnRetry as Button
 @onready var _btn_continue: Button = $Margin/VBox/PhaseRow/BtnContinue as Button
+# 結果画面（4-2）の選択肢。RESULTのときだけ表示する（仮ボタン。本番UIはフェーズ6）。
+@onready var _result_row: HBoxContainer = $Margin/VBox/ResultRow as HBoxContainer
+@onready var _btn_run_again: Button = $Margin/VBox/ResultRow/BtnRunAgain as Button
+@onready var _btn_last_morning: Button = $Margin/VBox/ResultRow/BtnLastMorning as Button
+@onready var _btn_new_run: Button = $Margin/VBox/ResultRow/BtnNewRun as Button
+@onready var _btn_end: Button = $Margin/VBox/ResultRow/BtnEnd as Button
 
 # OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
@@ -219,6 +225,10 @@ func _ready() -> void:
 	_btn_retry.pressed.connect(_on_retry_pressed)
 	# [続きから] = 起動時に読めたセーブの朝へ戻る（仮ボタン。本番UIはフェーズ6）。
 	_btn_continue.pressed.connect(_on_continue_pressed)
+	# 結果画面の選択肢（4-2）。[終わる]は押せない仮ボタン（フェーズ6）なので結線しない。
+	_btn_run_again.pressed.connect(_on_run_again_pressed)
+	_btn_last_morning.pressed.connect(_on_last_morning_pressed)
+	_btn_new_run.pressed.connect(_on_new_run_pressed)
 	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
@@ -236,6 +246,25 @@ func _seed_initial_inventory() -> void:
 	var starting: Dictionary = Day1Events.initial_inventory()
 	for id in starting:
 		GameState.add_inventory(id, int(starting[id]))
+
+
+## 結果画面の選択肢の表示・有効無効（RESULTのときだけ見せる）。[もう一度]は、Day1の
+## 朝の記録が無い周（[続きから]で途中から始めた周）では押せず、理由をボタンに出す。
+func _refresh_result_row() -> void:
+	var in_result := GameState.phase == GameState.Phase.RESULT
+	_result_row.visible = in_result
+	var has_day1 := GameState.morning_snapshots.has(1)
+	_btn_run_again.disabled = not in_result or not has_day1 or _phone_mode
+	if has_day1:
+		_btn_run_again.text = "もう一度（Day1の朝から）\nDay1の客・需要のみ同じ。2日目以降は評判次第で変わる"
+		_btn_run_again.tooltip_text = ""
+	else:
+		_btn_run_again.text = "もう一度（使えません）\nDay1の朝の記録が無い（続きから始めた周のため）"
+		_btn_run_again.tooltip_text = "続きから始めた周は、Day1の朝の記録を持っていません。"
+	_btn_last_morning.disabled = not in_result or GameState.morning_snapshots.is_empty() or _phone_mode
+	_btn_last_morning.text = "最後の朝からやり直す"
+	_btn_new_run.disabled = not in_result or _phone_mode
+	_btn_end.disabled = true   # 押せない仮ボタン（フェーズ6）
 
 
 func _on_phase_changed(phase: int) -> void:
@@ -384,6 +413,16 @@ func _set_runner_for_phase(phase: int) -> void:
 			{ "type": "TEXT", "text": "（ゲームオーバー）" },
 		])
 		_game_over_reason = ""
+	elif phase == GameState.Phase.RESULT:
+		# 結果画面（4-2・DESIGN.md 10.6）：成績・目標・仮の物語欄の3ブロック。集計は
+		# GameState.day_records（周回の累計）と帳簿から導く（Result）。選択肢はResultRow。
+		var summary := Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
+		var goal_results := Result.judge_goals(summary, Rules.goals(), Rules.final_day())
+		flow.set_runner([
+			{ "type": "TEXT", "text": Result.format_report(summary) },
+			{ "type": "TEXT", "text": Result.format_goals(goal_results) },
+			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorites.keys()) },
+		])
 	else:
 		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
 
@@ -1324,9 +1363,11 @@ func _game_over(reason: String) -> void:
 ## build()は呼ばない（抽選を引き直す手段にしない）。運営費が払えずゲームオーバーになった
 ## ときは、その朝は記録されていないので前日の朝へ戻る。戻る先が無い／封筒が壊れていれば
 ## 何もせず false を返す（呼び出し側が新規ゲーム等を決める）。
-## 4-2（結果画面）の再挑戦も、この関数を呼ぶ。
-func retry_from_morning() -> bool:
-	var morning := GameState.latest_morning()
+## 4-2（結果画面）の再挑戦も、この関数を呼ぶ。dayを指定すると、その日の朝へ戻る
+## （「もう一度＝Day1の朝から」はday=1。戻した日より後の朝の記録は、from_dictが捨てる
+## ＝戻した直後に詰んでも、再挑戦が後ろの日の朝へ飛ばない）。
+func retry_from_morning(day: int = -1) -> bool:
+	var morning := GameState.latest_morning() if day < 0 else GameState.morning_of(day)
 	if morning.is_empty() or not MorningSave.is_valid(morning):
 		return false
 	_restore_morning(morning)
@@ -1336,8 +1377,17 @@ func retry_from_morning() -> bool:
 ## 封筒の朝へ戻す共通処理（再挑戦・セーブ読み込み）。GameState側はfrom_dict、画面側は
 ## 保存しない状態（接客の途中経過・一度きりの文）を捨て、前日成績の一言だけ戻す。
 func _restore_morning(morning: Dictionary) -> void:
-	# 戻す前に、途中の客・集計を捨てる（_set_runner_for_phase冒頭の_flush_visit_tally()が
-	# 古い接客を今の状態へ書き込まないようにするため）。
+	_reset_transient_panel_state()
+	MorningSave.apply(morning)
+	_last_day_summary_text = str((morning["panel"] as Dictionary)["day_summary_text"])
+	_plan_restored = true
+	flow.force_phase(GameState.Phase.WAKE)
+
+
+## 画面側の保存しない状態を捨てる（再挑戦・セーブ読み込み・新しい周の共通処理）。
+## 戻す／初期化する前に、途中の客・集計を捨てる（_set_runner_for_phase冒頭の
+## _flush_visit_tally()が古い接客を今の状態へ書き込まないようにするため）。
+func _reset_transient_panel_state() -> void:
 	_visit_tally = {}
 	_reset_mob_group_state()
 	_pending_decline = false
@@ -1346,14 +1396,34 @@ func _restore_morning(morning: Dictionary) -> void:
 	_bowl_discard_count = 0
 	_closed_early_reason = ""
 	_game_over_reason = ""
-	MorningSave.apply(morning)
-	_last_day_summary_text = str((morning["panel"] as Dictionary)["day_summary_text"])
-	_plan_restored = true
-	flow.force_phase(GameState.Phase.WAKE)
 
 
 func _on_retry_pressed() -> void:
 	retry_from_morning()
+
+
+## 結果画面：もう一度（Day1の朝から）。Day1の朝の記録（morning_snapshots[1]）へ戻す。
+## 累計（day_records）もDay1の朝の値（空）に戻る。Day1の客・需要は同じで、2日目以降は
+## 評判次第で抽選が変わる。[続きから]で始めた周はDay1の記録が無いので押せない。
+func _on_run_again_pressed() -> void:
+	retry_from_morning(1)
+
+
+## 結果画面：最後の朝（最終日の朝）からやり直す。累計は最終日の朝の値に戻る。
+func _on_last_morning_pressed() -> void:
+	retry_from_morning()
+
+
+## 結果画面：新しい周。reset_for_new_game()＋game_restartedの後、Day1のWAKEから始める
+## （従来の最終日の翌朝の挙動と同じ状態。朝の記録・累計もクリアされ、保存も新しい周の
+## Day1の朝で上書きされる）。
+func _on_new_run_pressed() -> void:
+	_reset_transient_panel_state()
+	GameState.reset_for_new_game()
+	_last_day_summary_text = ""
+	_plan_restored = false
+	flow.game_restarted.emit()
+	flow.force_phase(GameState.Phase.WAKE)
 
 
 ## 起動時に読めたセーブの朝へ戻る。いまの（起動直後の）ゲームの朝の記録は捨て、
@@ -1681,6 +1751,7 @@ func _update_options_row() -> void:
 	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER \
 			or GameState.morning_snapshots.is_empty() or _phone_mode
 	_btn_continue.disabled = _pending_continue.is_empty() or _phone_mode
+	_refresh_result_row()
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
 	_btn_phone.disabled = _phone_mode
 
