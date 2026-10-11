@@ -8,10 +8,13 @@ class_name DayPlanner
 ## 器として積むだけの薄い入口。customer_schedule()自身がGameState.today_plan["mob_instances"]
 ## を書き換える（3-2段階①）ので、build()はslots・dayを足すだけでよい。
 ##
-## 専用乱数（DESIGN.md 10.8.2「seedから作るRandomNumberGenerator」）は導入しない。
-## 同じ抽選を再現する必要があるのはF7（同じ朝への再挑戦・フェーズ4）からで、それまでは
-## 検証する手段が無いまま複雑さだけ増える。today_planに"seed"フィールドを持たせるのも
-## F7着手時にする（3-2の時点では宣言すらしない）。
+## 専用乱数（DESIGN.md 10.8.2「seedから作るRandomNumberGenerator」）は、F7（4-1）でも
+## 導入しなかった。同じ朝への再挑戦は、乱数を再現するのではなく、WAKEで確定した
+## today_plan（slots・mob_instances・demand_center）を朝の辞書（MorningSave）に入れて
+## そのまま戻す方式（DESIGN.md 10.8.7「DayPlanも同じなので抽選は変わらない」）。戻した朝は
+## build()を呼ばない（debug_panel.gdの_plan_restored）ので、抽選を引き直す手段にならない。
+## 乱数の仕組みを足さないのでcustomer_schedule()・total_demand_today()は無改修。
+## 反応文の2択（OpenController.reaction_variant）は演出の乱数で、再挑戦では変わりうる。
 
 
 ## その日の計画を確定させる。debug_mob_count（-1=自動）はDay1Events.customer_schedule()へ

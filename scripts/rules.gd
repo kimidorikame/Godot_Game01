@@ -56,6 +56,12 @@ static func set_campaign(id: String) -> void:
 	_loaded = false
 
 
+## 今のキャンペーンid（MorningSaveが保存の封筒に書き、読み込み時に別キャンペーンの
+## 保存を弾くために使う）。
+static func campaign_id() -> String:
+	return _campaign_id
+
+
 ## テスト用：キャッシュを空にする（week7.jsonを書き換えてから読み直したいときに使う。
 ## 通常のゲーム実行では呼ばない。ScheduleData.clear_cacheと同じ役割）。
 static func clear_cache() -> void:

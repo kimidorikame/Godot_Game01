@@ -168,6 +168,74 @@ var ledger: Array = []
 # 使い始める手順で追加する（YAGNI）。
 var today_plan: Dictionary = {}
 
+# 朝の記録（F7・DESIGN.md 10.8.7）。WAKEで運営費を引く前に作った「朝の辞書」
+# （MorningSave.capture()の封筒）を、その周回の日番号 → 封筒で持つ。運営費が払えず
+# ゲームオーバーになった朝は記録しない（latest_morning()が「戻れる最後の朝」になる）。
+# 周回を通して蓄積し、reset_for_new_gameでクリアする。to_dict()には含めない（封筒の
+# 中身が封筒を持つ入れ子になるのを避けるため。下のTRANSIENT_FIELDS参照）。
+var morning_snapshots: Dictionary = {}
+
+# F7の保存対象（to_dict()/from_dict()が通す項目）。朝の辞書は「その日が始まる直前」
+# の状態なので、日ごとの使い捨て（soup・served・rent_paid_today・phase）は含めない
+# （from_dict()がreset_for_new_day()と同じ初期値に戻す）。F5「来店記録」を足すときは
+# 変数を宣言し、ここへ項目を足す（tests/save_state_test.gdがこの2つの定数と宣言を突き合わせ、
+# どちらにも載っていない変数を検出する）。
+const SAVED_FIELDS := [
+	"day_count", "money", "reputation", "inventory", "perishable_batches", "rumors",
+	"dashi_units", "known_favorites", "ledger", "today_plan",
+]
+# 保存しない項目（朝には初期値になっている、または保存の仕組み自身の置き場）。
+const TRANSIENT_FIELDS := [
+	"phase", "soup", "served", "rent_paid_today", "morning_snapshots",
+]
+
+
+## 朝の保存（F7）：SAVED_FIELDSだけを辞書にする。Array/Dictionaryは深いコピーで返す
+## （プレイ中の在庫・帳簿の変更が、保存済みの辞書を書き換えないようにするため）。
+func to_dict() -> Dictionary:
+	var d := {}
+	for field in SAVED_FIELDS:
+		d[field] = _copy_value(get(field))
+	return d
+
+
+## 朝の復元（F7）：to_dict()の辞書から状態を戻す。日ごとの使い捨てはreset_for_new_day()
+## で初期値へ戻し（today_planも空になるので、その後で辞書の値を入れる）、phaseはWAKE
+## （朝）にする。辞書の妥当性はMorningSave.is_valid()で先に確かめておくこと（ここは
+## 検証しない）。Array/Dictionaryは深いコピーで取り込む（呼び出し元の辞書を共有しない）。
+## 復元した日より後の朝の記録は捨てる（もう存在しない未来の朝）。
+func from_dict(d: Dictionary) -> void:
+	reset_for_new_day()
+	for field in SAVED_FIELDS:
+		if d.has(field):
+			set(field, _copy_value(d[field]))
+	phase = Phase.WAKE
+	for day in morning_snapshots.keys():
+		if int(day) > day_count:
+			morning_snapshots.erase(day)
+
+
+## 朝の辞書（封筒）を日番号で記録する（同じ日の記録があれば置き換える。再挑戦で
+## 同じ朝を何度通っても1件のまま）。
+func record_morning(morning: Dictionary) -> void:
+	morning_snapshots[int(morning.get("day", day_count))] = morning.duplicate(true)
+
+
+## 戻れる最後の朝（日番号が最大のもの）の封筒。1件も無ければ空の辞書。
+func latest_morning() -> Dictionary:
+	var latest := -1
+	for day in morning_snapshots.keys():
+		latest = maxi(latest, int(day))
+	if latest < 0:
+		return {}
+	return (morning_snapshots[latest] as Dictionary).duplicate(true)
+
+
+func _copy_value(value):
+	if value is Array or value is Dictionary:
+		return value.duplicate(true)
+	return value
+
 
 ## 日次リセット。NEXT_DAY フェーズの処理から呼ぶ。
 ## soup・served・rent_paid_today・today_planだけをクリアする。
@@ -206,6 +274,7 @@ func reset_for_new_game() -> void:
 	dashi_units = 0
 	known_favorites.clear()
 	ledger.clear()
+	morning_snapshots.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
 

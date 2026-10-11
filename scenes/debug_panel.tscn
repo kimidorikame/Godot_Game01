@@ -106,5 +106,10 @@ text = "所持金 +50"
 layout_mode = 2
 text = "モブ人数: 自動"
 
+[node name="BtnRetry" type="Button" parent="Margin/VBox/PhaseRow"]
+layout_mode = 2
+text = "同じ朝からやり直す"
+disabled = true
+
 [node name="FlowController" type="Node" parent="."]
 script = ExtResource("2")

@@ -22,6 +22,7 @@ extends PanelContainer
 @onready var _btn_money_minus: Button = $Margin/VBox/PhaseRow/BtnMoneyMinus as Button
 @onready var _btn_money_plus: Button = $Margin/VBox/PhaseRow/BtnMoneyPlus as Button
 @onready var _btn_mob_debug: Button = $Margin/VBox/PhaseRow/BtnMobDebug as Button
+@onready var _btn_retry: Button = $Margin/VBox/PhaseRow/BtnRetry as Button
 
 # OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
@@ -104,6 +105,12 @@ var _debug_mob_count := -1
 # 同じ「一度だけ消費するテキスト」の形。_on_day_ending()（day_ending。NEXT_DAY→WAKEの
 # 折り返し直前に発火）で組み立て、次にWAKEのrunnerを組むときに読んで空文字へ戻す。
 var _last_day_summary_text := ""
+
+# F7 同じ朝への復元（再挑戦・セーブ読み込み）の直後のWAKEで、保存してあるDayPlanを
+# そのまま使うための一度きりの印（_set_runner_for_phase(WAKE)が読んで消費する。
+# _game_over_reasonと同じ「一度だけ」パターン。「今日のplanがあれば作らない」判定に
+# しないのは、同じ日にWAKEを繰り返し通る既存の経路・テストで引き直しが止まらないため）。
+var _plan_restored := false
 
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
@@ -197,6 +204,8 @@ func _ready() -> void:
 	_btn_money_plus.pressed.connect(_on_money_debug_pressed.bind(50))
 	# [モブ人数] = 今夜のモブ人数を 自動→1→2→3→4→自動… と切り替える（デバッグ用）。
 	_btn_mob_debug.pressed.connect(_on_mob_debug_pressed)
+	# [同じ朝からやり直す] = ゲームオーバーのときだけ押せる（F7。仮ボタン。本番UIはフェーズ6）。
+	_btn_retry.pressed.connect(_on_retry_pressed)
 	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
@@ -254,6 +263,16 @@ func _set_runner_for_phase(phase: int) -> void:
 		_log_closed_early = false
 		_log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
 		_log_spoiled_items = {}
+		# F7 朝の保存（DESIGN.md 10.8.7）：今日のDayPlanを先に確定させてから、運営費を引く
+		# 前の状態を「朝の辞書」にする（運営費の支払いは乱数を引かないので、build()を
+		# 先に呼んでも抽選結果・乱数の消費順は従来と変わらない）。再挑戦・セーブ読み込みで
+		# 戻った朝（_plan_restored）は保存してあるDayPlanをそのまま使い、build()を呼ばない
+		# ＝抽選を引き直す手段にしない。
+		if _plan_restored:
+			_plan_restored = false
+		else:
+			DayPlanner.build(_debug_mob_count)
+		var morning := MorningSave.capture(_last_day_summary_text)
 		# 日々の運営費（場所代・水道代の再編＋日々の運営費）：WAKEに入った瞬間に必ず1回
 		# 直接支払う。wake_events()側にPAY Eventとして置かないのは、WAKEが
 		# _phase_can_skip=true（[次のPhase]でrunnerを消化せず進める）なので、Event列に
@@ -264,6 +283,9 @@ func _set_runner_for_phase(phase: int) -> void:
 		# wake_events()のrunnerに上書きしないよう即returnする。
 		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
 			return
+		# 運営費が払えた朝だけ記録する（払えずゲームオーバーになった朝へ戻っても、同じ
+		# 不足で必ず詰むため。戻れる最後の朝＝GameState.latest_morning()は前日の朝になる）。
+		GameState.record_morning(morning)
 		# F4 帳簿：今日まだ物語上のけじめが付いていない金額を「確保」として記帳する
 		# （旧GameState.set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で
 		# 徴収日は場所代に加え水道代ぶんも確保対象に含めた（実際の支払いタイミングは
@@ -273,14 +295,12 @@ func _set_runner_for_phase(phase: int) -> void:
 		if GameState.is_collection_day():
 			reserve_amount += GameState.RENT_PRICE + GameState.WATER_PRICE
 		Ledger.record("reserve", -reserve_amount)
-		# 予告（②）：今夜の客の並びをここで1回だけ確定させ、OPENでは（デバッグの一律
-		# 上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も人数も
-		# 分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
+		# 予告（②）：今夜の客の並びは上のDayPlanner.build()で1回だけ確定させ、OPENでは
+		# （デバッグの一律上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も
+		# 人数も分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
 		# 一つだったため、スマホの「SNS」タブ（_format_tonight_memo）で見せられる
 		# ようにする。F2 DayPlan（DESIGN.md 10.8.2）：GameState.today_planへ確定させる
-		# のはDayPlanner.build()の役目（GameStateへ移す前はここでDay1Events.customer_
-		# schedule()を直接呼び、戻り値をDebugPanel自身の_tonight_scheduleへ保持していた）。
-		DayPlanner.build(_debug_mob_count)
+		# のはDayPlanner.build()の役目（F7でbuild()の呼び出しは運営費の前へ移した）。
 		# 前日の成績（③）：day_ending（NEXT_DAY→WAKEの折り返し）で既に組み立て済みの
 		# 一言サマリーがあれば、今日の起床イベントの先頭に差し込む（読んだら消費する。
 		# _closed_early_reason/_game_over_reasonと同じ「一度だけ」パターン）。
@@ -1281,6 +1301,43 @@ func _game_over(reason: String) -> void:
 	flow.force_phase(GameState.Phase.GAME_OVER)
 
 
+## F7 同じ朝からの再挑戦（DESIGN.md 10.6・10.8.7）。戻れる最後の朝（GameState.latest_morning()）
+## へ状態を戻し、WAKEからやり直す。戻した朝の客・需要（DayPlan）は保存したものと同じで、
+## build()は呼ばない（抽選を引き直す手段にしない）。運営費が払えずゲームオーバーになった
+## ときは、その朝は記録されていないので前日の朝へ戻る。戻る先が無い／封筒が壊れていれば
+## 何もせず false を返す（呼び出し側が新規ゲーム等を決める）。
+## 4-2（結果画面）の再挑戦も、この関数を呼ぶ。
+func retry_from_morning() -> bool:
+	var morning := GameState.latest_morning()
+	if morning.is_empty() or not MorningSave.is_valid(morning):
+		return false
+	_restore_morning(morning)
+	return true
+
+
+## 封筒の朝へ戻す共通処理（再挑戦・セーブ読み込み）。GameState側はfrom_dict、画面側は
+## 保存しない状態（接客の途中経過・一度きりの文）を捨て、前日成績の一言だけ戻す。
+func _restore_morning(morning: Dictionary) -> void:
+	# 戻す前に、途中の客・集計を捨てる（_set_runner_for_phase冒頭の_flush_visit_tally()が
+	# 古い接客を今の状態へ書き込まないようにするため）。
+	_visit_tally = {}
+	_reset_mob_group_state()
+	_pending_decline = false
+	_mob_original_ordered = -1
+	_mob_recipe_number = 1
+	_bowl_discard_count = 0
+	_closed_early_reason = ""
+	_game_over_reason = ""
+	MorningSave.apply(morning)
+	_last_day_summary_text = str((morning["panel"] as Dictionary)["day_summary_text"])
+	_plan_restored = true
+	flow.force_phase(GameState.Phase.WAKE)
+
+
+func _on_retry_pressed() -> void:
+	retry_from_morning()
+
+
 ## 鍋が尽きて自動的に閉店する（DESIGN.md 7.6）。判定・売上・評判・鍋の消費は
 ## 一切行わない（この客には出せなかった、という扱い）。反応・セリフは最小の仮テキストのみ。
 ## FlowController.force_phase() でゲートを通さず CLOSE へ飛ばす
@@ -1565,6 +1622,7 @@ func _update_options_row() -> void:
 			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
+	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER 			or GameState.morning_snapshots.is_empty() or _phone_mode
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
 	_btn_phone.disabled = _phone_mode
 
