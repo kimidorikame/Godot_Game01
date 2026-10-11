@@ -157,7 +157,7 @@ static func goals() -> Dictionary:
 	return _cache.get("goals", {}).duplicate(true)
 
 
-## 3-1では宣言のみ（常連の固定日程を分離する4-3で使い始める）。
+## 常連の固定日程のid（4-3から使用。data/schedules/<id>.json。ScheduleData.regular_schedule_data()）。
 static func regular_schedule() -> String:
 	_ensure_loaded()
 	return str(_cache.get("regular_schedule", ""))

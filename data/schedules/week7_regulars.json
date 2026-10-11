@@ -1,0 +1,39 @@
+{
+  "days": {
+    "1": [
+      { "slot": "宵の口", "regular": "delivery_man" },
+      { "slot": "夜半", "regular": "thug" },
+      { "slot": "明け方", "regular": "granny" }
+    ],
+    "2": [
+      { "slot": "宵の口", "regular": "officer" },
+      { "slot": "夜半", "regular": "delivery_man" },
+      { "slot": "明け方", "regular": "thug" }
+    ],
+    "3": [
+      { "slot": "宵の口", "regular": "hooker" },
+      { "slot": "夜半", "regular": "granny" },
+      { "slot": "明け方", "regular": "officer" }
+    ],
+    "4": [
+      { "slot": "宵の口", "regular": "streamer" },
+      { "slot": "夜半", "regular": "hooker" },
+      { "slot": "明け方", "regular": "delivery_man" }
+    ],
+    "5": [
+      { "slot": "宵の口", "regular": "thug" },
+      { "slot": "夜半", "regular": "officer" },
+      { "slot": "明け方", "regular": "streamer" }
+    ],
+    "6": [
+      { "slot": "宵の口", "regular": "delivery_man" },
+      { "slot": "夜半", "regular": "thug" },
+      { "slot": "明け方", "regular": "hooker" }
+    ],
+    "7": [
+      { "slot": "宵の口", "regular": "streamer" },
+      { "slot": "夜半", "regular": "officer" },
+      { "slot": "明け方", "regular": "granny" }
+    ]
+  }
+}

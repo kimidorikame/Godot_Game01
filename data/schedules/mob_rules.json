@@ -1,0 +1,38 @@
+{
+  "default": {
+    "pool": [
+      "dock_workers",
+      "security_guard",
+      "inn_clerk",
+      "street_cleaners",
+      "general_store_clerk",
+      "market_porter",
+      "long_haul_driver"
+    ],
+    "slots": {
+      "宵の口": true,
+      "夜半": true,
+      "明け方": true
+    }
+  },
+  "days": {
+    "1": {
+      "宵の口": {
+        "pool": [
+          "dock_workers"
+        ]
+      },
+      "夜半": {
+        "pool": [
+          "dock_workers",
+          "inn_clerk",
+          "market_porter"
+        ]
+      },
+      "明け方": false
+    },
+    "7": {
+      "明け方": false
+    }
+  }
+}
