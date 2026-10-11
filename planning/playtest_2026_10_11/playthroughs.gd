@@ -43,6 +43,9 @@ var failure_log: Array = []
 
 func run(t: SceneTree) -> void:
 	tree = t
+	# 朝の1枠セーブ（MorningSave）を、実際のセーブと別ファイルへ向ける（試遊中はWAKEのたびに
+	# 書かれる。ゲームの進行には影響しない）。
+	MorningSave.save_path = "user://playtest_save.dat"
 	var args := OS.get_cmdline_user_args()
 	var seeds_old := int(args[0]) if args.size() > 0 else 30
 	var seeds_new := int(args[1]) if args.size() > 1 else seeds_old

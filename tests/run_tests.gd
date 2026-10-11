@@ -12,6 +12,13 @@ extends SceneTree
 
 func _initialize() -> void:
 	await process_frame
+	# 1枠セーブ（MorningSave）の保存先を、全スイートで実際のセーブと別のファイルにする
+	# （DebugPanelはWAKEのたびに書くので、差し替えないとテストが本物のセーブを上書きする）。
+	# MorningSaveはautoload（GameState）を参照するので、この入口スクリプトのコンパイル時に
+	# 解決させない（他の使い捨てハーネスと同じ理由）。実行時にloadして使う。
+	var morning_save = load("res://scripts/morning_save.gd")
+	morning_save.set("save_path", "user://test_save.dat")
+	morning_save.call("delete_file")
 	var only := ""
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
@@ -35,5 +42,6 @@ func _initialize() -> void:
 		var suite = load(path).new()
 		total_fails += suite.run(self)
 
+	morning_save.call("delete_file")
 	print("合計失敗数: ", total_fails)
 	quit(1 if total_fails > 0 else 0)

@@ -82,3 +82,56 @@ static func is_valid(envelope) -> bool:
 ## 画面側の状態（panel）は呼び出し側が戻す。
 static func apply(envelope: Dictionary) -> void:
 	GameState.from_dict(envelope["state"])
+
+
+# --- 1枠セーブ（フェーズ4-1コミット②。DESIGN.md 10.6） ---
+# 朝の封筒（capture()の辞書）を1ファイルに書く。朝だけ（調理中・会話途中は保存しない）。
+# 形式：先頭にマジック文字列（別ファイルを読んだとき、engineのエラーを出さずに弾くため）＋
+# var_to_bytes（型を保つ。JSONだと整数がfloatになり整数キーが文字列になる）。読み込みは
+# bytes_to_var（Objectは復元しない＝外部ファイルから任意のObjectを組み立てさせない）。
+# 保存先はプロジェクト全体で1箇所。テストは差し替える（tests/run_tests.gd・save_file_test.gd）。
+static var save_path := "user://save.dat"
+const _MAGIC := "YORUYUSAVE1"
+
+
+static func has_file() -> bool:
+	return FileAccess.file_exists(save_path)
+
+
+## 封筒を書く。is_valid()でない封筒は書かない。一時ファイルへ書いてから置き換える
+## （書き込み途中で終了しても、前のセーブが壊れない）。成功したらtrue。
+static func write_file(envelope: Dictionary) -> bool:
+	if not is_valid(envelope):
+		return false
+	var tmp := save_path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_buffer(_MAGIC.to_ascii_buffer())
+	f.store_buffer(var_to_bytes(envelope))
+	f.close()
+	var from_abs := ProjectSettings.globalize_path(tmp)
+	var to_abs := ProjectSettings.globalize_path(save_path)
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(to_abs)
+	return DirAccess.rename_absolute(from_abs, to_abs) == OK
+
+
+## セーブを読む。無い・読めない・壊れている・版やキャンペーンが違うときは空の辞書
+## （呼び出し側は新規ゲームとして続ける。ファイルは消さない）。例外は出さない。
+static func read_file() -> Dictionary:
+	if not FileAccess.file_exists(save_path):
+		return {}
+	var bytes := FileAccess.get_file_as_bytes(save_path)
+	var magic := _MAGIC.to_ascii_buffer()
+	if bytes.size() <= magic.size() or bytes.slice(0, magic.size()) != magic:
+		return {}
+	var value = bytes_to_var(bytes.slice(magic.size()))
+	if value is Dictionary and is_valid(value):
+		return value
+	return {}
+
+
+static func delete_file() -> void:
+	if FileAccess.file_exists(save_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))

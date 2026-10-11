@@ -23,6 +23,7 @@ extends PanelContainer
 @onready var _btn_money_plus: Button = $Margin/VBox/PhaseRow/BtnMoneyPlus as Button
 @onready var _btn_mob_debug: Button = $Margin/VBox/PhaseRow/BtnMobDebug as Button
 @onready var _btn_retry: Button = $Margin/VBox/PhaseRow/BtnRetry as Button
+@onready var _btn_continue: Button = $Margin/VBox/PhaseRow/BtnContinue as Button
 
 # OPEN の間だけ生きる客キュー管理役（STEP 6）。OPEN 以外では null。
 # flow.runner は「今の客の接客 runner」に載せ替える。この _open は「今何人目か」を持つだけ。
@@ -112,6 +113,13 @@ var _last_day_summary_text := ""
 # しないのは、同じ日にWAKEを繰り返し通る既存の経路・テストで引き直しが止まらないため）。
 var _plan_restored := false
 
+# F7 1枠セーブ（フェーズ4-1コミット②・DESIGN.md 10.6）。朝の保存ファイル（MorningSave）へ
+# 書いてよいか。起動時に有効なセーブがあれば、[続きから]を押すか最初の朝を抜けるまで
+# false（起動した瞬間のDay1の朝で上書きして、続きから選べなくなるのを防ぐ）。
+var _save_armed := true
+# 起動時に読めたセーブの封筒（[続きから]で戻す先）。無い・読めない・使用済みなら空。
+var _pending_continue: Dictionary = {}
+
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
 var _scraps_base := false
@@ -170,6 +178,9 @@ var _mob_recipe_number := 1
 
 
 func _ready() -> void:
+	# 1枠セーブ：最初の朝のWAKE処理より前に、起動時のセーブを読んでおく。
+	_pending_continue = MorningSave.read_file()
+	_save_armed = _pending_continue.is_empty()
 	_seed_initial_inventory()
 	_set_runner_for_phase(GameState.phase)
 
@@ -206,6 +217,8 @@ func _ready() -> void:
 	_btn_mob_debug.pressed.connect(_on_mob_debug_pressed)
 	# [同じ朝からやり直す] = ゲームオーバーのときだけ押せる（F7。仮ボタン。本番UIはフェーズ6）。
 	_btn_retry.pressed.connect(_on_retry_pressed)
+	# [続きから] = 起動時に読めたセーブの朝へ戻る（仮ボタン。本番UIはフェーズ6）。
+	_btn_continue.pressed.connect(_on_continue_pressed)
 	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
@@ -227,6 +240,7 @@ func _seed_initial_inventory() -> void:
 
 func _on_phase_changed(phase: int) -> void:
 	_set_runner_for_phase(phase)
+	_arm_save_after_first_morning(phase)
 	_refresh()
 
 
@@ -286,6 +300,10 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 運営費が払えた朝だけ記録する（払えずゲームオーバーになった朝へ戻っても、同じ
 		# 不足で必ず詰むため。戻れる最後の朝＝GameState.latest_morning()は前日の朝になる）。
 		GameState.record_morning(morning)
+		# 1枠セーブ：記録と同じ朝の辞書を書く（運営費が払えた朝だけ。読み込んだ朝が
+		# 運営費で詰むことは無い）。
+		if _save_armed:
+			MorningSave.write_file(morning)
 		# F4 帳簿：今日まだ物語上のけじめが付いていない金額を「確保」として記帳する
 		# （旧GameState.set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で
 		# 徴収日は場所代に加え水道代ぶんも確保対象に含めた（実際の支払いタイミングは
@@ -1338,6 +1356,34 @@ func _on_retry_pressed() -> void:
 	retry_from_morning()
 
 
+## 起動時に読めたセーブの朝へ戻る。いまの（起動直後の）ゲームの朝の記録は捨て、
+## 読み込んだ朝をGameState.morning_snapshotsへ入れる（読み込んだ朝で詰んだときの
+## 戻り先になる。retry_from_morning()がこの記録を使う）。
+func _on_continue_pressed() -> void:
+	if _pending_continue.is_empty():
+		return
+	var morning := _pending_continue
+	_pending_continue = {}
+	_save_armed = true
+	GameState.morning_snapshots.clear()
+	GameState.record_morning(morning)
+	_restore_morning(morning)
+
+
+## 起動時にセーブがあったとき、最初の朝（WAKE）を抜けた時点で書き込みを有効にする
+## （[続きから]を押さずに新規ゲームを進めた＝上書きしてよい）。この時点で、いまの
+## 朝の記録を1枠セーブへ書く（この後の朝は、WAKEが通常どおり書く）。ゲームオーバーで
+## 最初の朝を抜けた場合は何も書かない（記録が無い）。
+func _arm_save_after_first_morning(phase: int) -> void:
+	if _save_armed or phase == GameState.Phase.WAKE or phase == GameState.Phase.GAME_OVER:
+		return
+	_save_armed = true
+	_pending_continue = {}
+	var morning := GameState.latest_morning()
+	if not morning.is_empty():
+		MorningSave.write_file(morning)
+
+
 ## 鍋が尽きて自動的に閉店する（DESIGN.md 7.6）。判定・売上・評判・鍋の消費は
 ## 一切行わない（この客には出せなかった、という扱い）。反応・セリフは最小の仮テキストのみ。
 ## FlowController.force_phase() でゲートを通さず CLOSE へ飛ばす
@@ -1622,7 +1668,9 @@ func _update_options_row() -> void:
 			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
-	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER 			or GameState.morning_snapshots.is_empty() or _phone_mode
+	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER \
+			or GameState.morning_snapshots.is_empty() or _phone_mode
+	_btn_continue.disabled = _pending_continue.is_empty() or _phone_mode
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
 	_btn_phone.disabled = _phone_mode
 
