@@ -1832,8 +1832,10 @@ func _update_options_row() -> void:
 					btn_label = "%s（-%d・%d個入り・単価%d）" % [label, price, count, unit_price]
 				else:
 					btn_label = "%s（-%d）" % [label, price]
+				# 調味料の行と具材の行に分ける（ADJUSTと同じ2行。行の決め方は_shop_good_row）。
 				_add_pot_button(btn_label,
-					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid))
+					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid),
+					_shop_good_row(good))
 			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
 			return
 		for option in cur.get("options", []):
@@ -1883,13 +1885,35 @@ func _update_options_row() -> void:
 		_add_pot_button("客を断る", false, _on_customer_decline_pressed)
 
 
-## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。
-func _add_pot_button(label: String, is_disabled: bool, handler: Callable) -> void:
+## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。rowを省略
+## （null）すると、従来どおり_options_row（下の行）へ入れる。
+func _add_pot_button(label: String, is_disabled: bool, handler: Callable,
+		row: HBoxContainer = null) -> void:
 	var btn := Button.new()
 	btn.text = label
 	btn.disabled = is_disabled
 	btn.pressed.connect(handler)
-	_options_row.add_child(btn)
+	if row == null:
+		row = _options_row
+	row.add_child(btn)
+
+
+## 市場の店の商品を置く行を決める（ADJUSTの調味料の行／具材の行と同じ2行）。
+## 判定は既存のIngredients.is_topping()/is_flavor()だけ（新しい分類基準は作らない）：
+##   - 具材（具の軸のタグを持つ）          → _options_row（具材の行）。ADJUSTと同じく具材を優先
+##   - 調味料（味の軸のタグを持つ）        → _seasoning_row（調味料の行）
+##   - itemを持たない商品のうちdashi（濃縮だし）→ _seasoning_row。在庫には入らない資源だが、
+##     鍋の濃さ（味の強さ）を上げる素材なので調味料の行に置く（肉卸の具材の行は具材だけにする）
+##   - それ以外（どちらにも当たらない）    → _options_row
+func _shop_good_row(good: Dictionary) -> HBoxContainer:
+	var item := str(good.get("item", ""))
+	if item == "":
+		return _seasoning_row if str(good.get("id", "")) == "dashi" else _options_row
+	if Ingredients.is_topping(item):
+		return _options_row
+	if Ingredients.is_flavor(item):
+		return _seasoning_row
+	return _options_row
 
 
 func _format_game_state() -> String:
