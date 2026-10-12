@@ -1,6 +1,10 @@
 {
   "is_mob": false,
   "favorite": "meat_ball",
+  "wanted_tags": [
+    "MELLOW",
+    "GENTLE"
+  ],
   "days": {
     "1": {
       "greet": [

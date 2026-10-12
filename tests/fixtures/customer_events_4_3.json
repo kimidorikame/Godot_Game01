@@ -1,0 +1,2481 @@
+{
+	"1": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員「注文（HOT/POWER）」1杯目",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "（湯気の立つ椀を置く）",
+				"type": "SERVE"
+			},
+			{
+				"aggregate": true,
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"配達員【BAD】(1杯目)"
+					],
+					"GOOD": [
+						"配達員【GOOD】(1杯目)"
+					],
+					"GREAT": [
+						"配達員【GREAT】(1杯目)"
+					],
+					"OK": [
+						"配達員【OK】(1杯目)"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			},
+			{
+				"customer": "delivery_man",
+				"text": "配達員「1杯目の共通会話（第八码頭の話は省略）」",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"new_bowl": true,
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "（湯気の立つ椀を置く）",
+				"type": "SERVE"
+			},
+			{
+				"aggregate": true,
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"配達員【BAD】(2杯目)"
+					],
+					"GOOD": [
+						"配達員【GOOD】(2杯目)"
+					],
+					"GREAT": [
+						"配達員【GREAT】(2杯目)"
+					],
+					"OK": [
+						"配達員【OK】(2杯目)"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			},
+			{
+				"customer": "delivery_man",
+				"text": "配達員「2杯目の共通会話（持ち帰りを注文）」",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"new_bowl": true,
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（持ち帰り用。辛さ控えめ、豆腐多め）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "（店主は蓋つきの容器を袋へ入れる）",
+				"type": "SERVE"
+			},
+			{
+				"aggregate": true,
+				"customer": "delivery_man",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			},
+			{
+				"customer": "delivery_man",
+				"text": "配達員「退店（会計・名前は阿強）」",
+				"type": "GREET"
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			},
+			{
+				"amount": 90,
+				"customer": "thug",
+				"kind": "rent",
+				"text": "チンピラ（場所代）",
+				"type": "PAY"
+			}
+		]
+	},
+	"2": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	},
+	"3": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"text": "娼婦（BITTER/TREAT）",
+				"type": "GREET"
+			},
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"BITTER",
+					"TREAT"
+				]
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": []
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	},
+	"4": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"text": "娼婦（BITTER/TREAT）",
+				"type": "GREET"
+			},
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"BITTER",
+					"TREAT"
+				]
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"text": "動画配信者（MELLOW/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"BITE"
+				]
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	},
+	"5": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"text": "娼婦（BITTER/TREAT）",
+				"type": "GREET"
+			},
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"BITTER",
+					"TREAT"
+				]
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"text": "動画配信者（MELLOW/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"BITE"
+				]
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	},
+	"6": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"text": "娼婦（BITTER/TREAT）",
+				"type": "GREET"
+			},
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"BITTER",
+					"TREAT"
+				]
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"text": "動画配信者（MELLOW/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"BITE"
+				]
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	},
+	"7": {
+		"delivery_man": [
+			{
+				"customer": "delivery_man",
+				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"type": "GREET"
+			},
+			{
+				"customer": "delivery_man",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "delivery_man",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "delivery_man",
+				"favorite": "tofu",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"HOT",
+					"POWER"
+				]
+			}
+		],
+		"granny": [
+			{
+				"customer": "granny",
+				"text": "老婆（SAVORY/FILLING）",
+				"type": "GREET"
+			},
+			{
+				"customer": "granny",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "granny",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "granny",
+				"favorite": "offal",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SAVORY",
+					"FILLING"
+				]
+			}
+		],
+		"hooker": [
+			{
+				"customer": "hooker",
+				"text": "娼婦（BITTER/TREAT）",
+				"type": "GREET"
+			},
+			{
+				"customer": "hooker",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "hooker",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "hooker",
+				"favorite": "pickled_lime",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"BITTER",
+					"TREAT"
+				]
+			}
+		],
+		"officer": [
+			{
+				"customer": "officer",
+				"text": "警官（SOUR/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "officer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "officer",
+				"favorite": "rice_noodle",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"SOUR",
+					"BITE"
+				]
+			},
+			{
+				"customer": "officer",
+				"text": "警官（提供後・共通会話）",
+				"type": "GREET"
+			},
+			{
+				"customer": "officer",
+				"text": "警官（会計・退店）",
+				"type": "GREET"
+			}
+		],
+		"streamer": [
+			{
+				"customer": "streamer",
+				"text": "動画配信者（MELLOW/BITE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "streamer",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "streamer",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "streamer",
+				"favorite": "shrimp",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"BITE"
+				]
+			}
+		],
+		"thug": [
+			{
+				"customer": "thug",
+				"text": "チンピラ（MELLOW/GENTLE）",
+				"type": "GREET"
+			},
+			{
+				"customer": "thug",
+				"options": [
+					{
+						"id": "nam_prik_pao",
+						"label": "ナムプリックパオ"
+					},
+					{
+						"id": "tofu",
+						"label": "豆腐"
+					},
+					{
+						"id": "herbal_sauce",
+						"label": "薬膳ナンプラーだれ"
+					}
+				],
+				"text": "（味を調える）",
+				"type": "ADJUST"
+			},
+			{
+				"customer": "thug",
+				"text": "「はいよ、お待ち。」",
+				"type": "SERVE"
+			},
+			{
+				"customer": "thug",
+				"favorite": "meat_ball",
+				"is_mob": false,
+				"reactions": {
+					"BAD": [
+						"BAD"
+					],
+					"GOOD": [
+						"GOOD"
+					],
+					"GREAT": [
+						"GREAT"
+					],
+					"OK": [
+						"OK"
+					]
+				},
+				"sale": 45,
+				"servings": 1,
+				"type": "REACT",
+				"wanted_tags": [
+					"MELLOW",
+					"GENTLE"
+				]
+			}
+		]
+	}
+}

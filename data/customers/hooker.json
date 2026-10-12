@@ -1,6 +1,10 @@
 {
   "is_mob": false,
   "favorite": "pickled_lime",
+  "wanted_tags": [
+    "BITTER",
+    "TREAT"
+  ],
   "days": {
     "3": {
       "greet": [

@@ -1,6 +1,10 @@
 {
   "is_mob": false,
   "favorite": "offal",
+  "wanted_tags": [
+    "SAVORY",
+    "FILLING"
+  ],
   "days": {
     "1": {
       "greet": [

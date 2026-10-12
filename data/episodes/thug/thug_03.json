@@ -1,0 +1,22 @@
+{
+  "id": "thug_03",
+  "customer": "thug",
+  "greet": [
+    "チンピラ（MELLOW/GENTLE）"
+  ],
+  "reactions": {
+    "GREAT": [
+      "GREAT"
+    ],
+    "GOOD": [
+      "GOOD"
+    ],
+    "OK": [
+      "OK"
+    ],
+    "BAD": [
+      "BAD"
+    ]
+  },
+  "servings": 1
+}

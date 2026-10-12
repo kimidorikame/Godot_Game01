@@ -1,6 +1,10 @@
 {
   "is_mob": false,
   "favorite": "rice_noodle",
+  "wanted_tags": [
+    "SOUR",
+    "BITE"
+  ],
   "days": {
     "2": {
       "greet": [

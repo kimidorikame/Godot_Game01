@@ -1,0 +1,22 @@
+{
+  "id": "streamer_02",
+  "customer": "streamer",
+  "greet": [
+    "動画配信者（MELLOW/BITE）"
+  ],
+  "reactions": {
+    "GREAT": [
+      "GREAT"
+    ],
+    "GOOD": [
+      "GOOD"
+    ],
+    "OK": [
+      "OK"
+    ],
+    "BAD": [
+      "BAD"
+    ]
+  },
+  "servings": 1
+}

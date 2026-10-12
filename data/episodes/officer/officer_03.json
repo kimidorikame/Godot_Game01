@@ -1,0 +1,22 @@
+{
+  "id": "officer_03",
+  "customer": "officer",
+  "greet": [
+    "警官（SOUR/BITE）"
+  ],
+  "reactions": {
+    "GREAT": [
+      "GREAT"
+    ],
+    "GOOD": [
+      "GOOD"
+    ],
+    "OK": [
+      "OK"
+    ],
+    "BAD": [
+      "BAD"
+    ]
+  },
+  "servings": 1
+}

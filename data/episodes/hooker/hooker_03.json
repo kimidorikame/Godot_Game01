@@ -1,0 +1,22 @@
+{
+  "id": "hooker_03",
+  "customer": "hooker",
+  "greet": [
+    "娼婦（BITTER/TREAT）"
+  ],
+  "reactions": {
+    "GREAT": [
+      "GREAT"
+    ],
+    "GOOD": [
+      "GOOD"
+    ],
+    "OK": [
+      "OK"
+    ],
+    "BAD": [
+      "BAD"
+    ]
+  },
+  "servings": 1
+}

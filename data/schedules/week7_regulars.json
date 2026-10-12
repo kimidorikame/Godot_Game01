@@ -1,39 +1,39 @@
 {
   "days": {
     "1": [
-      { "slot": "宵の口", "regular": "delivery_man" },
-      { "slot": "夜半", "regular": "thug" },
-      { "slot": "明け方", "regular": "granny" }
+      { "slot": "宵の口", "regular": "delivery_man", "episode_id": "delivery_man_01" },
+      { "slot": "夜半", "regular": "thug", "episode_id": "thug_01" },
+      { "slot": "明け方", "regular": "granny", "episode_id": "granny_01" }
     ],
     "2": [
-      { "slot": "宵の口", "regular": "officer" },
-      { "slot": "夜半", "regular": "delivery_man" },
-      { "slot": "明け方", "regular": "thug" }
+      { "slot": "宵の口", "regular": "officer", "episode_id": "officer_01" },
+      { "slot": "夜半", "regular": "delivery_man", "episode_id": "delivery_man_02" },
+      { "slot": "明け方", "regular": "thug", "episode_id": "thug_02" }
     ],
     "3": [
-      { "slot": "宵の口", "regular": "hooker" },
-      { "slot": "夜半", "regular": "granny" },
-      { "slot": "明け方", "regular": "officer" }
+      { "slot": "宵の口", "regular": "hooker", "episode_id": "hooker_01" },
+      { "slot": "夜半", "regular": "granny", "episode_id": "granny_02" },
+      { "slot": "明け方", "regular": "officer", "episode_id": "officer_02" }
     ],
     "4": [
-      { "slot": "宵の口", "regular": "streamer" },
-      { "slot": "夜半", "regular": "hooker" },
-      { "slot": "明け方", "regular": "delivery_man" }
+      { "slot": "宵の口", "regular": "streamer", "episode_id": "streamer_01" },
+      { "slot": "夜半", "regular": "hooker", "episode_id": "hooker_02" },
+      { "slot": "明け方", "regular": "delivery_man", "episode_id": "delivery_man_03" }
     ],
     "5": [
-      { "slot": "宵の口", "regular": "thug" },
-      { "slot": "夜半", "regular": "officer" },
-      { "slot": "明け方", "regular": "streamer" }
+      { "slot": "宵の口", "regular": "thug", "episode_id": "thug_03" },
+      { "slot": "夜半", "regular": "officer", "episode_id": "officer_03" },
+      { "slot": "明け方", "regular": "streamer", "episode_id": "streamer_02" }
     ],
     "6": [
-      { "slot": "宵の口", "regular": "delivery_man" },
-      { "slot": "夜半", "regular": "thug" },
-      { "slot": "明け方", "regular": "hooker" }
+      { "slot": "宵の口", "regular": "delivery_man", "episode_id": "delivery_man_04" },
+      { "slot": "夜半", "regular": "thug", "episode_id": "thug_04" },
+      { "slot": "明け方", "regular": "hooker", "episode_id": "hooker_03" }
     ],
     "7": [
-      { "slot": "宵の口", "regular": "streamer" },
-      { "slot": "夜半", "regular": "officer" },
-      { "slot": "明け方", "regular": "granny" }
+      { "slot": "宵の口", "regular": "streamer", "episode_id": "streamer_03" },
+      { "slot": "夜半", "regular": "officer", "episode_id": "officer_04" },
+      { "slot": "明け方", "regular": "granny", "episode_id": "granny_03" }
     ]
   }
 }

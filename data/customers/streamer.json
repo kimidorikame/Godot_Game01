@@ -1,6 +1,10 @@
 {
   "is_mob": false,
   "favorite": "shrimp",
+  "wanted_tags": [
+    "MELLOW",
+    "BITE"
+  ],
   "days": {
     "4": {
       "greet": [

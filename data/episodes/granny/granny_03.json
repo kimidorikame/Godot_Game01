@@ -1,0 +1,22 @@
+{
+  "id": "granny_03",
+  "customer": "granny",
+  "greet": [
+    "老婆（SAVORY/FILLING）"
+  ],
+  "reactions": {
+    "GREAT": [
+      "GREAT"
+    ],
+    "GOOD": [
+      "GOOD"
+    ],
+    "OK": [
+      "OK"
+    ],
+    "BAD": [
+      "BAD"
+    ]
+  },
+  "servings": 1
+}

@@ -22,6 +22,9 @@ class_name ScheduleData
 # モブの抽選ルール（既定＋日別の上書き）。DESIGN.md 10.8.1。
 const _SCHEDULES_DIR := "res://data/schedules/"
 const _MOB_RULES_PATH := "res://data/schedules/mob_rules.json"
+# 4-4a：来店場面（episode。data/episodes/<客>/<episode_id>.json）。基本プロフィールは
+# data/customers/<id>.json（トップレベルのみ。"days"は4-4aコミット②で廃止）。
+const _EPISODES_DIR := "res://data/episodes/"
 const _CUSTOMERS_DIR := "res://data/customers/"
 const _MOBS_DIR := "res://data/mobs/"
 const _KITS_DIR := "res://data/kits/"
@@ -36,6 +39,7 @@ static var _kit_cache: Dictionary = {}        # id(String) -> 生のJSON全体�
 static var _regulars_cache: Dictionary = {}   # 常連の固定日程（schedule id -> 生のJSON全体）
 static var _mob_rules_cache: Dictionary = {}
 static var _mob_rules_loaded := false
+static var _episode_cache: Dictionary = {}    # "<客>/<episode_id>" -> 生のJSON全体（Dictionary）
 
 
 ## JSON読み込みの共通処理。ファイルが無い・パースに失敗した場合は空辞書を返す
@@ -120,6 +124,73 @@ static func compose_day_schedule(day: int) -> Dictionary:
 	return { "slots": slots }
 
 
+## 指定日の常連の枠（[{ "slot": 枠名, "regular": 客id, "episode_id": 場面id }, ...]）。
+## 日程の定義が無い日（Day8以降）は空の配列（客なし。Day1へのフォールバックはしない）。
+## 4-4aのDayPlan／customer_schedule()が読む口。辞書の枠なので、後の手順で項目を足せる。
+static func regular_slots(day: int) -> Array:
+	var days: Dictionary = regular_schedule_data().get("days", {})
+	var entries: Array = days.get(str(day), [])
+	return entries.duplicate(true)
+
+
+## 指定日・指定枠のモブの抽選ルール：false（その枠はモブなし）または {"pool": [種類id...]}。
+## mob_rules.jsonの日別の上書きがあればそれ、なければ既定（枠ごとの可否＋既定のプール）。
+## compose_day_schedule()が組み立てるmobと同じ値（4-4aの切り替えでcompose側を消す）。
+static func mob_rule_for(day: int, slot_name: String) -> Variant:
+	var rules := mob_rules_data()
+	var default_rule: Dictionary = rules.get("default", {})
+	var default_pool: Array = default_rule.get("pool", [])
+	var day_rules: Dictionary = (rules.get("days", {}) as Dictionary).get(str(day), {})
+	if day_rules.has(slot_name):
+		var rule = day_rules[slot_name]
+		if rule is Dictionary:
+			return (rule as Dictionary).duplicate(true)
+		return { "pool": default_pool.duplicate() } if bool(rule) else false
+	if bool((default_rule.get("slots", {}) as Dictionary).get(slot_name, false)):
+		return { "pool": default_pool.duplicate() }
+	return false
+
+
+## 客の基本プロフィール（data/customers/<id>.json のトップレベル。"days"は除く）。
+## is_mob / favorite / wanted_tags（基本注文。10.5.1「日によって変えない」）。
+## 未知の客・ファイルが無いときは空辞書。
+static func customer_profile(id: String) -> Dictionary:
+	if not _customer_cache.has(id):
+		_customer_cache[id] = _load_json(_CUSTOMERS_DIR + id + ".json")
+	var raw: Dictionary = _customer_cache[id]
+	var result := {}
+	for k in raw:
+		if k != "days":
+			result[k] = raw[k]
+	return result
+
+
+## 来店場面1つのデータ（data/episodes/<客>/<episode_id>.json）：
+## { "id", "customer", "greet", "reactions", "servings" }。無いときは空辞書（エラーを出さない）。
+static func episode_data(customer_id: String, episode_id: String) -> Dictionary:
+	if customer_id == "" or episode_id == "":
+		return {}
+	var key := customer_id + "/" + episode_id
+	if not _episode_cache.has(key):
+		var path := _EPISODES_DIR + customer_id + "/" + episode_id + ".json"
+		_episode_cache[key] = _load_json(path) if FileAccess.file_exists(path) else {}
+	return _episode_cache[key]
+
+
+## その客が日程（week7_regulars.json）で来る順の場面idの配列（日・枠の順）。
+## 日程に無い客は空配列。日程に無い客の場面を引くとき（最後の場面）に使う。
+static func customer_episode_ids(customer_id: String) -> Array:
+	var days: Dictionary = regular_schedule_data().get("days", {})
+	var day_keys := days.keys()
+	day_keys.sort_custom(func(a, b): return int(a) < int(b))
+	var ids := []
+	for key in day_keys:
+		for entry in days[key]:
+			if str(entry.get("regular", "")) == customer_id:
+				ids.append(str(entry.get("episode_id", "")))
+	return ids
+
+
 ## 客1人ぶんのデータ。トップレベル（is_mob/favoriteなど。"days"を除く）と、その日の内容
 ## （days[day]）をマージして返す。該当日が無ければ、その客データの中で"1"（1日目）へ
 ## フォールバックする（日程側のフォールバックとは別に、客データ自身も
@@ -171,3 +242,4 @@ static func clear_cache() -> void:
 	_regulars_cache.clear()
 	_mob_rules_cache = {}
 	_mob_rules_loaded = false
+	_episode_cache.clear()
