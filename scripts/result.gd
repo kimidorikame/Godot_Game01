@@ -165,14 +165,14 @@ static func format_story(s: Dictionary, known_favorite_ids: Array) -> String:
 	if not known_favorite_ids.is_empty():
 		var ids := PackedStringArray()
 		for id in known_favorite_ids:
-			ids.append(str(id))
+			ids.append(ScheduleData.customer_display_name(str(id)))
 		known_text = "好物を知った客: %s" % "、".join(ids)
 	var visit_days: Dictionary = s.get("regular_visit_days", {})
 	var visit_text := "店に来た常連はいなかった。"
 	if not visit_days.is_empty():
 		var parts := PackedStringArray()
 		for id in visit_days:
-			parts.append("%s（%d日）" % [str(id), int(visit_days[id])])
+			parts.append("%s（%d日）" % [ScheduleData.customer_display_name(str(id)), int(visit_days[id])])
 		visit_text = "店に来た常連: %s" % "、".join(parts)
 	return "\n".join(PackedStringArray([
 		"◆街で起きたこと◆",

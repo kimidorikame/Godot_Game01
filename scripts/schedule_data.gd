@@ -112,7 +112,7 @@ static func mob_rule_for(day: int, slot_name: String) -> Variant:
 
 
 ## 客の基本プロフィール（data/customers/<id>.json のトップレベル。"days"は除く）。
-## is_mob / favorite / wanted_tags（基本注文。10.5.1「日によって変えない」）。
+## name（表示名）/ is_mob / favorite / wanted_tags（基本注文。10.5.1「日によって変えない」）。
 ## 未知の客・ファイルが無いときは空辞書。
 static func customer_profile(id: String) -> Dictionary:
 	if not _customer_cache.has(id):
@@ -123,6 +123,14 @@ static func customer_profile(id: String) -> Dictionary:
 		if k != "days":
 			result[k] = raw[k]
 	return result
+
+
+## 客の表示名（data/customers/<id>.json の "name"）。システムが組み立てる文面（結果画面・
+## 予告メモ）で使う。未知の客・"name"の無い／空のプロフィールはid自体を返す（クラッシュしない）。
+## 場面データの文言（greet・reactions）は対象外。モブはDay1Events.mob_display_name()。
+static func customer_display_name(id: String) -> String:
+	var name := str(customer_profile(id).get("name", ""))
+	return name if name != "" else id
 
 
 ## 来店場面1つのデータ（data/episodes/<客>/<episode_id>.json）：

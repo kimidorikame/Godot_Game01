@@ -91,8 +91,8 @@ func run(t: SceneTree) -> int:
 		story.contains("街で起きたこと") and story.contains("客との間に残ったこと"), story)
 	var hits := STORY_FORBIDDEN.filter(func(w): return story.contains(w))
 	c.check("物語の欄には成績の数値・語を出さない", hits.is_empty(), "%s / %s" % [str(hits), story])
-	c.check("物語の欄に、わかっている事実（好物を知った客・来た常連）は出る",
-		story.contains("granny"), story)
+	c.check("物語の欄に、わかっている事実（好物を知った客・来た常連）は表示名で出る（idは出ない）",
+		story.contains("老婆") and not story.contains("granny"), story)
 	var summary := Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
 	c.check("成績ブロックはResult.summarize()の整形と一致する", report == Result.format_report(summary))
 

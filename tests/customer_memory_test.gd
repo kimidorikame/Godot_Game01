@@ -213,8 +213,8 @@ func run(t: SceneTree) -> int:
 	GameState.mark_favorite_known("granny")
 	var summary_before := Result.summarize([], [], 0)
 	var story_before := Result.format_story(summary_before, GameState.known_favorite_ids())
-	c.check("format_storyの出力は従来と同じ文言（好物を知った客を知った順に並べる）",
-		story_before.contains("好物を知った客: thug、granny"), story_before)
+	c.check("format_storyは好物を知った客を知った順に、表示名で並べる",
+		story_before.contains("好物を知った客: チンピラ、老婆"), story_before)
 	var d := GameState.to_dict()
 	GameState.reset_for_new_game()
 	GameState.from_dict(d)

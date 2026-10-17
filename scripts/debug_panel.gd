@@ -2104,7 +2104,7 @@ func _format_tonight_memo() -> String:
 					mob_types_shown.append(type_id)
 					parts.append("客層:%s（%s）" % [mob_name, mob_tag_text])
 			else:
-				var name: String = Day1Events.CUSTOMER_NAMES.get(cid, cid)
+				var name: String = ScheduleData.customer_display_name(cid)
 				var fav_text := ""
 				var fav_id := str(flavor.get("favorite", ""))
 				if fav_id != "" and GameState.knows_favorite(cid):
