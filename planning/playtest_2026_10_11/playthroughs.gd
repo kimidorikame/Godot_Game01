@@ -24,6 +24,15 @@ const POLICIES_NEW := ["favorite_oracle", "no_split", "strength_neglect",
 	"decline_one_group", "two_failures", "decline_once"]
 ## 各仕込み段階が（水・だしの操作込みで）届く最大杯数（小8→水2回で12／中11→水1回で13／
 ## 大14→水0回。鍋の同時容量14・水は残量12以下のときだけ足せる。DESIGN.md 10.3.8）。
+## 修繕基金の方針（4-9③。別枠）。既定の方針一覧（POLICIES_OLD + POLICIES_NEW）には入れず、引数[3]で
+## 名前を指定したときだけ走る。仕入れ・仕込み・調理・接客の判断は基準方針 forecast_good と同じ（このファイルの
+## policy == の分岐のどれにも当たらない＝既定の分岐）で、差は CLOSE の基金の操作だけ。押すのは DebugPanel の
+## _on_fund_contribute_pressed 経由（実際の操作経路）。刻み・上限は RepairFund から読み、数値は直書きしない。
+##   fund_final_only … 最終日のCLOSEだけ、安全上限の範囲で積めるだけ積む（対照実験）
+##   fund_steady     … 毎晩、刻みの中央値（week7では50）を1回積む（安全上限・最終段階までの残りの範囲）
+##   fund_max_safe   … 毎晩、安全上限と最終段階までの残りの範囲で積めるだけ積む
+const POLICIES_FUND := ["fund_final_only", "fund_steady", "fund_max_safe"]
+const FUND_BASE_POLICY := "forecast_good"
 const TIER_REACH := { "small": 12, "medium": 13, "large": 14 }
 const SHOPS := ["produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps"]
 
@@ -39,6 +48,8 @@ var declined_group_today := false
 var failed_named := false
 var failed_mob := false
 var failure_log: Array = []
+var fund_log: Array = []
+var fund_stage_days: Dictionary = {}
 
 
 func run(t: SceneTree) -> void:
@@ -57,17 +68,25 @@ func run(t: SceneTree) -> void:
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
 			policies.append(p)
+	for p in POLICIES_FUND:
+		if only.has(p):
+			policies.append(p)
 	var results: Array = []
 	for p in policies:
 		var n := seeds_old if POLICIES_OLD.has(p) else seeds_new
 		for run_seed in range(1, n + 1):
 			results.append(await play(p, run_seed))
 		print("PLAYTEST_PROGRESS ", p, " ", n, " runs")
-	var f := FileAccess.open(OUT + out_name, FileAccess.WRITE)
-	f.store_string(JSON.stringify({ "commit": git_head(), "tracked_changes": git_dirty(),
+	var output := { "commit": git_head(), "tracked_changes": git_dirty(),
 		"engine": Engine.get_version_info(), "daily_operating_cost": Rules.daily_operating_cost(),
 		"seeds_old": seeds_old, "seeds_new": seeds_new,
-		"policies": policies, "runs": results }, "\t"))
+		"policies": policies, "runs": results }
+	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
+	if policies.any(func(x): return POLICIES_FUND.has(x)):
+		output["fund_checks"] = fund_checks(results)
+		output["goals_by_run"] = goals_by_run(results)
+	var f := FileAccess.open(OUT + out_name, FileAccess.WRITE)
+	f.store_string(JSON.stringify(output, "\t"))
 	f.close()
 	print("PLAYTEST_COMPLETE ", results.size())
 
@@ -98,6 +117,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 	failed_named = false
 	failed_mob = false
 	failure_log = []
+	fund_log = []
+	fund_stage_days = {}
 	GameState.reset_for_new_game()
 	seed(run_seed * 1000 + 1)
 	panel = load("res://scenes/debug_panel.tscn").instantiate()
@@ -152,6 +173,9 @@ func play(p: String, run_seed: int) -> Dictionary:
 			before_market = false
 			continue
 		if r.status == EventRunner.Status.DONE:
+			# 修繕基金の方針のときだけ、CLOSEの語りを読み終えた時点（基金を積める時点）で積む。
+			if GameState.phase == GameState.Phase.CLOSE and POLICIES_FUND.has(policy):
+				fund_contribute()
 			panel.flow.advance_phase()
 			continue
 		if GameState.phase == GameState.Phase.WAKE:
@@ -216,6 +240,10 @@ func play(p: String, run_seed: int) -> Dictionary:
 		"failures": failure_log.duplicate(true),
 		"result_phase": result_phase, "result_summary": result_summary,
 		"closing_stock_units": GameState.inventory.duplicate(), "dashi": GameState.dashi_units }
+	if POLICIES_FUND.has(policy):
+		result["fund_log"] = fund_log.duplicate(true)
+		result["stage_reached"] = RepairFund.stage_index(RepairFund.paid())
+		result["stage_days"] = fund_stage_days.duplicate()
 	panel.queue_free()
 	await tree.process_frame
 	return result
@@ -302,6 +330,112 @@ func choose_tier() -> String:
 
 func target_cups() -> int:
 	return int(Forecast.total()["high"])
+
+
+## --- 修繕基金の方針（4-9③） ---
+
+## CLOSEの語りを読み終えた時点で、方針に応じて基金を積む。記録は fund_log（日ごとの額・積む前の上限・
+## 積んだ後の累計）と fund_stage_days（各段階に初めて届いた日）。
+func fund_contribute() -> void:
+	var limit_before := RepairFund.safe_limit()
+	var paid_before := RepairFund.paid()
+	var pushed := 0
+	match policy:
+		"fund_final_only":
+			if GameState.is_final_day():
+				pushed = push_fund_max()
+		"fund_steady":
+			var steps := RepairFund.steps()
+			pushed = push_fund(int(steps[int(steps.size() * 0.5)]))
+		"fund_max_safe":
+			pushed = push_fund_max()
+	fund_log.append({ "day": GameState.day_count, "amount": pushed, "limit_before": limit_before,
+		"paid_before": paid_before, "paid_after": RepairFund.paid() })
+	var stage := RepairFund.stage_index(RepairFund.paid())
+	for i in range(stage + 1):
+		if not fund_stage_days.has(str(i)):
+			fund_stage_days[str(i)] = GameState.day_count
+
+
+## 刻み1つぶんを、押せるなら押す（DebugPanel の操作経路）。積んだ額を返す。
+func push_fund(step: int) -> int:
+	if not RepairFund.can_contribute(step):
+		return 0
+	var before := GameState.money
+	act("fund")
+	panel._on_fund_contribute_pressed(step)
+	return before - GameState.money
+
+
+## 積めるだけ積む：大きい刻みから順に、押せる間だけ押す。
+func push_fund_max() -> int:
+	var total := 0
+	var ordered := RepairFund.steps().duplicate()
+	ordered.reverse()
+	for step in ordered:
+		var guard := 0
+		while RepairFund.can_contribute(int(step)) and guard < 100:
+			guard += 1
+			total += push_fund(int(step))
+	return total
+
+
+## 基金の実行の自動検査（結果の最上位 fund_checks）：
+##   control … 同じシードの基準方針と fund_final_only で cash_plus_repair が一致するか、および
+##             1〜6日目の日別の行が完全に一致するか（基金の方針が他の点で基準方針と同一である証明）
+##   safety  … 基金の全方針・全シードで game_over の事故・stalled が無く、全周が完走したか
+func fund_checks(results: Array) -> Dictionary:
+	var by_key := {}
+	for r in results:
+		by_key["%s|%d" % [r["policy"], int(r["seed"])]] = r
+	var control_pairs := 0
+	var cash_mismatch := []
+	var rows_mismatch := []
+	for r in results:
+		if r["policy"] != "fund_final_only":
+			continue
+		var base = by_key.get("%s|%d" % [FUND_BASE_POLICY, int(r["seed"])])
+		if base == null:
+			continue
+		control_pairs += 1
+		var a: Dictionary = base["result_summary"]
+		var b: Dictionary = r["result_summary"]
+		if int(a.get("cash_plus_repair", -1)) != int(b.get("cash_plus_repair", -2)):
+			cash_mismatch.append({ "seed": r["seed"], "base": a.get("cash_plus_repair"), "fund": b.get("cash_plus_repair") })
+		var early_equal := true
+		for i in range(mini(6, mini((base["rows"] as Array).size(), (r["rows"] as Array).size()))):
+			if JSON.stringify(base["rows"][i]) != JSON.stringify(r["rows"][i]):
+				early_equal = false
+		if not early_equal:
+			rows_mismatch.append(r["seed"])
+	var fund_runs := 0
+	var game_over := 0
+	var stalled := 0
+	var incomplete := []
+	for r in results:
+		if not POLICIES_FUND.has(r["policy"]):
+			continue
+		fund_runs += 1
+		for inc in r["incidents"]:
+			if str(inc.get("type", "")) == "game_over":
+				game_over += 1
+		if bool(r["stalled"]):
+			stalled += 1
+		if not bool(r["completed"]):
+			incomplete.append({ "policy": r["policy"], "seed": r["seed"] })
+	return { "control_pairs": control_pairs, "cash_plus_repair_mismatch": cash_mismatch,
+		"days_1_to_6_rows_mismatch": rows_mismatch, "fund_runs": fund_runs,
+		"game_over_incidents": game_over, "stalled_runs": stalled, "incomplete_runs": incomplete }
+
+
+## 各周の目標判定（実装の Result.judge_goals そのもの）。基金の方針を含む実行の最上位 goals_by_run。
+func goals_by_run(results: Array) -> Array:
+	var out := []
+	for r in results:
+		var summary: Dictionary = r["result_summary"]
+		out.append({ "policy": r["policy"], "seed": r["seed"],
+			"goals": Result.judge_goals(summary, Rules.goals(), Rules.final_day()) if not summary.is_empty() else [] })
+	return out
 
 
 ## ニュース／共通イベントの表示専用 TEXT か（type が TEXT で、part が news または common_event）。

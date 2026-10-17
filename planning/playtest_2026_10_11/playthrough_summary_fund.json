@@ -1,0 +1,763 @@
+{
+  "source": "playthrough_results_fund.json",
+  "commit": "576a4f58f26970debf6ceb5ddad046f40af9ab22",
+  "tracked_changes": "",
+  "seeds": 30,
+  "fund_checks": {
+    "cash_plus_repair_mismatch": [],
+    "control_pairs": 30,
+    "days_1_to_6_rows_mismatch": [],
+    "fund_runs": 90,
+    "game_over_incidents": 30,
+    "incomplete_runs": [
+      {
+        "policy": "fund_max_safe",
+        "seed": 1
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 2
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 3
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 4
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 5
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 6
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 7
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 8
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 9
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 10
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 11
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 12
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 13
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 14
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 15
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 16
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 17
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 18
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 19
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 20
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 21
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 22
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 23
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 24
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 25
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 26
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 27
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 28
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 29
+      },
+      {
+        "policy": "fund_max_safe",
+        "seed": 30
+      }
+    ],
+    "stalled_runs": 0
+  },
+  "rows": [
+    {
+      "policy": "forecast_good",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "repair": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 0,
+      "stageCount": {
+        "0": 0,
+        "1": 0,
+        "2": 0,
+        "-1": 30
+      },
+      "stageDayMean": {
+        "0": null,
+        "1": null,
+        "2": null
+      },
+      "stageDayMin": {
+        "0": null,
+        "1": null,
+        "2": null
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        510,
+        616.8,
+        811.5666666666667,
+        978.8,
+        1195.8666666666666,
+        1406.3666666666666,
+        1621.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "policy": "fund_final_only",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1021.5666666666667,
+        "min": 815,
+        "max": 1173
+      },
+      "repair": {
+        "mean": 600,
+        "min": 600,
+        "max": 600
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 1,
+      "stageCount": {
+        "0": 0,
+        "1": 0,
+        "2": 30,
+        "-1": 0
+      },
+      "stageDayMean": {
+        "0": 7,
+        "1": 7,
+        "2": 7
+      },
+      "stageDayMin": {
+        "0": 7,
+        "1": 7,
+        "2": 7
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        510,
+        616.8,
+        811.5666666666667,
+        978.8,
+        1195.8666666666666,
+        1406.3666666666666,
+        1021.5666666666667
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "policy": "fund_steady",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1271.5666666666666,
+        "min": 1065,
+        "max": 1423
+      },
+      "repair": {
+        "mean": 350,
+        "min": 350,
+        "max": 350
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 7,
+      "stageCount": {
+        "0": 0,
+        "1": 30,
+        "2": 0,
+        "-1": 0
+      },
+      "stageDayMean": {
+        "0": 3,
+        "1": 6,
+        "2": null
+      },
+      "stageDayMin": {
+        "0": 3,
+        "1": 6,
+        "2": null
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        460,
+        516.8,
+        661.5666666666667,
+        778.8,
+        945.8666666666667,
+        1106.3666666666666,
+        1271.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ]
+    },
+    {
+      "policy": "fund_max_safe",
+      "n": 30,
+      "completed": 0,
+      "stalled": 0,
+      "gameOver": 30,
+      "cash": {
+        "mean": 9.3,
+        "min": 0,
+        "max": 49
+      },
+      "repair": {
+        "mean": 350.8333333333333,
+        "min": 350,
+        "max": 375
+      },
+      "cashPlusRepair": {
+        "mean": 360.1333333333333,
+        "min": 350,
+        "max": 399
+      },
+      "goalRate": {
+        "complete": 0,
+        "cash_standard": 0,
+        "cash_challenge": 0,
+        "good_rate": 0,
+        "regular_great": 0
+      },
+      "goodRate": 0.4282238442822384,
+      "served": 11.733333333333333,
+      "unserved": 15.666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 0.8333333333333334,
+      "rep": 26.166666666666668,
+      "fundNights": 1.0333333333333334,
+      "stageCount": {
+        "0": 0,
+        "1": 30,
+        "2": 0,
+        "-1": 0
+      },
+      "stageDayMean": {
+        "0": 1,
+        "1": 1,
+        "2": null
+      },
+      "stageDayMin": {
+        "0": 1,
+        "1": 1,
+        "2": null
+      },
+      "servedByDay": [
+        9,
+        2.533333333333333,
+        0.2,
+        0,
+        null,
+        null,
+        null
+      ],
+      "cashByDay": [
+        160,
+        121.6,
+        14.133333333333333,
+        11,
+        null,
+        null,
+        null
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        1,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "paired": {
+    "fund_final_only": {
+      "pairs": 30,
+      "cprMean": 0,
+      "cprMin": 0,
+      "cprMax": 0,
+      "cprNonZero": 0,
+      "cashMean": -600,
+      "servedMean": 0,
+      "unservedMean": 0,
+      "goodPlusMean": 0,
+      "standardLost": [],
+      "standardGained": [],
+      "anyGoalLost": []
+    },
+    "fund_steady": {
+      "pairs": 30,
+      "cprMean": 0,
+      "cprMin": 0,
+      "cprMax": 0,
+      "cprNonZero": 0,
+      "cashMean": -350,
+      "servedMean": 0,
+      "unservedMean": 0,
+      "goodPlusMean": 0,
+      "standardLost": [],
+      "standardGained": [],
+      "anyGoalLost": []
+    },
+    "fund_max_safe": {
+      "pairs": 30,
+      "cprMean": -1261.4333333333334,
+      "cprMin": -1419,
+      "cprMax": -1056,
+      "cprNonZero": 30,
+      "cashMean": -1612.2666666666667,
+      "servedMean": -71.8,
+      "unservedMean": 14.4,
+      "goodPlusMean": -71.8,
+      "standardLost": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "standardGained": [],
+      "anyGoalLost": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ]
+    }
+  },
+  "check3": [
+    {
+      "p": "fund_final_only",
+      "n": 30,
+      "completed": 30,
+      "gameOver": 0,
+      "days": [],
+      "cashes": [],
+      "seeds": []
+    },
+    {
+      "p": "fund_steady",
+      "n": 30,
+      "completed": 30,
+      "gameOver": 0,
+      "days": [],
+      "cashes": [],
+      "seeds": []
+    },
+    {
+      "p": "fund_max_safe",
+      "n": 30,
+      "completed": 0,
+      "gameOver": 30,
+      "days": [
+        4,
+        5
+      ],
+      "cashes": [
+        9,
+        9,
+        49,
+        7,
+        4,
+        4,
+        7,
+        49,
+        4,
+        13,
+        0,
+        4,
+        4,
+        7,
+        4,
+        4,
+        4,
+        4,
+        9,
+        9,
+        10,
+        7,
+        4,
+        7,
+        4,
+        7,
+        9,
+        11,
+        4,
+        12
+      ],
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ]
+    }
+  ],
+  "base_day_distribution": [
+    {
+      "day": 1,
+      "purchases": {
+        "mean": 80,
+        "median": 80,
+        "min": 80,
+        "max": 80
+      },
+      "night_cash": {
+        "mean": 510,
+        "median": 510,
+        "min": 510,
+        "max": 510
+      }
+    },
+    {
+      "day": 2,
+      "purchases": {
+        "mean": 228.7,
+        "median": 228,
+        "min": 194,
+        "max": 281
+      },
+      "night_cash": {
+        "mean": 616.8,
+        "median": 617.5,
+        "min": 524,
+        "max": 694
+      }
+    },
+    {
+      "day": 3,
+      "purchases": {
+        "mean": 239.73333333333332,
+        "median": 234,
+        "min": 185,
+        "max": 312
+      },
+      "night_cash": {
+        "mean": 811.5666666666667,
+        "median": 818.5,
+        "min": 734,
+        "max": 896
+      }
+    },
+    {
+      "day": 4,
+      "purchases": {
+        "mean": 369.26666666666665,
+        "median": 375.5,
+        "min": 244,
+        "max": 456
+      },
+      "night_cash": {
+        "mean": 978.8,
+        "median": 986,
+        "min": 843,
+        "max": 1076
+      }
+    },
+    {
+      "day": 5,
+      "purchases": {
+        "mean": 332.93333333333334,
+        "median": 336.5,
+        "min": 263,
+        "max": 407
+      },
+      "night_cash": {
+        "mean": 1195.8666666666666,
+        "median": 1197,
+        "min": 1047,
+        "max": 1324
+      }
+    },
+    {
+      "day": 6,
+      "purchases": {
+        "mean": 347,
+        "median": 343,
+        "min": 305,
+        "max": 404
+      },
+      "night_cash": {
+        "mean": 1406.3666666666666,
+        "median": 1402,
+        "min": 1252,
+        "max": 1533
+      }
+    },
+    {
+      "day": 7,
+      "purchases": {
+        "mean": 334.8,
+        "median": 339,
+        "min": 273,
+        "max": 402
+      },
+      "night_cash": {
+        "mean": 1621.5666666666666,
+        "median": 1626.5,
+        "min": 1415,
+        "max": 1773
+      }
+    }
+  ]
+}
