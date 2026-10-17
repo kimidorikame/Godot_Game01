@@ -201,7 +201,8 @@ today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09
   （購入日を1日目として数える）
 - `RENT_PRICE = 90`（**2026-09-26改訂：場所代・水道代の再編で150→90**）… 場所代。
   チンピラのPAYの金額と、未払いのまま閉店したときの特別請求（実装済み・§5
-  「未解決」の直し方）の両方に使う
+  「未解決」の直し方）の両方に使う。**システム整理Aで定数から`static var RENT_PRICE := Rules.bill_amount("rent", 90)`
+  になった**（正は`week7.json`の`bills`の`rent`の`amount`。値は90のまま）
 - `WATER_PRICE = 50`（実装済み・2026-09-26改訂・場所代/水道代の再編）… 水道代。
   従来`debug_panel.gd`内のマジックナンバーだったのを`RENT_PRICE`と同じ扱いで
   定数化した（値そのものは50のまま）。場所代と合わせて徴収日の合計140
@@ -788,7 +789,7 @@ Day2（`day_count == 2`）に初登場する固定客。表示名「警官」。
 `Day2_新人警官_1.md`。
 
 ```
-PREP（day_count == 2 のときだけ）
+PREP（officer_01の`market_talk`が今日の枠にあるときだけ。**システム整理Aで`day_count == 2`の直書きから場面データへ移した**。下の「システム整理A」の節参照）
   ベース入手（通常 or クズ野菜）の直後・MARKET Event の前に
   昼の市場の会話を挟む（GREET。「酸っぱい汁。ちゃんと噛めるもの」で
   wanted_tags を仕入れ前に知らせる）
@@ -1532,7 +1533,7 @@ SET_SOUP（servingsは選んだ段階の杯数。クズ野菜の日は濃さ1ス
   （day1_events.gd の `_market_options()`）が `GameState.day_count` を読んで
   都度計算する。水場は上記のとおりボタン自体が無いため対象外。残る6店
   （食肉仲卸の追加購入・青果・乾物調味料・豆腐麺・海鮮・端材半端物）は
-  `day_count >= 2` で一斉解禁（Day1はグレーアウト、Day2以降は全店押せる）。
+  `day_count >= Rules.market_open_from_day()`（値は2。**システム整理Aで直書きから置き換え**）で一斉解禁（Day1はグレーアウト、Day2以降は全店押せる）。
   **食肉仲卸・端材半端物の「（訪問済み）」表示はDay1限定**：その日に自動で
   済んだ方（通常は食肉仲卸、クズ野菜の日は端材半端物）だけにグレーの理由と
   して付き、day_count>=2になると外れる。クズ野菜の日でも端材半端物で購入
@@ -1989,7 +1990,7 @@ GameState.try_pay(amount) -> bool
 - **（(1)は4-2で解決済み。「結果画面（4-2）」参照）未対応・4-2以降で決めること**：(1) 結果画面の「もう一度（Day1から）」は、
   `reset_for_new_game()`が`morning_snapshots`を消すため、Day1の朝の記録を残す手段（実行前に
   退避して戻す／Day1の記録は消さない）が要る。Day1の再現は**Day1の客・需要のみ**で、2日目以降は
-  評判次第で引き直しになる。(2) `balance_log.jsonl`は再挑戦した日が二重に記録される。
+  評判次第で引き直しになる。(2) `balance_log.jsonl`は再挑戦した日が二重に記録される（**システム整理Aで`run_id`・`attempt`を足して区別できるようにした**）。
   (3) 実機での[続きから]の確認（保存→終了→再起動→同じ朝・同じ予報）は未実施。
   (4) 1枠セーブの書き換えは「古いファイルを消してから置き換える」順で、その一瞬の中断では
   セーブが消えうる（仮機能として許容）。
@@ -2042,7 +2043,7 @@ GameState.try_pay(amount) -> bool
   [続きから]は最終日の朝のやり直しになる）。新しい周のDay1の朝の保存で自然に上書きされる。
   封筒の版は2に上げたので、4-1のセーブは読めない扱い（新規ゲーム）になる。
 - **未確認・今後**：結果画面と各ボタンの実機確認は未実施。[続きから]の実機確認も未実施（4-1）。
-  `balance_log.jsonl`は再挑戦した日が二重に記録される。修繕額は4-9まで常に0。
+  `balance_log.jsonl`は再挑戦した日が二重に記録される（システム整理Aで`run_id`・`attempt`により区別できるようにした）。修繕額は4-9まで常に0。
   「街で起きたこと／客との間に残ったこと」の本文は来店記録（F5）・場面データ（F6）・ニュースの後
   （4-4〜4-8）。
 
@@ -2170,7 +2171,7 @@ GameState.try_pay(amount) -> bool
   `run()`の前後で増えなかったスイートを失敗にする）。存在しないスイートを指定したときも失敗で終わる。
 - **未対応**：（来店記録と`known_favorites`の置き換えは4-4b-1、場面の選び方・前回を読んだ2行・注文カード・
   今日の頼みは4-4b-2で済み。下の節）新人警官の市場会話（`day_count == 2`）と
-  チンピラの場所代（`is_collection_day()`）の日番号判定も4-4b以降。
+  チンピラの場所代の日番号判定は、システム整理Aで場面データ（`market_talk`）と`bills[].scene`へ移した。
 
 ### 来店記録（F5・4-4b-1実装済み・2026-10-17・DESIGN.md 10.8.5）
 
@@ -2269,8 +2270,53 @@ GameState.try_pay(amount) -> bool
   ③では既存テストの書き換えなし。
 - **未対応**：`sets_facts`（factsを書く側）・`choices`・`body`・`closing`・`must_info`・ニュース・本文（4-5以降）、
   実データの今日の頼み・`callback`（現行の21場面には無い。試作は4-5）、`servings`を持つ今日の頼み
-  （総需要の引き算に効くため見送り）、「短い近況の場面」、新人警官の市場会話（`day_count == 2`）と
-  チンピラの場所代（`is_collection_day()`）の日番号判定、レシピ保存と「いつもの」ボタン（4-7）。
+  （総需要の引き算に効くため見送り）、「短い近況の場面」、レシピ保存と「いつもの」ボタン（4-7）。
+  （新人警官の市場会話とチンピラの場所代の日番号判定は、システム整理Aで済み。下の節）
+
+### システム整理A（表示名・balance_logの区別・日番号の直書きの置き換え・実装済み・2026-10-17・DESIGN.md 10.9）
+
+素材が要らないシステムの整理を5コミットで行った。**自動試遊（3シード×13方針）は各コミットで4-3の結果と
+39/39周完全一致**（会話・要求・金額・乱数の消費順は変わっていない）。テストは1528件成功
+（4-4b-2の1388件から。30スイートすべてが走り切る）。コミットは`2f375a4`（表示名）・`17c5b4f`
+（balance_log）・`262c137`（market_talk）・`bb85c1d`（場所代・市場解禁日）・`5d1643d`（需要経路）。
+
+- **客の表示名**（`2f375a4`）：`data/customers/<id>.json`に`"name"`（配達員・チンピラ・老婆・新人警官・
+  夜の女・配信者。値は旧`Day1Events.CUSTOMER_NAMES`と同じ。定数は削除）。読み口は
+  `ScheduleData.customer_display_name(id)`（プロフィールが無い・`name`が空ならid自体を返す）。
+  結果画面の物語欄（`Result.format_story`の「好物を知った客」「店に来た常連」）と予告メモが表示名で出る。
+  計器盤・STATE VIEWER・Ledgerは**IDのまま**（デバッグ用でID検索に使う）。場面データの文言（`greet`・
+  `reactions`）は変えていない。モブは従来どおり`Day1Events.mob_display_name()`。
+- **balance_logの区別**（`17c5b4f`）：書き出しを`BalanceLog`（`scripts/balance_log.gd`・静的クラス）へ移した。
+  `user://balance_log.jsonl`の各行に`run_id`・`attempt`を**追加**（既存キーは変えない）。`run_id`＝周ごとの識別子
+  （起動時刻ミリ秒・プロセスid・連番。`reset_for_new_game()`で`begin_run()`。ゲームの乱数は使わない）、
+  `attempt`＝その周で朝から戻した回数＋1（再挑戦で`note_retry()`）。続きからで読み込んだ周は`run_id`が新しくなり
+  `attempt`は1に戻る。集計側は同じ`run_id`・同じ`day`のうち最後（attemptが最大）の行を取る。行に足すのは書き出す
+  複製だけで、`GameState.day_records`に入る辞書は変えない（保存の版は上げない。`day_records`は朝の辞書に入り
+  再挑戦で戻るので二重にならない）。書き出し先は`BalanceLog.path`で差し替えられ、`tests/run_tests.gd`と
+  試遊（`planning/playtest_*/playthroughs.gd`）は別ファイルに書く＝実ログを汚さない。
+- **新人警官の市場会話**（`262c137`）：`day_count == 2`の直書きと定数`_OFFICER_MARKET`を削除し、
+  場面データのキー`market_talk`（行の配列）に移した（現行は`officer_01.json`だけ）。`prep_after_tier_events()`が
+  `Day1Events.market_talk_events()`でMARKETの前に差す：今日のDayPlanの枠（無ければ`regular_slots(day)`）の場面が
+  `market_talk`を持つものだけ、枠の順に全部出す（同じ場面は1回）。**一度見た場面でも出す**（`seen_episodes`は
+  見ない。今の割り当てでは影響が無く、同じ場面が複数日に来る設計になった時点で決める）。状態を読むだけで書かない。
+  Day1〜8のPREPのイベント列は旧実装で記録した`tests/fixtures/prep_events_system_a.json`と完全一致。
+  `ScheduleData.episode_market_talk`が読み口（文字列の行だけ拾う）。
+- **場所代と市場の解禁日**（`bb85c1d`）：チンピラの`PAY`は、`Rules.bills_for_scene(客id, 日)`（`bills[]`の`scene`が
+  その客で`days`に今日を含む請求）から作る。客idの直書きと`is_collection_day()`は使わない。`kind`は請求の`id`
+  （`"rent"`）、金額は請求の`amount`、文言は`<表示名>（<label>）`＝「チンピラ（場所代）」（`week7.json`の`bills`に
+  `"label"`を追加）。`Rules`に`bill(id)`・`bill_amount(id, fallback)`・`bills_for_scene`を追加。市場の店の
+  `enabled`は`day_count >= Rules.market_open_from_day()`（値は2）。`is_collection_day()`を使う`DebugPanel`の3箇所
+  （WAKEの確保額・水道代・家賃回収後の理由文）は請求全体の判定なので変えていない。
+- **需要経路**（`5d1643d`）：`use_demand_system`の`day_count > 1`を削除。Day1は`day_overrides."1".mobs`
+  （`use_fixed_mobs`）で既に除外されており、「固定モブ編成が宣言されていない日」が総需要システムを使う日になる。
+- **書き換えた既存テスト**：`customer_memory_test`・`result_flow_test`（期待する文面をIDから表示名へ）、
+  `balance_log_test`（専用の出力ファイルを読む）、`episode_data_test`（場面の任意キー`market_talk`を許し、
+  型と「`officer_01`だけが持つ」を検査）。新規：`display_name_test`・`balance_log_retry_test`・
+  `market_talk_test`・`bill_scene_test`・`demand_route_test`。
+- **残る日番号の直書き**：配達員の3杯列は場面id判定（4-4a）。`bills`の`days`・`day_overrides`・`final_day`・
+  `market_open_from_day`はデータ側。`RENT_PRICE`は`bills`から引く。10.9の表の直書きは、この節で一通り置き換え済み。
+- **未対応**：`_OFFICER_AFTER`・`_OFFICER_PAYMENT`（提供後の共通会話・会計）のデータ化は本文の移し替えなので
+  脚本の段階（4-5以降）。`sets_facts`・`choices`・`body`・`closing`・`must_info`（場面機能の残り）はこの後の手順。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2314,7 +2360,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/day1_events.gd` | Day1 の Event データ（wake/prep/customer/close）+ 分岐 |
 | `scripts/debug_panel.gd` | State Viewer 表示 ＋ 受け側（_apply_event） |
 | `scenes/debug_panel.tscn` | DebugPanel のシーン（デバッグ用の`[所持金 -50/+50]`含む） |
-| `scripts/rules.gd` | F1・キャンペーン設定（`data/campaigns/week7.json`）の読み取り口（2026-09-28追記） |
+| `scripts/rules.gd` | F1・キャンペーン設定（`data/campaigns/week7.json`）の読み取り口（2026-09-28追記）。システム整理Aで`bill`／`bill_amount`／`bills_for_scene`を追加 |
 | `scripts/day_planner.gd` | F2・`GameState.today_plan`の構築（2026-09-28追記） |
 | `scripts/sale_rule.gd` | F3・提供前チェック（味/トッピング/濃さ0/杯数不足。2026-09-28追記） |
 | `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
@@ -2334,6 +2380,8 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `tests/customer_memory_test.gd` | 来店記録・好物の既知状態・保存の往復・知った順。4-4b-1実装・2026-10-17追記 |
 | `scripts/episode_selector.gd` | 場面の選び方（`select`／`satisfies`。`requires`の`facts`・`not_seen`）。4-4b-2実装・2026-10-17追記 |
 | `tests/episode_select_test.gd`・`tests/effective_order_test.gd`・`tests/order_card_callback_test.gd` | 選び方・今日の頼みの保存／実効注文（判定・予報は基本注文）／前回の2行・注文カード・聞き直し。4-4b-2実装・2026-10-17追記 |
+| `scripts/balance_log.gd` | 日次ログ（`user://balance_log.jsonl`）の書き出しと`run_id`・`attempt`。システム整理A・2026-10-17追記 |
+| `tests/display_name_test.gd`・`tests/balance_log_retry_test.gd`・`tests/market_talk_test.gd`・`tests/bill_scene_test.gd`・`tests/demand_route_test.gd` | 表示名／再挑戦の`run_id`・`attempt`／`market_talk`（`tests/fixtures/prep_events_system_a.json`と照合）／`bills[].scene`の場所代／需要経路。システム整理A・2026-10-17追記 |
 | `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
