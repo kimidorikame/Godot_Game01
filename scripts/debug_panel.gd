@@ -186,6 +186,9 @@ var _slot_event_ids := {}
 # レシピ保存（4-7①。仮UI）：保存の段階（""＝ボタン待ち／"slot"＝枠を選ぶ／"name"＝名前を選ぶ）と選んだ枠。
 # レシピ用のボタン行は _ready でコードから足す（.tscn は変えない）。
 var _recipe_save_stage := ""
+# 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
+# _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
+var _logged_positions := {}
 var _recipe_save_slot := -1
 var _recipe_row: HBoxContainer
 
@@ -322,6 +325,8 @@ func _set_runner_for_phase(phase: int) -> void:
 	_phone_mode = false
 	_phone_tab = "recipe"
 	if phase == GameState.Phase.WAKE:
+		TalkLog.clear()   # 会話ログは今日の分だけ（朝へ戻したら空から）
+		_logged_positions = {}
 		_played_events = []   # 共通イベントはその日ごと（朝へ戻したら最初から再生し直す）
 		_slot_event_ids = {}
 		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
@@ -822,6 +827,7 @@ func _on_story_choice_pressed(choice_id: String, option_id: String) -> void:
 		return
 	CustomerMemory.record_choice(customer_id, _open.current_slot_name() if _open != null else "",
 		scene_id, choice_id, option_id, picked["set"])
+	TalkLog.add(GameState.day_count, "choice", "", str(picked["label"]))
 	var events: Array = flow.runner.events
 	var more_choices: bool = flow.runner.index + 1 < events.size() \
 			and str(events[flow.runner.index + 1].get("type", "")) == "CHOICE"
@@ -1535,6 +1541,8 @@ func _reset_transient_panel_state() -> void:
 	_played_events = []
 	_slot_event_ids = {}
 	_recipe_save_stage = ""
+	_logged_positions = {}
+	TalkLog.clear()
 	_mob_original_ordered = -1
 	_mob_recipe_number = 1
 	_bowl_discard_count = 0
@@ -1841,6 +1849,7 @@ func _refresh() -> void:
 	else:
 		_runner_label.text = _format_runner() + _format_open() + _format_market()
 	_update_options_row()
+	_record_visible_event()
 
 
 ## 動的なボタン行の描画。毎回 _refresh() から呼び、状態から描き直す
@@ -1936,7 +1945,7 @@ func _update_options_row() -> void:
 	# モードよりも最優先で判定し、真なら通常のADJUST/鍋/市場ボタンの代わりにタブ＋
 	# [閉じる]を出して return する（_pot_mode/_market_shopの値はそのまま裏で保持される）。
 	if _phone_mode:
-		var tabs := [["recipe", "レシピ"], ["news", "ニュース"], ["sns", "SNS"]]
+		var tabs := [["recipe", "レシピ"], ["news", "ニュース"], ["sns", "SNS"], ["log", "ログ"]]
 		for tab in tabs:
 			_add_pot_button(tab[1], _phone_tab == tab[0], _on_phone_tab_selected.bind(tab[0]))
 		_add_pot_button("閉じる", false, _on_phone_close_pressed)
@@ -2073,6 +2082,59 @@ func _update_options_row() -> void:
 	if _adjust_customer_id() != "":
 		_add_pot_button("聞き直す", false, _on_reask_pressed)
 	_add_recipe_adjust_buttons()
+
+
+## --- 会話ログ（4-7②。TalkLog。状態を読むだけで、ゲームの数値・乱数には触れない） ---
+
+## いま見えているイベントを、まだ記録していなければ会話ログへ1行足す。_refresh の末尾から呼ぶ＝
+## どの操作（ハンドラ直呼びを含む）でも、新しく current になった行（index 0 を含む）が漏れない。
+## 同じ位置・同じ本文は1回だけ（_logged_positions）。REACT は判定後に決まる反応文が空でなくなってから、
+## _current_reaction_text() が読む（reaction_variant は判定時に固定済みの値で、ここでは抽選しない）。
+func _record_visible_event() -> void:
+	if flow.runner == null:
+		return
+	var ev = flow.runner.current()
+	if not (ev is Dictionary):
+		return
+	var kind := "narration"
+	var speaker := ""
+	var text := str(ev.get("text", ""))
+	match str(ev.get("type", "")):
+		"GREET":
+			kind = "talk"
+			speaker = _log_speaker(str(ev.get("customer", "")))
+		"SERVE":
+			kind = "serve"
+		"REACT":
+			kind = "reaction"
+			speaker = _log_speaker(str(ev.get("customer", "")))
+			text = _current_reaction_text()
+		"TEXT":
+			if str(ev.get("part", "")) == "news":
+				kind = "news"
+	if text == "":
+		return
+	var slot_index := -1
+	var customer_index := -1
+	if _open != null:
+		slot_index = _open.slot_index
+		customer_index = _open.index
+	var key := "%d|%d|%d|%d|%d|%s" % [GameState.day_count, GameState.phase, slot_index, customer_index,
+		flow.runner.index, text]
+	if _logged_positions.has(key):
+		return
+	_logged_positions[key] = true
+	TalkLog.add(GameState.day_count, kind, speaker, text)
+
+
+## ログの話し手（表示名。モブは種類の名前）。
+func _log_speaker(customer_id: String) -> String:
+	if customer_id == "":
+		return ""
+	if Day1Events.is_mob_customer(customer_id):
+		var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
+		return Day1Events.mob_display_name(str(inst.get("type", "")))
+	return ScheduleData.customer_display_name(customer_id)
 
 
 ## --- レシピ保存と「いつもの」（4-7①。DESIGN.md 10.4。仮UI。本番UIはフェーズ6） ---
@@ -2371,6 +2433,8 @@ func _format_phone() -> String:
 			body = News.tab_text(GameState.day_count, _played_events)
 		"sns":
 			body = _format_tonight_memo()
+		"log":
+			body = TalkLog.tab_text()
 		_:
 			body = _format_recipe_tab()
 	return "── スマホ ──\n%s" % body
