@@ -605,6 +605,9 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 		return _delivery_man_events()
 	var flavor := _customer_flavor(customer_id, mob_count, scene)
 	var events := []
+	# 来店の前に「前回の料理を読んだ2行」（場面にcallbackがあるときだけ。現行の21場面は無し）。
+	for line in _callback_lines(customer_id, scene):
+		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	for line in flavor["greet"]:
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
@@ -649,6 +652,53 @@ static func episode_id_of(customer_id: String) -> String:
 			return str(entry.get("episode_id", ""))
 	var ids := ScheduleData.customer_episode_ids(customer_id)
 	return str(ids[ids.size() - 1]) if not ids.is_empty() else ""
+
+
+## 前回の来店を読んだ2行（DESIGN.md 10.5.3・10.8.6。4-4b-2）。場面のcallbackから、前回の来店
+## （今日より前の最後の来店。CustomerMemory.previous_visit）に応じた行を最大2行返す。出し分け：
+##   前回の来店なし                → first
+##   前回提供しなかった（served=0） → last_unserved
+##   前回の評価が GREAT・GOOD      → last_grade_good_or_better
+##   前回の評価が OK・BAD          → last_grade_bad   （キー名は10.8.6のまま。OKもこちら）
+##   提供したが評価なし            → last_ungraded（任意。無ければ何も出さない）
+## callbackを持たない場面・モブは何も出さない。**評価で料金・評判・関係は変えない**（どの行を
+## 読むかを選ぶだけ。好感度の数値は持たない）。失敗した前回にも関係が続く台詞にするのは
+## データ側（4-5）の方針。状態を読むだけで書かない（Forecastや杯数の先読みが何度呼んでも
+## 副作用が無く、REACTの数・杯数も変わらない）。
+static func _callback_lines(customer_id: String, scene_id: String) -> Array:
+	var callback := ScheduleData.episode_callback(customer_id, scene_id)
+	if callback.is_empty():
+		return []
+	var previous := CustomerMemory.previous_visit(customer_id)
+	var key := "first"
+	if not previous.is_empty():
+		var grade := str(previous.get("grade", ""))
+		if int(previous.get("served", 0)) <= 0:
+			key = "last_unserved"
+		elif grade == "GREAT" or grade == "GOOD":
+			key = "last_grade_good_or_better"
+		elif grade == "OK" or grade == "BAD":
+			key = "last_grade_bad"
+		else:
+			key = "last_ungraded"
+	var lines := []
+	var source = callback.get(key, [])
+	if source is Array:
+		for line in source:
+			if lines.size() < 2:
+				lines.append(str(line))
+	return lines
+
+
+## 注文カード（DESIGN.md 10.5.2。4-4b-2）：「いつもの」（基本注文）と「今日の頼み」。
+## 戻り値 { base: [タグ], today: [タグ]（無ければ空）, label: 文字列 }。名前あり客以外は空辞書。
+static func order_card(customer_id: String) -> Dictionary:
+	var profile := ScheduleData.customer_profile(customer_id)
+	if profile.is_empty() or bool(profile.get("is_mob", false)):
+		return {}
+	var today := today_request_of(customer_id, episode_id_of(customer_id))
+	return { "base": (profile.get("wanted_tags", []) as Array).duplicate(),
+		"today": (today.get("tags", []) as Array).duplicate(), "label": str(today.get("label", "")) }
 
 
 ## その客のその場面の「今日の頼み」（{ tags, label }。無ければ空辞書）。DayPlanがその日の

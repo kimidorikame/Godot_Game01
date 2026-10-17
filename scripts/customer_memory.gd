@@ -82,7 +82,20 @@ static func visits_of(customer_id) -> Array:
 	return GameState.customer_memory[str(customer_id)]["visits"]
 
 
-## その客の最後の来店（無ければ空の辞書）。4-4b-2の「前回の料理を読んだ2行」が読む。
+## 今日より前の最後の来店（無ければ空の辞書）。「前回の料理を読んだ2行」（4-4b-2。callback）が
+## 読むのは、last_visit()ではなくこちら：来店した時点でarrive()が今日の来店（served=0）を
+## 作るので、last_visit()だと今日の分を拾ってしまう。dayが今日より小さい来店だけを見るので、
+## customer_eventsを呼ぶのがarrive()の前でも後でも、再挑戦で戻して来店をやり直しても、
+## 前回の来店は同じになる。
+static func previous_visit(customer_id) -> Dictionary:
+	var visits := visits_of(customer_id)
+	for i in range(visits.size() - 1, -1, -1):
+		if int((visits[i] as Dictionary)["day"]) < GameState.day_count:
+			return visits[i]
+	return {}
+
+
+## その客の最後の来店（無ければ空の辞書。今日の来店を含む）。
 static func last_visit(customer_id) -> Dictionary:
 	var visits := visits_of(customer_id)
 	return visits[visits.size() - 1] if not visits.is_empty() else {}

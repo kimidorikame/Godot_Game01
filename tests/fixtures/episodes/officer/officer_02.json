@@ -1,0 +1,16 @@
+{
+  "id": "officer_02",
+  "customer": "officer",
+  "greet": [
+    "F:officer_02"
+  ],
+  "reactions": {},
+  "servings": 1,
+  "callback": {
+    "first": [
+      "一",
+      "二",
+      "三"
+    ]
+  }
+}

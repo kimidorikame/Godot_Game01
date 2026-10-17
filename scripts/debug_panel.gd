@@ -172,6 +172,10 @@ var _pending_group_result := {}
 # パターンだが、モブとは独立したフラグにして混線を避ける）。
 var _pending_decline := false
 
+# 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
+# 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
+var _reask_text := ""
+
 # 団体客の分割提供（最大2レシピ）：グループの元々の総注文人数（レシピ2でも変わらない。
 # _flush_visit_tally()でordered_servings/unserved_servingsを出すために覚えておく）。
 # 新しい客をロードするたびにのみ-1へ戻す（_reset_mob_group_state()には入れない。
@@ -435,6 +439,7 @@ func _load_current_customer() -> void:
 	_mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
 	_mob_recipe_number = 1
 	_pending_decline = false   # F3 断る操作：新しい客ごとにリセット
+	_reask_text = ""   # 聞き直しの再表示も客ごとに消す
 	if _open != null and _open.has_more():
 		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
 		# ここでは第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
@@ -1409,6 +1414,7 @@ func _reset_transient_panel_state() -> void:
 	_bowl_discard_count = 0
 	_closed_early_reason = ""
 	_game_over_reason = ""
+	_reask_text = ""
 
 
 func _on_retry_pressed() -> void:
@@ -1896,6 +1902,10 @@ func _update_options_row() -> void:
 	# [入力完了]の後に出るので、二重に出さないようここで除外する。
 	if not _is_current_mob_order():
 		_add_pot_button("客を断る", false, _on_customer_decline_pressed)
+	# [聞き直す]（仮ボタン。4-4b-2・DESIGN.md 10.5.2）：名前あり客のADJUST中だけ。モブと、
+	# 配達員の3杯専用列には出さない（4-4aで動かさないと決めた列に触れない）。
+	if _adjust_customer_id() != "":
+		_add_pot_button("聞き直す", false, _on_reask_pressed)
 
 
 ## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。rowを省略
@@ -2197,7 +2207,70 @@ func _format_open() -> String:
 		lines.append("visit(この客の集計): 判定内訳%s 売上%d %d杯" % [
 			str(_visit_tally.get("results", {})),
 			int(_visit_tally["sale"]), int(_visit_tally["servings"])])
-	return "\n" + "\n".join(lines) + _format_bowl()
+	return "\n" + "\n".join(lines) + _format_order_card_block() + _format_bowl()
+
+
+## いまADJUST（味を調える）で入力待ちの、名前あり客のid。モブ・配達員の3杯専用列・
+## ADJUST以外・入力待ちでないときは空文字（注文カードと[聞き直す]の対象判定）。
+func _adjust_customer_id() -> String:
+	if _open == null or flow.runner == null or flow.runner.status != EventRunner.Status.WAITING_INPUT:
+		return ""
+	var cur = flow.runner.current()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST":
+		return ""
+	var customer_id := str(cur.get("customer", ""))
+	if customer_id == "" or Day1Events.is_mob_customer(customer_id):
+		return ""
+	if Day1Events.episode_id_of(customer_id) == Day1Events.THREE_CUPS_EPISODE:
+		return ""
+	return customer_id
+
+
+## 注文カード（仮表示。本番UIはフェーズ6）：「いつもの：HOT/POWER ／ 今日：MELLOW/GENTLE（持ち帰り）」。
+## 今日の頼みが無い客は「いつもの：…」のみ。タグの表記は既存（予告メモ・greet）と同じ「/」区切り。
+func _format_order_card(customer_id: String) -> String:
+	var card := Day1Events.order_card(customer_id)
+	if card.is_empty():
+		return ""
+	var text := "いつもの：%s" % "/".join(PackedStringArray(card["base"]))
+	if not (card["today"] as Array).is_empty():
+		text += " ／ 今日：%s" % "/".join(PackedStringArray(card["today"]))
+		if str(card["label"]) != "":
+			text += "（%s）" % str(card["label"])
+	return text
+
+
+## _format_open()に足す、注文カードと聞き直しの表示（ADJUST中の名前あり客だけ。他は空文字）。
+func _format_order_card_block() -> String:
+	var customer_id := _adjust_customer_id()
+	if customer_id == "":
+		return ""
+	var block := "\n── 注文カード ──\n%s" % _format_order_card(customer_id)
+	if _reask_text != "":
+		block += "\n── 聞き直し ──\n%s" % _reask_text
+	return block
+
+
+## [聞き直す]：注文カードと、客の頼みの台詞（場面のorder.reask。無ければ客のgreet）を再表示
+## するだけ。料金・評判・評価・来店記録・factsを一切変えない（画面側の_reask_textを書くだけ）。
+## 何度押しても同じ。この操作を正解の印にしない（判定・記録は読まない）。
+func _on_reask_pressed() -> void:
+	var customer_id := _adjust_customer_id()
+	if customer_id == "":
+		return
+	var episode_id := Day1Events.episode_id_of(customer_id)
+	var episode := ScheduleData.episode_data(customer_id, episode_id)
+	var order = episode.get("order", {})
+	var lines: Array = []
+	if order is Dictionary and (order as Dictionary).get("reask", []) is Array:
+		lines = ((order as Dictionary).get("reask", []) as Array).duplicate()
+	if lines.is_empty():
+		lines = (episode.get("greet", []) as Array).duplicate()
+	var parts := PackedStringArray([_format_order_card(customer_id)])
+	for line in lines:
+		parts.append(str(line))
+	_reask_text = "\n".join(parts)
+	_refresh()
 
 
 ## PREP中の市場の状態（DESIGN.md 7.7）。PREP以外は空文字（表示に何も足さない）。
