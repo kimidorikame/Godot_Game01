@@ -735,6 +735,9 @@ Day2の詳細は次項「Day2の客：新人警官」参照。
 配達員（阿強）は、**同じ客へ3杯を1杯ずつ、会話の合間に出す**
 （以前の「servings=3で3杯一括」の割り切りは解消）。会話の正本は本番用会話稿
 `１日目_配達員_1(1).md`（`１日目_運び屋_1.md`）。
+**この3杯列は、システム整理Eで場面データ（`delivery_man_01.json`の`cups`）から組む形になった**
+（専用のEvent列・`THREE_CUPS_EPISODE`は無い。Event列・要求タグ・好物・反応・売上は従来と同一。
+下の「複数杯の場面（システム整理E）」節参照）。
 
 ```
 来店会話
@@ -2157,8 +2160,8 @@ GameState.try_pay(amount) -> bool
   `_customer_flavor`は`customer_profile`＋`episode_data`をマージする。`Forecast`・杯数先読み・
   `Result`は`customer_events`経由なので無改修。
 - **配達員の3杯列**：判定を`day_count == 1`の直書き（2箇所）から、定数`THREE_CUPS_EPISODE`
-  （`delivery_man_01`）との場面id比較に置き換えた。列そのもの（`_delivery_man_events()`）は動かしていない。
-  Day2・4・6の配達員は通常の1杯。
+  （`delivery_man_01`）との場面id比較に置き換えた（**システム整理Eで、場面データの`cups`から組む形に
+  置き換え済み。定数と専用列は無い**）。Day2・4・6の配達員は通常の1杯。
 - **撤去**：4-3の互換層（`compose_day_schedule`・`day_schedule`）、`Day1Events._pick_main`
   （`main_pool`の抽選）、`ScheduleData._FALLBACK_DAY`・`customer_data(id, day)`、客JSONの`days`。
   日程の無い日（Day8以降）は枠が空＝客なし（実プレイでは最終日7でRESULTへ入るので起きない）。
@@ -2262,8 +2265,8 @@ GameState.try_pay(amount) -> bool
   （今日の頼みが無い客は「いつもの：…」のみ。タグは既存どおり「/」区切り）。`[聞き直す]`ボタン
   （`_on_reask_pressed`）は、カードと場面の`order.reask`（無ければ客の`greet`）を再表示するだけ：
   画面側の`_reask_text`を書くだけで、所持金・評判・評価・来店記録・`facts`・`GameState`を一切変えない
-  （何度押しても同じ。保存しない。客が替わる・再挑戦で消える）。**モブと、配達員の3杯専用列には出さない**
-  （`_adjust_customer_id()`が判定。4-4aで動かさないと決めた列）。確認操作は正解の印にしない。
+  （何度押しても同じ。保存しない。客が替わる・再挑戦で消える）。**モブと、複数杯の場面（`cups`。Day1の配達員の3杯）には出さない**
+  （`_adjust_customer_id()`が`Day1Events.is_multi_cup_scene`で判定）。確認操作は正解の印にしない。
 - **保存**：封筒の版を4→5に上げた（版4以前の保存は読めない＝新規ゲーム）。各枠に`today_request`
   （辞書。今日の頼みが無ければ空）が必須で、`MorningSave.is_valid()`が型検査する。再挑戦は保存した
   DayPlanを戻すので同じ`today_request`になる。場面データを読むだけで保存する状態は増えていない。
@@ -2315,7 +2318,7 @@ GameState.try_pay(amount) -> bool
   `balance_log_test`（専用の出力ファイルを読む）、`episode_data_test`（場面の任意キー`market_talk`を許し、
   型と「`officer_01`だけが持つ」を検査）。新規：`display_name_test`・`balance_log_retry_test`・
   `market_talk_test`・`bill_scene_test`・`demand_route_test`。
-- **残る日番号の直書き**：配達員の3杯列は場面id判定（4-4a）。`bills`の`days`・`day_overrides`・`final_day`・
+- **残る日番号の直書き**：（配達員の3杯列は、4-4aの場面id判定を経てシステム整理Eで場面データの`cups`になった。）`bills`の`days`・`day_overrides`・`final_day`・
   `market_open_from_day`はデータ側。`RENT_PRICE`は`bills`から引く。10.9の表の直書きは、この節で一通り置き換え済み。
 - **未対応**：`_OFFICER_AFTER`・`_OFFICER_PAYMENT`（提供後の共通会話・会計）のデータ化は本文の移し替えなので
   脚本の段階（4-5以降）。（場面機能の残りはシステム整理Cで済み。下の節）。
@@ -2342,7 +2345,7 @@ GameState.try_pay(amount) -> bool
   差し込む。来店時に最後まで固定せず、実際の出来が出た後に組む。**状態を読むだけで書かず、乱数を使わない**
   （何度呼んでも同じ。`customer_events`には本文・締めを含めないので`Forecast`・杯数の先読みは不変）。
   `EventRunner`は変更なし（条件分岐は組み立て側）。順序は REACT → 本文 → 選択 → 締め → SCENE_END →
-  既存の`_customer_extra_events`（警官の共通会話・場所代のPAY）。モブ・配達員の3杯列・場面データに該当キーが
+  既存の`_customer_extra_events`（警官の共通会話・場所代のPAY）。モブ・複数杯の場面（`cups`）・場面データに該当キーが
   無い客は何も差さない。反応は従来どおりREACTの状態表示（`reactions[出来]`の2パターンの抽選）のまま。
   **本文・締めは出来（grade）で分けない**（10.5.3「差分は冒頭2行・反応・締めだけ」。わざと失敗すると親密に
   なる経路を作らないため、締めの引き当てに`grade`を使わない）。読んでいる間に鍋・腐敗・客の待ちは進まない
@@ -2377,8 +2380,7 @@ GameState.try_pay(amount) -> bool
   足した（現行データでは通らない）。
 - **書き換えた既存テスト**：`episode_data_test.gd`の1件だけ（新キーを持たないことと`scene_problems`が空であることの検査）。
   新規：`scene_keys_test`・`after_serve_test`・`choice_test`・`scene_facts_test`。
-- **未対応**：複数杯の場面（配達員の3杯列を場面データで表す。10.8.6）。場面が`cups`を任意キーで持つ形で
-  将来足せる見通し（既存キーの意味を変えず足すだけ。`after_serve_events`の結果に`grades`の配列を取れる余地）。
+- **未対応**：（複数杯の場面はシステム整理Eで済み。次の節。複数杯の場面での本文・選択・締めは未対応）
   `_OFFICER_AFTER`・`_OFFICER_PAYMENT`のデータ化・本文・選択肢・締めの文面（脚本＝4-5・4-8）。日別ニュースと必須情報の管理はシステム整理Dで済み（次の節）。
 
 ### 日別ニュースと必須情報・共通イベント（システム整理D実装済み・2026-10-17・DESIGN.md 10.5.5・10.10の4-6）
@@ -2436,6 +2438,44 @@ GameState.try_pay(amount) -> bool
   ・ゲームオーバーでCLOSEに来ない周には取り戻しが届かない（Day6には営業中の支払いが無く、現行ルールでは起きない）。
   ・文面・見出し・DMの差出人は仮案。日別の市場の変化（Day7の海鮮の閉鎖・傷みなど）は別タスク。
   ・**フェーズ6（本番UI）への申し送り**：朝のWAKEを最後まで流す設計にする（デバッグの[次のPhase]での飛ばしを残さない）。
+
+### 複数杯の場面（配達員の3杯・システム整理E実装済み・2026-10-18・DESIGN.md 10.8.6・10.9）
+
+Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を、場面データの形（`cups`）で表せるようにした。
+**動作を変えないデータ化**：Event列・杯ごとの要求タグ・好物・反応・売上・乱数の消費順は従来と同一
+（記録`tests/fixtures/customer_events_4_3.json`と、キー集合まで含めて完全一致をテストで固定。3シード×13方針の
+自動試遊は各コミットで4-3の結果と39/39周完全一致）。これで10.9の日番号・客idの直書きの置き換えは一通り済んだ。
+コミットは`a8eeae1`（データの形・読み口・検証・組み立て）・`01519e4`（配達員の3杯列を場面データへ移す）。
+テストは2101件成功（システム整理Dの2013件から。39スイートすべてが走り切る）。保存の版は5のまま。
+
+- **データの形**：場面データの任意キー`cups`（杯の配列。**2杯以上**。1杯の`cups`は複数杯の場面とは扱わない）。
+  杯のキー（すべて任意）：`tags`（その杯の要求タグ。省略＝客プロフィールの`wanted_tags`）、`favorite`（`false`で好物なし。
+  省略＝プロフィールの好物）、`adjust`／`serve`（ADJUST・SERVEのtext。省略＝通常の既定文）、`reactions`（結果→文字列配列。
+  省略または空＝反応を出さない）、`after_talk`（その杯のREACTの後の会話。最後の杯の分が退店の会話）。
+  場面の`greet`が来店〜1杯目の注文。杯数は`cups`の数（各杯`servings:1`）で、場面直下の`servings`は書かない
+  （書いてあれば`cups`の数と一致を検査）。`delivery_man_01`だけが持つ（3杯：1・2杯目は阿強本人の分＝`HOT/POWER`・
+  好物`tofu`・反応あり、3杯目は持ち帰り＝`MELLOW/GENTLE`・好物なし・反応なし）。仮台詞は一字も変えずに移した。
+- **読み口と組み立て**：`ScheduleData.episode_cups(客, 場面)`（形の整った杯だけを読む。不正は「無い」と同じ）、
+  `Day1Events.is_multi_cup_scene(客, 場面)`、`Day1Events._cups_events(客, 場面)`。`customer_events`は場面に
+  `cups`があれば`_cups_events`を返す（客や場面idの直書きは無い）。`_cups_events`は 来店会話（`greet`）→ 各杯
+  （ADJUST → SERVE → REACT → `after_talk`）で、2杯目以降のADJUSTに`new_bowl:true`、全REACTに`aggregate:true`
+  （鍋の消費と売上はその場で、評判と提供記録は退店時に客1人分として1回だけ。受け側`DebugPanel`は変えていない）。
+  `favorite:false`の杯はREACTに`favorite`のキー自体を付けない。状態を読むだけで乱数を使わない。
+  `Forecast`・`_customer_total_servings`は`customer_events`のREACTを走査するので、Day1の9杯・配達員3杯は不変。
+- **検証**（`ScheduleData.scene_problems`）：`cups`が2杯以上、各杯の型と未知のキー、`servings`と杯数の一致。
+  **複数杯の場面で使えないキー**：`reactions`（場面直下）・`order`・`callback`・`pre_order`・`body`・
+  `body_unserved`・`choices`・`closing`・`sets_facts`は「複数杯の場面（cups）では使えない」と返す
+  （黙って無視される書き間違いを作らないため）。`requires`・`not_seen`・`market_talk`・`must_info`・`greet`は使える。
+- **1杯の場面だけの機能は出さない**：提供後の列（`after_serve_events`）・閉店で退店する客の未提供版
+  （`unserved_exit_events`）・締め（`closing_events`）・注文カードと[聞き直す]（`_adjust_customer_id`）は、
+  `is_multi_cup_scene`で空／対象外に統一した。
+- **書き換えた既存テスト**：`episode_data_test.gd`（複数杯の場面の必須キーは`id`・`customer`・`greet`。`cups`を持つのは
+  `delivery_man_01`だけという検査を追加）、`after_serve_test.gd`（`THREE_CUPS_EPISODE`の1行を場面idに）、
+  `regular_schedule_test.gd`（場面の杯数を数えるとき、複数杯の場面は`cups`の数で数える）。新規：`multi_cup_test`。
+- **未対応（将来）**：複数杯の場面での本文・選択・締め・`sets_facts`・`callback`・`pre_order`・今日の頼み。
+  最後の杯のREACTの後に`after_serve_events`を差す形で足せる見通し（順序は「最後のREACT → 本文・選択・締め →
+  その杯の`after_talk`」が自然）。`callback`は、`previous_visit`の`grade`が複数杯でどうなるか
+  （最悪値か最後の杯か）を決めてから許可する。台詞は仮のまま（脚本＝4-5・4-8）。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2505,6 +2545,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/news.gd` | 日別ニュース・DM・共通イベントと必須情報9項目のカタログ（読み口・検証・朝のTEXT・ニュースタブ本文）。システム整理D・2026-10-17追記 |
 | `data/news/week7.json` | 日別ニュース・DM・共通イベントと必須情報のカタログ（文面は仮案。`provisional`）。システム整理D・2026-10-17追記 |
 | `tests/news_data_test.gd`・`tests/news_morning_test.gd`・`tests/common_event_test.gd` | 担保の検証・未知idの弾き／朝のニュースとニュースタブ／共通イベント・取り戻し・二重再生なし・数値不変・ハーネスの読み飛ばし。システム整理D・2026-10-17追記 |
+| `tests/multi_cup_test.gd` | 複数杯の場面（`cups`）の読み口・検証・Event列・記録（`customer_events_4_3.json`）との厳密な一致・1杯の場面だけの機能が出ないこと。システム整理E・2026-10-18追記 |
 | `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
@@ -2558,7 +2599,7 @@ data/
     granny.json / thug.json / officer.json / hooker.json / streamer.json
       ← 客ごとの会話・要求タグ・favorite（登場日ぶんはプレースホルダーで埋め済み）
     delivery_man.json         ← 最小限（favorite/wanted_tags/is_mobのみ。
-                                 会話は_delivery_man_events()にGDScriptのまま残る）
+                                 Day1の3杯の会話は場面データ delivery_man_01.json の cups。システム整理E）
   mobs/
     dock_workers.json / security_guard.json / inn_clerk.json /
     street_cleaners.json / general_store_clerk.json / market_porter.json /
