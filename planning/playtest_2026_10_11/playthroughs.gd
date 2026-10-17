@@ -243,6 +243,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 	if POLICIES_FUND.has(policy):
 		result["fund_log"] = fund_log.duplicate(true)
 		result["stage_reached"] = RepairFund.repaired_ids().size()
+		result["repaired"] = RepairFund.repaired_ids()
+		result["target_paid"] = fund_target_paid_all()
 		result["stage_days"] = fund_stage_days.duplicate()
 	panel.queue_free()
 	await tree.process_frame
@@ -338,6 +340,8 @@ func target_cups() -> int:
 ## 積んだ後の累計）と fund_stage_days（各段階に初めて届いた日）。
 func fund_contribute() -> void:
 	var limit_before := RepairFund.max_contribution(RepairFund.first_open_target())
+	var safe_before := RepairFund.safe_limit()
+	var reserve_before := int(RepairFund.next_day_reserve()["total"])
 	var paid_before := RepairFund.paid()
 	var pushed := 0
 	match policy:
@@ -351,10 +355,19 @@ func fund_contribute() -> void:
 		"fund_max_safe":
 			pushed = push_fund_max()
 	fund_log.append({ "day": GameState.day_count, "amount": pushed, "limit_before": limit_before,
-		"paid_before": paid_before, "paid_after": RepairFund.paid() })
+		"safe_limit": safe_before, "reserve": reserve_before, "paid_before": paid_before, "paid_after": RepairFund.paid(),
+		"targets": fund_target_paid_all() })
 	for id in RepairFund.repaired_ids():
 		if not fund_stage_days.has(id):
 			fund_stage_days[id] = GameState.day_count
+
+
+## 対象ごとの累計 { 対象id: 累計 }（対象のidは RepairFund.targets() から読む）。
+func fund_target_paid_all() -> Dictionary:
+	var out := {}
+	for t in RepairFund.targets():
+		out[t["id"]] = RepairFund.target_paid(t["id"])
+	return out
 
 
 ## 刻み1つぶんを、押せるなら押す（DebugPanel の操作経路）。積んだ額を返す。

@@ -1,0 +1,701 @@
+{
+  "source": "playthrough_results_fund_v2.json",
+  "commit": "bec0c3ac6b67c14bc0fe2bff466b620d454acb60",
+  "tracked_changes": "",
+  "seeds": 30,
+  "fund_checks": {
+    "cash_plus_repair_mismatch": [],
+    "control_pairs": 30,
+    "days_1_to_6_rows_mismatch": [],
+    "fund_runs": 90,
+    "game_over_incidents": 0,
+    "incomplete_runs": [],
+    "stalled_runs": 0
+  },
+  "rows": [
+    {
+      "policy": "forecast_good",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "repair": {
+        "mean": 0,
+        "min": 0,
+        "max": 0
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 0,
+      "repairedBy": {
+        "sign": 0,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "repairedDays": {
+        "sign": [],
+        "shelf": [],
+        "awning": [],
+        "owner": []
+      },
+      "targetPaidMean": {
+        "sign": 0,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        510,
+        616.8,
+        811.5666666666667,
+        978.8,
+        1195.8666666666666,
+        1406.3666666666666,
+        1621.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "fundByDay": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "safeByDay": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "nightsSafeBelowNightly": 0
+    },
+    {
+      "policy": "fund_final_only",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1591.5666666666666,
+        "min": 1385,
+        "max": 1743
+      },
+      "repair": {
+        "mean": 30,
+        "min": 30,
+        "max": 30
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 1,
+      "repairedBy": {
+        "sign": 0,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "repairedDays": {
+        "sign": [],
+        "shelf": [],
+        "awning": [],
+        "owner": []
+      },
+      "targetPaidMean": {
+        "sign": 30,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        510,
+        616.8,
+        811.5666666666667,
+        978.8,
+        1195.8666666666666,
+        1406.3666666666666,
+        1591.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "fundByDay": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        30
+      ],
+      "safeByDay": [
+        {
+          "mean": 110,
+          "min": 110,
+          "reserve": 400
+        },
+        {
+          "mean": 216.8,
+          "min": 124,
+          "reserve": 400
+        },
+        {
+          "mean": 361.56666666666666,
+          "min": 284,
+          "reserve": 450
+        },
+        {
+          "mean": 434.3,
+          "min": 288,
+          "reserve": 544.5
+        },
+        {
+          "mean": 640.8666666666667,
+          "min": 492,
+          "reserve": 555
+        },
+        {
+          "mean": 851.3666666666667,
+          "min": 697,
+          "reserve": 555
+        },
+        {
+          "mean": 1621.5666666666666,
+          "min": 1415,
+          "reserve": 0
+        }
+      ],
+      "nightsSafeBelowNightly": 0
+    },
+    {
+      "policy": "fund_steady",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1411.5666666666666,
+        "min": 1205,
+        "max": 1563
+      },
+      "repair": {
+        "mean": 210,
+        "min": 210,
+        "max": 210
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 7,
+      "repairedBy": {
+        "sign": 30,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "repairedDays": {
+        "sign": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "shelf": [],
+        "awning": [],
+        "owner": []
+      },
+      "targetPaidMean": {
+        "sign": 150,
+        "shelf": 60,
+        "awning": 0,
+        "owner": 0
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        480,
+        556.8,
+        721.5666666666667,
+        858.8,
+        1045.8666666666666,
+        1226.3666666666666,
+        1411.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "fundByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "safeByDay": [
+        {
+          "mean": 110,
+          "min": 110,
+          "reserve": 400
+        },
+        {
+          "mean": 186.8,
+          "min": 94,
+          "reserve": 400
+        },
+        {
+          "mean": 301.56666666666666,
+          "min": 224,
+          "reserve": 450
+        },
+        {
+          "mean": 344.3,
+          "min": 198,
+          "reserve": 544.5
+        },
+        {
+          "mean": 520.8666666666667,
+          "min": 372,
+          "reserve": 555
+        },
+        {
+          "mean": 701.3666666666667,
+          "min": 547,
+          "reserve": 555
+        },
+        {
+          "mean": 1441.5666666666666,
+          "min": 1235,
+          "reserve": 0
+        }
+      ],
+      "nightsSafeBelowNightly": 0
+    },
+    {
+      "policy": "fund_max_safe",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "cash": {
+        "mean": 1411.5666666666666,
+        "min": 1205,
+        "max": 1563
+      },
+      "repair": {
+        "mean": 210,
+        "min": 210,
+        "max": 210
+      },
+      "cashPlusRepair": {
+        "mean": 1621.5666666666666,
+        "min": 1415,
+        "max": 1773
+      },
+      "goalRate": {
+        "complete": 1,
+        "cash_standard": 0.9333333333333333,
+        "cash_challenge": 0.6,
+        "good_rate": 1,
+        "regular_great": 0
+      },
+      "goodRate": 0.985062893081761,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "earlyCloseNights": 0,
+      "spoiled": 57.63333333333333,
+      "rep": 70.56666666666666,
+      "fundNights": 7,
+      "repairedBy": {
+        "sign": 30,
+        "shelf": 0,
+        "awning": 0,
+        "owner": 0
+      },
+      "repairedDays": {
+        "sign": [
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5,
+          5
+        ],
+        "shelf": [],
+        "awning": [],
+        "owner": []
+      },
+      "targetPaidMean": {
+        "sign": 150,
+        "shelf": 60,
+        "awning": 0,
+        "owner": 0
+      },
+      "servedByDay": [
+        9,
+        8.9,
+        11.1,
+        13.366666666666667,
+        13.666666666666666,
+        13.833333333333334,
+        13.666666666666666
+      ],
+      "cashByDay": [
+        480,
+        556.8,
+        721.5666666666667,
+        858.8,
+        1045.8666666666666,
+        1226.3666666666666,
+        1411.5666666666666
+      ],
+      "nByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "fundByDay": [
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
+      ],
+      "safeByDay": [
+        {
+          "mean": 110,
+          "min": 110,
+          "reserve": 400
+        },
+        {
+          "mean": 186.8,
+          "min": 94,
+          "reserve": 400
+        },
+        {
+          "mean": 301.56666666666666,
+          "min": 224,
+          "reserve": 450
+        },
+        {
+          "mean": 344.3,
+          "min": 198,
+          "reserve": 544.5
+        },
+        {
+          "mean": 520.8666666666667,
+          "min": 372,
+          "reserve": 555
+        },
+        {
+          "mean": 701.3666666666667,
+          "min": 547,
+          "reserve": 555
+        },
+        {
+          "mean": 1441.5666666666666,
+          "min": 1235,
+          "reserve": 0
+        }
+      ],
+      "nightsSafeBelowNightly": 0
+    }
+  ],
+  "paired": {
+    "fund_final_only": {
+      "pairs": 30,
+      "cprMean": 0,
+      "cprMin": 0,
+      "cprMax": 0,
+      "cprNonZero": 0,
+      "cashMean": -30,
+      "servedMean": 0,
+      "unservedMean": 0,
+      "standardLost": [],
+      "standardGained": [],
+      "anyGoalLost": []
+    },
+    "fund_steady": {
+      "pairs": 30,
+      "cprMean": 0,
+      "cprMin": 0,
+      "cprMax": 0,
+      "cprNonZero": 0,
+      "cashMean": -210,
+      "servedMean": 0,
+      "unservedMean": 0,
+      "standardLost": [],
+      "standardGained": [],
+      "anyGoalLost": []
+    },
+    "fund_max_safe": {
+      "pairs": 30,
+      "cprMean": 0,
+      "cprMin": 0,
+      "cprMax": 0,
+      "cprNonZero": 0,
+      "cashMean": -210,
+      "servedMean": 0,
+      "unservedMean": 0,
+      "standardLost": [],
+      "standardGained": [],
+      "anyGoalLost": []
+    }
+  },
+  "v1_comparison": [
+    {
+      "policy": "forecast_good",
+      "before": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 0,
+        "standard": 0.9333333333333333
+      },
+      "after": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 0,
+        "standard": 0.9333333333333333
+      }
+    },
+    {
+      "policy": "fund_final_only",
+      "before": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 600,
+        "standard": 0.9333333333333333
+      },
+      "after": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 30,
+        "standard": 0.9333333333333333
+      }
+    },
+    {
+      "policy": "fund_steady",
+      "before": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 350,
+        "standard": 0.9333333333333333
+      },
+      "after": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 210,
+        "standard": 0.9333333333333333
+      }
+    },
+    {
+      "policy": "fund_max_safe",
+      "before": {
+        "completed": 0,
+        "gameOver": 30,
+        "cashPlusRepair": 360.1333333333333,
+        "repair": 350.8333333333333,
+        "standard": 0
+      },
+      "after": {
+        "completed": 30,
+        "gameOver": 0,
+        "cashPlusRepair": 1621.5666666666666,
+        "repair": 210,
+        "standard": 0.9333333333333333
+      }
+    }
+  ],
+  "check3": [
+    {
+      "p": "fund_final_only",
+      "n": 30,
+      "completed": 30,
+      "gameOver": 0,
+      "days": []
+    },
+    {
+      "p": "fund_steady",
+      "n": 30,
+      "completed": 30,
+      "gameOver": 0,
+      "days": []
+    },
+    {
+      "p": "fund_max_safe",
+      "n": 30,
+      "completed": 30,
+      "gameOver": 0,
+      "days": []
+    }
+  ]
+}
