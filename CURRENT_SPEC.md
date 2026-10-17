@@ -649,7 +649,7 @@ ADJUSTで1〜2個選ぶ → [廃棄する]
 （商品の購入単位・客数の決め方＝評判式は対象外・今回は無変更。コミット`8867c84`）。
 対象は**名前あり客（is_mob:false）だけ**。モブは`favorite`が常に空なので無関係。
 
-- `GameState.known_favorites`（`{customer_id: true}`）が客ごとの既知状態を持つ。
+- **【4-4b-1で変更】`known_favorites`は撤去され、客ごとの既知状態は`GameState.customer_memory[id].favorite_known`が持つ**（「来店記録（F5・4-4b-1）」節）。以下は旧記述：`GameState.known_favorites`（`{customer_id: true}`）が客ごとの既知状態を持つ。
   `reset_for_new_day()`では触らない（日をまたいで持ち越す）。`reset_for_new_game()`
   でクリアする（新しい周回では全員また初対面から）。`knows_favorite(id)`／
   `mark_favorite_known(id)`の2つの入口経由でのみ読み書きする（`mark_rent_paid()`と
@@ -670,7 +670,7 @@ ADJUSTで1〜2個選ぶ → [廃棄する]
     独自に発見・修正）。
 - 計器盤の`Bowl`欄に`favorite_true(本来の好物・デバッグ)`行（判定の前後どちらでも
   Event側の生の値と`known`状態を表示。検証用）、`GameState`欄に
-  `known_favorites(好物を知っている客)`の一覧行を追加した。既存の
+  `known_favorites(好物を知っている客)`の一覧行（【4-4b-1で`favorite_known(好物を知っている客)`に変更】）を追加した。既存の
   `favorite(好物): ...`行（判定に**実際に使った**値。初回は空になる）は変更していない。
 - `tests/first_favorite_test.gd`（新規15項目）＋Godot実機のDay1本編（配達員→老婆）で、
   初回はGREATにならないこと・提供直後に`known=true`へ切り替わることを確認済み。
@@ -1762,7 +1762,7 @@ CLOSEに来た日も同じ（理由テキスト＋閉店TEXT×3＋（終了）�
 - **全状態初期化**：`day_count`（→1）・`money`（→`INITIAL_MONEY`＝600）・
   `reputation`（→`INITIAL_REPUTATION`＝30）・`inventory`（クリア）・
   `perishable_batches`（クリア）・`rumors`（クリア）・`dashi_units`（→0）・
-  `known_favorites`（クリア）・`ledger`（クリア）・`phase`（→WAKE）・
+  `known_favorites`（クリア。【4-4b-1で撤去され`customer_memory`のクリアに置き換わった】）・`ledger`（クリア）・`phase`（→WAKE）・
   `soup`・`served`・`rent_paid_today`・`today_plan`（この4つは
   `reset_for_new_game()`内で呼ぶ`reset_for_new_day()`がクリア）が対象
   （`rent_paid_today`は「閉店で場所代を避けられる」不具合の修正で追加。
@@ -1953,12 +1953,12 @@ GameState.try_pay(amount) -> bool
 3シード×13方針で運営費65の結果と39/39周が完全一致した。画面は仮ボタンのみ（本番UIはフェーズ6）。
 
 - **保存項目**（`GameState.SAVED_FIELDS`）：`day_count`・`money`・`reputation`・`inventory`・
-  `perishable_batches`・`rumors`・`dashi_units`・`known_favorites`・`ledger`・`today_plan`
+  `perishable_batches`・`rumors`・`dashi_units`・`known_favorites`（【4-4b-1で`customer_memory`に置き換え】）・`ledger`・`today_plan`
   （DayPlanを含む）。保存しない項目（`TRANSIENT_FIELDS`）：`phase`・`soup`・`served`・
   `rent_paid_today`・`morning_snapshots`。保存しない項目は朝の初期値で、`from_dict()`が
   `phase`をWAKEに戻す。**新しいGameState変数は、どちらかに分類しないと`save_state_test`が落ちる**
   （F5の来店記録を足すときは`SAVED_FIELDS`に入れる）。辞書は往復とも深いコピー。**【4-2で`day_records`を追加】**
-- **封筒**（`MorningSave.capture()`）：`{version: 3（4-1は1、4-2で2、4-4aで3）, campaign, day, state: GameState.to_dict(),
+- **封筒**（`MorningSave.capture()`）：`{version: 4（4-1は1、4-2で2、4-4aで3、4-4b-1で4）, campaign, day, state: GameState.to_dict(),
   panel: {day_summary_text}}`。`is_valid()`が版・キャンペーンID・各項目の型を確かめる。
   `panel`は画面側の最小限の付随情報で、前日成績の一言だけ（戻った朝にも同じ文を見せる）。
 - **WAKEの処理順（4-1で変更）**：旧は「運営費→reserve→`DayPlanner.build()`」。新は
@@ -2168,9 +2168,49 @@ GameState.try_pay(amount) -> bool
   （書き換えたテストの構文エラーで73分終わらなかったため）。**各スイートの最後は
   `return c.finish()`にする**（`TestCheck.finish()`が集計表示と走り切った印`completed_runs`を記録し、
   `run()`の前後で増えなかったスイートを失敗にする）。存在しないスイートを指定したときも失敗で終わる。
-- **未対応**：来店記録（F5）・`known_favorites`の置き換え・場面の選び方（`requires`・`not_seen`）・
-  前回を読んだ2行・注文カード・今日の頼みは4-4b。新人警官の市場会話（`day_count == 2`）と
+- **未対応**：（来店記録と`known_favorites`の置き換えは4-4b-1で済み。下の節）場面の選び方（`requires`・`not_seen`）・
+  前回を読んだ2行・注文カード・今日の頼みは4-4b-2。新人警官の市場会話（`day_count == 2`）と
   チンピラの場所代（`is_collection_day()`）の日番号判定も4-4b以降。
+
+### 来店記録（F5・4-4b-1実装済み・2026-10-17・DESIGN.md 10.8.5）
+
+名前あり客ごとに「いつ来て、何を出して、どう評価されたか」を残す`GameState.customer_memory`を作り、
+旧`known_favorites`を置き換えた。**記録するだけで、台詞・判定・乱数・好物の開示のタイミングは
+変えていない**（3シード×13方針の自動試遊は4-3の結果と39/39周完全一致）。コミットは`30210f1`
+（器と記録。`known_favorites`は残して一致を確認）と`3eb3d4b`（`known_favorites`の撤去）。
+テストは1272件成功（4-4aの1211件に`customer_memory_test`などを追加。22スイートすべてが走り切る）。
+
+- **形**：`customer_memory[客id] = {favorite_known: bool, visits: [{day, slot, served, grade, grades,
+  ingredients, episode_id}], facts: {}, seen_episodes: [場面id…]}`。`visits`は来店1回につき1件、
+  `facts`は空のまま（`CustomerMemory.set_fact`／`fact`の手段だけある。使うのは4-4b-2以降）、
+  `seen_episodes`は重複なし。`request_honored`・`choices`は未実装（辞書なので足せる）。好感度のような
+  数値は持たない。**対象は名前あり客だけ**（モブのインスタンスidは記録しない。
+  `CustomerMemory.is_recordable()`）。
+- **書き手**（`scripts/customer_memory.gd`・状態を持たない静的クラス）：`arrive()`＝客が来店した時点で
+  その日の来店を`served=0`で1件作る（`DebugPanel`が客を読み込むときに呼ぶ。同じ日に何度呼んでも増えない）。
+  `record_serve()`＝提供のたびにその来店へ杯ごとに追記（`served`・`grades`・`ingredients`）。
+  断り・提供できず退店・早仕舞いは`served=0`のまま「来た」事実が残る。到着前に閉店して来なかった客は
+  記録しない（日の集計には従来どおり未提供で残る）。`last_visit(id)`・`visits_of(id)`が読み口。
+- **評価と杯数の数え方**：`served`は提供した杯数の合計（持ち帰りのように評価しない杯も数える）。
+  `grades`は杯ごとの評価（評価なしの杯は空文字）。`grade`は評価した杯の最悪値
+  （`OpenController.RESULT_ORDER`の低い順）で、評価なしの杯は含めない（例：`["GOOD","BAD",""]`→`BAD`）。
+  結果画面の集計が`judged`で分けるのと同じ扱い。`ingredients`は杯ごとの配列の配列（1杯の客も`[[…]]`）。
+- **好物の既知状態**：`knows_favorite(id)`・`mark_favorite_known(id)`は関数名を維持し、
+  `customer_memory[id].favorite_known`を読み書きする（呼び出し側は無改修）。開示のタイミングは従来と
+  同一（単発の客は提供の瞬間、配達員は退店時、断った客は知らないまま）。`mark_favorite_known`は
+  知った客のキーを辞書の末尾へ入れ直す＝`GameState.known_favorite_ids()`が旧`known_favorites`と
+  同じ「知った順」（来店順ではない）を返す。この順序は保存・再挑戦の往復後も保たれる（テストで確認）。
+  結果画面の物語欄の渡し元は`known_favorite_ids()`に置き換えたが、文言は変えていない。STATE VIEWERの行は
+  `favorite_known(好物を知っている客)`。
+- **保存**：`customer_memory`は`SAVED_FIELDS`に入り、`known_favorites`は外れた。封筒の版は3→4
+  （4-4b-1①で1回だけ上げた。版3以前の保存は読めない＝新規ゲーム）。`MorningSave.is_valid()`が型検査
+  （辞書／各客の`favorite_known`はbool／`visits`・`seen_episodes`は配列／各visitの`day`・`served`は整数、
+  `slot`・`grade`・`episode_id`は文字列、`grades`・`ingredients`は配列）を行う。①時点の版4（旧
+  `known_favorites`の余分なキー付き）も、余分なキーが無視されるので読める。再挑戦・続きからで戻した朝より
+  後の来店記録は持ち越さない（`day_records`と同じ）。`reset_for_new_game()`で空にし、
+  `reset_for_new_day()`では消さない。
+- **未対応**：場面の選び方（`requires`・`not_seen`）・前回の料理を読んだ2行・注文カード・今日の頼み・
+  聞き直し・`choices`・`facts`の利用・`request_honored`は4-4b-2以降。結果画面の物語欄の本文は4-8。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2230,6 +2270,8 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `tests/regular_schedule_test.gd` | 固定日程の21枠・互換層・`customer_schedule`の確認。4-3実装・2026-10-12追記 |
 | `data/episodes/<客>/<客>_<連番>.json` | 来店場面（21ファイル）。4-4a実装・2026-10-17追記 |
 | `tests/episode_data_test.gd`・`tests/episode_flow_test.gd` | 場面データ・fixture照合（`tests/fixtures/customer_events_4_3.json`）／DayPlanの枠・場面の引き方・版3。4-4a実装・2026-10-17追記 |
+| `scripts/customer_memory.gd` | 来店記録（F5）の書き手（`arrive`／`record_serve`／`last_visit`／`set_fact`など）。4-4b-1実装・2026-10-17追記 |
+| `tests/customer_memory_test.gd` | 来店記録・好物の既知状態・保存の往復・知った順。4-4b-1実装・2026-10-17追記 |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
 
@@ -2682,7 +2724,7 @@ OpenController を維持する。
     - 配達員（1杯ずつ3回接客）は1杯目の判定直後ではなく、3杯すべて終えて退店する
       瞬間（`_flush_visit_tally()`）に1回だけ確定する（1杯目の直後に確定させると
       同じ来店の2杯目から好物が効いてしまうため。実装レビューで見つかった論点）。
-    - `GameState.known_favorites`は日をまたいで持ち越し、新しい周回
+    - 【4-4b-1で`customer_memory[id].favorite_known`に置き換え】`GameState.known_favorites`は日をまたいで持ち越し、新しい周回
       （`reset_for_new_game()`）でリセットする。
     - `tests/first_favorite_test.gd`（新規15項目）＋Godot実機のDay1本編で確認済み。
       コミット：`8867c84`。2回目以降の来店で実際にGREATになる確認は、Day2以降の
