@@ -47,6 +47,7 @@ func run(t: SceneTree) -> void:
 	# 書かれる。ゲームの進行には影響しない）。
 	MorningSave.save_path = "user://playtest_save.dat"
 	BalanceLog.path = "user://playtest_balance_log.jsonl"   # 実際の日次ログを汚さない
+	ReadState.enabled = false   # 既読ファイルを読まず・書かない（試遊の結果が既読の有無で変わらない）
 	var args := OS.get_cmdline_user_args()
 	var seeds_old := int(args[0]) if args.size() > 0 else 30
 	var seeds_new := int(args[1]) if args.size() > 1 else seeds_old

@@ -189,6 +189,11 @@ var _recipe_save_stage := ""
 # 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
 # _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
 var _logged_positions := {}
+# 既読スキップ（4-7③。ReadState）：直近に新しく見えた行が、それまで未読だったか（スキップの停止条件）。
+# [既読スキップ]の仮ボタンは _ready でコードから足す（.tscn は変えない）。
+var _last_shown_unread := false
+var _btn_skip_read: Button
+const SKIP_READ_LIMIT := 200   # 暴走防止：1回のスキップで進めるイベント数の上限
 var _recipe_save_slot := -1
 var _recipe_row: HBoxContainer
 
@@ -257,6 +262,13 @@ func _ready() -> void:
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
 
+	# [既読スキップ]（4-7③。仮ボタン）：[次のEvent]の隣。
+	_btn_skip_read = Button.new()
+	_btn_skip_read.text = "既読スキップ"
+	_btn_skip_read.pressed.connect(_on_skip_read_pressed)
+	_btn_next_event.get_parent().add_child(_btn_skip_read)
+	_btn_next_event.get_parent().move_child(_btn_skip_read, _btn_next_event.get_index() + 1)
+
 	# レシピ用のボタン行（4-7①）：SeasoningRow の下。ADJUST 中の「いつもの」・保存レシピと、提供後の保存ボタン。
 	_recipe_row = HBoxContainer.new()
 	_recipe_row.add_theme_constant_override("separation", 8)
@@ -265,6 +277,11 @@ func _ready() -> void:
 	vbox.move_child(_recipe_row, _seasoning_row.get_index() + 1)
 
 	_refresh()
+
+
+## パネルが木から外れる（終了）とき、既読を書き出す（変更が無ければ書かない）。
+func _exit_tree() -> void:
+	ReadState.flush()
 
 
 ## Day1開始時の初期在庫を積む（DESIGN.md 7.7）。ゲーム開始時（_ready）と、最終日の翌朝の
@@ -460,6 +477,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		])
 		_game_over_reason = ""
 	elif phase == GameState.Phase.RESULT:
+		ReadState.flush()   # 結果画面でも既読を書き出す
 		# 結果画面（4-2・DESIGN.md 10.6）：成績・目標・仮の物語欄の3ブロック。集計は
 		# GameState.day_records（周回の累計）と帳簿から導く（Result）。選択肢はResultRow。
 		var summary := Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
@@ -1694,6 +1712,7 @@ func _on_runner_updated() -> void:
 ## 出す。④評判の更新（BALANCE_REDESIGN_PLAN.md§5）：ここで初めて、当夜品質Qから
 ## GameState.settle_reputation()を1回だけ呼んで評判を確定させる（OPEN中は動かさない）。
 func _on_day_ending() -> void:
+	ReadState.flush()   # 既読は日の終わりに書き出す（1行ごとには書かない）
 	var served_cups := 0
 	var sale_total := 0
 	for record in GameState.served:
@@ -1932,6 +1951,8 @@ func _update_options_row() -> void:
 			or (_is_short_in_adjust() and not _is_current_mob_order()) \
 			or (_is_strength_zero_in_adjust() and not _is_current_mob_order()) \
 			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
+	if _btn_skip_read != null:
+		_btn_skip_read.disabled = not _can_skip_step()
 	_btn_close.disabled = not _can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
 	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER \
@@ -2113,6 +2134,7 @@ func _record_visible_event() -> void:
 			if str(ev.get("part", "")) == "news":
 				kind = "news"
 	if text == "":
+		_last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
 		return
 	var slot_index := -1
 	var customer_index := -1
@@ -2125,6 +2147,39 @@ func _record_visible_event() -> void:
 		return
 	_logged_positions[key] = true
 	TalkLog.add(GameState.day_count, kind, speaker, text)
+	# 既読（ReadState）：見えた行を既読にする。それまで未読だったかをスキップの停止条件として覚える。
+	var read_key := ReadState.line_key(kind, speaker, str(ev.get("part", "")), text)
+	_last_shown_unread = not ReadState.is_read(read_key)
+	ReadState.mark(read_key)
+
+
+## --- 既読スキップ（4-7③。ReadState。仮UI） ---
+
+## スキップの1歩を進められるか：[次のEvent]が押せて、再生中（入力待ちでない）で、その客・そのフェーズの
+## 最後のイベントではない（客やフェーズの切り替わりをまたぐ前で止まる）。
+func _can_skip_step() -> bool:
+	if flow.runner == null or _btn_next_event.disabled or flow.runner.status != EventRunner.Status.PLAYING:
+		return false
+	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.RESULT:
+		return false
+	return flow.runner.index < flow.runner.events.size() - 1
+
+
+## [既読スキップ]：[次のEvent]を、止まる条件に達するまで繰り返す。**効果の適用は [次のEvent] と同一の
+## 経路**（_on_next_event_pressed）を1イベントにつき1回だけ通す＝会計・来店記録・事実・評判は1回だけ
+## 適用される（別の経路は作らない）。止まる条件：入力待ち（ADJUST・CHOICE・MARKET・PREP_TIER・WAIT_INPUT
+## など。選択は決して飛ばさない）／直前に見えた行が未読（その行で止まる）／客・フェーズの切り替わり／
+## 鍋不足の保留など[次のEvent]が押せない状態／SKIP_READ_LIMIT 回。進めたイベント数を返す。
+func _on_skip_read_pressed() -> int:
+	var steps := 0
+	var start_runner = flow.runner
+	var start_phase: int = GameState.phase
+	while steps < SKIP_READ_LIMIT and _can_skip_step():
+		_on_next_event_pressed()
+		steps += 1
+		if _last_shown_unread or flow.runner != start_runner or GameState.phase != start_phase:
+			break
+	return steps
 
 
 ## ログの話し手（表示名。モブは種類の名前）。

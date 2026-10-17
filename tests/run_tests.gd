@@ -30,6 +30,12 @@ func _initialize() -> void:
 	var morning_save = load("res://scripts/morning_save.gd")
 	morning_save.set("save_path", "user://test_save.dat")
 	morning_save.call("delete_file")
+	# 既読（ReadState）は、実際の user://read_state.json と別のファイルにし、メモリ上の集合を初期化する
+	# （単体実行でも実際の既読を読まず・書かない）。
+	var read_state = load("res://scripts/read_state.gd")
+	read_state.call("reset", "user://test_read_state.json")
+	if FileAccess.file_exists("user://test_read_state.json"):
+		DirAccess.remove_absolute("user://test_read_state.json")
 	# 日次ログ（BalanceLog）の書き出し先も、実際のログ（user://balance_log.jsonl）と別のファイルにする
 	# （日の終わりごとに追記するので、差し替えないとテストが本物のログを汚す）。
 	var balance_log = load("res://scripts/balance_log.gd")
