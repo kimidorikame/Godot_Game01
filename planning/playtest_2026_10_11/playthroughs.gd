@@ -242,7 +242,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 		"closing_stock_units": GameState.inventory.duplicate(), "dashi": GameState.dashi_units }
 	if POLICIES_FUND.has(policy):
 		result["fund_log"] = fund_log.duplicate(true)
-		result["stage_reached"] = RepairFund.stage_index(RepairFund.paid())
+		result["stage_reached"] = RepairFund.repaired_ids().size()
 		result["stage_days"] = fund_stage_days.duplicate()
 	panel.queue_free()
 	await tree.process_frame
@@ -337,7 +337,7 @@ func target_cups() -> int:
 ## CLOSEの語りを読み終えた時点で、方針に応じて基金を積む。記録は fund_log（日ごとの額・積む前の上限・
 ## 積んだ後の累計）と fund_stage_days（各段階に初めて届いた日）。
 func fund_contribute() -> void:
-	var limit_before := RepairFund.safe_limit()
+	var limit_before := RepairFund.max_contribution(RepairFund.first_open_target())
 	var paid_before := RepairFund.paid()
 	var pushed := 0
 	match policy:
@@ -345,21 +345,21 @@ func fund_contribute() -> void:
 			if GameState.is_final_day():
 				pushed = push_fund_max()
 		"fund_steady":
-			var steps := RepairFund.steps()
-			pushed = push_fund(int(steps[int(steps.size() * 0.5)]))
+			# 1晩の上限ぶんを一度に積めるときだけ積む（積めない夜は積まない）
+			if RepairFund.max_contribution(RepairFund.first_open_target()) >= RepairFund.nightly_remaining():
+				pushed = push_fund_max()
 		"fund_max_safe":
 			pushed = push_fund_max()
 	fund_log.append({ "day": GameState.day_count, "amount": pushed, "limit_before": limit_before,
 		"paid_before": paid_before, "paid_after": RepairFund.paid() })
-	var stage := RepairFund.stage_index(RepairFund.paid())
-	for i in range(stage + 1):
-		if not fund_stage_days.has(str(i)):
-			fund_stage_days[str(i)] = GameState.day_count
+	for id in RepairFund.repaired_ids():
+		if not fund_stage_days.has(id):
+			fund_stage_days[id] = GameState.day_count
 
 
 ## 刻み1つぶんを、押せるなら押す（DebugPanel の操作経路）。積んだ額を返す。
 func push_fund(step: int) -> int:
-	if not RepairFund.can_contribute(step):
+	if not RepairFund.can_contribute(RepairFund.first_open_target(), step):
 		return 0
 	var before := GameState.money
 	act("fund")
@@ -374,7 +374,7 @@ func push_fund_max() -> int:
 	ordered.reverse()
 	for step in ordered:
 		var guard := 0
-		while RepairFund.can_contribute(int(step)) and guard < 100:
+		while RepairFund.can_contribute(RepairFund.first_open_target(), int(step)) and guard < 100:
 			guard += 1
 			total += push_fund(int(step))
 	return total

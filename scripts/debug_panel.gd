@@ -1792,7 +1792,7 @@ func _format_day_summary(log_entry: Dictionary) -> String:
 		lines.append(spend_line)
 	# 修繕基金（4-9）：基金を積んだ日だけ、屋台の段階を1行足す（積まなかった日の文面は従来と同一）。
 	if RepairFund.enabled() and int((log_entry.get("spend_by_category", {}) as Dictionary).get("fund", 0)) > 0:
-		lines.append("屋台: %s（修繕 累計%d）" % [RepairFund.stage_label(RepairFund.paid()), RepairFund.paid()])
+		lines.append("屋台: %s" % RepairFund.progress_text())
 	if bool(log_entry.get("closed_early", false)):
 		lines.append("（鍋が尽きて早めに閉店した）")
 	return "\n".join(lines)
@@ -2128,8 +2128,9 @@ func _fund_row_visible() -> bool:
 func _add_fund_buttons() -> void:
 	if not _fund_row_visible() or RepairFund.complete():
 		return
+	var target_id := RepairFund.first_open_target()
 	for step in RepairFund.steps():
-		_add_pot_button("修繕基金に積む +%d" % step, not RepairFund.can_contribute(step),
+		_add_pot_button("修繕基金に積む +%d" % step, not RepairFund.can_contribute(target_id, step),
 			_on_fund_contribute_pressed.bind(step))
 
 
@@ -2138,9 +2139,9 @@ func _add_fund_buttons() -> void:
 func _on_fund_contribute_pressed(amount: int) -> void:
 	if not _fund_row_visible():
 		return
-	var before := RepairFund.paid()
-	if RepairFund.contribute(amount):
-		var message := RepairFund.stage_up_message(before, RepairFund.paid())
+	var before := RepairFund.repaired_ids()
+	if RepairFund.contribute(RepairFund.first_open_target(), amount):
+		var message := RepairFund.repaired_message(before, RepairFund.repaired_ids())
 		if message != "":
 			_fund_notice = message
 	_refresh()
@@ -2151,15 +2152,13 @@ func _on_fund_contribute_pressed(amount: int) -> void:
 func _format_fund() -> String:
 	if not _fund_row_visible():
 		return ""
-	var total := RepairFund.paid()
 	var lines := PackedStringArray(["", "── 修繕基金（任意・返金なし）──"])
+	lines.append(RepairFund.progress_text())
 	if RepairFund.complete():
-		lines.append("累計: %d（%s）完了" % [total, RepairFund.stage_label(total)])
+		lines.append("完了")
 	else:
-		lines.append("累計: %d（%s）" % [total, RepairFund.stage_label(total)])
-		var next_stage := RepairFund.stages()[RepairFund.stage_index(total) + 1] as Dictionary
-		lines.append("次の段階（%s）まであと%d" % [str(next_stage["label"]), RepairFund.remaining_to_next(total)])
-		lines.append("今日積める上限: %d" % RepairFund.safe_limit())
+		lines.append("今夜積んだ額: %d／%d" % [RepairFund.paid_tonight(), RepairFund.nightly_max()])
+		lines.append("今日積める上限: %d" % RepairFund.max_contribution(RepairFund.first_open_target()))
 	if _fund_notice != "":
 		lines.append(_fund_notice)
 	return "\n".join(lines)
@@ -2484,7 +2483,8 @@ func _format_game_state() -> String:
 	])
 	# 修繕基金（4-9）：累計が1以上のときだけ（積まない間は従来と同じ文面）。budget の次の行。
 	if RepairFund.enabled() and RepairFund.paid() > 0:
-		state_lines.insert(4, "fund(修繕基金): 累計%d（%s）" % [RepairFund.paid(), RepairFund.stage_label(RepairFund.paid())])
+		state_lines.insert(4, "fund(修繕基金): 累計%d／修繕済み: %s" % [RepairFund.paid(),
+			RepairFund.repaired_labels() if RepairFund.repaired_labels() != "" else "なし"])
 	return "\n".join(state_lines)
 
 

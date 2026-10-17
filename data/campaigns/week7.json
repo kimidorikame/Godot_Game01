@@ -17,15 +17,18 @@
   "market_open_from_day": 2,
   "recipe_slots": 3,
   "repair_fund": {
-    "note": "修繕基金（DESIGN.md 10.7。任意で積み立て。累計の境目は刻みの倍数にする）。段階の label・note は仮の文面で、脚本で差し替える。",
-    "steps": [25, 50, 100],
-    "in_progress_label": "積み立て中",
-    "stages": [
-      { "id": "sign",  "total": 150, "label": "手書きの看板",       "note": "（仮）" },
-      { "id": "shelf", "total": 300, "label": "棚と雨よけ",         "note": "（仮）" },
-      { "id": "owner", "total": 600, "label": "屋台を自分の名義に", "note": "（仮）" }
+    "note": "修繕基金（DESIGN.md 10.7のMVP版。4-9④）。任意で積み立て。修繕の対象ごとに値段を持ち、積む先を選ぶ。1晩に積める額の合計に上限（最終日にも掛かる）。7夜すべてに30を積むと最大210＝看板（150）は5夜、棚か雨よけ（200）は7夜で届くが、3つ同時には届かない。名義（owner）は他の3つが修繕済みになるまで積めない。label・noteは仮の文面で、脚本で差し替える。",
+    "steps": [10, 30],
+    "nightly_max": 30,
+    "targets": [
+      { "id": "sign",   "label": "手書きの看板",       "price": 150, "note": "（仮）" },
+      { "id": "shelf",  "label": "棚",                 "price": 200, "note": "（仮）" },
+      { "id": "awning", "label": "雨よけ",             "price": 200, "note": "（仮）" },
+      { "id": "owner",  "label": "屋台を自分の名義に", "price": 600, "note": "（仮）",
+        "requires": ["sign", "shelf", "awning"] }
     ]
   },
+
   "day_overrides": {
     "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },
