@@ -101,6 +101,35 @@ static func last_visit(customer_id) -> Dictionary:
 	return visits[visits.size() - 1] if not visits.is_empty() else {}
 
 
+## 今日の来店（無ければ空の辞書。作らない）。返すのは辞書そのもの（参照）。
+static func today_visit(customer_id) -> Dictionary:
+	var visit := last_visit(customer_id)
+	if not visit.is_empty() and int(visit["day"]) == GameState.day_count:
+		return visit
+	return {}
+
+
+## 今日の来店で選んだ選択（{ 選択id: 選択肢id }）。選んでいなければ空の辞書。
+static func choices_today(customer_id) -> Dictionary:
+	var choices = today_visit(customer_id).get("choices", {})
+	return (choices as Dictionary).duplicate() if choices is Dictionary else {}
+
+
+## 店主の距離感の選択を記録する（システム整理C2）。今日の来店の choices へ 選択id→選択肢id を残し、
+## 選択肢の set（事実の辞書）を facts へ即時に書く。料金・評判・評価・関係の数値は持たない。
+## 同じ選択を2度押しても上書き（最後の1つ）で、事実も同じ値になる。
+static func record_choice(customer_id, slot_name: String, episode_id: String, choice_id: String,
+		option_id: String, set_facts: Dictionary) -> void:
+	if not is_recordable(customer_id):
+		return
+	var visit := ensure_visit(customer_id, slot_name, episode_id)
+	if not (visit.get("choices") is Dictionary):
+		visit["choices"] = {}
+	(visit["choices"] as Dictionary)[choice_id] = option_id
+	for key in set_facts:
+		set_fact(customer_id, str(key), set_facts[key])
+
+
 ## 次回へ残す事実（facts）。今は使わない（4-4b-2以降）。足す手段だけ用意している。
 static func set_fact(customer_id, key: String, value) -> void:
 	(GameState.memory_entry(customer_id)["facts"] as Dictionary)[key] = value

@@ -231,6 +231,32 @@ static func episode_must_info(customer_id: String, episode_id: String) -> Array:
 	return _string_lines(episode_data(customer_id, episode_id).get("must_info", []))
 
 
+## 店主の距離感の選択（choices）。[{ id, options:[{ id, label, set }, …] }, …] を、形の整ったものだけ
+## 最大2つ読む（形の検査は scene_problems）。set は事実の辞書（無ければ空辞書）。無ければ空配列。
+static func episode_choices(customer_id: String, episode_id: String) -> Array:
+	var result := []
+	var raw = episode_data(customer_id, episode_id).get("choices", [])
+	if not (raw is Array):
+		return result
+	for choice in raw:
+		if result.size() >= 2:
+			break
+		if not (choice is Dictionary) or not ((choice as Dictionary).get("id") is String) \
+				or str((choice as Dictionary)["id"]) == "" or not ((choice as Dictionary).get("options") is Array):
+			continue
+		var options := []
+		for option in (choice as Dictionary)["options"]:
+			if option is Dictionary and (option as Dictionary).get("id") is String \
+					and (option as Dictionary).get("label") is String \
+					and str((option as Dictionary)["id"]) != "" and str((option as Dictionary)["label"]) != "":
+				var set_facts = (option as Dictionary).get("set", {})
+				options.append({ "id": str(option["id"]), "label": str(option["label"]),
+					"set": (set_facts as Dictionary).duplicate(true) if set_facts is Dictionary else {} })
+		if options.size() == 2:
+			result.append({ "id": str(choice["id"]), "options": options })
+	return result
+
+
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
 const _MAX_CHOICES := 2
 const _MAX_FACT_KEYS := 2

@@ -701,8 +701,17 @@ static func after_serve_events(customer_id: String, scene_id: String, outcome: D
 		return events
 	if bool(outcome.get("served", false)):
 		events.append_array(_scene_lines("body", customer_id, ScheduleData.episode_body(customer_id, scene_id)))
-		var closing := ScheduleData.episode_closing(customer_id, scene_id)
-		events.append_array(_scene_lines("closing", customer_id, closing.get("default", [])))
+		# 店主の距離感の選択（本文の後。選択ごとに入力待ちのCHOICE）。選択がある場面の締めは、最後の
+		# 選択が済んだ後に DebugPanel が closing_events() で組んで差し込む（選んだ結果を読むため）。
+		var choices := ScheduleData.episode_choices(customer_id, scene_id)
+		for choice in choices:
+			var options := []
+			for option in choice["options"]:
+				options.append({ "id": option["id"], "label": option["label"] })
+			events.append({ "type": "CHOICE", "customer": customer_id, "choice_id": choice["id"],
+				"options": options, "part": "choice" })
+		if choices.is_empty():
+			events.append_array(closing_events(customer_id, scene_id))
 	elif not ScheduleData.episode_must_info(customer_id, scene_id).is_empty():
 		events.append_array(_scene_lines("body", customer_id,
 			ScheduleData.episode_body_unserved(customer_id, scene_id)))
@@ -725,6 +734,21 @@ static func unserved_exit_events(customer_id: String, scene_id: String) -> Array
 			events.append({ "type": "GREET", "customer": customer_id, "text": pool[0], "part": "reaction" })
 	events.append_array(after_serve_events(customer_id, scene_id, { "served": false, "grade": "" }))
 	return events
+
+
+## 締め（closing）の列。default に、今日の来店で選んだ選択ごとの差分（"<選択id>:<選択肢id>"）を
+## 場面の選択の順に足す。差分のキーが無ければ default だけ。足し算で、置き換えではない。
+## 出来（grade）は引き当てに使わない（わざと失敗すると親密になる経路を作らない。10.5.3）。
+## 今日の来店記録（CustomerMemory）を読むだけで書かない。
+static func closing_events(customer_id: String, scene_id: String) -> Array:
+	var closing := ScheduleData.episode_closing(customer_id, scene_id)
+	var lines: Array = closing.get("default", []).duplicate()
+	var made := CustomerMemory.choices_today(customer_id)
+	for choice in ScheduleData.episode_choices(customer_id, scene_id):
+		var key := "%s:%s" % [choice["id"], str(made.get(choice["id"], ""))]
+		if made.has(choice["id"]) and closing.has(key):
+			lines.append_array(closing[key])
+	return _scene_lines("closing", customer_id, lines)
 
 
 ## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。

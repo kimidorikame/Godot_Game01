@@ -191,6 +191,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 			# 注文を取る前に濃さを整える（ADJUST中は通常の鍋操作がロックされる）。
 			if typ not in ["SERVE", "REACT"] and not panel._btn_pot.disabled:
 				fix_pot()
+		if typ == "CHOICE":
+			# 店主の距離感の選択（システム整理C2）：先頭の選択肢を押す。現行の21場面には無い（通らない分岐）
+			act("story_choice")
+			panel._on_story_choice_pressed(str(ev.get("choice_id", "")), str((ev["options"] as Array)[0]["id"]))
+			continue
 		if r.status == EventRunner.Status.WAITING_INPUT:
 			act("input")
 			panel._on_complete_input_pressed()

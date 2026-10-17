@@ -487,6 +487,8 @@ func _on_next_event_pressed() -> void:
 ## だと進めない（ボタン側（_btn_complete_input.disabled）で既に無効化済みだが、二重に
 ## 防ぐ。既存の_on_ingredient_selectedの在庫切れ二重チェックと同じ考え方）。
 func _on_complete_input_pressed() -> void:
+	if _is_in_story_choice():
+		return   # 選択は選択肢のボタンで答える（[入力完了]で選ばずに飛ばせない）
 	if _is_current_mob_order() and not _pending_group_choice:
 		_pending_group_choice = true
 		_refresh()
@@ -759,6 +761,48 @@ func _is_in_market() -> bool:
 ## いま PREP_TIER（仕込み3段階の選択）が現在の Event か。_is_in_market() と同じ形。
 ## [次のEvent]/[入力完了] を無効化する判定に使う（抜ける経路を段階選択ボタンだけにする。
 ## 選ばずに素通りされると、その先のADD_ITEM/SET_SOUPが無いまま仕込みが成立しなくなる）。
+## いま店主の距離感の選択（CHOICE。システム整理C2）の入力待ちか。
+func _is_in_story_choice() -> bool:
+	var r: EventRunner = flow.runner
+	if r == null:
+		return false
+	var cur = r.current()
+	return cur is Dictionary and cur.get("type", "") == "CHOICE"
+
+
+## 選択肢のボタン（仮UI）。選んだ結果を来店記録の choices と、選択肢の set の事実（facts）へ残す。
+## 選択は料金・評判・評価・鍋・在庫を変えない（記録するだけ）。最後の選択が済んだら、選んだ結果を
+## 読んで締め（closing_events）を組み、現在位置の直後へ差し込んでから先へ進む。
+## 現在の選択と合わない id は何もしない。
+func _on_story_choice_pressed(choice_id: String, option_id: String) -> void:
+	if not _is_in_story_choice():
+		return
+	var cur: Dictionary = flow.runner.current()
+	if str(cur.get("choice_id", "")) != choice_id:
+		return
+	var customer_id := str(cur.get("customer", ""))
+	var scene_id := Day1Events.episode_id_of(customer_id)
+	var picked := {}
+	for choice in ScheduleData.episode_choices(customer_id, scene_id):
+		if str(choice["id"]) != choice_id:
+			continue
+		for option in choice["options"]:
+			if str(option["id"]) == option_id:
+				picked = option
+	if picked.is_empty():
+		return
+	CustomerMemory.record_choice(customer_id, _open.current_slot_name() if _open != null else "",
+		scene_id, choice_id, option_id, picked["set"])
+	var events: Array = flow.runner.events
+	var more_choices: bool = flow.runner.index + 1 < events.size() \
+			and str(events[flow.runner.index + 1].get("type", "")) == "CHOICE"
+	if not more_choices:
+		var closing := Day1Events.closing_events(customer_id, scene_id)
+		for i in range(closing.size()):
+			events.insert(flow.runner.index + 1 + i, closing[i])
+	_complete_input_and_advance()
+
+
 func _is_in_prep_tier() -> bool:
 	var r: EventRunner = flow.runner
 	if r == null:
@@ -1788,7 +1832,7 @@ func _update_options_row() -> void:
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
 	_btn_pot.disabled = pot_disabled or _phone_mode
 	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_in_prep_tier() \
+			or _is_in_market() or _is_in_prep_tier() or _is_in_story_choice() \
 			or _phone_mode or _pending_group_choice
 	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
 	# ②拒否と部分提供：モブ客は鍋不足だけでは塞がない（達成可能人数の計算に鍋残量も
@@ -1799,7 +1843,7 @@ func _update_options_row() -> void:
 	# F3 SaleRule（DESIGN.md 10.3.1）：具・味のどちらかが欠けた椀も同じ扱いで塞ぐ
 	# （モブは_mob_achievable_servings()側で達成可能0に落とすので、ここでは無視する）。
 	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_in_prep_tier() or _phone_mode or _pending_group_choice \
+			or _is_in_market() or _is_in_prep_tier() or _is_in_story_choice() or _phone_mode or _pending_group_choice \
 			or (_is_short_in_adjust() and not _is_current_mob_order()) \
 			or (_is_strength_zero_in_adjust() and not _is_current_mob_order()) \
 			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
@@ -1872,6 +1916,12 @@ func _update_options_row() -> void:
 			var price: int = int(tier.get("price", 0))
 			_add_pot_button("%s（-%d・%d杯）" % [str(tier.get("label", "")), price, int(tier.get("servings", 0))],
 				GameState.money < price, _on_prep_tier_selected.bind(str(tier.get("id", ""))))
+		return
+
+	if cur.get("type", "") == "CHOICE":
+		for option in cur.get("options", []):
+			_add_pot_button(str(option.get("label", "")), false,
+				_on_story_choice_pressed.bind(str(cur.get("choice_id", "")), str(option.get("id", ""))))
 		return
 
 	if cur.get("type", "") == "MARKET":
