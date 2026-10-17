@@ -16,6 +16,16 @@
   ],
   "market_open_from_day": 2,
   "recipe_slots": 3,
+  "repair_fund": {
+    "note": "修繕基金（DESIGN.md 10.7。任意で積み立て。累計の境目は刻みの倍数にする）。段階の label・note は仮の文面で、脚本で差し替える。",
+    "steps": [25, 50, 100],
+    "in_progress_label": "積み立て中",
+    "stages": [
+      { "id": "sign",  "total": 150, "label": "手書きの看板",       "note": "（仮）" },
+      { "id": "shelf", "total": 300, "label": "棚と雨よけ",         "note": "（仮）" },
+      { "id": "owner", "total": 600, "label": "屋台を自分の名義に", "note": "（仮）" }
+    ]
+  },
   "day_overrides": {
     "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },

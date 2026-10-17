@@ -182,6 +182,27 @@ static func recipe_slots() -> int:
 	return int(_cache.get("recipe_slots", 3))
 
 
+## 修繕基金の設定（フェーズ4・4-9。RepairFund が読む）。{ steps, in_progress_label, stages } の辞書。
+## 無い・空のキャンペーンは空辞書＝機能オフ（積み立て行も表示も出ない）。値の整え方は RepairFund。
+static func repair_fund() -> Dictionary:
+	_ensure_loaded()
+	var fund = _cache.get("repair_fund", {})
+	return (fund as Dictionary).duplicate(true) if fund is Dictionary else {}
+
+
+## 指定日の請求（bills）の金額の合計＝その日に払う場所代・水道代。days に指定日を含む請求だけ
+## （JSONの数値はfloatで読まれるので int に直して比べる。is_collection_day と同じ）。
+## 修繕基金が「翌朝に必ず払う額」を数えるのに使う（今日しか見ない is_collection_day は変えない）。
+static func bills_total_on(day: int) -> int:
+	var total := 0
+	for b in bills():
+		for d in b.get("days", []):
+			if int(d) == day:
+				total += int(b.get("amount", 0))
+				break
+	return total
+
+
 ## 3-1では宣言のみ（朝の一画面・予報の幅を実装する3-7で使い始める）。
 static func forecast() -> Dictionary:
 	_ensure_loaded()
