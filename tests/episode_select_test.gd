@@ -87,7 +87,7 @@ func run(_t: SceneTree) -> int:
 	c.check("requiresが無い場面は空辞書", ScheduleData.episode_requires("thug", "thug_01").is_empty())
 	c.check("today_requestを読める（tags・label）",
 		ScheduleData.episode_today_request("thug", "thug_01") ==
-			{ "tags": ["MELLOW", "GENTLE"], "label": "持ち帰り" })
+			{ "tags": ["HOT", "POWER"], "label": "持ち帰り" })
 	c.check("today_requestが無い場面は空辞書", ScheduleData.episode_today_request("thug", "thug_02").is_empty())
 	var callback := ScheduleData.episode_callback("officer", "officer_01")
 	c.check("callbackを読める（出し分けのキーごとの行）",
@@ -143,7 +143,7 @@ func run(_t: SceneTree) -> int:
 	c.check("前提を満たさない第一候補は、別の場面へ（thug_02→thug_01）",
 		str(slots2[2]["regular_id"]) == "thug" and str(slots2[2]["episode_id"]) == "thug_01", str(slots2[2]))
 	c.check("選んだ場面の今日の頼みが枠に入る",
-		slots2[2]["today_request"] == { "tags": ["MELLOW", "GENTLE"], "label": "持ち帰り" })
+		slots2[2]["today_request"] == { "tags": ["HOT", "POWER"], "label": "持ち帰り" })
 	c.check("今日の頼みを持つ場面（フィクスチャのofficer_01）の枠にも入り、持たない客（配達員）は空辞書",
 		slots2[0]["today_request"] == { "tags": ["SOUR", "BITE"], "label": "いつもの確認" }
 			and slots2[1]["today_request"] == {})

@@ -610,11 +610,16 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
 		"options": _adjust_options() })
 	events.append({ "type": "SERVE", "customer": customer_id, "text": "「はいよ、お待ち。」" })
-	events.append({ "type": "REACT", "customer": customer_id,
+	var react := { "type": "REACT", "customer": customer_id,
 		"reactions": flavor["reactions"], "wanted_tags": flavor["wanted_tags"],
 		"favorite": flavor["favorite"], "servings": flavor["servings"],
 		"is_mob": flavor["is_mob"],
-		"sale": GameState.PRICE_PER_SERVING * int(flavor["servings"]) })
+		"sale": GameState.PRICE_PER_SERVING * int(flavor["servings"]) }
+	# 今日の頼みがあるときだけ、基本注文（いつもの）を残す（wanted_tagsは実効注文）。無い場面
+	# （現行の21場面）はキー自体を付けない＝従来のREACTと同一。朝の予報（Forecast）は基本注文。
+	if flavor.has("base_wanted_tags"):
+		react["base_wanted_tags"] = flavor["base_wanted_tags"]
+	events.append(react)
 	events.append_array(_customer_extra_events(customer_id))
 	return events
 
@@ -644,6 +649,18 @@ static func episode_id_of(customer_id: String) -> String:
 			return str(entry.get("episode_id", ""))
 	var ids := ScheduleData.customer_episode_ids(customer_id)
 	return str(ids[ids.size() - 1]) if not ids.is_empty() else ""
+
+
+## その客のその場面の「今日の頼み」（{ tags, label }。無ければ空辞書）。DayPlanがその日の
+## もの（today_plan["day"] == day_count）で、場面idが枠のepisode_idと同じなら枠の
+## today_request（WAKEで確定した値。再挑戦でも変わらない）、そうでなければ場面データから引く。
+static func today_request_of(customer_id: String, episode_id: String) -> Dictionary:
+	var plan: Dictionary = GameState.today_plan
+	if int(plan.get("day", -1)) == GameState.day_count:
+		for slot in plan.get("slots", []):
+			if str(slot.get("regular_id", "")) == customer_id 					and str(slot.get("episode_id", "")) == episode_id and slot.has("today_request"):
+				return (slot["today_request"] as Dictionary).duplicate(true)
+	return ScheduleData.episode_today_request(customer_id, episode_id)
 
 
 ## 会話行（発話・ト書き）を、1行1Eventの GREET にして積む（既存の接客と同じ形）。
@@ -877,9 +894,17 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 		return { "is_mob": profile.get("is_mob", false),
 			"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
 	var episode := ScheduleData.episode_data(customer_id, episode_id)
-	return { "greet": episode.get("greet", []), "reactions": episode.get("reactions", {}),
+	var flavor := { "greet": episode.get("greet", []), "reactions": episode.get("reactions", {}),
 		"servings": int(episode.get("servings", 1)), "is_mob": profile.get("is_mob", false),
 		"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
+	# 実効注文（DESIGN.md 10.3.2・10.5.2）：基本注文（プロフィールのwanted_tags）を、今日の頼み
+	# （場面のorder.today_request.tags）があれば**上書き**する（足し算ではない）。好物・杯数は
+	# 変えない。今日の頼みが無ければ従来と同一（base_wanted_tagsも付かない）。
+	var today := today_request_of(customer_id, episode_id)
+	if not today.is_empty():
+		flavor["base_wanted_tags"] = (flavor["wanted_tags"] as Array).duplicate()
+		flavor["wanted_tags"] = (today["tags"] as Array).duplicate()
+	return flavor
 
 
 ## モブのgreet 1行を仕上げる（旧_format_dock_greetを改名。dock_workers専用ではなく

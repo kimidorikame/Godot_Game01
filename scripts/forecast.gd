@@ -32,11 +32,13 @@ static func _slots() -> Array:
 
 ## 客1人（1組）の注文を[{tags, servings}]で返す（customer_events()のREACTを走査）。
 ## 配達員のDay1は3件（本人2杯＋持ち帰り1杯）になる。
+## 朝の予報は基本注文（いつもの）のまま（DESIGN.md 10.4「今日の頼みは会話で判明」）。今日の頼みで
+## 実効注文が変わる客のREACTはbase_wanted_tagsを持つので、それを使う（無ければwanted_tags）。
 static func orders_of(customer_id: String) -> Array:
 	var orders := []
 	for ev in Day1Events.customer_events(customer_id):
 		if str(ev.get("type", "")) == "REACT":
-			orders.append({ "tags": (ev.get("wanted_tags", []) as Array).duplicate(),
+			orders.append({ "tags": (ev.get("base_wanted_tags", ev.get("wanted_tags", [])) as Array).duplicate(),
 				"servings": int(ev.get("servings", 1)) })
 	return orders
 
