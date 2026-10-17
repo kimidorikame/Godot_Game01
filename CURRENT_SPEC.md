@@ -2130,7 +2130,7 @@ GameState.try_pay(amount) -> bool
   （基本注文は日によって変えない＝10.5.1。`days`は廃止）。`data/episodes/<客>/<客>_<連番>.json`＝
   来店場面`{id, customer, greet, reactions, servings}`（来店順に配達員・チンピラ・新人警官が`_01`〜`_04`、
   老婆・夜の女・配信者が`_01`〜`_03`の計21ファイル。`requires`・`callback`・`body`・`choices`・
-  `today_request`は未実装＝4-4b以降）。中身は旧`days`をそのまま移した仮データで、各客で全日同一。
+  `today_request`は4-4aの時点では未実装。`requires`・`order`・`callback`は4-4b-2で読めるようになった）。中身は旧`days`をそのまま移した仮データで、各客で全日同一。
   `week7_regulars.json`の各枠に`episode_id`が付いた。
 - **21枠と場面ID**：
 
@@ -2168,8 +2168,8 @@ GameState.try_pay(amount) -> bool
   （書き換えたテストの構文エラーで73分終わらなかったため）。**各スイートの最後は
   `return c.finish()`にする**（`TestCheck.finish()`が集計表示と走り切った印`completed_runs`を記録し、
   `run()`の前後で増えなかったスイートを失敗にする）。存在しないスイートを指定したときも失敗で終わる。
-- **未対応**：（来店記録と`known_favorites`の置き換えは4-4b-1で済み。下の節）場面の選び方（`requires`・`not_seen`）・
-  前回を読んだ2行・注文カード・今日の頼みは4-4b-2。新人警官の市場会話（`day_count == 2`）と
+- **未対応**：（来店記録と`known_favorites`の置き換えは4-4b-1、場面の選び方・前回を読んだ2行・注文カード・
+  今日の頼みは4-4b-2で済み。下の節）新人警官の市場会話（`day_count == 2`）と
   チンピラの場所代（`is_collection_day()`）の日番号判定も4-4b以降。
 
 ### 来店記録（F5・4-4b-1実装済み・2026-10-17・DESIGN.md 10.8.5）
@@ -2182,7 +2182,7 @@ GameState.try_pay(amount) -> bool
 
 - **形**：`customer_memory[客id] = {favorite_known: bool, visits: [{day, slot, served, grade, grades,
   ingredients, episode_id}], facts: {}, seen_episodes: [場面id…]}`。`visits`は来店1回につき1件、
-  `facts`は空のまま（`CustomerMemory.set_fact`／`fact`の手段だけある。使うのは4-4b-2以降）、
+  `facts`は空のまま（`CustomerMemory.set_fact`／`fact`の手段だけある。4-4b-2で`requires.facts`が読むようになったが、書く`sets_facts`は4-5以降）、
   `seen_episodes`は重複なし。`request_honored`・`choices`は未実装（辞書なので足せる）。好感度のような
   数値は持たない。**対象は名前あり客だけ**（モブのインスタンスidは記録しない。
   `CustomerMemory.is_recordable()`）。
@@ -2203,14 +2203,74 @@ GameState.try_pay(amount) -> bool
   結果画面の物語欄の渡し元は`known_favorite_ids()`に置き換えたが、文言は変えていない。STATE VIEWERの行は
   `favorite_known(好物を知っている客)`。
 - **保存**：`customer_memory`は`SAVED_FIELDS`に入り、`known_favorites`は外れた。封筒の版は3→4
-  （4-4b-1①で1回だけ上げた。版3以前の保存は読めない＝新規ゲーム）。`MorningSave.is_valid()`が型検査
+  （4-4b-1①で1回だけ上げた。版3以前の保存は読めない＝新規ゲーム。4-4b-2で版5に上がった）。`MorningSave.is_valid()`が型検査
   （辞書／各客の`favorite_known`はbool／`visits`・`seen_episodes`は配列／各visitの`day`・`served`は整数、
   `slot`・`grade`・`episode_id`は文字列、`grades`・`ingredients`は配列）を行う。①時点の版4（旧
   `known_favorites`の余分なキー付き）も、余分なキーが無視されるので読める。再挑戦・続きからで戻した朝より
   後の来店記録は持ち越さない（`day_records`と同じ）。`reset_for_new_game()`で空にし、
   `reset_for_new_day()`では消さない。
-- **未対応**：場面の選び方（`requires`・`not_seen`）・前回の料理を読んだ2行・注文カード・今日の頼み・
-  聞き直し・`choices`・`facts`の利用・`request_honored`は4-4b-2以降。結果画面の物語欄の本文は4-8。
+- **未対応**：（場面の選び方・前回を読んだ2行・注文カード・今日の頼み・聞き直しは4-4b-2で済み。下の節）
+  `choices`・`sets_facts`（factsを書く側）・`request_honored`は4-5以降。結果画面の物語欄の本文は4-8。
+
+### 場面の選び方・今日の頼み・前回の2行・注文カード（F6・4-4b-2実装済み・2026-10-17・DESIGN.md 10.3.2・10.5.2・10.5.3・10.8.6）
+
+場面を「前提を満たす未読のもの」から選ぶ仕組み、今日の頼み（実効注文）、前回の料理を読んだ2行、
+注文カードと`[聞き直す]`を入れた。**現行の21場面は`requires`・`order`・`callback`を持たないので、
+既存データでは動作が変わらない**（3シード×13方針の自動試遊は各コミットで4-3の結果と39/39周完全一致。
+日別・現金・評判・インシデント・結果画面の集計まで差分0）。新しい仕組みはテスト内のデータ
+（`tests/fixtures/episodes/`）で確認している。コミットは`0a5a0bb`（選び方と今日の頼み・版5）、
+`53560b1`（実効注文を判定へ）、`1f3cb76`（前回の2行・注文カード・聞き直し）。テストは1388件成功
+（4-4b-1の1272件に1339→1352→1388と追加。25スイートすべてが走り切る）。
+
+- **場面データの読み口**（`ScheduleData`）：`episode_requires`（`facts`・`not_seen`だけ。orや式は持たない）、
+  `episode_today_request`（`order.today_request`＝`{tags, label}`。`tags`が空・形が不正なら空）、
+  `episode_callback`、`episode_candidates(客)`（その客の場面id。id順）。`sets_facts`・`choices`・`body`・
+  `closing`・`must_info`は読まないが、入っていても壊れない。テストは`ScheduleData.episodes_dir`を差し替えて
+  場面の置き場を切り替える（切り替えたら`clear_cache()`）。
+- **場面の選び方**（`scripts/episode_selector.gd`・静的クラス・乱数なし）：`EpisodeSelector.select(客, 静的id)`。
+  (1) 日程（`week7_regulars.json`）の静的`episode_id`を第一候補にし、`requires`を満たせばそれ。
+  (2) 満たさなければ、その客の他の場面（id順）から最初に`requires`を満たすもの。
+  (3) どれも満たさなければ第一候補へ戻す（10.8.6の「短い近況の場面」データは作っていない）。
+  `not_seen`は`customer_memory[id].seen_episodes`（`CustomerMemory.has_seen`）、`facts`は
+  `CustomerMemory.fact`（**無い事実はfalse扱い**）で判定。`min_visits`・`last_grade`は採っていない
+  （前回の評価は`callback`が担い、他の条件はfactsで表せる）。`customer_schedule()`（WAKE）が枠ごとに選び、
+  枠の`episode_id`と`today_request`（場面の`order.today_request`。無ければ`{}`）に入れる。杯数の先読み
+  （`_customer_total_servings`）は選んだ場面で数える（`customer_events(客, mob_count, scene_id)`の省略可能な
+  `scene_id`。DayPlanがまだ無い途中でも選んだ場面を引くため）。
+- **実効注文**（10.3.2）：`_customer_flavor`が、基本注文（プロフィールの`wanted_tags`）を今日の頼みの`tags`で
+  **上書き**する（足し算ではない）。好物・杯数は変えない。上書きしたときだけ、REACTに`base_wanted_tags`
+  （基本注文）が付く（無い場面はキー自体が無い＝従来のREACTと同一）。判定（`judge_bowl`）・計器盤・試遊の
+  `cook()`はREACTの`wanted_tags`を読むので自動で実効注文に追従する。**`SaleRule`は注文タグを使わない**
+  （味・具・濃さ・杯数だけ）ので無改修。**朝の予報は基本注文のまま**（10.4「今日の頼みは会話で判明」）：
+  `Forecast.orders_of`は`base_wanted_tags`があればそれを使う。今日の頼みの取得は
+  `Day1Events.today_request_of(客, 場面id)`（DayPlanがその日のもので場面idが枠と同じなら枠の値＝WAKEで
+  確定・再挑戦でも変わらない。そうでなければ場面データ）。
+- **前回を読んだ2行**（`Day1Events._callback_lines`）：場面に`callback`があるときだけ、`GREET`の前に最大2行
+  （`GREET`イベント）を足す。出し分けは**今日より前の最後の来店**（`CustomerMemory.previous_visit`。
+  `last_visit()`は`arrive()`が作る今日の来店を拾うので使わない。`day < 今日`で見るので再挑戦で戻して
+  やり直しても同じ）：来店なし→`first`／`served=0`→`last_unserved`／GREAT・GOOD→
+  `last_grade_good_or_better`／OK・BAD→`last_grade_bad`（キー名は10.8.6のまま。OKもこちら）／提供したが
+  評価なし→`last_ungraded`（任意）。**評価で料金・評判・関係は変えない**（どの行を読むかを選ぶだけ。
+  好感度の数値は持たない。失敗した前回にも関係が続く台詞にするのはデータ側＝4-5の方針）。状態を
+  読むだけで書かないので、`Forecast`・杯数の先読みが`customer_events`を何度呼んでもREACTの数・杯数・
+  記録は変わらない。現行の21場面は`callback`が無いので何も出ない。
+- **注文カードと`[聞き直す]`**（`DebugPanel`・仮表示。本番UIはフェーズ6）：ADJUST中の名前あり客にだけ、
+  `_format_open()`に「── 注文カード ──／いつもの：HOT/POWER ／ 今日：MELLOW/GENTLE（ラベル）」を出す
+  （今日の頼みが無い客は「いつもの：…」のみ。タグは既存どおり「/」区切り）。`[聞き直す]`ボタン
+  （`_on_reask_pressed`）は、カードと場面の`order.reask`（無ければ客の`greet`）を再表示するだけ：
+  画面側の`_reask_text`を書くだけで、所持金・評判・評価・来店記録・`facts`・`GameState`を一切変えない
+  （何度押しても同じ。保存しない。客が替わる・再挑戦で消える）。**モブと、配達員の3杯専用列には出さない**
+  （`_adjust_customer_id()`が判定。4-4aで動かさないと決めた列）。確認操作は正解の印にしない。
+- **保存**：封筒の版を4→5に上げた（版4以前の保存は読めない＝新規ゲーム）。各枠に`today_request`
+  （辞書。今日の頼みが無ければ空）が必須で、`MorningSave.is_valid()`が型検査する。再挑戦は保存した
+  DayPlanを戻すので同じ`today_request`になる。場面データを読むだけで保存する状態は増えていない。
+- **書き換えた既存テスト**：`episode_flow_test.gd`・`customer_memory_test.gd`（版の数値）、
+  `save_state_test.gd`・`save_file_test.gd`（枠の固定値に`today_request`を追加。版5の`is_valid`が要求）。
+  ③では既存テストの書き換えなし。
+- **未対応**：`sets_facts`（factsを書く側）・`choices`・`body`・`closing`・`must_info`・ニュース・本文（4-5以降）、
+  実データの今日の頼み・`callback`（現行の21場面には無い。試作は4-5）、`servings`を持つ今日の頼み
+  （総需要の引き算に効くため見送り）、「短い近況の場面」、新人警官の市場会話（`day_count == 2`）と
+  チンピラの場所代（`is_collection_day()`）の日番号判定、レシピ保存と「いつもの」ボタン（4-7）。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2260,7 +2320,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
 | `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記）。3-7で`usable_cash()`追加 |
 | `scripts/forecast.gd` | 朝の一画面（SNSタブの客足予報）の集計。3-7実装・2026-10-11追記 |
-| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記。4-2で版2・`day_records`の型検査。4-4aで版3・枠の`regular_id`／`episode_id`の型検査 |
+| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記。4-2で版2・`day_records`の型検査。4-4aで版3・枠の`regular_id`／`episode_id`の型検査。4-4b-1で版4。4-4b-2で版5・枠の`today_request`の型検査 |
 | `scripts/result.gd` | 結果の集計と目標判定（`regular_stats`／`summarize`／`judge_goals`／`format_*`）。4-2実装・2026-10-11追記 |
 | `tests/result_test.gd`・`tests/result_flow_test.gd` | 集計・目標判定・累計の保存（4-2コミット①）／最終日の流れ・結果画面の選択肢（50件。4-2コミット②）。2026-10-11追記 |
 | `tests/save_state_test.gd`・`tests/save_file_test.gd` | 朝の保存・再挑戦（66件）／1枠セーブのファイル入出力（50件）。4-1実装・2026-10-11追記 |
@@ -2272,6 +2332,9 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `tests/episode_data_test.gd`・`tests/episode_flow_test.gd` | 場面データ・fixture照合（`tests/fixtures/customer_events_4_3.json`）／DayPlanの枠・場面の引き方・版3。4-4a実装・2026-10-17追記 |
 | `scripts/customer_memory.gd` | 来店記録（F5）の書き手（`arrive`／`record_serve`／`last_visit`／`set_fact`など）。4-4b-1実装・2026-10-17追記 |
 | `tests/customer_memory_test.gd` | 来店記録・好物の既知状態・保存の往復・知った順。4-4b-1実装・2026-10-17追記 |
+| `scripts/episode_selector.gd` | 場面の選び方（`select`／`satisfies`。`requires`の`facts`・`not_seen`）。4-4b-2実装・2026-10-17追記 |
+| `tests/episode_select_test.gd`・`tests/effective_order_test.gd`・`tests/order_card_callback_test.gd` | 選び方・今日の頼みの保存／実効注文（判定・予報は基本注文）／前回の2行・注文カード・聞き直し。4-4b-2実装・2026-10-17追記 |
+| `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
 
