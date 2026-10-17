@@ -683,6 +683,40 @@ static func market_talk_events() -> Array:
 	return events
 
 
+## 提供後の列（DESIGN.md 10.5.3・10.8.6。システム整理C）。REACT の処理が済んだ後に DebugPanel が
+## 呼び、返った列を現在位置の直後へ差し込む（来店時に最後まで固定しない＝実際の出来が出た後に組む）。
+## 状態を読むだけで書かない（何度呼んでも同じ。乱数も使わない）。EventRunner に条件分岐は入れない
+## （どの行を出すかはここで選ぶ）。出来（grade）で本文・締めは分けない：10.5.3「差分は冒頭2行・
+## 反応・締めだけ」。わざと失敗すると親密になる経路を作らないため、締めの引き当てに grade を使わない。
+##
+## outcome：{ served: bool, grade: String }
+##   served=true  … 本文（body）→ 締め（closing.default）。反応は REACT の表示（reactions[出来]）
+##   served=false … 断った客。must_info を持つ場面だけ未提供版の本文（body_unserved）。反応は
+##                  REACT の表示（reactions.UNSERVED）。本文の無い場面は何も差さない
+## 各行は { type:"GREET", customer, text, part:"body"|"closing" }。場面データに該当のキーが無い
+## （現行の21場面）・モブ・配達員の3杯列は空配列＝従来のイベント列と同一。
+static func after_serve_events(customer_id: String, scene_id: String, outcome: Dictionary) -> Array:
+	var events := []
+	if customer_id == "" or scene_id == "" or scene_id == THREE_CUPS_EPISODE 			or is_mob_customer(customer_id):
+		return events
+	if bool(outcome.get("served", false)):
+		events.append_array(_scene_lines("body", customer_id, ScheduleData.episode_body(customer_id, scene_id)))
+		var closing := ScheduleData.episode_closing(customer_id, scene_id)
+		events.append_array(_scene_lines("closing", customer_id, closing.get("default", [])))
+	elif not ScheduleData.episode_must_info(customer_id, scene_id).is_empty():
+		events.append_array(_scene_lines("body", customer_id,
+			ScheduleData.episode_body_unserved(customer_id, scene_id)))
+	return events
+
+
+## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。
+static func _scene_lines(part: String, customer_id: String, lines: Array) -> Array:
+	var events := []
+	for line in lines:
+		events.append({ "type": "GREET", "customer": customer_id, "text": line, "part": part })
+	return events
+
+
 ## 前回の来店を読んだ2行（DESIGN.md 10.5.3・10.8.6。4-4b-2）。場面のcallbackから、前回の来店
 ## （今日より前の最後の来店。CustomerMemory.previous_visit）に応じた行を最大2行返す。出し分け：
 ##   前回の来店なし                → first

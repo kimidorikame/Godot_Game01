@@ -171,6 +171,9 @@ var _pending_group_result := {}
 # 一切発生させずに未提供として記録する（_pending_group_resultと同じ「確認結果を持ち越す」
 # パターンだが、モブとは独立したフラグにして混線を避ける）。
 var _pending_decline := false
+# 断った客のREACTを表示している間だけtrue（反応文をreactions.UNSERVEDから引くため）。新しい客・
+# 再挑戦・新しい周でリセット（システム整理C1）。
+var _declined_now := false
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
 # 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
@@ -439,6 +442,7 @@ func _load_current_customer() -> void:
 	_mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
 	_mob_recipe_number = 1
 	_pending_decline = false   # F3 断る操作：新しい客ごとにリセット
+	_declined_now = false
 	_reask_text = ""   # 聞き直しの再表示も客ごとに消す
 	if _open != null and _open.has_more():
 		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
@@ -1166,6 +1170,7 @@ func _serve_customer(ev: Dictionary) -> void:
 		"servings": servings, "result": result })
 	if sale > 0:
 		Ledger.record("sale", sale, customer_id, servings)
+	_insert_after_serve_events(ev, true, result)
 
 
 ## [客を断る]のハンドラ（F3・DESIGN.md 10.3.6）。名前あり客・配達員のADJUST中、いつでも
@@ -1186,6 +1191,7 @@ func _on_customer_decline_pressed() -> void:
 ## _visit_tally経路へ0杯ぶんとして積む（_apply_mob_recipeのactual<=0分岐と同じ形）。
 func _serve_customer_decline(ev: Dictionary) -> void:
 	var customer_id := str(ev.get("customer", ""))
+	_declined_now = true   # 反応文はreactions.UNSERVEDから引く（_current_reaction_text）
 	# 来店記録（4-4b-1）：断りも「来た」事実として残す（served=0のまま）。
 	if _open != null and CustomerMemory.is_recordable(customer_id):
 		CustomerMemory.ensure_visit(customer_id, _open.current_slot_name(),
@@ -1195,6 +1201,26 @@ func _serve_customer_decline(ev: Dictionary) -> void:
 		return
 	GameState.record_served({ "customer": customer_id, "sale": 0,
 		"servings": 0, "declined": true, "result": "" })
+	_insert_after_serve_events(ev, false, "")
+
+
+## 提供後の列（本文・締め。システム整理C1）を、現在位置（REACT）の直後へ差し込む。
+## 列を組むのは Day1Events.after_serve_events()（状態を読むだけ）。ここは差し込むだけで、
+## 料金・評判・評価・鍋・在庫には触れない。差し込み先は常にindex 2以降なので、EventRunner の
+## 「index 0 の効果は適用されない」制約に当たらない（モブの2レシピ目と同じ差し込み方）。
+## 場面データに該当のキーが無い（現行の21場面）・モブ・集計客（配達員の3杯列）は何も差さない。
+## 既存の _customer_extra_events（警官の共通会話・場所代のPAY）は、差し込んだ列の後ろに残る。
+func _insert_after_serve_events(ev: Dictionary, served: bool, grade: String) -> void:
+	if flow.runner == null or bool(ev.get("is_mob", false)) or bool(ev.get("aggregate", false)):
+		return
+	var customer_id := str(ev.get("customer", ""))
+	if not CustomerMemory.is_recordable(customer_id):
+		return
+	var events := Day1Events.after_serve_events(customer_id, Day1Events.episode_id_of(customer_id),
+		{ "served": served, "grade": grade })
+	var insert_at: int = flow.runner.index + 1
+	for i in range(events.size()):
+		flow.runner.events.insert(insert_at + i, events[i])
 
 
 ## 集計（_visit_tally）に1杯分を積む。売上と杯数は全杯を積む。
@@ -1410,6 +1436,7 @@ func _reset_transient_panel_state() -> void:
 	_visit_tally = {}
 	_reset_mob_group_state()
 	_pending_decline = false
+	_declined_now = false
 	_mob_original_ordered = -1
 	_mob_recipe_number = 1
 	_bowl_discard_count = 0
@@ -2427,6 +2454,9 @@ func _current_reaction_text() -> String:
 	var result: String = str(_open.current_bowl.get("result", ""))
 	var reactions: Dictionary = cur.get("reactions", {})
 	var pool: Array = reactions.get(result, [])
+	if result == "" and _declined_now:
+		# 断った客（未提供）の反応。2パターンの抽選は判定（judge_bowl）が引くので使えない＝要素0。
+		pool = reactions.get("UNSERVED", [])
 	if pool.is_empty():
 		return ""
 	var variant: int = _open.current_bowl.get("reaction_variant", 0)
