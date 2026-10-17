@@ -120,22 +120,19 @@ func run(t: SceneTree) -> int:
 	#    （DESIGN.md 10.8.4「自動試遊の比較を続けられる形を保つ」の互換性確認。
 	#    実際に日次ログを1件書き出し、user://balance_log.jsonlの最終行をパースして
 	#    キー集合を見る＝指示文が提案した「実際に出力してdiffを取る」方法） ---
+	# （書き出し先はテスト専用のファイルへ差し替える。実際のログを汚さない）
+	var saved_log_path := BalanceLog.path
+	BalanceLog.path = "user://balance_log_test.jsonl"
+	if FileAccess.file_exists(BalanceLog.path):
+		DirAccess.remove_absolute(BalanceLog.path)
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	var panel2 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel2)
 	panel2._on_day_ending()
-	var log_path := "user://balance_log.jsonl"
-	var f := FileAccess.open(log_path, FileAccess.READ)
-	var last_line := ""
-	while f != null and not f.eof_reached():
-		var line := f.get_line()
-		if line != "":
-			last_line = line
-	if f != null:
-		f.close()
-	var parsed = JSON.parse_string(last_line)
-	c.check("balance_log.jsonlの最終行がパースできる", parsed is Dictionary, last_line)
+	var rows := BalanceLog.read_all()
+	var parsed = rows.back() if not rows.is_empty() else null
+	c.check("balance_log.jsonlの最終行がパースできる", parsed is Dictionary, str(rows))
 	var required_keys := ["day", "opening_money", "closing_money", "opening_reputation",
 		"closing_reputation", "planned_cups", "served_cups", "unserved_cups", "sale_total",
 		"quality_counts", "judged_planned_cups", "quality", "spoiled_items", "spoiled_value",
@@ -156,5 +153,13 @@ func run(t: SceneTree) -> int:
 	c.check("日次ログと同じ内容が周回の累計（day_records）にも1件入る",
 		GameState.day_records.size() == 1 and int(GameState.day_records[0]["day"]) == 1,
 		str(GameState.day_records))
+	c.check("run_id・attempt（システム整理AのF2で追加）が出力され、day_recordsには入らない",
+		parsed is Dictionary and str(parsed.get("run_id", "")) != "" and int(parsed.get("attempt", 0)) == 1
+			and not GameState.day_records[0].has("run_id") and not GameState.day_records[0].has("attempt"),
+		str(parsed))
+	DirAccess.remove_absolute(BalanceLog.path)
+	BalanceLog.path = saved_log_path
+	if is_instance_valid(panel2):
+		panel2.free()
 
 	return c.finish()

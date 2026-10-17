@@ -305,6 +305,7 @@ func is_final_day() -> bool:
 ## なので、積み直しは受け側（DebugPanel）が game_restarted を受けて行う
 ## （GameState から台本データへ依存させない）。
 func reset_for_new_game() -> void:
+	BalanceLog.begin_run()   # 日次ログ（balance_log.jsonl）のrun_id・attemptを新しい周にする
 	day_count = 1
 	money = INITIAL_MONEY
 	reputation = INITIAL_REPUTATION

@@ -1389,6 +1389,7 @@ func retry_from_morning(day: int = -1) -> bool:
 	if morning.is_empty() or not MorningSave.is_valid(morning):
 		return false
 	_restore_morning(morning)
+	BalanceLog.note_retry()   # 同じ周の次の挑戦（日次ログの行を区別する）
 	return true
 
 
@@ -1457,6 +1458,7 @@ func _on_continue_pressed() -> void:
 	GameState.morning_snapshots.clear()
 	GameState.record_morning(morning)
 	_restore_morning(morning)
+	BalanceLog.begin_run()   # 続きから読み込んだ周は別の周（日次ログのrun_idを新しくする）
 
 
 ## 起動時にセーブがあったとき、最初の朝（WAKE）を抜けた時点で書き込みを有効にする
@@ -1552,7 +1554,7 @@ func _on_day_ending() -> void:
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
 		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
 		_log_water_used, _log_dashi_used, str(_log_closed_early), str(_log_quality_counts)])
-	_append_balance_log_file(log_entry)
+	BalanceLog.append(log_entry)
 	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
 	# 続きからで戻した朝より後の日は持たない）。
 	GameState.record_day(log_entry)
@@ -1633,23 +1635,6 @@ func _quality_score(counts: Dictionary, judged_planned: int) -> float:
 	for key in REPUTATION_SCORE:
 		total += int(REPUTATION_SCORE[key]) * int(counts.get(key, 0))
 	return float(total) / float(judged_planned)
-
-
-## 日次ログをuser://配下へJSON Linesで追記する（1行1JSON。人が読むための整形は不要）。
-func _append_balance_log_file(log_entry: Dictionary) -> void:
-	var path := "user://balance_log.jsonl"
-	var f: FileAccess
-	if FileAccess.file_exists(path):
-		f = FileAccess.open(path, FileAccess.READ_WRITE)
-		if f != null:
-			f.seek_end()
-	else:
-		f = FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		push_error("BALANCE_LOG: failed to open %s (%s)" % [path, FileAccess.get_open_error()])
-		return
-	f.store_line(JSON.stringify(log_entry))
-	f.close()
 
 
 func _on_day_plus_pressed() -> void:

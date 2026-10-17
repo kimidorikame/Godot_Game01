@@ -30,6 +30,12 @@ func _initialize() -> void:
 	var morning_save = load("res://scripts/morning_save.gd")
 	morning_save.set("save_path", "user://test_save.dat")
 	morning_save.call("delete_file")
+	# 日次ログ（BalanceLog）の書き出し先も、実際のログ（user://balance_log.jsonl）と別のファイルにする
+	# （日の終わりごとに追記するので、差し替えないとテストが本物のログを汚す）。
+	var balance_log = load("res://scripts/balance_log.gd")
+	balance_log.set("path", "user://test_balance_log.jsonl")
+	if FileAccess.file_exists("user://test_balance_log.jsonl"):
+		DirAccess.remove_absolute("user://test_balance_log.jsonl")
 	var only := ""
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
