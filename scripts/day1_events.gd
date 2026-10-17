@@ -709,6 +709,24 @@ static func after_serve_events(customer_id: String, scene_id: String, outcome: D
 	return events
 
 
+## 接客中に提供できないまま閉店して退店する客（鍋不足の[閉店]・自動閉店）の未提供版。REACT が
+## 適用されないので、反応（reactions.UNSERVED の要素0）も GREET（part:"reaction"）として出し、続けて
+## after_serve_events(served=false) の列（must_info を持つ場面だけ未提供版の本文）。DebugPanel が
+## CLOSE の先頭に積む。どちらも無い場面（現行の21場面）は空配列＝従来の閉店と同一。
+## 到着前に閉店して来なかった客は対象外（場面が始まっていない。必須情報はニュースが担う）。
+static func unserved_exit_events(customer_id: String, scene_id: String) -> Array:
+	var events := []
+	if customer_id == "" or scene_id == "" or scene_id == THREE_CUPS_EPISODE 			or is_mob_customer(customer_id):
+		return events
+	var reactions = ScheduleData.episode_data(customer_id, scene_id).get("reactions", {})
+	if reactions is Dictionary and (reactions as Dictionary).get("UNSERVED", []) is Array:
+		var pool: Array = (reactions as Dictionary).get("UNSERVED", [])
+		if not pool.is_empty() and pool[0] is String and pool[0] != "":
+			events.append({ "type": "GREET", "customer": customer_id, "text": pool[0], "part": "reaction" })
+	events.append_array(after_serve_events(customer_id, scene_id, { "served": false, "grade": "" }))
+	return events
+
+
 ## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。
 static func _scene_lines(part: String, customer_id: String, lines: Array) -> Array:
 	var events := []

@@ -174,6 +174,9 @@ var _pending_decline := false
 # 断った客のREACTを表示している間だけtrue（反応文をreactions.UNSERVEDから引くため）。新しい客・
 # 再挑戦・新しい周でリセット（システム整理C1）。
 var _declined_now := false
+# 提供できないまま閉店して退店する客の未提供版（反応・must_infoの本文）。CLOSEの先頭に一度だけ
+# 積む（_closed_early_reasonと同じ「一度だけ」パターン。システム整理C1）。
+var _pending_close_lines: Array = []
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
 # 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
@@ -408,6 +411,9 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
 		# 読んだら消費する（次に通常経路でCLOSEへ来たときに残っていないように）。
 		var events := Day1Events.close_events()
+		# 提供できないまま退店した客の未提供版（理由テキストの次・閉店の語りの前）。
+		events = _pending_close_lines + events
+		_pending_close_lines = []
 		if _closed_early_reason != "":
 			events = [{ "type": "TEXT", "text": _closed_early_reason }] + events
 			_closed_early_reason = ""
@@ -587,6 +593,7 @@ func _on_close_pressed() -> void:
 	_pending_shortage_ev = null
 	_pot_mode = false
 	_closed_early_reason = reason
+	_queue_unserved_exit()
 	_log_closed_early = true   # 日次ログ：鍋不足で名前あり客を最後まで回せなかった
 	flow.force_phase(GameState.Phase.CLOSE)
 	_refresh()
@@ -1437,6 +1444,7 @@ func _reset_transient_panel_state() -> void:
 	_reset_mob_group_state()
 	_pending_decline = false
 	_declined_now = false
+	_pending_close_lines = []
 	_mob_original_ordered = -1
 	_mob_recipe_number = 1
 	_bowl_discard_count = 0
@@ -1512,8 +1520,26 @@ func _auto_close_kitchen() -> void:
 	if reason == "":
 		return
 	_closed_early_reason = reason
+	_queue_unserved_exit()
 	_log_closed_early = true   # 日次ログ：鍋が尽きて自動的に閉店した
 	flow.force_phase(GameState.Phase.CLOSE)
+
+
+## 提供できないまま閉店して退店する客（今の接客中の名前あり客。今日の来店で served=0）の
+## 未提供版を、CLOSEの先頭に積むために覚える（システム整理C1）。反応（reactions.UNSERVED）と、
+## must_info を持つ場面の未提供版の本文だけ。facts は立てず、来店記録・評判・料金は変えない。
+## 到着前の客（列に残っている客）は来店記録も無く、場面が始まっていないので対象外。
+func _queue_unserved_exit() -> void:
+	_pending_close_lines = []
+	if _open == null or not _open.has_more():
+		return
+	var customer_id := str(_open.current_customer())
+	if not CustomerMemory.is_recordable(customer_id):
+		return
+	var visit := CustomerMemory.last_visit(customer_id)
+	if visit.is_empty() or int(visit["day"]) != GameState.day_count or int(visit["served"]) > 0:
+		return
+	_pending_close_lines = Day1Events.unserved_exit_events(customer_id, Day1Events.episode_id_of(customer_id))
 
 
 ## 未払いの場所代（徴収日のみ）があれば、閉店の直前に特別請求する共通処理
