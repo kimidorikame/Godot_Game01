@@ -438,7 +438,10 @@ func _load_current_customer() -> void:
 	if _open != null and _open.has_more():
 		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
 		# ここでは第2引数（mob_count）を渡さない（渡しても_customer_flavor側で無視される）。
-		flow.set_runner(Day1Events.customer_events(str(_open.current_customer())))
+		var arriving := str(_open.current_customer())
+		# 来店記録（4-4b-1）：名前あり客が来た事実を残す（記録するだけ。モブは対象外）。
+		CustomerMemory.arrive(arriving, _open.current_slot_name(), Day1Events.episode_id_of(arriving))
+		flow.set_runner(Day1Events.customer_events(arriving))
 	else:
 		flow.set_runner([])
 
@@ -1137,6 +1140,12 @@ func _serve_customer(ev: Dictionary) -> void:
 		result = _open.judge_bowl(ev.get("wanted_tags", []), raw_favorite)
 	GameState.consume_soup(servings)
 	GameState.apply_money(sale)
+	# 来店記録（4-4b-1）：この杯の提供（評価・入れた具材）を、その日の来店へ追記する
+	# （配達員も杯ごとにここへ来る。好物の開示の時刻は下のままで変えない）。
+	if _open != null:
+		CustomerMemory.record_serve(customer_id, _open.current_slot_name(),
+			Day1Events.episode_id_of(customer_id), servings, result,
+			_open.current_bowl.get("additions", []))
 	if aggregate:
 		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
@@ -1172,6 +1181,10 @@ func _on_customer_decline_pressed() -> void:
 ## _visit_tally経路へ0杯ぶんとして積む（_apply_mob_recipeのactual<=0分岐と同じ形）。
 func _serve_customer_decline(ev: Dictionary) -> void:
 	var customer_id := str(ev.get("customer", ""))
+	# 来店記録（4-4b-1）：断りも「来た」事実として残す（served=0のまま）。
+	if _open != null and CustomerMemory.is_recordable(customer_id):
+		CustomerMemory.ensure_visit(customer_id, _open.current_slot_name(),
+			Day1Events.episode_id_of(customer_id))
 	if bool(ev.get("aggregate", false)):
 		_add_to_visit_tally(customer_id, false, 0, 0, "", "")
 		return

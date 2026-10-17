@@ -46,6 +46,12 @@ func _fill_every_field() -> void:
 	GameState.rumors = ["噂その1"]
 	GameState.dashi_units = 2
 	GameState.known_favorites = { "granny": true, "delivery_man": true }
+	GameState.customer_memory = {
+		"granny": { "favorite_known": true, "facts": {}, "seen_episodes": ["granny_01"],
+			"visits": [{ "day": 3, "slot": "夜", "served": 1, "grade": "GOOD", "grades": ["GOOD"],
+				"ingredients": [["offal"]], "episode_id": "granny_01" }] },
+		"delivery_man": { "favorite_known": true, "facts": {}, "seen_episodes": [], "visits": [] },
+	}
 	GameState.ledger = [
 		{ "day": 3, "phase": "OPEN", "category": "sale", "amount": 45, "item": "granny",
 			"count": 1, "unit_price": 0, "ref": "" },

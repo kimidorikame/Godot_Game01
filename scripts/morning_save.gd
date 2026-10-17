@@ -13,7 +13,7 @@ class_name MorningSave
 ## 再挑戦では変わりうる（客・需要・組は変わらない）。
 
 ## 封筒の版。形を変えたら上げる（古い版のファイルはis_valid()で弾いて新規ゲームにする）。
-const VERSION := 3
+const VERSION := 4
 
 ## state の各項目の型（is_valid用）。GameState.SAVED_FIELDS と同じ項目を持つ。
 const _FIELD_TYPES := {
@@ -21,6 +21,7 @@ const _FIELD_TYPES := {
 	"inventory": TYPE_DICTIONARY, "perishable_batches": TYPE_DICTIONARY,
 	"rumors": TYPE_ARRAY, "dashi_units": TYPE_INT, "known_favorites": TYPE_DICTIONARY,
 	"ledger": TYPE_ARRAY, "today_plan": TYPE_DICTIONARY, "day_records": TYPE_ARRAY,
+	"customer_memory": TYPE_DICTIONARY,
 }
 
 
@@ -84,6 +85,28 @@ static func is_valid(envelope) -> bool:
 				or typeof(sd.get("regular_id")) != TYPE_STRING \
 				or typeof(sd.get("episode_id")) != TYPE_STRING:
 			return false
+	# 版4（4-4b-1）：来店記録。各客は favorite_known(bool)・visits・seen_episodes(配列)・facts(辞書)。
+	var memory: Dictionary = state["customer_memory"]
+	for id in memory:
+		var entry = memory[id]
+		if typeof(id) != TYPE_STRING or not (entry is Dictionary):
+			return false
+		var e: Dictionary = entry
+		if typeof(e.get("favorite_known")) != TYPE_BOOL or typeof(e.get("visits")) != TYPE_ARRAY \
+				or typeof(e.get("seen_episodes")) != TYPE_ARRAY or typeof(e.get("facts")) != TYPE_DICTIONARY:
+			return false
+		for visit in e["visits"]:
+			if not (visit is Dictionary):
+				return false
+			var v: Dictionary = visit
+			if typeof(v.get("day")) != TYPE_INT or typeof(v.get("served")) != TYPE_INT \
+					or typeof(v.get("slot")) != TYPE_STRING or typeof(v.get("grade")) != TYPE_STRING \
+					or typeof(v.get("episode_id")) != TYPE_STRING or typeof(v.get("grades")) != TYPE_ARRAY \
+					or typeof(v.get("ingredients")) != TYPE_ARRAY:
+				return false
+		for eid in e["seen_episodes"]:
+			if typeof(eid) != TYPE_STRING:
+				return false
 	var panel = env.get("panel")
 	if not (panel is Dictionary) or typeof((panel as Dictionary).get("day_summary_text")) != TYPE_STRING:
 		return false

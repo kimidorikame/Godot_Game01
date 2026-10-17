@@ -28,6 +28,11 @@ func _sample_envelope() -> Dictionary:
 	GameState.perishable_batches = { "tofu": [{ "day": 3, "count": 3, "unit_price": 8 }] }
 	GameState.dashi_units = 2
 	GameState.known_favorites = { "granny": true }
+	GameState.customer_memory = {
+		"granny": { "favorite_known": true, "facts": {}, "seen_episodes": ["granny_01"],
+			"visits": [{ "day": 3, "slot": "夜", "served": 1, "grade": "GOOD", "grades": ["GOOD"],
+				"ingredients": [["offal"]], "episode_id": "granny_01" }] },
+	}
 	GameState.ledger = [{ "day": 3, "phase": "OPEN", "category": "sale", "amount": 45,
 		"item": "granny", "count": 1, "unit_price": 0, "ref": "" }]
 	GameState.today_plan = {
@@ -72,6 +77,10 @@ func run(t: SceneTree) -> int:
 		typeof(st["perishable_batches"]["tofu"][0]["day"]) == TYPE_INT
 			and typeof(st["perishable_batches"]["tofu"][0]["unit_price"]) == TYPE_INT)
 	c.check("known_favoritesの真偽値が保たれる", st["known_favorites"]["granny"] == true)
+	c.check("来店記録（customer_memory）の型が保たれる（整数・真偽値・配列の配列）",
+		st["customer_memory"]["granny"]["favorite_known"] == true
+			and typeof(st["customer_memory"]["granny"]["visits"][0]["day"]) == TYPE_INT
+			and st["customer_memory"]["granny"]["visits"][0]["ingredients"] == [["offal"]])
 	c.check("DayPlan（slots・mob_instances・demand_center）が保たれる",
 		st["today_plan"]["slots"] == env["state"]["today_plan"]["slots"]
 			and typeof(st["today_plan"]["mob_instances"]["mob#0"]["count"]) == TYPE_INT

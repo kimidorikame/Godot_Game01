@@ -130,6 +130,19 @@ var dashi_units: int = 0
 # 常に空なので、そもそもここに登録されることがない）。
 var known_favorites: Dictionary = {}
 
+# 来店記録（F5・DESIGN.md 10.8.5。4-4b-1）：名前あり客ごとの、7日間を通した事実の記録。
+#   customer_memory[客id] = {
+#     favorite_known: bool,          # 好物を知っているか（known_favoritesの置き換え先）
+#     visits: [ { day, slot, served, grade, grades, ingredients, episode_id }, ... ],
+#     facts: {},                     # 次回へ残す事実（今は使わない。set_fact/fact）
+#     seen_episodes: [ 場面id... ]   # その客が見た場面（重複なし）
+#   }
+# 好感度のような数値は持たない。書き手はCustomerMemory（静的クラス）とmark_favorite_known()
+# だけ。モブは記録しない。reset_for_new_gameでクリアし、reset_for_new_dayでは消さない
+# （7日間を通して残す）。朝の辞書（SAVED_FIELDS）に含める＝再挑戦・続きからで、戻した朝
+# より後の来店を持ち越さない。4-4b-1のコミット②でknown_favoritesを置き換える。
+var customer_memory: Dictionary = {}
+
 # 今どのフェーズか。進行度ではなく「位置」だけ。
 var phase: Phase = Phase.WAKE
 
@@ -195,7 +208,7 @@ var day_records: Array = []
 # どちらにも載っていない変数を検出する）。
 const SAVED_FIELDS := [
 	"day_count", "money", "reputation", "inventory", "perishable_batches", "rumors",
-	"dashi_units", "known_favorites", "ledger", "today_plan", "day_records",
+	"dashi_units", "known_favorites", "ledger", "today_plan", "day_records", "customer_memory",
 ]
 # 保存しない項目（朝には初期値になっている、または保存の仕組み自身の置き場）。
 const TRANSIENT_FIELDS := [
@@ -304,6 +317,7 @@ func reset_for_new_game() -> void:
 	rumors.clear()
 	dashi_units = 0
 	known_favorites.clear()
+	customer_memory.clear()
 	ledger.clear()
 	morning_snapshots.clear()
 	day_records.clear()
@@ -665,5 +679,34 @@ func knows_favorite(customer_id) -> bool:
 
 ## この客の好物を「知っている」状態にする（mark_rent_paidと同じ単発の入口。受け側から
 ## known_favoritesを直接書き換えさせない）。次回の来店から判定に使われるようになる。
+## 4-4b-1①：来店記録（customer_memory）にも同じ事実を書く（known_favoritesと常に一致。
+## ②でknown_favoritesを撤去する）。知った客のキーは辞書の末尾へ入れ直す＝customer_memoryを
+## 先頭から読むと「好物を知った順」になる（known_favoritesの並びと同じ。known_favorite_ids()）。
 func mark_favorite_known(customer_id) -> void:
-	known_favorites[str(customer_id)] = true
+	var id := str(customer_id)
+	known_favorites[id] = true
+	var entry := memory_entry(id)
+	if bool(entry["favorite_known"]):
+		return
+	entry["favorite_known"] = true
+	customer_memory.erase(id)
+	customer_memory[id] = entry
+
+
+## 好物を知った客のid（知った順）。customer_memoryの並びから出す（mark_favorite_known参照）。
+func known_favorite_ids() -> Array:
+	var ids := []
+	for id in customer_memory:
+		if bool((customer_memory[id] as Dictionary).get("favorite_known", false)):
+			ids.append(str(id))
+	return ids
+
+
+## 客の来店記録のエントリ（無ければ空のものを作る）。形はcustomer_memoryの宣言参照。
+## 返すのは辞書そのもの（参照）で、書き手（CustomerMemory・mark_favorite_known）が直接足す。
+func memory_entry(customer_id) -> Dictionary:
+	var id := str(customer_id)
+	if not customer_memory.has(id):
+		customer_memory[id] = { "favorite_known": false, "visits": [], "facts": {},
+			"seen_episodes": [] }
+	return customer_memory[id]
