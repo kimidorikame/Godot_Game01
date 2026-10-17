@@ -348,16 +348,16 @@ static func close_events() -> Array:
 
 
 ## OPEN の客の並び（DESIGN.md 9章 / 7.6 / §9-C「データの外部化」）。STEP 6: 配達員1人
-## → STEP 7: 3人 → §9-C: 日ごとの構成をScheduleData.day_schedule()のJSONから組み立てる
-## 汎用ロジックに変更（day1_events.gd側にはもう客IDのif/matchを持たない）。
+## → STEP 7: 3人 → §9-C: 日ごとの構成をデータから組み立てる汎用ロジックに変更
+## （day1_events.gd側にはもう客IDのif/matchを持たない）。
 ## 4-3：常連は抽選ではなく固定日程（data/schedules/week7_regulars.json・10.5.1の21枠）。
-## モブの抽選ルールはdata/schedules/mob_rules.jsonで、day_schedule()が両方を合成する。
+## モブの抽選ルールはdata/schedules/mob_rules.json。4-4a：ScheduleData.regular_slots()を
+## 直接読み、各枠に regular_id・episode_id を持たせる（互換層は撤去）。
 ## 7.6: フラットな配列をやめ、**時間帯で区切る**（宵の口 / 夜半 / 明け方）。
 ##   時間帯名と客リストを1つの辞書に同居させる（名前を別配列で並行管理しない）。
-## 定義の無い日（Day8以降）はScheduleData側で"1"（Day1）へフォールバックする。
+## 定義の無い日（Day8以降）は枠が無く、空の配列を返す（客なし）。
 ##   ここでは「今日の枠構成」をそのまま信じて組み立てるだけでよい。
-## 時間帯に客がいない（＝main/main_poolを持たない）ことは今回は無い想定だが、
-##   将来そういう枠を足しても "id": "" のまま customers=[] になるだけで安全。
+## 常連のいない枠（想定外）は regular_id="" のまま customers=[]（モブのみ）になるだけで安全。
 ##
 ## モブの独立抽選（Day2-7ダミーデータ・モブ抽選独立化 → ④評判の更新+⑤客数の決め方で
 ## Day2以降のauto経路をtotal_demand_today()ベースへ置き換え）。
@@ -381,14 +381,18 @@ static func close_events() -> Array:
 ## 全モブ枠へ一律適用する既存挙動のまま（_pick_mob()経由）。
 static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	GameState.today_plan["mob_instances"] = {}
-	var slots: Array = ScheduleData.day_schedule(GameState.day_count).get("slots", [])
-	var chosen_mains := []   # 同日内の重複禁止（main_poolの抽選用。§9-C確定仕様）
+	# 4-4a：常連の固定日程（week7_regulars.json）を直接読む（互換層は撤去）。各枠は
+	# { name, regular_id, episode_id, mob }。mobはmob_rules.jsonの規則（false｜{pool}）で、
+	# _plan_mob_groups()・_pick_mob()・_pick_mob_type()へ従来と同じ形で渡す。
+	var slots: Array = []
 	var main_ids := []
-	for slot in slots:
-		var main_id := _pick_main(slot, chosen_mains)
-		main_ids.append(main_id)
-		if main_id != "":
-			chosen_mains.append(main_id)
+	for entry in ScheduleData.regular_slots(GameState.day_count):
+		var slot_name := str(entry.get("slot", ""))
+		slots.append({ "name": slot_name,
+			"regular_id": str(entry.get("regular", "")),
+			"episode_id": str(entry.get("episode_id", "")),
+			"mob": ScheduleData.mob_rule_for(GameState.day_count, slot_name) })
+		main_ids.append(str(entry.get("regular", "")))
 
 	var fixed_mobs: Array = Rules.day_overrides(GameState.day_count).get("mobs", []) \
 		if debug_mob_count < 0 else []
@@ -437,7 +441,11 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 				mob_seq += 1
 				GameState.today_plan["mob_instances"][instance_id] = mob
 				customers.append(instance_id)
-		result.append({ "name": slot_name, "customers": customers })
+		# OpenController・Forecastが読むのはname・customers（不透明な文字列）。regular_id・
+		# episode_idは、場面を引くDay1Events.episode_id_of()の元（DayPlanが持つ。4-4a）。
+		result.append({ "name": slot_name, "customers": customers,
+			"regular_id": str(slot.get("regular_id", "")),
+			"episode_id": str(slot.get("episode_id", "")) })
 	return result
 
 
@@ -502,27 +510,6 @@ static func _slot_mob_eligible(slot: Dictionary) -> bool:
 	return bool(spec)
 
 
-## 1枠ぶんのメイン客idを決める（日程の読み込みからは独立させた純粋関数。4-3から日程の
-## データは常に"main"（固定）で、"main_pool"の抽選はデータでは使わない＝この分岐とテストは
-## 4-4で customer_schedule() を常連日程の直接読みに置き換えるときに消す）。
-## §9-Cで確定：固定("main")と抽選プール("main_pool")の2値のみ。特別な「初登場」
-## 「最後に固定」用のフィールドは作らない）。
-## main_poolの抽選は、その日すでに選ばれた客（chosen）を除外して選ぶ（同日内で同じ
-## メイン客が2回出ない）。除外すると候補が0になる場合（プールが尽きた）は、除外を
-## 無視してプール全体から選び直す（クラッシュしない。§9-C確定仕様）。
-## 乱数はRandomNumberGeneratorを作らず、既存の流儀どおりグローバルなrandi()を使う。
-static func _pick_main(slot: Dictionary, chosen: Array) -> String:
-	if slot.has("main"):
-		return str(slot["main"])
-	var pool: Array = slot.get("main_pool", [])
-	if pool.is_empty():
-		return ""
-	var candidates: Array = pool.filter(func(id): return not chosen.has(id))
-	if candidates.is_empty():
-		candidates = pool
-	return str(candidates[randi() % candidates.size()])
-
-
 ## 1枠ぶんのモブの型・人数を決める（Day1・デバッグ上書き専用経路。customer_schedule()
 ## 参照）。人数は debug_count>=0 ならそれを、そうでなければ GameState.DAY1_MOB_COUNT
 ## を使う（この関数の自動フォールバック側は、customer_schedule()がDay1でしか
@@ -541,7 +528,7 @@ static func _pick_mob(slot: Dictionary, debug_count: int) -> Dictionary:
 ## 1枠ぶんのモブの型だけを決める（人数はこの関数の役割外。_pick_mob()と
 ## _plan_mob_groups()の両方から呼ぶ）。"mob"の値は3値：false/無指定（モブなし・
 ## 空文字を返す）、true（既存どおりdock_workers固定）、{"pool":[...]}（型をプールから
-## 抽選。**同日内の重複除外はしない**＝main_poolとは対称的な仕様。3-1節確定）。
+## 抽選。同日内の重複除外はしない。3-1節確定）。
 static func _pick_mob_type(slot: Dictionary) -> String:
 	var spec = slot.get("mob", false)
 	# Dictionary と bool を == で比べると実行時エラーになるため、先に is Dictionary で
@@ -600,12 +587,11 @@ static func is_mob_customer(customer_id: String) -> bool:
 ## 7.6: mob_count は dock_workers の人数（servings・台詞）にだけ使う。乱数は引かない
 ##   （引くのはOPEN開始時の1回だけ。ここで引くと customer_schedule と食い違う）。
 static func customer_events(customer_id: String, mob_count: int = 0) -> Array:
-	# 配達員は初日だけ、同じ客へ3杯を1杯ずつ会話の合間に出す専用のEvent列（客ごとの分岐は
-	# データ層のここだけ。受け側 DebugPanel には客IDを書かない）。2日目以降に配達員が
-	# 再来店した場合は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う
-	# （customers/delivery_man.json の"days"."1"エントリが汎用フローの内容を持ち、
-	# customer_dataのフォールバックにより2日目以降どの日でもここへフォールバックする）。
-	if customer_id == "delivery_man" and GameState.day_count == 1:
+	# 配達員の最初の場面（THREE_CUPS_EPISODE＝Day1の宵の口）だけ、同じ客へ3杯を1杯ずつ
+	# 会話の合間に出す専用のEvent列（客ごとの分岐はデータ層のここだけ。受け側 DebugPanel
+	# には客IDを書かない）。判定は日番号ではなく場面id（4-4a。DESIGN.md 10.9）。2回目以降の
+	# 来店（delivery_man_02〜）は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う。
+	if episode_id_of(customer_id) == THREE_CUPS_EPISODE:
 		return _delivery_man_events()
 	var flavor := _customer_flavor(customer_id, mob_count)
 	var events := []
@@ -621,6 +607,33 @@ static func customer_events(customer_id: String, mob_count: int = 0) -> Array:
 		"sale": GameState.PRICE_PER_SERVING * int(flavor["servings"]) })
 	events.append_array(_customer_extra_events(customer_id))
 	return events
+
+
+## 配達員の3杯専用列にする場面id（DESIGN.md 10.9「配達員の3杯専用列 → 複数杯の場面」）。
+## 3杯列そのもの（_delivery_man_events()）はGDScriptのまま。会話のデータ化は後の手順で、
+## そのときこの定数ごと消える。
+const THREE_CUPS_EPISODE := "delivery_man_01"
+
+
+## その客の今日の場面id（4-4a。会話・要求・杯数を引く元）。引き方：
+##   1. DayPlan（today_plan）がその日のもの（today_plan["day"] == day_count）なら、
+##      regular_idがこの客の枠のepisode_id。日が違う（DayPlanner.build()の途中、または
+##      テストが日を進めて続けて呼ぶ）ときは使わない＝前日の枠で別の日の場面を引かない
+##      （例：Day1の配達員の3杯列がDay2の杯数計算に混ざる）。
+##   2. なければ、その日の日程（regular_slots(day)）の枠。
+##   3. それでも無ければ（日程に無い客）、その客の最後の場面（3杯列の最初の場面を踏まない）。
+##   客でない（モブのインスタンスid等）・場面が無い客は空文字。
+static func episode_id_of(customer_id: String) -> String:
+	var plan: Dictionary = GameState.today_plan
+	if int(plan.get("day", -1)) == GameState.day_count:
+		for slot in plan.get("slots", []):
+			if str(slot.get("regular_id", "")) == customer_id and str(slot.get("episode_id", "")) != "":
+				return str(slot["episode_id"])
+	for entry in ScheduleData.regular_slots(GameState.day_count):
+		if str(entry.get("regular", "")) == customer_id:
+			return str(entry.get("episode_id", ""))
+	var ids := ScheduleData.customer_episode_ids(customer_id)
+	return str(ids[ids.size() - 1]) if not ids.is_empty() else ""
 
 
 ## 会話行（発話・ト書き）を、1行1Eventの GREET にして積む（既存の接客と同じ形）。
@@ -812,13 +825,14 @@ static func _adjust_options() -> Array:
 ##   会話の中に両方の手がかりを置く（例：配達員＝辛くしてくれ／疲れて眠い → HOT + POWER）。
 ##   reactions は判定結果をキーにした辞書。各段階2パターンで、どちらを出すかはランダム。
 ##   favorite は好物の具材id（1つ）。椀に入っていれば評価が1段上がる（クリティカル）。
-## §9-C「データの外部化」：客の会話・要求タグ・favorite・reactions・servingsは
-##   ScheduleData.customer_data()（res://data/customers/<id>.json）へ外部化した。
-##   ここでは「どのデータ源を読むか」の出し分けだけを行う（データそのものは持たない）。
-##   delivery_man は初日だけ customer_events が専用の Event 列（_delivery_man_events）を
-##   返すため、その間は is_mob・wanted_tags・favorite だけ使う。2日目以降に配達員が
-##   再来店したときは（客の番数請求は1杯に減る）、他の客と同じ下の汎用の返り値を使う
-##   （customers/delivery_man.json の "days"."1" エントリへフォールバックする内容）。
+## §9-C「データの外部化」：客の基本プロフィール（is_mob・favorite・wanted_tags）は
+##   ScheduleData.customer_profile()（res://data/customers/<id>.json）、会話・reactions・
+##   servingsは来店場面 ScheduleData.episode_data()（res://data/episodes/<客>/<id>.json）
+##   へ外部化した（4-4a。日番号キーは無い）。ここでは「どのデータ源を読むか」の出し分けだけを
+##   行う（データそのものは持たない）。
+##   配達員の最初の場面（THREE_CUPS_EPISODE）は customer_events が専用の Event 列
+##   （_delivery_man_events）を返すため、その間は is_mob・wanted_tags・favorite だけ使う。
+##   2回目以降の来店は、他の客と同じ下の汎用の返り値（1杯）を使う。
 ## モブ（DESIGN.md 7.6）は、まずGameState.today_plan["mob_instances"]（customer_schedule()
 ##   が枠ごとに独立抽選した結果。F2 DayPlan）を見る。あれば、そのインスタンスの型で
 ##   ScheduleData.mob_data()を読む（favorite は持たない＝GREAT は出ない。個人の好物は
@@ -841,17 +855,21 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Diction
 		return { "greet": greet, "reactions": mob.get("reactions", {}),
 			"servings": count, "is_mob": true,
 			"wanted_tags": mob.get("wanted_tags", []), "favorite": "" }
-	var data := ScheduleData.customer_data(customer_id, GameState.day_count)
-	if data.is_empty():
+	# 4-4a：基本プロフィール（is_mob・favorite・wanted_tags）＋来店場面（greet・reactions・
+	# servings。場面idはepisode_id_of）。日番号では引かない。
+	var profile := ScheduleData.customer_profile(customer_id)
+	if profile.is_empty():
 		return _unknown_customer_flavor()
-	if customer_id == "delivery_man" and GameState.day_count == 1:
-		# 初日は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
-		# 使わない＝ここでは返さない）。2日目以降は下の汎用の返り値（他の客と同じ形）を使う。
-		return { "is_mob": data.get("is_mob", false),
-			"wanted_tags": data.get("wanted_tags", []), "favorite": data.get("favorite", "") }
-	return { "greet": data.get("greet", []), "reactions": data.get("reactions", {}),
-		"servings": int(data.get("servings", 1)), "is_mob": data.get("is_mob", false),
-		"wanted_tags": data.get("wanted_tags", []), "favorite": data.get("favorite", "") }
+	var episode_id := episode_id_of(customer_id)
+	if episode_id == THREE_CUPS_EPISODE:
+		# 3杯専用列は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
+		# 使わない＝ここでは返さない）。それ以外の来店は下の汎用の返り値（他の客と同じ形）。
+		return { "is_mob": profile.get("is_mob", false),
+			"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
+	var episode := ScheduleData.episode_data(customer_id, episode_id)
+	return { "greet": episode.get("greet", []), "reactions": episode.get("reactions", {}),
+		"servings": int(episode.get("servings", 1)), "is_mob": profile.get("is_mob", false),
+		"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
 
 
 ## モブのgreet 1行を仕上げる（旧_format_dock_greetを改名。dock_workers専用ではなく

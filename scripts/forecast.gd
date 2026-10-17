@@ -7,7 +7,7 @@ class_name Forecast
 ##
 ## 予報の精度（DESIGN.md 10.4）：
 ##   exact（Day1）  … 実際の計画から完全公開（配達員の3杯の内訳も）。
-##   range（Day2〜）… 常連は基本注文（その日のcustomer_data）、モブは種類の一覧
+##   range（Day2〜）… 常連は基本注文（その日の場面idのプロフィール＋場面）、モブは種類の一覧
 ##                    （重複除去・人数や組数は出さない）、総杯数は需要の中心±幅。
 ##                    「今日の頼み」はまだデータが無く、会話で判明するので出さない。
 ## 必要数の集計は、客ごとのcustomer_events()のREACT（servings・wanted_tags）を走査する

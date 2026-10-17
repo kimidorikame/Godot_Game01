@@ -8,56 +8,51 @@ extends RefCounted
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
-	# --- 1. day_schedule() のフォールバック（Day8以降はDay1へ。Day3〜7は実データが埋まった） ---
-	var day1 := ScheduleData.day_schedule(1)
-	var day8 := ScheduleData.day_schedule(8)
-	c.check("day_schedule(1)にslotsがある", day1.has("slots") and day1["slots"].size() == 3)
-	c.check("day_schedule(8)はday_schedule(1)へフォールバック(未定義日)", day8 == day1, str(day8))
+	# --- 1. 日程（4-4a：regular_slots／mob_rule_for。旧day_scheduleと"1"へのフォールバックは撤去） ---
+	var day1 := ScheduleData.regular_slots(1)
+	c.check("regular_slots(1)は3枠", day1.size() == 3)
+	c.check("日程の無い日（Day8）は枠が空（Day1へのフォールバックはしない）",
+		ScheduleData.regular_slots(8).is_empty())
 	for d in range(1, 8):
-		var ds := ScheduleData.day_schedule(d)
-		c.check("day_schedule(%d)にslotsがある" % d, ds.has("slots") and not ds["slots"].is_empty())
-	c.check("Day2は3枠に増えた(夜半・明け方が復活)", ScheduleData.day_schedule(2)["slots"].size() == 3)
+		var ds := ScheduleData.regular_slots(d)
+		var complete := ds.size() == 3
+		for slot in ds:
+			if str(slot.get("regular", "")) == "" or str(slot.get("episode_id", "")) == "":
+				complete = false
+		c.check("regular_slots(%d)は3枠で、各枠が常連・場面idを持つ" % d, complete)
+	c.check("Day2は3枠（宵の口・夜半・明け方）", ScheduleData.regular_slots(2).size() == 3)
 
-	# --- 2. customer_data() のフォールバック（客データ自身も独立して1日目へ） ---
+	# --- 2. 客のプロフィールと来店場面（日番号キーを持たない） ---
 	# 会話文は調整中のためプレースホルダー（名前＋要求タグ／結果ラベルのみ）。ここでは
-	# 実際の文言ではなく、構造（favorite/wanted_tags/servings・フォールバック）だけを見る。
+	# 実際の文言ではなく、構造（favorite/wanted_tags/servings）だけを見る。
 	GameState.reset_for_new_game()
-	var thug1 := ScheduleData.customer_data("thug", 1)
-	var thug3 := ScheduleData.customer_data("thug", 3)
-	c.check("thugのfavorite/wanted_tagsが読める", thug1.get("favorite") == "meat_ball"
-		and thug1.get("wanted_tags") == ["MELLOW", "GENTLE"] and thug1.get("servings") == 1)
-	c.check("thugのDay3はDay1へフォールバック(thug.jsonはDay1分のみ)", thug3 == thug1, str(thug3))
-	c.check("thugの反応文にGREATキーがある", thug1.get("reactions", {}).has("GREAT"))
-	var dm1 := ScheduleData.customer_data("delivery_man", 1)
-	c.check("delivery_manのfavorite/wanted_tagsはトップレベルに持つ",
-		dm1.get("favorite") == "tofu" and dm1.get("wanted_tags") == ["HOT", "POWER"])
-	var dm5 := ScheduleData.customer_data("delivery_man", 5)
-	c.check("delivery_manは2日目以降ぶんの通常フローデータ(greet/reactions/servings)も持つ",
-		not dm5.get("greet", []).is_empty() and dm5.get("servings") == 1
-		and dm5.get("reactions", {}).has("GREAT"))
-	c.check("officerはDay2のデータを持つ(favoriteは実データのまま)",
-		ScheduleData.customer_data("officer", 2).get("favorite") == "rice_noodle")
-	for d in range(3, 8):
-		c.check("officerのDay%dぶんが読める(未設定なら1へフォールバックでも可)" % d,
-			not ScheduleData.customer_data("officer", d).get("greet", []).is_empty())
-	for d in range(3, 8):
-		c.check("hookerのDay%dぶんが読める" % d,
-			not ScheduleData.customer_data("hooker", d).get("greet", []).is_empty())
-	for d in range(4, 8):
-		c.check("streamerのDay%dぶんが読める" % d,
-			not ScheduleData.customer_data("streamer", d).get("greet", []).is_empty())
-	c.check("存在しない客idは空辞書", ScheduleData.customer_data("no_such_customer_xyz", 1).is_empty())
+	var thug := ScheduleData.customer_profile("thug")
+	var thug_ep := ScheduleData.episode_data("thug", "thug_01")
+	c.check("thugのfavorite/wanted_tagsが読める（プロフィール）",
+		thug.get("favorite") == "meat_ball" and thug.get("wanted_tags") == ["MELLOW", "GENTLE"])
+	c.check("thugの場面にservings・反応文のGREATキーがある",
+		int(thug_ep.get("servings", 0)) == 1 and thug_ep.get("reactions", {}).has("GREAT"))
+	c.check("プロフィールにdays（日番号キー）が無い", not thug.has("days"))
+	var dm := ScheduleData.customer_profile("delivery_man")
+	c.check("delivery_manのfavorite/wanted_tags（プロフィール）",
+		dm.get("favorite") == "tofu" and dm.get("wanted_tags") == ["HOT", "POWER"])
+	var dm2 := ScheduleData.episode_data("delivery_man", "delivery_man_02")
+	c.check("delivery_manの2回目以降の場面は通常フローのデータ(greet/reactions/servings)を持つ",
+		not dm2.get("greet", []).is_empty() and dm2.get("servings") == 1
+		and dm2.get("reactions", {}).has("GREAT"))
+	c.check("officerのプロフィール（favoriteは実データのまま）",
+		ScheduleData.customer_profile("officer").get("favorite") == "rice_noodle")
+	for n in range(1, 5):
+		c.check("officerの場面officer_%02dが読める" % n,
+			not ScheduleData.episode_data("officer", "officer_%02d" % n).get("greet", []).is_empty())
+	for n in range(1, 4):
+		c.check("hookerの場面hooker_%02dが読める" % n,
+			not ScheduleData.episode_data("hooker", "hooker_%02d" % n).get("greet", []).is_empty())
+		c.check("streamerの場面streamer_%02dが読める" % n,
+			not ScheduleData.episode_data("streamer", "streamer_%02d" % n).get("greet", []).is_empty())
+	c.check("存在しない客idは空辞書", ScheduleData.customer_profile("no_such_customer_xyz").is_empty())
 
-	# --- 3. _pick_main(): 抽選プール・同日内重複禁止（既存機能・回帰確認） ---
-	var seen := {}
-	for i in range(200):
-		var picked: String = Day1Events._pick_main({"main_pool": ["a", "b", "c"]}, ["a"])
-		seen[picked] = true
-	c.check("main抽選プール: 除外したidは選ばれない", not seen.has("a"), str(seen))
-	c.check("main抽選プール: 残りの候補から選ばれる", seen.has("b") and seen.has("c"))
-	c.check("main指定はプールより優先", Day1Events._pick_main({"main": "granny", "main_pool": ["x"]}, []) == "granny")
-	c.check("main抽選プール枯渇時は選び直す(クラッシュしない)",
-		Day1Events._pick_main({"main_pool": ["a"]}, ["a"]) == "a")
+	# --- 3. （4-4aで撤去）_pick_main()のmain_pool抽選は、データでは使わないため関数ごと削除した ---
 
 	# --- 4. _pick_mob(): 型と人数を独立して決める（新設） ---
 	var mob_seen := {}

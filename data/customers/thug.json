@@ -4,31 +4,5 @@
   "wanted_tags": [
     "MELLOW",
     "GENTLE"
-  ],
-  "days": {
-    "1": {
-      "greet": [
-        "チンピラ（MELLOW/GENTLE）"
-      ],
-      "wanted_tags": [
-        "MELLOW",
-        "GENTLE"
-      ],
-      "reactions": {
-        "GREAT": [
-          "GREAT"
-        ],
-        "GOOD": [
-          "GOOD"
-        ],
-        "OK": [
-          "OK"
-        ],
-        "BAD": [
-          "BAD"
-        ]
-      },
-      "servings": 1
-    }
-  }
+  ]
 }

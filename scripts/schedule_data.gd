@@ -7,14 +7,16 @@ class_name ScheduleData
 ## `Ingredients`の定数キャッシュと同じ考え方。プロセスを再起動しない限りは
 ## 一度読めば十分＝接客のたびにディスクI/Oしない）。
 ##
-## 日ごとの枠構成（4-3から）：常連の固定日程（data/schedules/week7_regulars.json）と
-## モブの抽選ルール（data/schedules/mob_rules.json）から day_schedule(day) が組み立てる
-##   { "slots": [ { "name", "main", "mob": false | { "pool": [...] } }, ... ] }
-## （旧 data/day_schedule.json は4-3で廃止した）。
-## customers/<id>.json のモデル：
-##   { "is_mob", "favorite", "days": { "<day>": { "greet", "wanted_tags", "reactions", "servings" } } }
-##   delivery_man.json だけ例外的に "days" を持たない最小限（is_mob/favoriteのみ。
-##   会話配列は _delivery_man_events() 側にGDScriptのまま残す）。
+## 常連の固定日程（4-3。data/schedules/week7_regulars.json）：
+##   { "days": { "<day>": [ { "slot", "regular", "episode_id" }, ... ] } }
+## モブの抽選ルール（4-3。data/schedules/mob_rules.json）：既定＋日別の上書き。
+## 日番号を引く関数は regular_slots(day)・mob_rule_for(day, slot) だけで、客のデータは
+## 日番号を持たない（4-4a）：
+## customers/<id>.json（基本プロフィール）：{ "is_mob", "favorite", "wanted_tags" }
+##   （wanted_tagsは基本注文。10.5.1「日によって変えない」。delivery_manの3杯専用列の
+##   会話は _delivery_man_events() 側にGDScriptのまま残す）。
+## episodes/<客>/<episode_id>.json（来店場面）：{ "id", "customer", "greet", "reactions", "servings" }
+##   どの場面を引くかはDayPlanの枠（regular_id・episode_id）が持つ（Day1Events.episode_id_of）。
 ## mobs/<id>.json のモデル：
 ##   { "is_mob", "greet", "reactions", "wanted_tags" }（日をまたいで変わらない＝days無し）。
 
@@ -23,15 +25,11 @@ class_name ScheduleData
 const _SCHEDULES_DIR := "res://data/schedules/"
 const _MOB_RULES_PATH := "res://data/schedules/mob_rules.json"
 # 4-4a：来店場面（episode。data/episodes/<客>/<episode_id>.json）。基本プロフィールは
-# data/customers/<id>.json（トップレベルのみ。"days"は4-4aコミット②で廃止）。
+# data/customers/<id>.json。
 const _EPISODES_DIR := "res://data/episodes/"
 const _CUSTOMERS_DIR := "res://data/customers/"
 const _MOBS_DIR := "res://data/mobs/"
 const _KITS_DIR := "res://data/kits/"
-
-# 日ごとの枠構成データが無い日（Day3〜7）は "1"（Day1）へフォールバックする
-# （CURRENT_SPEC.md §9-C。今回のタスクで実装するフォールバックの唯一の場所）。
-const _FALLBACK_DAY := "1"
 
 static var _customer_cache: Dictionary = {}   # id(String) -> 生のJSON全体（Dictionary）
 static var _mob_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
@@ -61,17 +59,10 @@ static func _load_json(path: String) -> Dictionary:
 	return parsed
 
 
-## 指定日の枠構成（{"slots": [...]}）。常連の固定日程（10.5.1）とモブの抽選ルールから
-## 組み立てる（compose_day_schedule）。定義の無い日（Day8以降）は"1"（Day1）へフォールバック。
-## customer_schedule()・Forecast・DayPlannerが読む口として残している互換層で、4-4でDayPlan
-## が常連の日程を直接読む形になったら消す。
-static func day_schedule(day: int) -> Dictionary:
-	return compose_day_schedule(day)
-
-
 ## 常連の固定日程（DESIGN.md 10.5.1・21枠）。week7.jsonのregular_schedule（schedule id）の
-## data/schedules/<id>.json全体：{ "days": { "<day>": [ { "slot": 枠名, "regular": 客id }, ... ] } }。
-## 枠は辞書（後の手順で episode_id などを足せる）。無い・読めないときは空辞書。
+## data/schedules/<id>.json全体：
+##   { "days": { "<day>": [ { "slot": 枠名, "regular": 客id, "episode_id": 場面id }, ... ] } }。
+## 枠は辞書（後の手順で項目を足せる）。無い・読めないときは空辞書。
 static func regular_schedule_data() -> Dictionary:
 	var id := Rules.regular_schedule()
 	if id == "":
@@ -92,41 +83,10 @@ static func mob_rules_data() -> Dictionary:
 	return _mob_rules_cache
 
 
-## 常連の固定日程とモブの抽選ルールから、指定日の枠構成を、旧day_schedule.jsonと同じ形
-## （{"slots": [ { "name", "main", "mob" }, ... ]}）で組み立てる（4-3の互換層。
-## customer_schedule()・Forecast・DayPlannerを変えないため。4-4でDayPlanが常連の日程を
-## 直接読む形になったら、day_schedule()とこの関数を消す）。
-## 日程の定義が無い日（Day8以降）は、常連もモブ規則も"1"（Day1）へフォールバックする。
-## モブの値は、false（その枠はモブなし）または {"pool": [...]}（その枠で抽選する種類）。
-static func compose_day_schedule(day: int) -> Dictionary:
-	var days: Dictionary = regular_schedule_data().get("days", {})
-	var key := str(day)
-	if not days.has(key):
-		key = _FALLBACK_DAY
-	var rules := mob_rules_data()
-	var default_rule: Dictionary = rules.get("default", {})
-	var default_pool: Array = default_rule.get("pool", [])
-	var default_slots: Dictionary = default_rule.get("slots", {})
-	var day_rules: Dictionary = (rules.get("days", {}) as Dictionary).get(key, {})
-	var slots := []
-	for entry in days.get(key, []):
-		var slot_name := str(entry.get("slot", ""))
-		var mob = false
-		if day_rules.has(slot_name):
-			var rule = day_rules[slot_name]
-			if rule is Dictionary:
-				mob = (rule as Dictionary).duplicate(true)
-			elif bool(rule):
-				mob = { "pool": default_pool.duplicate() }
-		elif bool(default_slots.get(slot_name, false)):
-			mob = { "pool": default_pool.duplicate() }
-		slots.append({ "name": slot_name, "main": str(entry.get("regular", "")), "mob": mob })
-	return { "slots": slots }
-
-
 ## 指定日の常連の枠（[{ "slot": 枠名, "regular": 客id, "episode_id": 場面id }, ...]）。
-## 日程の定義が無い日（Day8以降）は空の配列（客なし。Day1へのフォールバックはしない）。
-## 4-4aのDayPlan／customer_schedule()が読む口。辞書の枠なので、後の手順で項目を足せる。
+## 日程の定義が無い日（Day8以降）は空の配列（客なし。Day1へのフォールバックはしない。
+## 最終日は7でRESULTへ入るので、実プレイでは起きない）。
+## DayPlan／customer_schedule()が直接読む口。辞書の枠なので、後の手順で項目を足せる。
 static func regular_slots(day: int) -> Array:
 	var days: Dictionary = regular_schedule_data().get("days", {})
 	var entries: Array = days.get(str(day), [])
@@ -135,7 +95,6 @@ static func regular_slots(day: int) -> Array:
 
 ## 指定日・指定枠のモブの抽選ルール：false（その枠はモブなし）または {"pool": [種類id...]}。
 ## mob_rules.jsonの日別の上書きがあればそれ、なければ既定（枠ごとの可否＋既定のプール）。
-## compose_day_schedule()が組み立てるmobと同じ値（4-4aの切り替えでcompose側を消す）。
 static func mob_rule_for(day: int, slot_name: String) -> Variant:
 	var rules := mob_rules_data()
 	var default_rule: Dictionary = rules.get("default", {})
@@ -189,33 +148,6 @@ static func customer_episode_ids(customer_id: String) -> Array:
 			if str(entry.get("regular", "")) == customer_id:
 				ids.append(str(entry.get("episode_id", "")))
 	return ids
-
-
-## 客1人ぶんのデータ。トップレベル（is_mob/favoriteなど。"days"を除く）と、その日の内容
-## （days[day]）をマージして返す。該当日が無ければ、その客データの中で"1"（1日目）へ
-## フォールバックする（日程側のフォールバックとは別に、客データ自身も
-## 独立してフォールバックする。例：Day3でチンピラが再登場しても、thug.jsonに"3"が
-## 無ければ"1"の会話を使う）。
-## "days"を持たない客（delivery_manの最小限JSON。is_mob/favorite/wanted_tagsを
-## トップレベルに直接持つ）は、そのままトップレベルの内容だけを返す（greet/reactions/
-## servingsは持たない＝呼び出し側は_delivery_man_events()で別途組み立てる）。
-static func customer_data(id: String, day: int) -> Dictionary:
-	if not _customer_cache.has(id):
-		_customer_cache[id] = _load_json(_CUSTOMERS_DIR + id + ".json")
-	var raw: Dictionary = _customer_cache[id]
-	if raw.is_empty():
-		return {}
-	var result := {}
-	for k in raw:
-		if k != "days":
-			result[k] = raw[k]
-	var days: Dictionary = raw.get("days", {})
-	if not days.is_empty():
-		var key := str(day)
-		var day_data: Dictionary = days.get(key, days.get(_FALLBACK_DAY, {}))
-		for k in day_data:
-			result[k] = day_data[k]
-	return result
 
 
 ## モブ1種のデータ（日をまたいで変わらないのでフォールバック不要）。

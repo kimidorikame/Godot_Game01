@@ -4,31 +4,5 @@
   "wanted_tags": [
     "SAVORY",
     "FILLING"
-  ],
-  "days": {
-    "1": {
-      "greet": [
-        "老婆（SAVORY/FILLING）"
-      ],
-      "wanted_tags": [
-        "SAVORY",
-        "FILLING"
-      ],
-      "reactions": {
-        "GREAT": [
-          "GREAT"
-        ],
-        "GOOD": [
-          "GOOD"
-        ],
-        "OK": [
-          "OK"
-        ],
-        "BAD": [
-          "BAD"
-        ]
-      },
-      "servings": 1
-    }
-  }
+  ]
 }

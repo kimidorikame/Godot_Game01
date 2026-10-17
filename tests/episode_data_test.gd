@@ -2,8 +2,8 @@ extends RefCounted
 ## 来店場面（episode）と基本プロフィールのデータ（フェーズ4-4a・DESIGN.md 10.8.1・10.8.6）の検証。
 ## 対象：data/episodes/<客>/<episode_id>.json（21ファイル）、data/customers/<id>.json の
 ## プロフィール、week7_regulars.json の episode_id、ScheduleData の新しい読み込み口。
-## コミット①の時点では旧経路（customer_data(id, day)）も残っているので、新旧の内容が
-## 一致することと、customer_events() の出力が4-3の記録（fixture）と一致することを確かめる。
+## 4-4aは動作を変えないデータ構造の整理なので、customer_events() の出力が4-3の記録
+## （fixture。全常連×Day1〜7）と一致することを確かめる（日程に無い6組だけ意図した差）。
 
 # 21枠の episode_id（日 → [宵の口, 夜半, 明け方]）。来店順の連番。
 const EPISODES := {
@@ -31,7 +31,9 @@ const BASE_ORDER := {
 const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "streamer"]
-# 日程に無く、旧データでも会話データを持たなかった組（日:客）。意図した差（上記）。
+# 日程に無く、旧データでは当日のキーもDay1のキーも無く会話データを持たなかった組（日:客）。
+# 日番号で引くのをやめたため、日程に無い客はその客の最後の場面（通常の1杯）を返す＝
+# 要求タグ・会話・杯数が入る。ゲーム内では呼ばれない組み合わせ（意図した差）。
 const KNOWN_DIFFS := ["1:officer", "1:hooker", "2:hooker", "1:streamer", "2:streamer", "3:streamer"]
 
 
@@ -94,30 +96,7 @@ func run(_t: SceneTree) -> int:
 		ScheduleData.episode_data("thug", "thug_99").is_empty()
 			and ScheduleData.episode_data("", "x").is_empty() and ScheduleData.episode_data("thug", "").is_empty())
 
-	# --- 4. 新旧の内容が一致する（旧経路 customer_data(id, day) と、場面＋プロフィール） ---
-	for d in range(1, 8):
-		for i in range(3):
-			var regular: String = REGULARS[d][i]
-			var old := ScheduleData.customer_data(regular, d)
-			var ep := ScheduleData.episode_data(regular, EPISODES[d][i])
-			var profile := ScheduleData.customer_profile(regular)
-			var label := "Day%d %s" % [d, regular]
-			c.check("%s：greet/reactions/servingsが旧データと一致" % label,
-				_norm(ep.get("greet")) == _norm(old.get("greet"))
-					and _norm(ep.get("reactions")) == _norm(old.get("reactions"))
-					and int(ep.get("servings", -1)) == int(old.get("servings", -2)))
-			c.check("%s：favorite/is_mob/wanted_tagsが旧データと一致" % label,
-				str(profile.get("favorite")) == str(old.get("favorite"))
-					and bool(profile.get("is_mob")) == bool(old.get("is_mob"))
-					and _norm(profile.get("wanted_tags")) == _norm(old.get("wanted_tags")))
-
-	# --- 5. モブの抽選ルール：新しい読み口と旧の組み立てが一致する ---
-	for d in range(1, 8):
-		var comp := ScheduleData.compose_day_schedule(d)
-		for i in range(3):
-			var name := str(comp["slots"][i]["name"])
-			c.check("Day%d %s：mob_rule_forは組み立てと同じ" % [d, name],
-				_norm(ScheduleData.mob_rule_for(d, name)) == _norm(comp["slots"][i]["mob"]))
+	# --- 4. 日程の無い日（Day8）は枠が空 ---
 	c.check("日程の無い日（Day8）の枠は空", ScheduleData.regular_slots(8).is_empty())
 
 	# --- 6. 同一性の保証：customer_events() の出力が4-3の記録と一致する（全常連×全日） ---
@@ -126,23 +105,18 @@ func run(_t: SceneTree) -> int:
 	c.check("記録ファイルが読める（7日分）", fixture is Dictionary and (fixture as Dictionary).size() == 7)
 	for d in range(1, 8):
 		for cid in CUSTOMERS:
-			GameState.reset_for_new_game()
-			GameState.day_count = d
-			# 記録時と同じ固定の在庫（ADJUSTのoptionsが在庫から組まれるため）
-			GameState.add_inventory("nam_prik_pao", 2)
-			GameState.add_inventory("tofu", 1)
-			GameState.add_inventory("herbal_sauce", 1)
-			var now = _norm(Day1Events.customer_events(cid))
+			var now = _events_at(cid, d)
 			var recorded = fixture[str(d)][cid]
 			if KNOWN_DIFFS.has("%d:%s" % [d, cid]):
-				# 日程に無い組み合わせ（ゲーム内では呼ばれない）。旧データではその日のキーも
-				# Day1のキーも無く、プロフィールのトップレベルだけを返していた＝要求タグが空だった。
-				# 基本プロフィールにwanted_tagsを足したので、REACTの要求タグだけが基本注文になる
-				# （他のイベント・会話は同一）。意図した差として、その1点だけを確かめる。
-				for ev in recorded:
-					if str(ev.get("type", "")) == "REACT":
-						ev["wanted_tags"] = BASE_ORDER[cid]
-				c.check("Day%d %s（日程に無い組）：要求タグ以外は4-3の記録と一致" % [d, cid], now == recorded)
+				# 日程に無い組み合わせ（ゲーム内では呼ばれない）。旧データでは会話データが
+				# 無かったが、新実装は日程に無い客に最後の場面を返す。その客が日程にある日の
+				# 出力（同じ場面）と一致し、基本注文・会話が入っていることを確かめる。
+				var on_schedule = _events_at(cid, _scheduled_day(cid))
+				var reacts = (now as Array).filter(func(e): return str(e.get("type", "")) == "REACT")
+				c.check("Day%d %s（日程に無い組）：通常の場面（最後の場面）を返す" % [d, cid],
+					now == on_schedule and reacts.size() == 1
+						and reacts[0].get("wanted_tags", []) == BASE_ORDER[cid]
+						and (now as Array)[0].get("type", "") == "GREET")
 			else:
 				c.check("Day%d %s：customer_eventsが4-3の記録と一致" % [d, cid], now == recorded,
 					"%d vs %d events" % [(now as Array).size(), (recorded as Array).size()])
@@ -156,3 +130,25 @@ func _sorted_keys(d: Dictionary) -> Array:
 	var ks := d.keys()
 	ks.sort()
 	return ks
+
+
+## 記録時と同じ固定の在庫（ADJUSTのoptionsが在庫から組まれるため）で、その日の
+## customer_eventsをJSONを通した形で返す（日付を進めた在庫の傷みが混ざらないよう毎回作り直す）。
+func _events_at(customer_id: String, day: int) -> Variant:
+	GameState.reset_for_new_game()
+	GameState.day_count = day
+	GameState.add_inventory("nam_prik_pao", 2)
+	GameState.add_inventory("tofu", 1)
+	GameState.add_inventory("herbal_sauce", 1)
+	return _norm(Day1Events.customer_events(customer_id))
+
+
+## その客が日程にある日のうち、最後の日（最後の場面の日）。
+func _scheduled_day(customer_id: String) -> int:
+	var last := 1
+	for d in range(1, 8):
+		for entry in ScheduleData.regular_slots(d):
+			if str(entry.get("regular", "")) == customer_id:
+				last = d
+	return last
+

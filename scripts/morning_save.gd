@@ -13,7 +13,7 @@ class_name MorningSave
 ## 再挑戦では変わりうる（客・需要・組は変わらない）。
 
 ## 封筒の版。形を変えたら上げる（古い版のファイルはis_valid()で弾いて新規ゲームにする）。
-const VERSION := 2
+const VERSION := 3
 
 ## state の各項目の型（is_valid用）。GameState.SAVED_FIELDS と同じ項目を持つ。
 const _FIELD_TYPES := {
@@ -75,6 +75,15 @@ static func is_valid(envelope) -> bool:
 			or typeof(plan.get("slots")) != TYPE_ARRAY \
 			or typeof(plan.get("mob_instances")) != TYPE_DICTIONARY:
 		return false
+	# 版3（4-4a）：各枠は name・customers・regular_id・episode_id を持つ（会話を引く元）。
+	for slot in plan["slots"]:
+		if not (slot is Dictionary):
+			return false
+		var sd: Dictionary = slot
+		if typeof(sd.get("name")) != TYPE_STRING or typeof(sd.get("customers")) != TYPE_ARRAY \
+				or typeof(sd.get("regular_id")) != TYPE_STRING \
+				or typeof(sd.get("episode_id")) != TYPE_STRING:
+			return false
 	var panel = env.get("panel")
 	if not (panel is Dictionary) or typeof((panel as Dictionary).get("day_summary_text")) != TYPE_STRING:
 		return false

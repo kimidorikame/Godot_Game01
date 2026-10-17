@@ -1,7 +1,7 @@
 extends RefCounted
 ## 常連の固定日程（21枠）とモブの抽選ルールのデータ（フェーズ4-3・DESIGN.md 10.5.1・10.8.1）の
 ## 検証。対象：data/schedules/week7_regulars.json、mob_rules.json、ScheduleData の読み込みと
-## 互換層（compose_day_schedule・day_schedule）、customer_schedule() が実際にこの日程どおりに
+## 日程の読み口（regular_slots・mob_rule_for）、customer_schedule() が実際にこの日程どおりに
 ## 来ること（抽選ではない・同じ日を何度呼んでも同じ・モブ杯数＝総需要−常連の杯数）。
 
 const SLOTS := ["宵の口", "夜半", "明け方"]
@@ -87,14 +87,15 @@ func run(_t: SceneTree) -> int:
 		var regs := _regulars_of(d)
 		for i in range(regs.size()):
 			var id: String = regs[i]
-			var data := ScheduleData.customer_data(id, d)
+			var profile := ScheduleData.customer_profile(id)
+			var episode := ScheduleData.episode_data(id, str(ScheduleData.regular_slots(d)[i]["episode_id"]))
 			var label := "Day%d %s（%s）" % [d, SLOTS[i], id]
-			c.check("%s：客データがある" % label, not data.is_empty())
+			c.check("%s：プロフィールと場面がある" % label, not profile.is_empty() and not episode.is_empty())
 			c.check("%s：基本注文が10.5.1どおり" % label,
-				data.get("wanted_tags", []) == BASE_ORDER[id][0], str(data.get("wanted_tags")))
-			c.check("%s：好物が10.5.1どおり" % label, str(data.get("favorite", "")) == BASE_ORDER[id][1])
+				profile.get("wanted_tags", []) == BASE_ORDER[id][0], str(profile.get("wanted_tags")))
+			c.check("%s：好物が10.5.1どおり" % label, str(profile.get("favorite", "")) == BASE_ORDER[id][1])
 			c.check("%s：杯数は1以上・会話がある" % label,
-				int(data.get("servings", 0)) >= 1 and not (data.get("greet", []) as Array).is_empty())
+				int(episode.get("servings", 0)) >= 1 and not (episode.get("greet", []) as Array).is_empty())
 
 	# --- 4. モブの抽選ルール（既定＋日別の上書き） ---
 	var rules := ScheduleData.mob_rules_data()
@@ -102,29 +103,23 @@ func run(_t: SceneTree) -> int:
 	c.check("既定は3枠ともモブ可", rules.get("default", {}).get("slots", {}) ==
 		{ "宵の口": true, "夜半": true, "明け方": true })
 
-	# --- 5. 互換層：day_scheduleは組み立てた枠（常連は固定・モブの出方は従来どおり） ---
+	# --- 5. モブの抽選ルール（mob_rule_for）：常連の日程とは独立 ---
 	for d in range(1, 8):
-		var comp := ScheduleData.compose_day_schedule(d)
-		c.check("Day%d：day_schedule()は組み立てた枠と同じ" % d, ScheduleData.day_schedule(d) == comp)
-		c.check("Day%d：枠は3つ（name/main/mob）" % d,
-			comp.get("slots", []).size() == 3
-				and comp["slots"].all(func(s): return s.has("name") and s.has("main") and s.has("mob")))
-		for i in range(3):
-			var cs: Dictionary = comp["slots"][i]
-			c.check("Day%d %s：常連は表どおり固定（main_poolではない）" % [d, SLOTS[i]],
-				str(cs["main"]) == TABLE[d][i] and not cs.has("main_pool"))
-	var comp1 := ScheduleData.compose_day_schedule(1)
-	c.check("Day1宵の口のモブはdock_workers固定", comp1["slots"][0]["mob"] == { "pool": ["dock_workers"] })
+		var shape_ok: bool = ScheduleData.regular_slots(d).size() == 3
+		for slot in ScheduleData.regular_slots(d):
+			if not (slot.has("slot") and slot.has("regular") and slot.has("episode_id")):
+				shape_ok = false
+		c.check("Day%d：常連の枠は3つ（slot/regular/episode_id）" % d, shape_ok)
+	c.check("Day1宵の口のモブはdock_workers固定", ScheduleData.mob_rule_for(1, "宵の口") == { "pool": ["dock_workers"] })
 	c.check("Day1夜半のモブは3種のプール（デバッグ上書き用）",
-		comp1["slots"][1]["mob"] == { "pool": ["dock_workers", "inn_clerk", "market_porter"] })
-	c.check("Day1明け方はモブなし", comp1["slots"][2]["mob"] == false)
-	c.check("Day7明け方はモブなし", ScheduleData.compose_day_schedule(7)["slots"][2]["mob"] == false)
+		ScheduleData.mob_rule_for(1, "夜半") == { "pool": ["dock_workers", "inn_clerk", "market_porter"] })
+	c.check("Day1明け方はモブなし", ScheduleData.mob_rule_for(1, "明け方") == false)
+	c.check("Day7明け方はモブなし", ScheduleData.mob_rule_for(7, "明け方") == false)
 	c.check("Day2〜6は3枠とも既定の7種プール",
-		[2, 3, 4, 5, 6].all(func(d): return ScheduleData.compose_day_schedule(d)["slots"].all(
-			func(s): return s["mob"] == { "pool": MOB_POOL })))
-	c.check("定義の無い日（Day8）はDay1と同じ（フォールバック）",
-		ScheduleData.compose_day_schedule(8) == ScheduleData.compose_day_schedule(1)
-			and ScheduleData.day_schedule(8) == ScheduleData.day_schedule(1))
+		[2, 3, 4, 5, 6].all(func(d): return SLOTS.all(
+			func(n): return ScheduleData.mob_rule_for(d, n) == { "pool": MOB_POOL })))
+	c.check("定義の無い日（Day8）は常連の枠が空（Day1へのフォールバックはしない）",
+		ScheduleData.regular_slots(8).is_empty())
 
 	# --- 6. customer_schedule()：常連は日程どおり（抽選ではない）・同じ日は何度呼んでも同じ ---
 	for d in range(1, 8):
