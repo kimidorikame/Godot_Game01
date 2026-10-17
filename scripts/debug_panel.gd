@@ -2160,7 +2160,7 @@ func _format_phone() -> String:
 	var body: String
 	match _phone_tab:
 		"news":
-			body = "ニュース：まだ届いていません"
+			body = News.tab_text(GameState.day_count)
 		"sns":
 			body = _format_tonight_memo()
 		_:

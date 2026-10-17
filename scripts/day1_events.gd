@@ -19,9 +19,12 @@ class_name Day1Events
 ## （物語上のけじめが付く）タイミングを市場を出るとき（prep_after_tier_events参照）に
 ## 見せるため、ここでは「まとめて渡す分を先に取っておく」という前振りにしてある。
 static func wake_events() -> Array:
+	# システム整理D：スマホを見た後に、その日のニュースとDM（News.morning_events）を必ず差す。必須情報を
+	# 客の会話に頼らず届けるため。ニュースの無い日は従来の列と同一。表示だけで、数値には触れない。
 	return [
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
+	] + News.morning_events(GameState.day_count) + [
 		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、市場を出るときにまとめて渡す分として先に取っておく。" % GameState.DAILY_OPERATING_COST },
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]

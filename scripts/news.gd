@@ -110,6 +110,58 @@ static func scene_problems(ep: Dictionary, source: Dictionary = {}) -> Array:
 	return problems
 
 
+## 朝（WAKE）に必ず差す、その日のニュースとDMの TEXT イベント（part:"news"）。見出し→本文の順、続けて
+## DM。ニュースもDMも無い日は空配列＝従来の起床の列と同一。状態を読むだけ（日番号からデータを引く）。
+## 表示だけで、ゲームの数値には触れない。
+static func morning_events(day: int, source: Dictionary = {}) -> Array:
+	var events := []
+	var entry := day_entry(day, source)
+	for item in entry["news"]:
+		if str(item.get("headline", "")) != "":
+			events.append({ "type": "TEXT", "text": "ニュース：%s" % str(item["headline"]), "part": "news" })
+		if item.get("body") is Array:
+			for line in item["body"]:
+				if line is String and line != "":
+					events.append({ "type": "TEXT", "text": line, "part": "news" })
+	for item in entry["dm"]:
+		if str(item.get("text", "")) != "":
+			events.append({ "type": "TEXT", "text": "DM（%s）：%s" % [str(item.get("from", "")), str(item["text"])],
+				"part": "news" })
+	return events
+
+
+## ニュースタブ（スマホ）の本文（仮表示）。今日と、その周で既に過ぎた日の分だけ（未来の日は見せない）。
+## 新しい日が上。ニュースとDMは別の見出し。過ぎた日の共通イベントは出来事として載せ、今日の分は
+## 再生済み（played_ids）のものだけ。既読は持たない（保存する状態を増やさない）。
+static func tab_text(today: int, played_ids: Array = [], source: Dictionary = {}) -> String:
+	var lines := PackedStringArray()
+	for day in range(today, 0, -1):
+		var entry := day_entry(day, source)
+		var section := PackedStringArray()
+		for item in entry["news"]:
+			section.append("・%s%s" % [_provisional_mark(item), str(item.get("headline", ""))])
+			if item.get("body") is Array:
+				for line in item["body"]:
+					section.append("　%s" % str(line))
+		for item in entry["dm"]:
+			section.append("DM（%s）：%s%s" % [str(item.get("from", "")), _provisional_mark(item), str(item.get("text", ""))])
+		for item in entry["events"]:
+			if day < today or played_ids.has(str(item.get("id", ""))):
+				if item.get("lines") is Array:
+					for line in item["lines"]:
+						section.append("出来事：%s%s" % [_provisional_mark(item), str(line)])
+		if not section.is_empty():
+			lines.append("◆%s◆" % ("今日（Day%d）" % day if day == today else "Day%d" % day))
+			lines.append_array(section)
+	if lines.is_empty():
+		return "ニュース：まだ届いていません"
+	return "\n".join(lines)
+
+
+static func _provisional_mark(item) -> String:
+	return "【仮】" if item is Dictionary and bool(item.get("provisional", false)) else ""
+
+
 static func _is_whole_number(value) -> bool:
 	return value is int or (value is float and float(value) == floorf(float(value)))
 
