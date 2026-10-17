@@ -1,0 +1,106 @@
+{
+  "id": "week7",
+  "provisional_note": "文面は SEVEN_DAY_OUTLINE.md の仮案（脚本で差し替える）。各項目の provisional を外して差し替えるだけでよい。",
+  "must_info": [
+    { "id": "strike_started",       "day": 1, "label": "第八码頭で夜間荷役のストが始まった" },
+    { "id": "checkpoints",          "day": 2, "label": "検問・警備が始まり物流が滞っている" },
+    { "id": "nightlife_spillover",  "day": 3, "label": "ストが夜の街・金の流れへ波及している" },
+    { "id": "video_spread",         "day": 4, "label": "噂と映像が外部へ拡散している" },
+    { "id": "night_removal",        "day": 5, "label": "夜間に不審な搬出がある" },
+    { "id": "rights_shift",         "day": 5, "label": "港湾利権の移動が検討されている" },
+    { "id": "clash_fire",           "day": 6, "label": "衝突と倉庫火災が起きた" },
+    { "id": "official_arson_claim", "day": 7, "label": "警察は「暴動による放火」と発表、労働者側は否定" },
+    { "id": "truth_unresolved",     "day": 7, "label": "真相は確定しない" }
+  ],
+  "days": {
+    "1": {
+      "news": [
+        { "id": "d1_strike", "headline": "第八码頭で夜間荷役がストに入った",
+          "body": ["港の荷が止まり始めている。街の実感はまだ薄い。"],
+          "must_info": ["strike_started"], "provisional": true }
+      ],
+      "dm": [],
+      "events": []
+    },
+    "2": {
+      "news": [
+        { "id": "d2_checkpoints", "headline": "港湾局とスト側の協議が物別れ。第八码頭の周辺で検問が始まった",
+          "body": ["迂回路ができ、物流が遅れ始めている。"],
+          "must_info": ["checkpoints"], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "今日は入荷が遅れてる。早めに来な", "provisional": true }
+      ],
+      "events": []
+    },
+    "3": {
+      "news": [
+        { "id": "d3_spillover", "headline": "迂回輸送で市内の物流が混乱。歓楽街では客足が落ちている",
+          "body": ["ストの影響が夜の街と金の流れにまで及んでいる。"],
+          "must_info": ["nightlife_spillover"], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "魚がしばらく入らないかもしれない", "provisional": true }
+      ],
+      "events": []
+    },
+    "4": {
+      "news": [
+        { "id": "d4_video", "headline": "現場を撮った動画が拡散、外部メディアが注目",
+          "body": ["噂と映像が街の外へ広がっている。"],
+          "must_info": ["video_spread"], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "うちの店が映り込んでる。勘弁してくれ", "provisional": true }
+      ],
+      "events": []
+    },
+    "5": {
+      "news": [
+        { "id": "d5_removal", "headline": "夜間、倉庫から荷が運び出されるのを見たという話が複数",
+          "body": ["搬出の目的や運び出した者は分かっていない。"],
+          "must_info": ["night_removal"], "provisional": true },
+        { "id": "d5_rights", "headline": "（経済面）第八码頭の荷役業務、運営会社の変更を検討との観測",
+          "body": ["港湾の利権の移動が検討されているという。"],
+          "must_info": ["rights_shift"], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "明日は現場に近づくな", "provisional": true }
+      ],
+      "events": []
+    },
+    "6": {
+      "news": [
+        { "id": "d6_forced", "headline": "今夜、会社側が強行搬出に踏み切るとの情報",
+          "body": ["ピケと会社側の緊張が高まっている。"],
+          "must_info": [], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "今日は早仕舞いも考えな", "provisional": true }
+      ],
+      "events": [
+        { "id": "d6_clash", "at": "宵の口",
+          "lines": ["（遠くで怒号が上がった。ピケの列と会社側がぶつかったらしい。）"],
+          "must_info": ["clash_fire"], "provisional": true },
+        { "id": "d6_fire", "at": "夜半",
+          "lines": ["（遠方の空が赤い。サイレンが重なって聞こえる。）", "（倉庫が燃えている、と誰かが言った。）"],
+          "must_info": ["clash_fire"], "provisional": true }
+      ]
+    },
+    "7": {
+      "news": [
+        { "id": "d7_official", "headline": "警察は暴動に伴う放火の疑いで捜査。労働組合側はこれを否定",
+          "body": ["発表と否定が食い違っている。"],
+          "must_info": ["official_arson_claim"], "provisional": true },
+        { "id": "d7_unresolved", "headline": "火災の原因をめぐり、複数の説が並ぶ",
+          "body": ["警察：暴動に伴う放火の疑い。", "労働組合側：関与を否定。",
+                   "配信者：出回った映像を撤回。", "いずれも裏付けは取れていない。"],
+          "must_info": ["truth_unresolved"], "provisional": true }
+      ],
+      "dm": [
+        { "from": "市場の顔なじみ", "text": "第八码頭は当面封鎖。魚は入らない", "provisional": true }
+      ],
+      "events": []
+    }
+  }
+}
