@@ -392,7 +392,10 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	var fixed_mobs: Array = Rules.day_overrides(GameState.day_count).get("mobs", []) \
 		if debug_mob_count < 0 else []
 	var use_fixed_mobs: bool = not fixed_mobs.is_empty()
-	var use_demand_system: bool = debug_mob_count < 0 and not use_fixed_mobs and GameState.day_count > 1
+	# 総需要システムを使うのは、デバッグ上書きが無く、その日に固定モブ編成が宣言されていない日。
+	# 「Day1は使わない」は日番号ではなく、Day1の固定編成（day_overrides."1".mobs）が表す
+	# （システム整理Aで day_count > 1 の直書きを外した。現行データでは動作は同一）。
+	var use_demand_system: bool = debug_mob_count < 0 and not use_fixed_mobs
 	var mob_groups_by_index := {}
 	if use_demand_system:
 		var main_total := 0
