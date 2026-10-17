@@ -1200,10 +1200,10 @@ GameState.dashi_units   # 濃縮だしの保有回数分
   `[スマホ]`自身をすべて無効化**し、会話・調理・フェーズ進行を完全に止める
   （デバッグ用の`[Day+1]` `[所持金±50]` `[モブ人数]`は対象外。従来通り押せる）。
 - 中身は**レシピ／ニュース／SNSの3タブ＋`[閉じる]`**。今のタブのボタンは自身を
-  無効化する（押し直せない）。**SNSタブだけは実データ（客足予報。下記）が入っている**。
-  レシピ・ニュースは**プレースホルダー文言のみ**（例：「レシピ：まだ記録がありません」）。
-  実データ（レシピ一覧・日ごとのニュース）は、Day3以降の日別コンテンツ制作と合わせて
-  別タスクで実装する（§9「まだ無いもの」参照）。
+  無効化する（押し直せない）。**SNSタブ（客足予報。下記）とニュースタブ（日別ニュース。
+  下の「日別ニュースと必須情報」節）は実データが入っている**。レシピだけは**プレースホルダー
+  文言のみ**（「レシピ：まだ記録がありません」）。レシピ一覧の実データはレシピ保存（4-7）と
+  合わせて実装する（§9「まだ無いもの」参照）。
 - `_set_runner_for_phase()`（フェーズが変わるたび）で`_phone_mode`・選択中タブを
   既定値にリセットする（鍋モード・市場モードの防御的リセットと同じ扱い）。
 
@@ -2270,7 +2270,7 @@ GameState.try_pay(amount) -> bool
 - **書き換えた既存テスト**：`episode_flow_test.gd`・`customer_memory_test.gd`（版の数値）、
   `save_state_test.gd`・`save_file_test.gd`（枠の固定値に`today_request`を追加。版5の`is_valid`が要求）。
   ③では既存テストの書き換えなし。
-- **未対応**：（`sets_facts`・`choices`・`body`・`closing`・`must_info`はシステム整理Cで済み）ニュース・本文（4-5以降）、
+- **未対応**：（`sets_facts`・`choices`・`body`・`closing`・`must_info`はシステム整理Cで、ニュースはDで済み）本文（4-5以降）、
   実データの今日の頼み・`callback`（現行の21場面には無い。試作は4-5）、`servings`を持つ今日の頼み
   （総需要の引き算に効くため見送り）、「短い近況の場面」、レシピ保存と「いつもの」ボタン（4-7）。
   （新人警官の市場会話とチンピラの場所代の日番号判定は、システム整理Aで済み。下の節）
@@ -2379,8 +2379,63 @@ GameState.try_pay(amount) -> bool
   新規：`scene_keys_test`・`after_serve_test`・`choice_test`・`scene_facts_test`。
 - **未対応**：複数杯の場面（配達員の3杯列を場面データで表す。10.8.6）。場面が`cups`を任意キーで持つ形で
   将来足せる見通し（既存キーの意味を変えず足すだけ。`after_serve_events`の結果に`grades`の配列を取れる余地）。
-  `_OFFICER_AFTER`・`_OFFICER_PAYMENT`のデータ化・本文・選択肢・締めの文面（脚本＝4-5・4-8）、
-  日別ニュースと必須情報の管理（D）。
+  `_OFFICER_AFTER`・`_OFFICER_PAYMENT`のデータ化・本文・選択肢・締めの文面（脚本＝4-5・4-8）。日別ニュースと必須情報の管理はシステム整理Dで済み（次の節）。
+
+### 日別ニュースと必須情報・共通イベント（システム整理D実装済み・2026-10-17・DESIGN.md 10.5.5・10.10の4-6）
+
+本筋の**必須情報9項目**（SEVEN_DAY_OUTLINE §11）を、**客の会話に頼らず**プレイヤーへ届ける仕組み。朝のニュース・DM・
+スマホのニュースタブ・営業中の共通イベント（客の抽選に依存しない出来事）の4つ。**表示だけで数値には触れない**
+（所持金・評判・在庫・鍋・DayPlan・帳簿・需要・客の構成は不変。写しで確認）。保存の版は5のまま
+（再生済みの記録は保存しない実行時の値）。**現行データでは自動試遊（3シード×13方針）が4-3の結果と39/39周完全一致**
+（`steps`・`clicks`・`actions`・`rows`を含む全キー差分0。ハーネスの読み飛ばしは下記）。コミットは`61a80a0`
+（データ・カタログ・検証）・`2c843b6`（朝のニュースとニュースタブ）・`763ca9c`（共通イベント）。
+テストは2013件成功（システム整理Cの1839件から。38スイートすべてが走り切る）。
+
+- **データ**：`data/news/week7.json`（`Rules.news()`＝`week7.json`の`"news"`が指すid。**宣言済み・未使用だった項目が
+  使われ始めた**）。`must_info`＝カタログ`[{id, day, label}]`（9項目: strike_started D1・checkpoints D2・
+  nightlife_spillover D3・video_spread D4・night_removal D5・rights_shift D5・clash_fire D6・
+  official_arson_claim D7・truth_unresolved D7）、`days.<日>`＝`{news:[{id, headline, body[], must_info[], provisional}],
+  dm:[{from, text, provisional}], events:[{id, at, lines[], must_info[], provisional}]}`。日番号はデータが指す
+  （コードに書かない）。**文面はすべて仮案**（`provisional: true`。SEVEN_DAY_OUTLINEの仮案。概要表に文面の無い
+  `night_removal`（Day5）と`truth_unresolved`（Day7）は実装側が仮の1項目を補った）。脚本で差し替えるときは
+  文面を直して`provisional`を外すだけでよい。
+- **`News`（`scripts/news.gd`・静的クラス・乱数なし・状態なし）**：`catalog`／`day_entry`／`delivered_days`／`problems`／
+  `scene_problems`／`morning_events`／`event_lines`／`pending_events`／`event_by_id`／`tab_text`。
+- **担保の検証**（`News.problems`と`tests/news_data_test.gd`）：9項目すべてが**ニュースまたは共通イベント**の
+  `must_info`に、概要表（§11）の日に現れる（**客の場面は根拠に数えない**）。落とす条件：項目の欠落・日の食い違い・
+  未知のid・`at`が`wake`／`close`／時間帯名でない・idの重複・`lines`／`headline`が空・日のキーが最終日を超える・
+  カタログ無し。場面データの`must_info`は補強の印で、`News.scene_problems(ep)`がカタログに無いidを弾く
+  （実データ21場面は`must_info`を持たない）。
+- **朝のニュースとDM**：`Day1Events.wake_events()`の「スマホを見る。」の直後に`News.morning_events(day)`を差す
+  （TEXT・`part:"news"`。`ニュース：<見出し>`→本文の各行→`DM（<送り手>）：<本文>`）。ニュースもDMも無い日は
+  従来の4イベントと同一。WAKEは従来どおり[次のPhase]で飛ばせる（デバッグ。ニュースタブには今日の分が常に載る）。
+- **ニュースタブ**（`News.tab_text(today, played_ids)`）：今日と、その周で過ぎた日の分だけ（**未来の日は見せない**。
+  再挑戦で戻した朝より後の日も見えない）。新しい日が上（`◆今日（DayN）◆`／`◆DayN◆`）、ニュースとDMは別の行、仮データには
+  `【仮】`。共通イベントは過ぎた日の分は`出来事：`として載り、今日の分は再生済みのものだけ。既読は持たない。
+  何も無ければ「ニュース：まだ届いていません」。
+- **共通イベント**（`at`で出す場所を決める。TEXT・`part:"common_event"`・`event_id`付き）：`wake`＝朝のニュースの後／
+  時間帯名（宵の口・夜半・明け方）＝その時間帯の**最初の客の接客の前**（`DebugPanel._slot_start_events`。
+  客の列の前に前置）／`close`＝閉店の語りの前。現行データはDay6だけ：衝突（`d6_clash`）が宵の口の始め、
+  火災（`d6_fire`、`clash_fire`）が夜半の始め。
+- **二重再生の防止**：`_played_events`（再生済みのid）と`_slot_event_ids`（時間帯の位置`slot_index:index`→前置したid）は
+  **保存しない実行時の値**で、WAKE・再挑戦・[新しい周]でリセット。`_load_current_customer`が同じ客で何度呼ばれても
+  同じ列を組み直すだけで二重にならない。
+- **取り戻し（早仕舞い・客0人の日）**：CLOSEの先頭で、未再生の共通イベントをデータの並び順（＝時系列）で積む。
+  CLOSEの並びは「閉店理由 → 未提供版の退店（C1）→ 共通イベント → 閉店の語り」。必須情報が営業の長さや
+  客の有無に依存しない。
+- **試遊のハーネス**：`planning/playtest_2026_10_11/playthroughs.gd`の`is_display_only`が、`type`がTEXTで`part`が
+  `news`または`common_event`のものだけを、操作回数（clicks・actions・steps）に数えずに読み飛ばす
+  （TEXT以外・他のpart・partの無いTEXTは対象外＝その差は見逃さない）。読み飛ばしを無効にすると144件の不一致が出る
+  （Day6の共通イベントが実際に流れている確認）。
+- **書き換えた既存テスト**：なし。新規：`news_data_test`・`news_morning_test`・`common_event_test`。
+- **既知の制約・未対応**：
+  ・時間帯の共通イベントは「その時間帯の最初の客の前」に出るため、**客のいない時間帯は飛ばされ**（`OpenController`の
+    `_skip_finished_slots`）、そのイベントはCLOSEでの取り戻しになる。宵の口が0人で夜半に客がいると、火災が先に出て
+    衝突が閉店時になり**時系列が逆**になりうる（`clash_fire`の担保は崩れない）。現行の固定日程では起きにくい。
+    直すなら「時間帯の頭に、データ順でそれより前の未再生イベントも一緒に出す」。
+  ・ゲームオーバーでCLOSEに来ない周には取り戻しが届かない（Day6には営業中の支払いが無く、現行ルールでは起きない）。
+  ・文面・見出し・DMの差出人は仮案。日別の市場の変化（Day7の海鮮の閉鎖・傷みなど）は別タスク。
+  ・**フェーズ6（本番UI）への申し送り**：朝のWAKEを最後まで流す設計にする（デバッグの[次のPhase]での飛ばしを残さない）。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2447,6 +2502,9 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/balance_log.gd` | 日次ログ（`user://balance_log.jsonl`）の書き出しと`run_id`・`attempt`。システム整理A・2026-10-17追記 |
 | `tests/display_name_test.gd`・`tests/balance_log_retry_test.gd`・`tests/market_talk_test.gd`・`tests/bill_scene_test.gd`・`tests/demand_route_test.gd` | 表示名／再挑戦の`run_id`・`attempt`／`market_talk`（`tests/fixtures/prep_events_system_a.json`と照合）／`bills[].scene`の場所代／需要経路。システム整理A・2026-10-17追記 |
 | `tests/scene_keys_test.gd`・`tests/after_serve_test.gd`・`tests/choice_test.gd`・`tests/scene_facts_test.gd` | 場面の新キーの読み口と検査／提供後の列・UNSERVED・閉店退店／選択・締めの差分／`sets_facts`・`request_honored`・保存の往復と旧形式。システム整理C・2026-10-17追記 |
+| `scripts/news.gd` | 日別ニュース・DM・共通イベントと必須情報9項目のカタログ（読み口・検証・朝のTEXT・ニュースタブ本文）。システム整理D・2026-10-17追記 |
+| `data/news/week7.json` | 日別ニュース・DM・共通イベントと必須情報のカタログ（文面は仮案。`provisional`）。システム整理D・2026-10-17追記 |
+| `tests/news_data_test.gd`・`tests/news_morning_test.gd`・`tests/common_event_test.gd` | 担保の検証・未知idの弾き／朝のニュースとニュースタブ／共通イベント・取り戻し・二重再生なし・数値不変・ハーネスの読み飛ばし。システム整理D・2026-10-17追記 |
 | `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
