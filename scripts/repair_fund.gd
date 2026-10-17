@@ -136,6 +136,14 @@ static func safe_limit() -> int:
 	return maxi(cash - required - min_prep_price(), 0)
 
 
+## 段階が上がった瞬間の一行（積む前の累計 → 積んだ後の累計で、届いた段階が増えたとき。label を使った固定の
+## 言い回し。note は将来の差し替え用にデータへ残す）。上がっていなければ空文字。
+static func stage_up_message(paid_before: int, paid_after: int) -> String:
+	if stage_index(paid_after) > stage_index(paid_before):
+		return "屋台が変わった：%s" % str(stage(paid_after)["label"])
+	return ""
+
+
 ## この額を今積めるか（機能オン・CLOSE・刻みのどれか・安全上限以内・最終段階までの残り以内）。
 static func can_contribute(amount: int) -> bool:
 	return enabled() and GameState.phase == GameState.Phase.CLOSE and steps().has(amount) \

@@ -130,6 +130,10 @@ static func format_report(s: Dictionary) -> String:
 			int(s.get("spoiled_value", 0)), int(s.get("spoiled_units", 0)),
 			int(s.get("early_close_days", 0))],
 	])
+	# 修繕基金（4-9）：累計が1以上のときだけ、屋台の段階を現金の行の次に足す（累計0は従来と同一）。
+	var repair := int(s.get("repair_paid", 0))
+	if repair >= 1 and RepairFund.enabled():
+		lines.insert(2, "屋台: %s（修繕 累計%d）" % [RepairFund.stage_label(repair), repair])
 	return "\n".join(lines)
 
 

@@ -186,6 +186,8 @@ var _slot_event_ids := {}
 # レシピ保存（4-7①。仮UI）：保存の段階（""＝ボタン待ち／"slot"＝枠を選ぶ／"name"＝名前を選ぶ）と選んだ枠。
 # レシピ用のボタン行は _ready でコードから足す（.tscn は変えない）。
 var _recipe_save_stage := ""
+# 修繕基金（4-9。RepairFund）：段階が上がった瞬間の一行（CLOSEの間だけ出す。runnerのイベントではない）。
+var _fund_notice := ""
 # 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
 # _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
 var _logged_positions := {}
@@ -335,6 +337,7 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pot_mode = false
 	_pot_water_added = false
 	_pot_dashi_added = false
+	_fund_notice = ""
 	# 7.7: 市場の水場訪問フラグ・店の中にいるかも PREP に入るたびリセットする。
 	_market_visited_water = false
 	_market_shop = ""
@@ -1559,6 +1562,7 @@ func _reset_transient_panel_state() -> void:
 	_played_events = []
 	_slot_event_ids = {}
 	_recipe_save_stage = ""
+	_fund_notice = ""
 	_logged_positions = {}
 	TalkLog.clear()
 	_mob_original_ordered = -1
@@ -1786,6 +1790,9 @@ func _format_day_summary(log_entry: Dictionary) -> String:
 	var spend_line := _format_spend_by_category(log_entry.get("spend_by_category", {}))
 	if spend_line != "":
 		lines.append(spend_line)
+	# 修繕基金（4-9）：基金を積んだ日だけ、屋台の段階を1行足す（積まなかった日の文面は従来と同一）。
+	if RepairFund.enabled() and int((log_entry.get("spend_by_category", {}) as Dictionary).get("fund", 0)) > 0:
+		lines.append("屋台: %s（修繕 累計%d）" % [RepairFund.stage_label(RepairFund.paid()), RepairFund.paid()])
 	if bool(log_entry.get("closed_early", false)):
 		lines.append("（鍋が尽きて早めに閉店した）")
 	return "\n".join(lines)
@@ -1798,9 +1805,10 @@ func _format_spend_by_category(spend: Dictionary) -> String:
 	const CATEGORY_LABELS := {
 		"daily_cost": "運営費", "rent": "場所代", "water": "水道代",
 		"kit": "初日セット", "prep": "仕込み", "market": "市場", "dashi": "だし",
+		"fund": "修繕基金",
 	}
 	var parts := PackedStringArray()
-	for category in ["daily_cost", "rent", "water", "kit", "prep", "market", "dashi"]:
+	for category in ["daily_cost", "rent", "water", "kit", "prep", "market", "dashi", "fund"]:
 		var amount: int = int(spend.get(category, 0))
 		if amount > 0:
 			parts.append("%s%d" % [CATEGORY_LABELS[category], amount])
@@ -1866,7 +1874,7 @@ func _refresh() -> void:
 	if _phone_mode:
 		_runner_label.text = _format_phone()
 	else:
-		_runner_label.text = _format_runner() + _format_open() + _format_market()
+		_runner_label.text = _format_runner() + _format_open() + _format_market() + _format_fund()
 	_update_options_row()
 	_record_visible_event()
 
@@ -2011,6 +2019,7 @@ func _update_options_row() -> void:
 		return
 
 	_add_recipe_save_buttons()
+	_add_fund_buttons()
 
 	var r: EventRunner = flow.runner
 	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
@@ -2103,6 +2112,57 @@ func _update_options_row() -> void:
 	if _adjust_customer_id() != "":
 		_add_pot_button("聞き直す", false, _on_reask_pressed)
 	_add_recipe_adjust_buttons()
+
+
+## --- 修繕基金（4-9②。RepairFund。仮UI。本番UIはフェーズ6） ---
+
+## 積み立て行を出す時点：機能オン・CLOSE の語りを読み終えた後（runner が DONE）・スマホを開いていない間。
+## [次のPhase]のゲートは変えない（押さなければ「積まない」）。CLOSE の close_events（TEXT列）には足さない。
+func _fund_row_visible() -> bool:
+	return RepairFund.enabled() and GameState.phase == GameState.Phase.CLOSE and flow.runner != null \
+			and flow.is_runner_done() and not _phone_mode
+
+
+## 刻みごとの「修繕基金に積む +N」ボタン。安全上限・最終段階までの残りを超える額は無効。
+## 最終段階（完了）に届いていれば出さない。
+func _add_fund_buttons() -> void:
+	if not _fund_row_visible() or RepairFund.complete():
+		return
+	for step in RepairFund.steps():
+		_add_pot_button("修繕基金に積む +%d" % step, not RepairFund.can_contribute(step),
+			_on_fund_contribute_pressed.bind(step))
+
+
+## 積む。段階が上がったら、label を使った一行を覚えて CLOSE の間だけ表示する。
+## ゲームオーバーにはならない（RepairFund.contribute は払えるときだけ払う）。
+func _on_fund_contribute_pressed(amount: int) -> void:
+	if not _fund_row_visible():
+		return
+	var before := RepairFund.paid()
+	if RepairFund.contribute(amount):
+		var message := RepairFund.stage_up_message(before, RepairFund.paid())
+		if message != "":
+			_fund_notice = message
+	_refresh()
+
+
+## CLOSE の積み立て行の状態表示（runner のラベルの末尾）。累計・段階・次の段階まで・今日積める上限・
+## 段階が上がった一行。表示の条件に合わなければ空文字。
+func _format_fund() -> String:
+	if not _fund_row_visible():
+		return ""
+	var total := RepairFund.paid()
+	var lines := PackedStringArray(["", "── 修繕基金（任意・返金なし）──"])
+	if RepairFund.complete():
+		lines.append("累計: %d（%s）完了" % [total, RepairFund.stage_label(total)])
+	else:
+		lines.append("累計: %d（%s）" % [total, RepairFund.stage_label(total)])
+		var next_stage := RepairFund.stages()[RepairFund.stage_index(total) + 1] as Dictionary
+		lines.append("次の段階（%s）まであと%d" % [str(next_stage["label"]), RepairFund.remaining_to_next(total)])
+		lines.append("今日積める上限: %d" % RepairFund.safe_limit())
+	if _fund_notice != "":
+		lines.append(_fund_notice)
+	return "\n".join(lines)
 
 
 ## --- 会話ログ（4-7②。TalkLog。状態を読むだけで、ゲームの数値・乱数には触れない） ---
@@ -2404,7 +2464,7 @@ func _format_game_state() -> String:
 	var water_doses := 0
 	if GameState.soup != null:
 		water_doses = int(GameState.soup.get("water_doses", 0))
-	return "\n".join(PackedStringArray([
+	var state_lines := PackedStringArray([
 		"── GameState（日をまたいで残る事実）──",
 		"day_count(日数): %d" % GameState.day_count,
 		"money(所持金): %d" % GameState.money,
@@ -2421,7 +2481,11 @@ func _format_game_state() -> String:
 		"discarded(廃棄数): %d 件" % _discarded_count(),
 		"favorite_known(好物を知っている客): %s" % (
 			"・".join(PackedStringArray(GameState.known_favorite_ids())) if not GameState.known_favorite_ids().is_empty() else "(なし)"),
-	]))
+	])
+	# 修繕基金（4-9）：累計が1以上のときだけ（積まない間は従来と同じ文面）。budget の次の行。
+	if RepairFund.enabled() and RepairFund.paid() > 0:
+		state_lines.insert(4, "fund(修繕基金): 累計%d（%s）" % [RepairFund.paid(), RepairFund.stage_label(RepairFund.paid())])
+	return "\n".join(state_lines)
 
 
 ## 今夜出した接客数（served配列のうち discarded ではないものの件数）。
