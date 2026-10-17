@@ -28,7 +28,9 @@ static var PRICE_PER_SERVING := Rules.price_per_serving()
 # 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
 # チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
 # §11「未解決」の直し方）の両方で使う（別々の数字にならないよう1箇所に置く）。
-const RENT_PRICE := 90
+# 正は week7.json の bills[]（id:"rent"）の amount（システム整理Aで定数90から置き換えた。
+# 値は90のまま）。チンピラのPAYもその請求の amount を読む。
+static var RENT_PRICE := Rules.bill_amount("rent", 90)
 
 # 水道代（徴収日のみ。_visit_water_stall()参照）。場所代と合わせて合計140
 # （BALANCE_REDESIGN_PLAN.md§2）。以前はdebug_panel.gd側にマジックナンバーとして

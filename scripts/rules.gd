@@ -127,10 +127,40 @@ static func final_day() -> int:
 	return int(_cache.get("final_day", 7))
 
 
-## 3-1では宣言のみ（is_collection_day()等の置き換えは3-5で行う）。
+## 請求（bills）：{ id, amount, days, reserve, scene, label }。is_collection_day()（3-5）と、
+## チンピラの場所代のPAY（システム整理A：scene＝その請求を取り立てる客のid）が読む。
 static func bills() -> Array:
 	_ensure_loaded()
 	return _cache.get("bills", []).duplicate(true)
+
+
+## 請求1件（idで引く）。無ければ空辞書。
+static func bill(id: String) -> Dictionary:
+	for b in bills():
+		if str(b.get("id", "")) == id:
+			return b
+	return {}
+
+
+## 請求の金額（idで引く）。無ければ fallback。場所代の正は week7.json の bills[].amount
+## （GameState.RENT_PRICE はここから引く）。
+static func bill_amount(id: String, fallback: int = 0) -> int:
+	var b := bill(id)
+	return int(b["amount"]) if b.has("amount") else fallback
+
+
+## 「scene がこの客のidで、days に day を含む」請求（その日その客が取り立てる請求）。
+## JSONの数値はfloatで読まれるので、日はintに直して比べる（GameState.is_collection_day と同じ）。
+static func bills_for_scene(scene_id: String, day: int) -> Array:
+	var result := []
+	for b in bills():
+		if str(b.get("scene", "")) != scene_id:
+			continue
+		for d in b.get("days", []):
+			if int(d) == day:
+				result.append(b)
+				break
+	return result
 
 
 ## 3-1では宣言のみ（total_demand_today()等の日番号直書きの置き換えは3-2/3-5で行う）。
@@ -139,7 +169,8 @@ static func day_overrides(day: int) -> Dictionary:
 	return _cache.get("day_overrides", {}).get(str(day), {})
 
 
-## 3-1では宣言のみ（day1_events.gdのday2_unlocked判定の置き換えは10.9対応の各手順で行う）。
+## 市場の店が押せるようになる日（Day1の朝は店に入れず、2日目以降）。day1_events.gdの
+## _market_options()が読む（システム整理Aで day_count >= 2 の直書きから置き換えた）。
 static func market_open_from_day() -> int:
 	_ensure_loaded()
 	return int(_cache.get("market_open_from_day", 2))

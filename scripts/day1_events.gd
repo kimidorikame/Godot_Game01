@@ -218,24 +218,24 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 ## クズ野菜ベースの日（scraps_base）は、Day1だけ「訪問済み」の表示が食肉仲卸ではなく
 ##   端材半端物の側に付く（自動で済んだ店がグレーで押せない説明のため）。2日目以降は影響なし。
 static func _market_options(scraps_base: bool = false) -> Array:
-	var day2_unlocked: bool = GameState.day_count >= 2
+	var market_open: bool = GameState.day_count >= Rules.market_open_from_day()
 	# 「（訪問済み）」は、Day1に自動で済んだ店が押せない理由の説明にだけ付ける。
 	# 2日目以降は6店とも買い物のできる店なので、クズ野菜の日でも付けず、押せる
 	# （貧しい日こそ端材屋の安い商品が要る。店には何度でも入れる）。
 	var meat_label := "食肉仲卸"
 	var scraps_label := "端材半端物"
-	if not day2_unlocked:
+	if not market_open:
 		if scraps_base:
 			scraps_label += "（訪問済み）"
 		else:
 			meat_label += "（訪問済み）"
 	return [
-		{ "id": "meat_wholesale", "label": meat_label, "enabled": day2_unlocked },
-		{ "id": "produce",        "label": "青果",       "enabled": day2_unlocked },
-		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": day2_unlocked },
-		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": day2_unlocked },
-		{ "id": "seafood",        "label": "海鮮",       "enabled": day2_unlocked },
-		{ "id": "scraps",         "label": scraps_label, "enabled": day2_unlocked },
+		{ "id": "meat_wholesale", "label": meat_label, "enabled": market_open },
+		{ "id": "produce",        "label": "青果",       "enabled": market_open },
+		{ "id": "dry_goods",      "label": "乾物調味料", "enabled": market_open },
+		{ "id": "tofu_noodles",   "label": "豆腐麺",     "enabled": market_open },
+		{ "id": "seafood",        "label": "海鮮",       "enabled": market_open },
+		{ "id": "scraps",         "label": scraps_label, "enabled": market_open },
 	]
 
 
@@ -1003,11 +1003,11 @@ static func _unknown_customer_flavor() -> Dictionary:
 
 ## REACT の後ろに差し込む客ごとの追加 Event（DESIGN.md 4章「pay を1つ挿すだけ」）。
 ## STEP 8: チンピラの場所代。Day2 の分岐テスト: 「徴収日のみ」に条件化する。
-##   - 徴収日の判定は GameState.is_collection_day()（データ関数が事実を読んで出し分け。
-##     処理の埋め込みではなく「どの Event を出すか」の判断なので分離方針に反しない）
+##   - 徴収日の判定は、bills[]（Rules.bills_for_scene）が事実を読んで出し分ける（処理の埋め込みではなく
+##     「どの Event を出すか」の判断なので分離方針に反しない）
 ##   - 金額処理は既存の DebugPanel._apply_event "PAY" 枝（apply_money(-amount)）のまま
 ##   - 専用 State は作らない（確定事項どおり単なる Event）
-##   - thug 以外、または徴収日でない日は空配列
+##   - 今日その客が取り立てる請求が無ければ空配列（thug の場所代も bills[] から引く）
 ## STEP 17.5: 判定結果に関わらず入る掛け合い（2行）。1行目のチンピラの台詞にPAYの効果を
 ##   乗せ、2行目の主人公の返しは効果無しのTEXTにする（GREETと同じ「1行1Event」の形）。
 ## "kind": "rent" は、この PAY が場所代であることを示す印（DebugPanel._apply_event が
@@ -1018,9 +1018,11 @@ static func _customer_extra_events(customer_id: String) -> Array:
 	# 会計は台詞だけ。売上は REACT の sale で反映済み）。
 	if customer_id == "officer":
 		return _talk("officer", _OFFICER_AFTER + _OFFICER_PAYMENT)
-	if customer_id == "thug" and GameState.is_collection_day():
-		return [
-			{ "type": "PAY", "customer": "thug", "amount": GameState.RENT_PRICE, "kind": "rent",
-				"text": "チンピラ（場所代）" },
-		]
-	return []
+	# 今日この客が取り立てる請求（bills[]のsceneがこの客のid・daysに今日を含む）。客idの直書きや
+	# is_collection_day() は使わない。kind は請求のid（"rent"＝場所代の印）、金額は請求のamount。
+	var collected := []
+	for bill in Rules.bills_for_scene(customer_id, GameState.day_count):
+		collected.append({ "type": "PAY", "customer": customer_id, "amount": int(bill["amount"]),
+			"kind": str(bill["id"]),
+			"text": "%s（%s）" % [ScheduleData.customer_display_name(customer_id), str(bill.get("label", bill["id"]))] })
+	return collected

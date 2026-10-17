@@ -11,8 +11,8 @@
     "reputation_weight": 0.3, "penalty_stacking": false
   },
   "bills": [
-    { "id": "rent",  "amount": 90, "days": [1], "reserve": "WAKE", "scene": "thug" },
-    { "id": "water", "amount": 50, "days": [1], "reserve": "WAKE", "scene": "water_stall" }
+    { "id": "rent",  "amount": 90, "days": [1], "reserve": "WAKE", "scene": "thug", "label": "場所代" },
+    { "id": "water", "amount": 50, "days": [1], "reserve": "WAKE", "scene": "water_stall", "label": "水道代" }
   ],
   "market_open_from_day": 2,
   "day_overrides": {
