@@ -386,13 +386,18 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	# _plan_mob_groups()・_pick_mob()・_pick_mob_type()へ従来と同じ形で渡す。
 	var slots: Array = []
 	var main_ids := []
+	var episode_ids := []
 	for entry in ScheduleData.regular_slots(GameState.day_count):
 		var slot_name := str(entry.get("slot", ""))
-		slots.append({ "name": slot_name,
-			"regular_id": str(entry.get("regular", "")),
-			"episode_id": str(entry.get("episode_id", "")),
+		var regular := str(entry.get("regular", ""))
+		# 4-4b-2：場面を選ぶ（日程の静的idを第一候補に、requires・not_seenを満たす場面。
+		# 既存データ＝requiresなしでは、必ず静的idと同じ）。今日の頼みも場面から枠へ写す。
+		var episode_id := EpisodeSelector.select(regular, str(entry.get("episode_id", "")))
+		slots.append({ "name": slot_name, "regular_id": regular, "episode_id": episode_id,
+			"today_request": ScheduleData.episode_today_request(regular, episode_id),
 			"mob": ScheduleData.mob_rule_for(GameState.day_count, slot_name) })
-		main_ids.append(str(entry.get("regular", "")))
+		main_ids.append(regular)
+		episode_ids.append(episode_id)
 
 	var fixed_mobs: Array = Rules.day_overrides(GameState.day_count).get("mobs", []) \
 		if debug_mob_count < 0 else []
@@ -401,9 +406,10 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 	var mob_groups_by_index := {}
 	if use_demand_system:
 		var main_total := 0
-		for main_id in main_ids:
-			if main_id != "":
-				main_total += _customer_total_servings(main_id)
+		for mi in range(main_ids.size()):
+			if main_ids[mi] != "":
+				# 選んだ場面の杯数で数える（DayPlanはまだ無いので、場面idを直接渡す）。
+				main_total += _customer_total_servings(main_ids[mi], episode_ids[mi])
 		var mob_cups: int = maxi(GameState.total_demand_today() - main_total, 0)
 		mob_groups_by_index = _plan_mob_groups(slots, mob_cups)
 
@@ -445,7 +451,8 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 		# episode_idは、場面を引くDay1Events.episode_id_of()の元（DayPlanが持つ。4-4a）。
 		result.append({ "name": slot_name, "customers": customers,
 			"regular_id": str(slot.get("regular_id", "")),
-			"episode_id": str(slot.get("episode_id", "")) })
+			"episode_id": str(slot.get("episode_id", "")),
+			"today_request": (slot.get("today_request", {}) as Dictionary).duplicate(true) })
 	return result
 
 
@@ -453,9 +460,9 @@ static func customer_schedule(debug_mob_count: int = -1) -> Array:
 ## 総需要からメイン客分を差し引く計算（customer_schedule）用。_customer_flavor().servingsを
 ## 直接見ないのは、配達員のDay1（3杯を別々のREACTに分ける専用Event列）のような
 ## 「1客で複数REACT」の形にも自動的に対応するため（配達員Day1は合計3になる）。
-static func _customer_total_servings(customer_id: String) -> int:
+static func _customer_total_servings(customer_id: String, scene_id: String = "") -> int:
 	var total := 0
-	for ev in customer_events(customer_id):
+	for ev in customer_events(customer_id, 0, scene_id):
 		if ev.get("type", "") == "REACT":
 			total += int(ev.get("servings", 0))
 	return total
@@ -586,14 +593,17 @@ static func is_mob_customer(customer_id: String) -> bool:
 ##   一団でも調理は1回・判定も1回（DESIGN.md 7.6「モブ客の仕様」）。
 ## 7.6: mob_count は dock_workers の人数（servings・台詞）にだけ使う。乱数は引かない
 ##   （引くのはOPEN開始時の1回だけ。ここで引くと customer_schedule と食い違う）。
-static func customer_events(customer_id: String, mob_count: int = 0) -> Array:
+## scene_id（省略可）：場面idを直接指定する（DayPlanがまだ無いcustomer_schedule()の途中で、
+## 選んだ場面の杯数を数えるため。省略すれば episode_id_of() で引く）。
+static func customer_events(customer_id: String, mob_count: int = 0, scene_id: String = "") -> Array:
 	# 配達員の最初の場面（THREE_CUPS_EPISODE＝Day1の宵の口）だけ、同じ客へ3杯を1杯ずつ
 	# 会話の合間に出す専用のEvent列（客ごとの分岐はデータ層のここだけ。受け側 DebugPanel
 	# には客IDを書かない）。判定は日番号ではなく場面id（4-4a。DESIGN.md 10.9）。2回目以降の
 	# 来店（delivery_man_02〜）は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う。
-	if episode_id_of(customer_id) == THREE_CUPS_EPISODE:
+	var scene := scene_id if scene_id != "" else episode_id_of(customer_id)
+	if scene == THREE_CUPS_EPISODE:
 		return _delivery_man_events()
-	var flavor := _customer_flavor(customer_id, mob_count)
+	var flavor := _customer_flavor(customer_id, mob_count, scene)
 	var events := []
 	for line in flavor["greet"]:
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
@@ -841,7 +851,7 @@ static func _adjust_options() -> Array:
 ##   使うため。互換のため引数自体は残す）。
 ## 未知 id（JSONファイルが無い等）は無音・売上0・wanted_tags 空（＝一致0なので常に BAD）
 ##   でフォールバックする（既存どおり。ScheduleDataは空辞書を返すのでそこで判別する）。
-static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Dictionary:
+static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: String = "") -> Dictionary:
 	var mob_instances: Dictionary = GameState.today_plan.get("mob_instances", {})
 	if mob_instances.has(customer_id):
 		var inst: Dictionary = mob_instances[customer_id]
@@ -860,7 +870,7 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0) -> Diction
 	var profile := ScheduleData.customer_profile(customer_id)
 	if profile.is_empty():
 		return _unknown_customer_flavor()
-	var episode_id := episode_id_of(customer_id)
+	var episode_id := scene_id if scene_id != "" else episode_id_of(customer_id)
 	if episode_id == THREE_CUPS_EPISODE:
 		# 3杯専用列は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
 		# 使わない＝ここでは返さない）。それ以外の来店は下の汎用の返り値（他の客と同じ形）。

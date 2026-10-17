@@ -37,8 +37,8 @@ func _sample_envelope() -> Dictionary:
 	GameState.today_plan = {
 		"day": 4, "demand_center": 11,
 		"slots": [{ "name": "夕方", "customers": ["delivery_man", "mob#0"],
-			"regular_id": "delivery_man", "episode_id": "delivery_man_01" },
-			{ "name": "夜", "customers": ["granny"], "regular_id": "granny", "episode_id": "granny_01" }],
+			"regular_id": "delivery_man", "episode_id": "delivery_man_01", "today_request": {} },
+			{ "name": "夜", "customers": ["granny"], "regular_id": "granny", "episode_id": "granny_01", "today_request": {} }],
 		"mob_instances": { "mob#0": { "type": "dock_workers", "count": 2 } },
 	}
 	return MorningSave.capture("昨日の一言")

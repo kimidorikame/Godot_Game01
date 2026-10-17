@@ -1,0 +1,14 @@
+{
+  "id": "granny_01",
+  "customer": "granny",
+  "greet": [
+    "F:granny_01"
+  ],
+  "reactions": {},
+  "servings": 1,
+  "requires": {
+    "facts": {
+      "never": true
+    }
+  }
+}

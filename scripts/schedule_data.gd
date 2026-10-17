@@ -26,7 +26,8 @@ const _SCHEDULES_DIR := "res://data/schedules/"
 const _MOB_RULES_PATH := "res://data/schedules/mob_rules.json"
 # 4-4a：来店場面（episode。data/episodes/<客>/<episode_id>.json）。基本プロフィールは
 # data/customers/<id>.json。
-const _EPISODES_DIR := "res://data/episodes/"
+# テストは場面の置き場を差し替える（tests/fixtures/episodes/。差し替えたらclear_cache()を呼ぶ）。
+static var episodes_dir := "res://data/episodes/"
 const _CUSTOMERS_DIR := "res://data/customers/"
 const _MOBS_DIR := "res://data/mobs/"
 const _KITS_DIR := "res://data/kits/"
@@ -131,9 +132,52 @@ static func episode_data(customer_id: String, episode_id: String) -> Dictionary:
 		return {}
 	var key := customer_id + "/" + episode_id
 	if not _episode_cache.has(key):
-		var path := _EPISODES_DIR + customer_id + "/" + episode_id + ".json"
+		var path := episodes_dir + customer_id + "/" + episode_id + ".json"
 		_episode_cache[key] = _load_json(path) if FileAccess.file_exists(path) else {}
 	return _episode_cache[key]
+
+
+## 場面の前提（requires）。今回読むのは facts（事実の一致）と not_seen（未読）だけ
+## （4-4b-2。単純な絞り込みのみ。orや式は持たない）。無ければ空辞書。
+static func episode_requires(customer_id: String, episode_id: String) -> Dictionary:
+	var requires = episode_data(customer_id, episode_id).get("requires", {})
+	return (requires as Dictionary).duplicate(true) if requires is Dictionary else {}
+
+
+## 場面の「今日の頼み」（order.today_request：{ tags, label }）。無い・形が不正なら空辞書。
+## tagsは基本注文（プロフィールのwanted_tags）を上書きする実効注文（DESIGN.md 10.3.2・10.5.2）。
+static func episode_today_request(customer_id: String, episode_id: String) -> Dictionary:
+	var order = episode_data(customer_id, episode_id).get("order", {})
+	if not (order is Dictionary):
+		return {}
+	var request = (order as Dictionary).get("today_request", {})
+	if not (request is Dictionary) or not ((request as Dictionary).get("tags", []) is Array) \
+			or ((request as Dictionary).get("tags", []) as Array).is_empty():
+		return {}
+	return (request as Dictionary).duplicate(true)
+
+
+## 場面の「前回への2行」（callback。出し分けのキーごとの行の配列）。無ければ空辞書。
+static func episode_callback(customer_id: String, episode_id: String) -> Dictionary:
+	var callback = episode_data(customer_id, episode_id).get("callback", {})
+	return (callback as Dictionary).duplicate(true) if callback is Dictionary else {}
+
+
+## その客の場面の候補（場面の置き場の<客>/*.jsonのid。id順）。置き場が無ければ空配列。
+static func episode_candidates(customer_id: String) -> Array:
+	var ids := []
+	var dir := DirAccess.open(episodes_dir + customer_id)
+	if dir == null:
+		return ids
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if not dir.current_is_dir() and name.ends_with(".json"):
+			ids.append(name.trim_suffix(".json"))
+		name = dir.get_next()
+	dir.list_dir_end()
+	ids.sort()
+	return ids
 
 
 ## その客が日程（week7_regulars.json）で来る順の場面idの配列（日・枠の順）。

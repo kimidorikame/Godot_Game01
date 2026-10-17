@@ -241,11 +241,12 @@ func run(t: SceneTree) -> int:
 	var today_plan_stub := { "day": 2, "demand_center": 11, "mob_instances": {}, "slots": [] }
 	GameState.today_plan = today_plan_stub
 	var env := MorningSave.capture("")
-	c.check("封筒の版は4", int(env["version"]) == 4 and MorningSave.VERSION == 4)
+	c.check("封筒の版は5以上（4-4b-1で4。4-4b-2で5）", int(env["version"]) == MorningSave.VERSION and MorningSave.VERSION >= 4)
 	c.check("来店記録を持つ封筒は有効", MorningSave.is_valid(env))
 	var old := env.duplicate(true)
 	old["version"] = 3
 	c.check("版3の保存は読めない扱い（新規ゲーム）", not MorningSave.is_valid(old))
+	c.check("今の封筒の版はVERSION（古い版は読めない）", MorningSave.is_valid(env) and int(env["version"]) == MorningSave.VERSION)
 	# 4-4b-1①の時点の封筒（旧known_favoritesの余分なキーが付いた版4）も、版は同じなので読める
 	# （余分なキーはfrom_dictが無視する。版を2回上げない）。
 	var legacy := env.duplicate(true)

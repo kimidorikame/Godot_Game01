@@ -1,0 +1,21 @@
+{
+  "id": "thug_01",
+  "customer": "thug",
+  "greet": [
+    "F:thug_01"
+  ],
+  "reactions": {},
+  "servings": 2,
+  "order": {
+    "today_request": {
+      "tags": [
+        "MELLOW",
+        "GENTLE"
+      ],
+      "label": "持ち帰り"
+    },
+    "reask": [
+      "持ち帰りを頼む（再掲）"
+    ]
+  }
+}

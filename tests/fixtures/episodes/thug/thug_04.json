@@ -1,0 +1,14 @@
+{
+  "id": "thug_04",
+  "customer": "thug",
+  "greet": [
+    "F:thug_04"
+  ],
+  "reactions": {},
+  "servings": 1,
+  "requires": {
+    "facts": {
+      "never": true
+    }
+  }
+}

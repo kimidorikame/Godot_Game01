@@ -130,11 +130,11 @@ func run(_t: SceneTree) -> int:
 	GameState.day_count = 2
 	DayPlanner.build()
 	var env := MorningSave.capture("")
-	c.check("MorningSaveの版は4（4-4b-1で来店記録を足して3→4）", int(env["version"]) == 4 and MorningSave.VERSION == 4)
+	c.check("MorningSaveの版は5（4-4b-1で3→4・4-4b-2で今日の頼みを足して4→5）", int(env["version"]) == 5 and MorningSave.VERSION == 5)
 	c.check("DayPlanの枠が新しい形の封筒は有効", MorningSave.is_valid(env))
 	var old_version := env.duplicate(true)
-	old_version["version"] = 3
-	c.check("版3以前の保存は読めない扱い（新規ゲーム）", not MorningSave.is_valid(old_version))
+	old_version["version"] = 4
+	c.check("版4以前の保存は読めない扱い（新規ゲーム）", not MorningSave.is_valid(old_version))
 	var no_ids := env.duplicate(true)
 	for slot in no_ids["state"]["today_plan"]["slots"]:
 		slot.erase("regular_id")

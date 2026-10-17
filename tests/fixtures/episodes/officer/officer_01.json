@@ -1,0 +1,56 @@
+{
+  "id": "officer_01",
+  "customer": "officer",
+  "greet": [
+    "F:officer_01"
+  ],
+  "reactions": {},
+  "servings": 1,
+  "callback": {
+    "first": [
+      "初来店1",
+      "初来店2"
+    ],
+    "last_unserved": [
+      "未提供1",
+      "未提供2"
+    ],
+    "last_grade_good_or_better": [
+      "良1",
+      "良2"
+    ],
+    "last_grade_bad": [
+      "悪1",
+      "悪2"
+    ]
+  },
+  "order": {
+    "today_request": {
+      "tags": [
+        "SOUR",
+        "BITE"
+      ],
+      "label": "いつもの確認"
+    }
+  },
+  "sets_facts": {
+    "x": true
+  },
+  "choices": [
+    {
+      "id": "c",
+      "options": []
+    }
+  ],
+  "body": [
+    "本文"
+  ],
+  "closing": {
+    "default": [
+      "締め"
+    ]
+  },
+  "must_info": [
+    "info"
+  ]
+}

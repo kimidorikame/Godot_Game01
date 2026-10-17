@@ -68,6 +68,14 @@ static func worst_grade(grades: Array) -> String:
 	return worst
 
 
+## その客がこの場面を見たか（seen_episodes）。記録が無い客は false（エントリは作らない）。
+## 場面の選び方（EpisodeSelector）の not_seen が使う。
+static func has_seen(customer_id, episode_id: String) -> bool:
+	if not GameState.customer_memory.has(str(customer_id)):
+		return false
+	return (GameState.customer_memory[str(customer_id)]["seen_episodes"] as Array).has(episode_id)
+
+
 static func visits_of(customer_id) -> Array:
 	if not GameState.customer_memory.has(str(customer_id)):
 		return []
