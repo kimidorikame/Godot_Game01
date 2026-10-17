@@ -218,6 +218,55 @@ func run(t: SceneTree) -> int:
 		str(p10.flow.runner.events[0]["text"]))
 	p10.free()
 
+	# --- 11. 積む先の選択（切り替えボタン。実行時のみ・保存しない） ---
+	var p11 = _setup(t, 3, 700)
+	_to_close_done(p11)
+	var selectors: Array = _buttons(p11).filter(func(b): return b.text.begins_with("積む先："))
+	c.check("対象ごとの切り替えボタン（進捗つき）。既定は最初の未修繕の対象（看板）に「▶」、名義は未解放で無効",
+		selectors.map(func(b): return b.text) == ["積む先：▶手書きの看板 0/150", "積む先：棚 0/200", "積む先：雨よけ 0/200",
+			"積む先：屋台を自分の名義に 0/600（未解放）"] and selectors[3].disabled and not selectors[1].disabled,
+		str(selectors.map(func(b): return b.text)))
+	c.check("状態の文：積む先は看板・安全上限の根拠（明日の仕入れ分を残す）が出る",
+		p11._runner_label.text.contains("積む先: 手書きの看板")
+			and p11._runner_label.text.contains("（明日の仕入れ分を残す：運営費65＋請求0＋仕込み140＋材料費350＝555。見込み14杯）"),
+		p11._runner_label.text)
+	selectors[1].pressed.emit()   # 棚を選ぶ
+	c.check("棚を選ぶと「▶」が移り、状態の文の積む先も棚になる",
+		_buttons(p11).filter(func(b): return b.text == "積む先：▶棚 0/200").size() == 1 and p11._runner_label.text.contains("積む先: 棚")
+			and p11._fund_selected() == "shelf")
+	_press(p11, 30)
+	c.check("選んだ対象（棚）に積まれ、帳簿の ref は shelf・看板は0のまま", RepairFund.target_paid("shelf") == 30
+		and RepairFund.target_paid("sign") == 0 and GameState.ledger.filter(func(e): return e["category"] == "fund" and e["ref"] == "shelf").size() == 1)
+	p11._on_fund_target_selected("owner")
+	c.check("未解放の名義は選べない（選択は変わらない）", p11._fund_selected() == "shelf")
+	p11._on_fund_target_selected("nothing")
+	c.check("存在しない対象も選べない", p11._fund_selected() == "shelf")
+	c.check("選択は保存の項目ではない（朝の保存に入らない）", not GameState.to_dict().has("fund_target") and MorningSave.VERSION == 6)
+	p11.flow.advance_phase()   # CLOSE → NEXT_DAY
+	c.check("フェーズが替わると選択は消える（既定に戻る）", p11._fund_target == "" and p11._fund_selected() == "sign")
+	p11.free()
+	# 選んだ対象が修繕済みになったら、既定（最初の未修繕の対象）へ戻る
+	var p11b = _setup(t, 4, 700)
+	_add_fund(2, 120, "awning")
+	_add_fund(2, 100, "sign")
+	_to_close_done(p11b)
+	p11b._on_fund_target_selected("awning")
+	_press(p11b, 30)
+	c.check("雨よけを150/200まで積んでも修繕済みでなければ、選択は雨よけのまま", RepairFund.target_paid("awning") == 150
+		and p11b._fund_selected() == "awning")
+	_add_fund(3, 50, "awning")
+	p11b._refresh()
+	c.check("選んだ対象が修繕済みになると、選択は最初の未修繕の対象（看板）に戻り、修繕済みの対象は選べない",
+		RepairFund.is_repaired("awning") and p11b._fund_selected() == "sign"
+			and _buttons(p11b).filter(func(b): return b.text == "積む先：雨よけ 200/200 修繕済み")[0].disabled)
+	p11b.free()
+	# 最終日は翌日が無いので「明日の仕入れ分」の行は出ない
+	var p11c = _setup(t, GameState.FINAL_DAY, 300)
+	_to_close_done(p11c)
+	c.check("最終日は翌日の確保額が0なので「明日の仕入れ分を残す」の行は出ない", not p11c._runner_label.text.contains("明日の仕入れ分を残す")
+		and p11c._runner_label.text.contains("今日積める上限: 30"))
+	p11c.free()
+
 	Rules.set_campaign("week7")
 	GameState.reset_for_new_game()
 	return c.finish()

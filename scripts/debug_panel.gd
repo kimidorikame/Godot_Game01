@@ -188,6 +188,8 @@ var _slot_event_ids := {}
 var _recipe_save_stage := ""
 # 修繕基金（4-9。RepairFund）：段階が上がった瞬間の一行（CLOSEの間だけ出す。runnerのイベントではない）。
 var _fund_notice := ""
+# 積む先の対象のid（選択は実行時のみ・保存しない）。空・修繕済み・未解放なら既定（最初の未修繕の対象）を使う。
+var _fund_target := ""
 # 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
 # _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
 var _logged_positions := {}
@@ -338,6 +340,7 @@ func _set_runner_for_phase(phase: int) -> void:
 	_pot_water_added = false
 	_pot_dashi_added = false
 	_fund_notice = ""
+	_fund_target = ""
 	# 7.7: 市場の水場訪問フラグ・店の中にいるかも PREP に入るたびリセットする。
 	_market_visited_water = false
 	_market_shop = ""
@@ -1563,6 +1566,7 @@ func _reset_transient_panel_state() -> void:
 	_slot_event_ids = {}
 	_recipe_save_stage = ""
 	_fund_notice = ""
+	_fund_target = ""
 	_logged_positions = {}
 	TalkLog.clear()
 	_mob_original_ordered = -1
@@ -2128,10 +2132,35 @@ func _fund_row_visible() -> bool:
 func _add_fund_buttons() -> void:
 	if not _fund_row_visible() or RepairFund.complete():
 		return
-	var target_id := RepairFund.first_open_target()
+	# 積む先の選択（切り替えボタン。選んだ対象に「▶」）。修繕済み・未解放の対象は選べない。
+	var selected := _fund_selected()
+	for t in RepairFund.targets():
+		var s := RepairFund.target_state(t["id"])
+		var text := "積む先：%s%s %d/%d" % ["▶" if t["id"] == selected else "", s["label"], s["paid"], s["price"]]
+		if s["repaired"]:
+			text += " 修繕済み"
+		elif s["locked"]:
+			text += "（未解放）"
+		_add_pot_button(text, s["repaired"] or s["locked"], _on_fund_target_selected.bind(t["id"]))
 	for step in RepairFund.steps():
-		_add_pot_button("修繕基金に積む +%d" % step, not RepairFund.can_contribute(target_id, step),
+		_add_pot_button("修繕基金に積む +%d" % step, not RepairFund.can_contribute(selected, step),
 			_on_fund_contribute_pressed.bind(step))
+
+
+## いま積む先の対象のid：選んだ対象（未修繕で解放済み）、無効なら最初の未修繕の対象。
+func _fund_selected() -> String:
+	if _fund_target != "" and not RepairFund.target(_fund_target).is_empty() and not RepairFund.is_repaired(_fund_target) \
+			and RepairFund.unlocked(_fund_target):
+		return _fund_target
+	return RepairFund.first_open_target()
+
+
+## 積む先を切り替える（実行時のみ。保存しない）。修繕済み・未解放・存在しない対象は選べない。
+func _on_fund_target_selected(target_id: String) -> void:
+	if _fund_row_visible() and not RepairFund.target(target_id).is_empty() and not RepairFund.is_repaired(target_id) \
+			and RepairFund.unlocked(target_id):
+		_fund_target = target_id
+	_refresh()
 
 
 ## 積む。段階が上がったら、label を使った一行を覚えて CLOSE の間だけ表示する。
@@ -2140,7 +2169,7 @@ func _on_fund_contribute_pressed(amount: int) -> void:
 	if not _fund_row_visible():
 		return
 	var before := RepairFund.repaired_ids()
-	if RepairFund.contribute(RepairFund.first_open_target(), amount):
+	if RepairFund.contribute(_fund_selected(), amount):
 		var message := RepairFund.repaired_message(before, RepairFund.repaired_ids())
 		if message != "":
 			_fund_notice = message
@@ -2158,7 +2187,15 @@ func _format_fund() -> String:
 		lines.append("完了")
 	else:
 		lines.append("今夜積んだ額: %d／%d" % [RepairFund.paid_tonight(), RepairFund.nightly_max()])
-		lines.append("今日積める上限: %d" % RepairFund.max_contribution(RepairFund.first_open_target()))
+		var selected := _fund_selected()
+		lines.append("積む先: %s" % str(RepairFund.target(selected).get("label", "なし")))
+		lines.append("今日積める上限: %d" % RepairFund.max_contribution(selected))
+		# 安全上限の根拠（仮文面）：翌日に全客へ椀を出せるだけの仕込みと材料費を残す。
+		var reserve := RepairFund.next_day_reserve()
+		if int(reserve["total"]) > 0:
+			lines.append("（明日の仕入れ分を残す：運営費%d＋請求%d＋仕込み%d＋材料費%d＝%d。見込み%d杯）" % [
+				reserve["operating"], reserve["bills"], reserve["prep"], reserve["materials"], reserve["total"],
+				reserve["expected_cups"]])
 	if _fund_notice != "":
 		lines.append(_fund_notice)
 	return "\n".join(lines)
