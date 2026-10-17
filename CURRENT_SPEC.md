@@ -272,6 +272,8 @@ type を見て振り分ける。処理をデータに埋め込まない。
 | REMOVE_ITEM | 在庫消費 | `remove_inventory(item, amount)` |
 | SET_SOUP | 共有鍋の作成 | `set_soup(base_id, tags, servings, strength, water_doses)`<br>（クズ野菜の日は strength=1。§6参照） |
 | GREET / SERVE | 表示のみ（接客） | なし |
+| CHOICE | 店主の距離感の選択（入力待ち。システム整理C2） | `options`（`{id,label}`の二択）を持つので停止。選んだ結果は`CustomerMemory.record_choice`で来店記録の`choices`と`facts`へ（§6「提供後の場面」） |
+| SCENE_END | 場面の終わり（システム整理C2） | `sets_facts`を来店記録の`facts`へ書く（締めを読み終えて来たときだけ） |
 | ADJUST | 具材の選択（入力待ち） | `options` を持つので EventRunner が停止。<br>椀への反映は受け側（選択肢ボタン）。<br>`new_bowl: true` のときだけ、current になった瞬間に `reset_bowl()` で椀を新しくする（同じ客の2杯目以降） |
 | MARKET | 市場の店選び（入力待ち） | `options`（6店舗。2026-09-26改訂：水場のボタンを廃止し7→6）を持つので停止。<br>店を選ぶ処理・水道代の自動支払いは受け側。「市場を出る」で先へ |
 | REACT | 判定＋売上確定 | `judge_bowl()` で4段階判定 ＋ `apply_money(+sale)` ＋ `record_served()`。<br>任意フラグ（既定値なら従来どおり）：<br>`judge: false` … 判定しない（評判も動かない）。鍋の消費と売上は通常どおり<br>`aggregate: true` … 鍋の消費と売上はその場で、評判と提供記録は退店時に客1人分として1回だけ反映（§5「1杯ずつ接客する客」） |
@@ -2184,7 +2186,7 @@ GameState.try_pay(amount) -> bool
 - **形**：`customer_memory[客id] = {favorite_known: bool, visits: [{day, slot, served, grade, grades,
   ingredients, episode_id}], facts: {}, seen_episodes: [場面id…]}`。`visits`は来店1回につき1件、
   `facts`は空のまま（`CustomerMemory.set_fact`／`fact`の手段だけある。4-4b-2で`requires.facts`が読むようになったが、書く`sets_facts`は4-5以降）、
-  `seen_episodes`は重複なし。`request_honored`・`choices`は未実装（辞書なので足せる）。好感度のような
+  `seen_episodes`は重複なし。`request_honored`・`choices`はシステム整理C2で`visits`の任意キーとして実装。好感度のような
   数値は持たない。**対象は名前あり客だけ**（モブのインスタンスidは記録しない。
   `CustomerMemory.is_recordable()`）。
 - **書き手**（`scripts/customer_memory.gd`・状態を持たない静的クラス）：`arrive()`＝客が来店した時点で
@@ -2211,7 +2213,7 @@ GameState.try_pay(amount) -> bool
   後の来店記録は持ち越さない（`day_records`と同じ）。`reset_for_new_game()`で空にし、
   `reset_for_new_day()`では消さない。
 - **未対応**：（場面の選び方・前回を読んだ2行・注文カード・今日の頼み・聞き直しは4-4b-2で済み。下の節）
-  `choices`・`sets_facts`（factsを書く側）・`request_honored`は4-5以降。結果画面の物語欄の本文は4-8。
+  （`choices`・`sets_facts`・`request_honored`はシステム整理Cで済み。下の節）結果画面の物語欄の本文は4-8。
 
 ### 場面の選び方・今日の頼み・前回の2行・注文カード（F6・4-4b-2実装済み・2026-10-17・DESIGN.md 10.3.2・10.5.2・10.5.3・10.8.6）
 
@@ -2268,7 +2270,7 @@ GameState.try_pay(amount) -> bool
 - **書き換えた既存テスト**：`episode_flow_test.gd`・`customer_memory_test.gd`（版の数値）、
   `save_state_test.gd`・`save_file_test.gd`（枠の固定値に`today_request`を追加。版5の`is_valid`が要求）。
   ③では既存テストの書き換えなし。
-- **未対応**：`sets_facts`（factsを書く側）・`choices`・`body`・`closing`・`must_info`・ニュース・本文（4-5以降）、
+- **未対応**：（`sets_facts`・`choices`・`body`・`closing`・`must_info`はシステム整理Cで済み）ニュース・本文（4-5以降）、
   実データの今日の頼み・`callback`（現行の21場面には無い。試作は4-5）、`servings`を持つ今日の頼み
   （総需要の引き算に効くため見送り）、「短い近況の場面」、レシピ保存と「いつもの」ボタン（4-7）。
   （新人警官の市場会話とチンピラの場所代の日番号判定は、システム整理Aで済み。下の節）
@@ -2316,7 +2318,69 @@ GameState.try_pay(amount) -> bool
 - **残る日番号の直書き**：配達員の3杯列は場面id判定（4-4a）。`bills`の`days`・`day_overrides`・`final_day`・
   `market_open_from_day`はデータ側。`RENT_PRICE`は`bills`から引く。10.9の表の直書きは、この節で一通り置き換え済み。
 - **未対応**：`_OFFICER_AFTER`・`_OFFICER_PAYMENT`（提供後の共通会話・会計）のデータ化は本文の移し替えなので
-  脚本の段階（4-5以降）。`sets_facts`・`choices`・`body`・`closing`・`must_info`（場面機能の残り）はこの後の手順。
+  脚本の段階（4-5以降）。（場面機能の残りはシステム整理Cで済み。下の節）。
+
+### 提供後の場面（反応・本文・選択・締め・事実・システム整理C1／C2実装済み・2026-10-17・DESIGN.md 10.5.3・10.5.4・10.8.5・10.8.6）
+
+場面に「提供後」の部分を足した。来店〜注文（4-4b-2まで）に続く、反応 → 本文 → 選択 → 締め → 事実の器。
+**現行の21場面は新しいキーを持たないので、動作は変わっていない**（3シード×13方針の自動試遊は各コミットで
+4-3の結果と39/39周完全一致）。新しい仕組みはテスト内のデータ（`tests/fixtures/episodes/`）で確認している。
+コミットは`b7d3985`（読み口と検証・`pre_order`）・`4a1c98e`（提供後の列・断った客のUNSERVED）・`fc6b2a2`
+（閉店で退店する客の未提供版）・`c14c034`（選択と締めの差分）・`a74d8c1`（`sets_facts`・`request_honored`・保存の検証）。
+テストは1839件成功（システム整理Aの1528件から。35スイートすべてが走り切る）。
+
+- **場面データの新しいキー**（すべて任意。`ScheduleData`の読み口は、無い・形が不正なら「無い」と同じに読む）：
+  `pre_order`（前回の2行と注文＝`greet`の間の行）、`body`（食事中の話）、`body_unserved`（提供しなかったときの本文。
+  `must_info`を持つ場面だけが使う）、`closing`（`{default, "<選択id>:<選択肢id>", "request_honored:true|false"}`）、
+  `choices`（最大2つ。各`{id, options:[2つの{id, label, set}]}`）、`sets_facts`、`must_info`（印を読むだけ。
+  9項目の管理は日別ニュース＝D）、`reactions`に`UNSERVED`。`ScheduleData.scene_problems(ep)`が形を検査する：
+  選択の数・二択・id一意、**事実のキーは選択肢の`set`と`sets_facts`を合わせて重複を除き2個まで**
+  （両方に同じキーは不可）、`closing`のキーが選択か`request_honored`に対応すること、`must_info`と`body`が
+  あれば`body_unserved`が必須。実データ21場面は新キーを持たず問題なし（テストで固定）。
+- **提供後の列の組み方**（`Day1Events.after_serve_events(客, 場面, {served, grade})`）：REACTの処理が済んだ後に
+  `DebugPanel._insert_after_serve_events`が、現在位置の直後（常にindex 2以降。モブの2レシピ目と同じ差し込み方）へ
+  差し込む。来店時に最後まで固定せず、実際の出来が出た後に組む。**状態を読むだけで書かず、乱数を使わない**
+  （何度呼んでも同じ。`customer_events`には本文・締めを含めないので`Forecast`・杯数の先読みは不変）。
+  `EventRunner`は変更なし（条件分岐は組み立て側）。順序は REACT → 本文 → 選択 → 締め → SCENE_END →
+  既存の`_customer_extra_events`（警官の共通会話・場所代のPAY）。モブ・配達員の3杯列・場面データに該当キーが
+  無い客は何も差さない。反応は従来どおりREACTの状態表示（`reactions[出来]`の2パターンの抽選）のまま。
+  **本文・締めは出来（grade）で分けない**（10.5.3「差分は冒頭2行・反応・締めだけ」。わざと失敗すると親密に
+  なる経路を作らないため、締めの引き当てに`grade`を使わない）。読んでいる間に鍋・腐敗・客の待ちは進まない
+  （ターン制。写しの一致をテストで確認）。
+- **提供しない経路**：
+  断る → REACT直後に`reactions.UNSERVED`（要素0。乱数を引かない。`_declined_now`で表示）、`must_info`を持つ場面だけ
+  `body_unserved`。鍋不足の[閉店]・自動閉店（接客中でserved=0の名前あり客）→ `_queue_unserved_exit`が
+  `Day1Events.unserved_exit_events`をCLOSEの先頭（理由テキストの次・閉店の語りの前）に積む（反応のGREETと
+  `must_info`ありなら`body_unserved`）。**到着前に閉店して来なかった客の場面は再生しない**（来店していない客が
+  話すことになり、来店記録を作らない設計＝4-4b-1とも矛盾する。必須情報の担保は日別ニュース＝Dが担う前提）。
+  提供しなかった客では`facts`を立てない。断った場面も来店記録の`seen_episodes`に入る＝読んだ扱い。
+- **選択（`CHOICE`）**：本文の後に選択ごとに入力待ちで出す（`{type:"CHOICE", choice_id, options:[{id,label}]}`）。
+  仮ボタンは`_update_options_row`の分岐（`_on_story_choice_pressed`）。選択中は[次のEvent]・[入力完了]が効かず
+  飛ばせない。合わないidは何もしない。`CustomerMemory.record_choice`が今日の来店の`choices`（選択id→選択肢id）へ
+  残し、選択肢の`set`を`facts`へ即時に書く。**料金・評判・評価・鍋・在庫・腐敗・時間帯は変えない**（写しで確認）。
+  断った客・閉店で退店する客には選択を出さない。最後の選択が済んでから`closing_events`を組んで差し込む。
+- **締め**（`Day1Events.closing_events`）：`default`に、選んだ選択ごとの差分（場面の選択の順）と、
+  `request_honored:true|false`の差分を**足す**（置き換えではない）。該当キーが無ければ`default`だけ。
+- **事実（`SCENE_END`）**：`sets_facts`を持つ場面で、提供した客の列の最後に積み、締めを読み終えて来たとき
+  1回だけ`facts`へ書く（`CustomerMemory.set_fact`）。断った客・閉店で退店した客・途中の閉店や再挑戦では書かない。
+  翌朝の`EpisodeSelector`が`requires.facts`で読み、事実が立つ前は別の場面（`thug_01`）、立った後は`thug_02`を選ぶ
+  ことをテストで確認。
+- **`request_honored`**：`visits[]`の任意キー。**今日の頼みがある場面の判定した杯だけ**、実効注文のタグを
+  すべて椀が満たしたら（`match_count` ≧ タグ数）true、そうでなければfalse（濃さ・傷みの減点は見ない＝頼まれた
+  中身に応えたかであって出来の評価ではない）。複数の杯があればすべて応えたときだけtrue。頼みの無い場面・
+  断った客にはキー自体を入れない。
+- **保存**：封筒の版は5のまま。`visits`の`choices`（辞書。選択id・選択肢idは文字列）・`request_honored`（bool）は
+  任意キーで、**あるときだけ**`MorningSave.is_valid()`が型を検査する。旧形式（キー無し）の保存も読める。
+  往復（`to_dict`／`from_dict`・ファイル）で型ごと戻り、朝へ戻す（再挑戦）と来店記録と`facts`が朝の状態に戻る
+  （`tests/scene_facts_test.gd`）。
+- **試遊のハーネス**：`planning/playtest_2026_10_11/playthroughs.gd`に、CHOICEなら先頭の選択肢を押す分岐を
+  足した（現行データでは通らない）。
+- **書き換えた既存テスト**：`episode_data_test.gd`の1件だけ（新キーを持たないことと`scene_problems`が空であることの検査）。
+  新規：`scene_keys_test`・`after_serve_test`・`choice_test`・`scene_facts_test`。
+- **未対応**：複数杯の場面（配達員の3杯列を場面データで表す。10.8.6）。場面が`cups`を任意キーで持つ形で
+  将来足せる見通し（既存キーの意味を変えず足すだけ。`after_serve_events`の結果に`grades`の配列を取れる余地）。
+  `_OFFICER_AFTER`・`_OFFICER_PAYMENT`のデータ化・本文・選択肢・締めの文面（脚本＝4-5・4-8）、
+  日別ニュースと必須情報の管理（D）。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2382,6 +2446,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `tests/episode_select_test.gd`・`tests/effective_order_test.gd`・`tests/order_card_callback_test.gd` | 選び方・今日の頼みの保存／実効注文（判定・予報は基本注文）／前回の2行・注文カード・聞き直し。4-4b-2実装・2026-10-17追記 |
 | `scripts/balance_log.gd` | 日次ログ（`user://balance_log.jsonl`）の書き出しと`run_id`・`attempt`。システム整理A・2026-10-17追記 |
 | `tests/display_name_test.gd`・`tests/balance_log_retry_test.gd`・`tests/market_talk_test.gd`・`tests/bill_scene_test.gd`・`tests/demand_route_test.gd` | 表示名／再挑戦の`run_id`・`attempt`／`market_talk`（`tests/fixtures/prep_events_system_a.json`と照合）／`bills[].scene`の場所代／需要経路。システム整理A・2026-10-17追記 |
+| `tests/scene_keys_test.gd`・`tests/after_serve_test.gd`・`tests/choice_test.gd`・`tests/scene_facts_test.gd` | 場面の新キーの読み口と検査／提供後の列・UNSERVED・閉店退店／選択・締めの差分／`sets_facts`・`request_honored`・保存の往復と旧形式。システム整理C・2026-10-17追記 |
 | `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
