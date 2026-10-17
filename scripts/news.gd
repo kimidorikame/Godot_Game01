@@ -130,6 +130,39 @@ static func morning_events(day: int, source: Dictionary = {}) -> Array:
 	return events
 
 
+## --- 共通イベント（客の抽選に依存しない、その日の出来事）。TEXTだけで、ゲームの数値には触れない ---
+
+## 共通イベント1件の TEXT イベント（part:"common_event"・event_id付き）。
+static func event_lines(item: Dictionary) -> Array:
+	var events := []
+	if item.get("lines") is Array:
+		for line in item["lines"]:
+			if line is String and line != "":
+				events.append({ "type": "TEXT", "text": line, "part": "common_event", "event_id": str(item.get("id", "")) })
+	return events
+
+
+## その日の共通イベントのうち、まだ再生していないもの（played_ids に無いもの）を、データの並び順
+## （＝時系列）で返す。at を指定すれば、その at のものだけ。
+static func pending_events(day: int, played_ids: Array, at: String = "", source: Dictionary = {}) -> Array:
+	var items := []
+	for item in day_entry(day, source)["events"]:
+		if played_ids.has(str(item.get("id", ""))):
+			continue
+		if at != "" and str(item.get("at", "")) != at:
+			continue
+		items.append(item)
+	return items
+
+
+## 共通イベントの id → その日の項目（無ければ空辞書）。
+static func event_by_id(day: int, id: String, source: Dictionary = {}) -> Dictionary:
+	for item in day_entry(day, source)["events"]:
+		if str(item.get("id", "")) == id:
+			return item
+	return {}
+
+
 ## ニュースタブ（スマホ）の本文（仮表示）。今日と、その周で既に過ぎた日の分だけ（未来の日は見せない）。
 ## 新しい日が上。ニュースとDMは別の見出し。過ぎた日の共通イベントは出来事として載せ、今日の分は
 ## 再生済み（played_ids）のものだけ。既読は持たない（保存する状態を増やさない）。

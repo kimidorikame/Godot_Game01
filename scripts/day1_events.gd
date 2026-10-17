@@ -24,10 +24,18 @@ static func wake_events() -> Array:
 	return [
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
-	] + News.morning_events(GameState.day_count) + [
+	] + News.morning_events(GameState.day_count) + _wake_common_events() + [
 		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、市場を出るときにまとめて渡す分として先に取っておく。" % GameState.DAILY_OPERATING_COST },
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]
+
+
+## 朝（at:"wake"）の共通イベントの TEXT（ニュースの後）。無い日は空配列。
+static func _wake_common_events() -> Array:
+	var events := []
+	for item in News.pending_events(GameState.day_count, [], "wake"):
+		events.append_array(News.event_lines(item))
+	return events
 
 
 ## 仕込みの3段階（BALANCE_REDESIGN_PLAN.md§2「7日版の数値一式」）。MARKETの

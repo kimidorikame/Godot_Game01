@@ -111,6 +111,12 @@ func play(p: String, run_seed: int) -> Dictionary:
 	var result_phase := ""
 	var result_summary := {}
 	while not done and steps < 6000:
+		# 表示だけのニュース／共通イベントの TEXT（part が news または common_event）は、プレイヤーの
+		# 判断ではないので、操作回数（clicks・actions・steps）に数えずに読み飛ばす。これ以外の差は
+		# 見逃さない（TEXT 以外・他の part は対象外）。
+		while panel.flow.runner != null and panel.flow.runner.status == EventRunner.Status.PLAYING \
+				and is_display_only(panel.flow.runner.current()):
+			panel._on_next_event_pressed()
 		steps += 1
 		if steps % 12 == 0:
 			await tree.process_frame # release queue_free UI controls
@@ -295,6 +301,12 @@ func choose_tier() -> String:
 
 func target_cups() -> int:
 	return int(Forecast.total()["high"])
+
+
+## ニュース／共通イベントの表示専用 TEXT か（type が TEXT で、part が news または common_event）。
+func is_display_only(ev) -> bool:
+	return ev is Dictionary and str(ev.get("type", "")) == "TEXT" \
+			and ["news", "common_event"].has(str(ev.get("part", "")))
 
 
 func act(kind: String) -> void:

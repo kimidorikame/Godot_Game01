@@ -177,6 +177,12 @@ var _declined_now := false
 # 提供できないまま閉店して退店する客の未提供版（反応・must_infoの本文）。CLOSEの先頭に一度だけ
 # 積む（_closed_early_reasonと同じ「一度だけ」パターン。システム整理C1）。
 var _pending_close_lines: Array = []
+# 共通イベント（Day6の衝突・火災など。News）：その日に再生した（差し込んだ）イベントのid、と、時間帯の
+# 最初の客に前置したイベントのid（時間帯の位置ごと。_load_current_customerが同じ客で何度呼ばれても
+# 二重に前置せず、同じ列を組み直せるようにする）。保存しない実行時の値で、WAKE・再挑戦・新しい周で
+# リセットする（システム整理D）。
+var _played_events: Array = []
+var _slot_event_ids := {}
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
 # 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
@@ -304,6 +310,8 @@ func _set_runner_for_phase(phase: int) -> void:
 	_phone_mode = false
 	_phone_tab = "recipe"
 	if phase == GameState.Phase.WAKE:
+		_played_events = []   # 共通イベントはその日ごと（朝へ戻したら最初から再生し直す）
+		_slot_event_ids = {}
 		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
 		# 初期化する（前日の day_ending 発火はもう終わっている＝直前のログには影響しない）。
 		# opening_moneyは日々の運営費を引く前の値（その日入ってきた素の所持金）にする。
@@ -362,6 +370,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 一言サマリーがあれば、今日の起床イベントの先頭に差し込む（読んだら消費する。
 		# _closed_early_reason/_game_over_reasonと同じ「一度だけ」パターン）。
 		var wake_ev := Day1Events.wake_events()
+		_mark_events_played(wake_ev)
 		if _last_day_summary_text != "":
 			wake_ev = [{ "type": "TEXT", "text": _last_day_summary_text }] + wake_ev
 			_last_day_summary_text = ""
@@ -411,7 +420,14 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
 		# 読んだら消費する（次に通常経路でCLOSEへ来たときに残っていないように）。
 		var events := Day1Events.close_events()
-		# 提供できないまま退店した客の未提供版（理由テキストの次・閉店の語りの前）。
+		# 営業中に届かなかった共通イベント（早仕舞いなど）を、閉店の語りの前に取り戻す
+		# （必須情報を客・営業の長さに依存させない）。時系列（データの並び順）で、再生済みは出さない。
+		var overdue := []
+		for item in News.pending_events(GameState.day_count, _played_events):
+			overdue.append_array(News.event_lines(item))
+		_mark_events_played(overdue)
+		events = overdue + events
+		# 提供できないまま退店した客の未提供版（理由テキストの次・共通イベントの前）。
 		events = _pending_close_lines + events
 		_pending_close_lines = []
 		if _closed_early_reason != "":
@@ -456,7 +472,7 @@ func _load_current_customer() -> void:
 		var arriving := str(_open.current_customer())
 		# 来店記録（4-4b-1）：名前あり客が来た事実を残す（記録するだけ。モブは対象外）。
 		CustomerMemory.arrive(arriving, _open.current_slot_name(), Day1Events.episode_id_of(arriving))
-		flow.set_runner(Day1Events.customer_events(arriving))
+		flow.set_runner(_slot_start_events() + Day1Events.customer_events(arriving))
 	else:
 		flow.set_runner([])
 
@@ -1502,6 +1518,8 @@ func _reset_transient_panel_state() -> void:
 	_pending_decline = false
 	_declined_now = false
 	_pending_close_lines = []
+	_played_events = []
+	_slot_event_ids = {}
 	_mob_original_ordered = -1
 	_mob_recipe_number = 1
 	_bowl_discard_count = 0
@@ -1580,6 +1598,33 @@ func _auto_close_kitchen() -> void:
 	_queue_unserved_exit()
 	_log_closed_early = true   # 日次ログ：鍋が尽きて自動的に閉店した
 	flow.force_phase(GameState.Phase.CLOSE)
+
+
+## 再生した共通イベントのid（events の event_id）を _played_events へ覚える。
+func _mark_events_played(events: Array) -> void:
+	for ev in events:
+		if ev is Dictionary and ev.has("event_id") and not _played_events.has(str(ev["event_id"])):
+			_played_events.append(str(ev["event_id"]))
+
+
+## 時間帯の最初の客の接客の前に置く、その時間帯（at＝時間帯名）の共通イベント（システム整理D）。
+## 時間帯の位置（何番目の時間帯・客のindex 0）ごとに、前置したイベントのidを覚えておく：
+## _load_current_customer が同じ客で何度呼ばれても、同じ列を組み直すだけで二重にならない
+## （初回に再生済みにするが、2回目以降は覚えたidから組み直す）。TEXTだけでゲームの数値には触れない。
+func _slot_start_events() -> Array:
+	if _open == null or _open.index != 0:
+		return []
+	var key := "%d:%d" % [_open.slot_index, _open.index]
+	if not _slot_event_ids.has(key):
+		var ids := []
+		for item in News.pending_events(GameState.day_count, _played_events, _open.current_slot_name()):
+			ids.append(str(item["id"]))
+			_played_events.append(str(item["id"]))
+		_slot_event_ids[key] = ids
+	var events := []
+	for id in _slot_event_ids[key]:
+		events.append_array(News.event_lines(News.event_by_id(GameState.day_count, str(id))))
+	return events
 
 
 ## 提供できないまま閉店して退店する客（今の接客中の名前あり客。今日の来店で served=0）の
@@ -2160,7 +2205,7 @@ func _format_phone() -> String:
 	var body: String
 	match _phone_tab:
 		"news":
-			body = News.tab_text(GameState.day_count)
+			body = News.tab_text(GameState.day_count, _played_events)
 		"sns":
 			body = _format_tonight_memo()
 		_:
