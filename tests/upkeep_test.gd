@@ -159,5 +159,4 @@ func run(t: SceneTree) -> int:
 	c.check("確保が0になっても行自体は残る(常時表示)", panel10._format_game_state().contains("/ 0 /"),
 		panel10._format_game_state())
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

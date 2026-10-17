@@ -130,5 +130,4 @@ func run(_t: SceneTree) -> int:
 		GameState.day_records.size() == 3 and int(GameState.day_records[0]["day"]) == 1)
 	GameState.reset_for_new_game()
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

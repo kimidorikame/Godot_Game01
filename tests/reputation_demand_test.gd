@@ -218,5 +218,4 @@ func run(t: SceneTree) -> int:
 				override_ok = false
 	c.check("デバッグ上書きは総需要システムをバイパスし、全モブ枠に一律適用される", override_ok)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

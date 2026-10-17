@@ -181,5 +181,4 @@ func run(_t: SceneTree) -> int:
 				detail = "reg=%d mob=%d center=%d" % [reg_cups, mob_cups, center]
 		c.check("Day%d：常連3杯＋モブ杯数が総需要（中心±1）に収まる（30回）" % d, ok, detail)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

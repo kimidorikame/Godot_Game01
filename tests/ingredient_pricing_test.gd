@@ -110,5 +110,4 @@ func run(t: SceneTree) -> int:
 	var result := open.judge_bowl(["POWER", "BITE"])
 	c.check("すじ肉1つでPOWER+BITEの要求2つに一致してGOODになる", result == "GOOD", result)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

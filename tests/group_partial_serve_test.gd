@@ -253,5 +253,4 @@ func run(t: SceneTree) -> int:
 	c.check("record_servedはこのケースも1件のみ",
 		GameState.served.size() == served_before9 + 1)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

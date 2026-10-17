@@ -70,5 +70,4 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	c.check("reset_for_new_gameでledgerは空になる", GameState.ledger.is_empty())
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

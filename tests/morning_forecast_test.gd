@@ -123,5 +123,4 @@ func run(t: SceneTree) -> int:
 	c.check("Day1の中心は固定需要9(day_overrides.fixed_demand)", GameState.demand_center_today() == 9
 		and GameState.total_demand_today() == 9)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

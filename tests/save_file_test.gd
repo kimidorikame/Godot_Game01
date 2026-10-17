@@ -203,8 +203,7 @@ func run(t: SceneTree) -> int:
 			p.free()
 	MorningSave.delete_file()
 	MorningSave.save_path = saved_path
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()
 
 
 func _count_today(category: String) -> int:

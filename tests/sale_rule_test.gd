@@ -102,5 +102,4 @@ func run(t: SceneTree) -> int:
 	var result_2match := open.judge_bowl(["HOT", "POWER"], "meat_ball")
 	c.check("一致2個+好物ありはGREAT(回帰)", result_2match == "GREAT", result_2match)
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

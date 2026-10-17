@@ -143,5 +143,4 @@ func run(t: SceneTree) -> int:
 	c.check("_format_game_stateにknown_favoritesの一覧が出る",
 		panel3._format_game_state().contains("known_favorites"))
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

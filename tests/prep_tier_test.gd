@@ -170,5 +170,4 @@ func run(t: SceneTree) -> int:
 		str(events[1].get("type", "")) == "TEXT" and str(events[2].get("type", "")) == "PREP_TIER",
 		str(events))
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

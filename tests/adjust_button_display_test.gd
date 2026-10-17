@@ -79,5 +79,4 @@ func run(t: SceneTree) -> int:
 		seasoning_texts.has("苦瓜(2)"), str(seasoning_texts))
 	c.check("苦瓜は具材の行には入らない", not ingredient_texts.has("苦瓜(2)"), str(ingredient_texts))
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

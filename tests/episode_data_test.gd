@@ -122,8 +122,7 @@ func run(_t: SceneTree) -> int:
 					"%d vs %d events" % [(now as Array).size(), (recorded as Array).size()])
 	GameState.reset_for_new_game()
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()
 
 
 func _sorted_keys(d: Dictionary) -> Array:

@@ -201,5 +201,4 @@ func run(t: SceneTree) -> int:
 	GameState.dashi_units = 0
 	GameState.reset_for_new_game()
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

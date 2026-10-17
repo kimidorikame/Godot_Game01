@@ -153,5 +153,4 @@ func run(_t: SceneTree) -> int:
 		Day1Events.episode_id_of("delivery_man") == "delivery_man_02")
 
 	GameState.reset_for_new_game()
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

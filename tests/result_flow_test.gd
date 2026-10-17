@@ -216,5 +216,4 @@ func run(t: SceneTree) -> int:
 	for p in [panel, panel2]:
 		if is_instance_valid(p):
 			p.free()
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

@@ -145,5 +145,4 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	if is_instance_valid(panel):
 		panel.free()
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()

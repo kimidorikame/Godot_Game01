@@ -160,5 +160,4 @@ func run(t: SceneTree) -> int:
 	c.check("customer_flavor(モブ)のgreetにも同じ書式が適用される",
 		not dw_flavor["greet"].is_empty(), str(dw_flavor["greet"]))
 
-	print("失敗数: ", c.fails, " / ", c.checks, "件")
-	return c.fails
+	return c.finish()
