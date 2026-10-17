@@ -712,6 +712,12 @@ static func after_serve_events(customer_id: String, scene_id: String, outcome: D
 				"options": options, "part": "choice" })
 		if choices.is_empty():
 			events.append_array(closing_events(customer_id, scene_id))
+		# 場面が終わったとき（締めを読み終えて先へ進んだとき）に事実を書く。提供しなかった客には
+		# 付けない（本文を再生しても事実は立てない）。
+		var sets_facts := ScheduleData.episode_sets_facts(customer_id, scene_id)
+		if not sets_facts.is_empty():
+			events.append({ "type": "SCENE_END", "customer": customer_id, "sets_facts": sets_facts,
+				"part": "end" })
 	elif not ScheduleData.episode_must_info(customer_id, scene_id).is_empty():
 		events.append_array(_scene_lines("body", customer_id,
 			ScheduleData.episode_body_unserved(customer_id, scene_id)))
@@ -748,6 +754,12 @@ static func closing_events(customer_id: String, scene_id: String) -> Array:
 		var key := "%s:%s" % [choice["id"], str(made.get(choice["id"], ""))]
 		if made.has(choice["id"]) and closing.has(key):
 			lines.append_array(closing[key])
+	# 約束（今日の頼みに応えたか）の差分。今日の頼みがある場面を提供したときだけ記録がある。
+	var visit := CustomerMemory.today_visit(customer_id)
+	if visit.has("request_honored"):
+		var honored_key := "request_honored:%s" % ("true" if bool(visit["request_honored"]) else "false")
+		if closing.has(honored_key):
+			lines.append_array(closing[honored_key])
 	return _scene_lines("closing", customer_id, lines)
 
 

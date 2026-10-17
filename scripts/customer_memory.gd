@@ -45,7 +45,7 @@ static func ensure_visit(customer_id, slot_name: String, episode_id: String) -> 
 ## 1杯を提供した記録。grade="" は評価しない杯（判定なし）。ingredientsはその杯に入れた
 ## 具材・調味料のid。
 static func record_serve(customer_id, slot_name: String, episode_id: String, servings: int,
-		grade: String, ingredients: Array) -> void:
+		grade: String, ingredients: Array, request_honored = null) -> void:
 	if not is_recordable(customer_id):
 		return
 	var visit := ensure_visit(customer_id, slot_name, episode_id)
@@ -53,6 +53,10 @@ static func record_serve(customer_id, slot_name: String, episode_id: String, ser
 	(visit["grades"] as Array).append(grade)
 	(visit["ingredients"] as Array).append(ingredients.duplicate())
 	visit["grade"] = worst_grade(visit["grades"])
+	# 今日の頼みに応えたか（システム整理C2。今日の頼みがある場面の提供だけが bool を渡す。無い場面は
+	# キー自体を入れない）。複数の杯があれば、すべて応えたときだけ true。
+	if request_honored is bool:
+		visit["request_honored"] = bool(request_honored) and bool(visit.get("request_honored", true))
 
 
 ## 評価の並び（低い順。OpenController.RESULT_ORDER）で最も悪い評価。空文字（評価なし）は

@@ -106,6 +106,16 @@ static func is_valid(envelope) -> bool:
 					or typeof(v.get("episode_id")) != TYPE_STRING or typeof(v.get("grades")) != TYPE_ARRAY \
 					or typeof(v.get("ingredients")) != TYPE_ARRAY:
 				return false
+			# 任意キー（システム整理C2。旧形式の来店記録には無いので、あるときだけ型を検査する。
+			# 保存の版は上げない）：choices＝{選択id: 選択肢id}、request_honored＝bool。
+			if v.has("choices"):
+				if typeof(v["choices"]) != TYPE_DICTIONARY:
+					return false
+				for choice_id in v["choices"]:
+					if typeof(choice_id) != TYPE_STRING or typeof(v["choices"][choice_id]) != TYPE_STRING:
+						return false
+			if v.has("request_honored") and typeof(v["request_honored"]) != TYPE_BOOL:
+				return false
 		for eid in e["seen_episodes"]:
 			if typeof(eid) != TYPE_STRING:
 				return false

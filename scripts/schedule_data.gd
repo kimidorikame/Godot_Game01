@@ -257,6 +257,19 @@ static func episode_choices(customer_id: String, episode_id: String) -> Array:
 	return result
 
 
+## 場面が終わったときに次回へ残す事実（sets_facts）。{ 事実のキー: 値 } のうち、値が真偽・数・文字列の
+## ものだけを読む（最大2個はscene_problemsが検査）。無ければ空辞書。
+static func episode_sets_facts(customer_id: String, episode_id: String) -> Dictionary:
+	var result := {}
+	var raw = episode_data(customer_id, episode_id).get("sets_facts", {})
+	if raw is Dictionary:
+		for key in raw:
+			var value = raw[key]
+			if key is String and (value is bool or value is int or value is float or value is String):
+				result[key] = value
+	return result
+
+
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
 const _MAX_CHOICES := 2
 const _MAX_FACT_KEYS := 2

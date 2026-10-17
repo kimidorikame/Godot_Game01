@@ -947,6 +947,12 @@ func _apply_event(ev) -> void:
 				GameState.add_inventory(add_item_id, int(ev.get("amount", 1)), int(ev.get("unit_price", 0)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"SCENE_END":
+			# 場面が終わった：sets_facts を来店記録の facts へ書く（システム整理C2）。締めを読み終えて
+			# ここに来た時だけ書く＝途中で閉店・再挑戦した場面は書かない。何度適用しても同じ値。
+			var scene_facts: Dictionary = ev.get("sets_facts", {})
+			for fact_key in scene_facts:
+				CustomerMemory.set_fact(str(ev.get("customer", "")), str(fact_key), scene_facts[fact_key])
 		"ADJUST":
 			# 同じ客の2杯目以降：新しい椀へ切り替える。ADJUST は入力待ちで、具材を選べる前に
 			# 「新しく current になった瞬間」に1回だけここへ来るので、必ず選ぶ前に新しくなる。
@@ -1203,9 +1209,16 @@ func _serve_customer(ev: Dictionary) -> void:
 	# 来店記録（4-4b-1）：この杯の提供（評価・入れた具材）を、その日の来店へ追記する
 	# （配達員も杯ごとにここへ来る。好物の開示の時刻は下のままで変えない）。
 	if _open != null:
+		# 今日の頼みに応えたか：今日の頼みがある場面（REACTにbase_wanted_tagsが付く）の判定した杯だけ。
+		# 実効注文のタグをすべて椀が満たした（一致数＝タグ数）なら true。濃さ・傷みの減点は見ない
+		# （頼まれた中身に応えたかであって、出来の評価ではない）。無い場面はnull＝キーを入れない。
+		var honored = null
+		if judged and ev.has("base_wanted_tags"):
+			var wanted: Array = ev.get("wanted_tags", [])
+			honored = not wanted.is_empty() and int(_open.current_bowl.get("match_count", 0)) >= wanted.size()
 		CustomerMemory.record_serve(customer_id, _open.current_slot_name(),
 			Day1Events.episode_id_of(customer_id), servings, result,
-			_open.current_bowl.get("additions", []))
+			_open.current_bowl.get("additions", []), honored)
 	if aggregate:
 		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
