@@ -103,7 +103,7 @@ func run(t: SceneTree) -> int:
 		CustomerMemory.fact("granny", "promise") == true and CustomerMemory.fact("granny", "x", 5) == 5
 			and CustomerMemory.fact("nobody", "x", 7) == 7)
 
-	# --- 5. 好物を知った順：known_favorite_idsはknown_favoritesの並びと同じ ---
+	# --- 5. 好物を知った順：known_favorite_idsは「知った順」（来店の順ではない） ---
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	CustomerMemory.arrive("granny", "明け方", "granny_01")   # 先に来店（記録は老婆が先）
@@ -111,9 +111,9 @@ func run(t: SceneTree) -> int:
 	GameState.mark_favorite_known("granny")
 	c.check("知った順（thug→granny）。来店の順（granny→thug）ではない",
 		GameState.known_favorite_ids() == ["thug", "granny"], str(GameState.known_favorite_ids()))
-	c.check("known_favoritesの並びと同じ", GameState.known_favorites.keys() == ["thug", "granny"])
-	c.check("favorite_knownがknown_favoritesと一致する",
-		GameState.memory_entry("granny")["favorite_known"] == true and GameState.knows_favorite("granny"))
+	c.check("knows_favoriteがfavorite_knownを読む",
+		GameState.memory_entry("granny")["favorite_known"] == true and GameState.knows_favorite("granny")
+			and GameState.knows_favorite("thug") and not GameState.knows_favorite("officer"))
 	GameState.mark_favorite_known("thug")
 	c.check("二度知らせても並び・来店記録は変わらない", GameState.known_favorite_ids() == ["thug", "granny"]
 		and CustomerMemory.visits_of("granny").size() == 1)
@@ -213,9 +213,8 @@ func run(t: SceneTree) -> int:
 	GameState.mark_favorite_known("granny")
 	var summary_before := Result.summarize([], [], 0)
 	var story_before := Result.format_story(summary_before, GameState.known_favorite_ids())
-	var story_old := Result.format_story(summary_before, GameState.known_favorites.keys())
-	c.check("format_storyの出力は、旧（known_favorites）と新（known_favorite_ids）で同じ",
-		story_before == story_old and story_before.contains("thug、granny"), story_before)
+	c.check("format_storyの出力は従来と同じ文言（好物を知った客を知った順に並べる）",
+		story_before.contains("好物を知った客: thug、granny"), story_before)
 	var d := GameState.to_dict()
 	GameState.reset_for_new_game()
 	GameState.from_dict(d)
@@ -247,6 +246,16 @@ func run(t: SceneTree) -> int:
 	var old := env.duplicate(true)
 	old["version"] = 3
 	c.check("版3の保存は読めない扱い（新規ゲーム）", not MorningSave.is_valid(old))
+	# 4-4b-1①の時点の封筒（旧known_favoritesの余分なキーが付いた版4）も、版は同じなので読める
+	# （余分なキーはfrom_dictが無視する。版を2回上げない）。
+	var legacy := env.duplicate(true)
+	legacy["state"]["known_favorites"] = { "granny": true }
+	c.check("旧known_favoritesの余分なキーが付いた版4の封筒も有効", MorningSave.is_valid(legacy))
+	GameState.reset_for_new_game()
+	MorningSave.apply(legacy)
+	c.check("余分なキーは無視され、来店記録から好物を知った客が戻る", GameState.knows_favorite("granny")
+		and GameState.known_favorite_ids() == ["thug", "granny"] and not GameState.get("known_favorites") is Dictionary)
+
 	var no_mem := env.duplicate(true)
 	no_mem["state"].erase("customer_memory")
 	c.check("customer_memoryの欠けは無効", not MorningSave.is_valid(no_mem))

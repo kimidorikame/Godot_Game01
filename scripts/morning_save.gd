@@ -19,7 +19,7 @@ const VERSION := 4
 const _FIELD_TYPES := {
 	"day_count": TYPE_INT, "money": TYPE_INT, "reputation": TYPE_INT,
 	"inventory": TYPE_DICTIONARY, "perishable_batches": TYPE_DICTIONARY,
-	"rumors": TYPE_ARRAY, "dashi_units": TYPE_INT, "known_favorites": TYPE_DICTIONARY,
+	"rumors": TYPE_ARRAY, "dashi_units": TYPE_INT,
 	"ledger": TYPE_ARRAY, "today_plan": TYPE_DICTIONARY, "day_records": TYPE_ARRAY,
 	"customer_memory": TYPE_DICTIONARY,
 }

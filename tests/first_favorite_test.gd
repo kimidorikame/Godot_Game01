@@ -31,7 +31,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 1〜2. 老婆（favorite: offal, 要求: SAVORY+FILLING）。F3 Judge v2（DESIGN.md 10.3.2）
 	#     で「判定には初回から好物を使う」に変更されたため、1回目からGREATになる
-	#     （表示だけは既知になるまで隠す。known_favoritesが空でも判定は真の値を使う）。 ---
+	#     （表示だけは既知になるまで隠す。好物を知らなくても判定は真の値を使う）。 ---
 	var panel = _setup(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5, "offal": 5 })
 	_drive_to_adjust(panel)
 	c.check("下準備: 老婆はまだ好物を知られていない", not GameState.knows_favorite("granny"))
@@ -111,7 +111,8 @@ func run(t: SceneTree) -> int:
 	#  改めて知った状態にしたので、それがリセットで消えることを確認する)
 	c.check("リセット前は配達員が既知", GameState.knows_favorite("delivery_man"))
 	GameState.reset_for_new_game()
-	c.check("reset_for_new_game()でknown_favoritesが空になる", GameState.known_favorites.is_empty())
+	c.check("reset_for_new_game()で好物を知った客（favorite_known）が空になる",
+		GameState.known_favorite_ids().is_empty() and not GameState.knows_favorite("delivery_man"))
 
 	# --- 6. モブは対象外（favoriteは常に空。今回の変更による回帰がないことの確認） ---
 	GameState.reset_for_new_game()
@@ -140,7 +141,7 @@ func run(t: SceneTree) -> int:
 	# --- 7. _format_bowl() の新しい行（モブはfavoriteが空なので行自体が出ない） ---
 	c.check("モブはfavorite_true行が出ない(favoriteが常に空のため)",
 		not panel3._format_bowl().contains("favorite_true"))
-	c.check("_format_game_stateにknown_favoritesの一覧が出る",
-		panel3._format_game_state().contains("known_favorites"))
+	c.check("_format_game_stateに好物を知っている客（favorite_known）の一覧が出る",
+		panel3._format_game_state().contains("favorite_known"))
 
 	return c.finish()

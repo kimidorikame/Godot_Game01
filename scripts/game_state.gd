@@ -124,12 +124,6 @@ var rumors: Array = []
 # （reset_for_new_dayでは触らず、reset_for_new_gameで0に戻す）。
 var dashi_units: int = 0
 
-# ③初回好物の開示（BALANCE_REDESIGN_PLAN.md §4）：名前あり客の好物を「知っているか」
-# {customer_id: true}。日をまたいで持ち越す（reset_for_new_dayでは触らない）が、
-# 新しい周回では初回に戻す（reset_for_new_gameでクリア）。モブは対象外（favoriteが
-# 常に空なので、そもそもここに登録されることがない）。
-var known_favorites: Dictionary = {}
-
 # 来店記録（F5・DESIGN.md 10.8.5。4-4b-1）：名前あり客ごとの、7日間を通した事実の記録。
 #   customer_memory[客id] = {
 #     favorite_known: bool,          # 好物を知っているか（known_favoritesの置き換え先）
@@ -140,7 +134,9 @@ var known_favorites: Dictionary = {}
 # 好感度のような数値は持たない。書き手はCustomerMemory（静的クラス）とmark_favorite_known()
 # だけ。モブは記録しない。reset_for_new_gameでクリアし、reset_for_new_dayでは消さない
 # （7日間を通して残す）。朝の辞書（SAVED_FIELDS）に含める＝再挑戦・続きからで、戻した朝
-# より後の来店を持ち越さない。4-4b-1のコミット②でknown_favoritesを置き換える。
+# より後の来店を持ち越さない。③初回好物の開示（BALANCE_REDESIGN_PLAN.md §4）の
+# 「好物を知っているか」はfavorite_knownが持つ（4-4b-1で旧known_favoritesを置き換えた。
+# 日をまたいで持ち越し、新しい周回では初回に戻る。モブは対象外）。
 var customer_memory: Dictionary = {}
 
 # 今どのフェーズか。進行度ではなく「位置」だけ。
@@ -208,7 +204,7 @@ var day_records: Array = []
 # どちらにも載っていない変数を検出する）。
 const SAVED_FIELDS := [
 	"day_count", "money", "reputation", "inventory", "perishable_batches", "rumors",
-	"dashi_units", "known_favorites", "ledger", "today_plan", "day_records", "customer_memory",
+	"dashi_units", "ledger", "today_plan", "day_records", "customer_memory",
 ]
 # 保存しない項目（朝には初期値になっている、または保存の仕組み自身の置き場）。
 const TRANSIENT_FIELDS := [
@@ -316,7 +312,6 @@ func reset_for_new_game() -> void:
 	perishable_batches.clear()
 	rumors.clear()
 	dashi_units = 0
-	known_favorites.clear()
 	customer_memory.clear()
 	ledger.clear()
 	morning_snapshots.clear()
@@ -674,17 +669,16 @@ func mark_rent_paid() -> void:
 ## 終えたか）。モブは常にfavoriteが空で、そもそもここへ登録されることが無いので
 ## 呼び出し側で気にする必要はない。
 func knows_favorite(customer_id) -> bool:
-	return bool(known_favorites.get(str(customer_id), false))
+	return bool((customer_memory.get(str(customer_id), {}) as Dictionary).get("favorite_known", false))
 
 
 ## この客の好物を「知っている」状態にする（mark_rent_paidと同じ単発の入口。受け側から
-## known_favoritesを直接書き換えさせない）。次回の来店から判定に使われるようになる。
-## 4-4b-1①：来店記録（customer_memory）にも同じ事実を書く（known_favoritesと常に一致。
-## ②でknown_favoritesを撤去する）。知った客のキーは辞書の末尾へ入れ直す＝customer_memoryを
-## 先頭から読むと「好物を知った順」になる（known_favoritesの並びと同じ。known_favorite_ids()）。
+## customer_memoryを直接書き換えさせない）。次回の来店から判定に使われるようになる。
+## 来店記録（customer_memory）のfavorite_knownに書く（4-4b-1。旧known_favoritesの置き換え）。
+## 知った客のキーは辞書の末尾へ入れ直す＝customer_memoryを先頭から読むと「好物を知った順」に
+## なる（旧known_favoritesの並びと同じ。known_favorite_ids()）。
 func mark_favorite_known(customer_id) -> void:
 	var id := str(customer_id)
-	known_favorites[id] = true
 	var entry := memory_entry(id)
 	if bool(entry["favorite_known"]):
 		return

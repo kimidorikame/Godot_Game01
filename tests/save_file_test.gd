@@ -27,7 +27,6 @@ func _sample_envelope() -> Dictionary:
 	GameState.inventory = { "tofu": 3, "meat_ball": 2 }
 	GameState.perishable_batches = { "tofu": [{ "day": 3, "count": 3, "unit_price": 8 }] }
 	GameState.dashi_units = 2
-	GameState.known_favorites = { "granny": true }
 	GameState.customer_memory = {
 		"granny": { "favorite_known": true, "facts": {}, "seen_episodes": ["granny_01"],
 			"visits": [{ "day": 3, "slot": "夜", "served": 1, "grade": "GOOD", "grades": ["GOOD"],
@@ -76,7 +75,6 @@ func run(t: SceneTree) -> int:
 	c.check("バッチの購入日・単価が整数のまま",
 		typeof(st["perishable_batches"]["tofu"][0]["day"]) == TYPE_INT
 			and typeof(st["perishable_batches"]["tofu"][0]["unit_price"]) == TYPE_INT)
-	c.check("known_favoritesの真偽値が保たれる", st["known_favorites"]["granny"] == true)
 	c.check("来店記録（customer_memory）の型が保たれる（整数・真偽値・配列の配列）",
 		st["customer_memory"]["granny"]["favorite_known"] == true
 			and typeof(st["customer_memory"]["granny"]["visits"][0]["day"]) == TYPE_INT

@@ -150,8 +150,8 @@ static func format_goals(results: Array) -> String:
 ## 物語の欄（結果画面の3枚目：街で起きたこと／客との間に残ったこと）。**成績の数値
 ## （GOOD率・杯数・現金・廃棄）は出さない**（DESIGN.md 10.6：料理成績を人間関係の善悪や
 ## 真エンド条件にしない）。4-2では今あるデータだけの最小の仮の文で、本文は後の手順
-## （4-4〜4-8：来店記録・場面データ）で入る。known_favoritesは好物を知った客のid。
-static func format_story(s: Dictionary, known_favorites: Array) -> String:
+## （4-4〜4-8：来店記録・場面データ）で入る。known_favorite_idsは好物を知った客のid（知った順）。
+static func format_story(s: Dictionary, known_favorite_ids: Array) -> String:
 	var rep_start := int(s.get("reputation_start", 0))
 	var rep_end := int(s.get("reputation_end", 0))
 	var rep_text := "評判は変わらなかった。"
@@ -162,9 +162,9 @@ static func format_story(s: Dictionary, known_favorites: Array) -> String:
 	var early_text := "鍋が尽きて早めに店を閉めた夜があった。" \
 		if int(s.get("early_close_days", 0)) > 0 else "鍋が尽きて早く閉めた夜は無かった。"
 	var known_text := "まだ誰の好物も知らない。"
-	if not known_favorites.is_empty():
+	if not known_favorite_ids.is_empty():
 		var ids := PackedStringArray()
-		for id in known_favorites:
+		for id in known_favorite_ids:
 			ids.append(str(id))
 		known_text = "好物を知った客: %s" % "、".join(ids)
 	var visit_days: Dictionary = s.get("regular_visit_days", {})

@@ -421,7 +421,7 @@ func _set_runner_for_phase(phase: int) -> void:
 		flow.set_runner([
 			{ "type": "TEXT", "text": Result.format_report(summary) },
 			{ "type": "TEXT", "text": Result.format_goals(goal_results) },
-			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorites.keys()) },
+			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorite_ids()) },
 		])
 	else:
 		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
@@ -1983,8 +1983,8 @@ func _format_game_state() -> String:
 		"pot(鍋の資源): 水%d回 / 濃縮だし%d回分" % [water_doses, GameState.dashi_units],
 		"served(接客数/杯数): %d / %d" % [_served_count(), _served_servings()],
 		"discarded(廃棄数): %d 件" % _discarded_count(),
-		"known_favorites(好物を知っている客): %s" % (
-			"・".join(PackedStringArray(GameState.known_favorites.keys())) if not GameState.known_favorites.is_empty() else "(なし)"),
+		"favorite_known(好物を知っている客): %s" % (
+			"・".join(PackedStringArray(GameState.known_favorite_ids())) if not GameState.known_favorite_ids().is_empty() else "(なし)"),
 	]))
 
 

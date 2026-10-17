@@ -54,7 +54,7 @@ func run(t: SceneTree) -> int:
 	var fired := { "ending": 0, "restarted": 0 }
 	panel.flow.day_ending.connect(func(): fired["ending"] += 1)
 	panel.flow.game_restarted.connect(func(): fired["restarted"] += 1)
-	GameState.known_favorites = { "granny": true }
+	GameState.mark_favorite_known("granny")
 	var day1_env: Dictionary = GameState.morning_of(1)
 	c.check("（前提）Day1の朝が記録されている", not day1_env.is_empty())
 	_play_to_result(panel, 1)
@@ -181,7 +181,7 @@ func run(t: SceneTree) -> int:
 			and GameState.money == GameState.INITIAL_MONEY - daily
 			and GameState.reputation == GameState.INITIAL_REPUTATION, str(GameState.money))
 	c.check("新しい周：累計空・好物の記録も初期化・朝の記録は新しいDay1の朝だけ",
-		GameState.day_records.is_empty() and GameState.known_favorites.is_empty()
+		GameState.day_records.is_empty() and GameState.known_favorite_ids().is_empty()
 			and _keys(GameState.morning_snapshots) == [1])
 	c.check("新しい周：帳簿は新しい周のWAKE（運営費・確保）だけ",
 		GameState.ledger.size() == 2
