@@ -2,21 +2,63 @@
   "id": "delivery_man_01",
   "customer": "delivery_man",
   "greet": [
-    "配達員（2日目以降・要求タグ: HOT/POWER）"
+    "配達員「注文（HOT/POWER）」1杯目"
   ],
-  "reactions": {
-    "GREAT": [
-      "GREAT"
-    ],
-    "GOOD": [
-      "GOOD"
-    ],
-    "OK": [
-      "OK"
-    ],
-    "BAD": [
-      "BAD"
-    ]
-  },
-  "servings": 1
+  "cups": [
+    {
+      "adjust": "（味を調える）",
+      "serve": "（湯気の立つ椀を置く）",
+      "reactions": {
+        "GREAT": [
+          "配達員【GREAT】(1杯目)"
+        ],
+        "GOOD": [
+          "配達員【GOOD】(1杯目)"
+        ],
+        "OK": [
+          "配達員【OK】(1杯目)"
+        ],
+        "BAD": [
+          "配達員【BAD】(1杯目)"
+        ]
+      },
+      "after_talk": [
+        "配達員「1杯目の共通会話（第八码頭の話は省略）」"
+      ]
+    },
+    {
+      "adjust": "（味を調える）",
+      "serve": "（湯気の立つ椀を置く）",
+      "reactions": {
+        "GREAT": [
+          "配達員【GREAT】(2杯目)"
+        ],
+        "GOOD": [
+          "配達員【GOOD】(2杯目)"
+        ],
+        "OK": [
+          "配達員【OK】(2杯目)"
+        ],
+        "BAD": [
+          "配達員【BAD】(2杯目)"
+        ]
+      },
+      "after_talk": [
+        "配達員「2杯目の共通会話（持ち帰りを注文）」"
+      ]
+    },
+    {
+      "tags": [
+        "MELLOW",
+        "GENTLE"
+      ],
+      "favorite": false,
+      "adjust": "（持ち帰り用。辛さ控えめ、豆腐多め）",
+      "serve": "（店主は蓋つきの容器を袋へ入れる）",
+      "reactions": {},
+      "after_talk": [
+        "配達員「退店（会計・名前は阿強）」"
+      ]
+    }
+  ]
 }

@@ -600,17 +600,13 @@ static func is_mob_customer(customer_id: String) -> bool:
 ## scene_id（省略可）：場面idを直接指定する（DayPlanがまだ無いcustomer_schedule()の途中で、
 ## 選んだ場面の杯数を数えるため。省略すれば episode_id_of() で引く）。
 static func customer_events(customer_id: String, mob_count: int = 0, scene_id: String = "") -> Array:
-	# 配達員の最初の場面（THREE_CUPS_EPISODE＝Day1の宵の口）だけ、同じ客へ3杯を1杯ずつ
-	# 会話の合間に出す専用のEvent列（客ごとの分岐はデータ層のここだけ。受け側 DebugPanel
-	# には客IDを書かない）。判定は日番号ではなく場面id（4-4a。DESIGN.md 10.9）。2回目以降の
-	# 来店（delivery_man_02〜）は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う。
+	# 複数杯の場面（場面データの cups。システム整理E。Day1の配達員の「1杯ずつ3回」＝delivery_man_01）は、
+	# 同じ客へ複数の杯を1杯ずつ会話の合間に出す専用の列（_cups_events）。客や場面idの直書きは無く、
+	# 場面データに cups があるかだけで決まる（DESIGN.md 10.8.6・10.9）。2回目以降の来店
+	# （delivery_man_02〜）は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う。
 	var scene := scene_id if scene_id != "" else episode_id_of(customer_id)
-	# 複数杯の場面（場面データの cups。システム整理E）。配達員のDay1の3杯列は、データ化（E-②）までは
-	# 専用のEvent列（_delivery_man_events）のまま。
 	if not ScheduleData.episode_cups(customer_id, scene).is_empty():
 		return _cups_events(customer_id, scene)
-	if scene == THREE_CUPS_EPISODE:
-		return _delivery_man_events()
 	var flavor := _customer_flavor(customer_id, mob_count, scene)
 	var events := []
 	# 来店の前に「前回の料理を読んだ2行」（場面にcallbackがあるときだけ。現行の21場面は無し）。
@@ -638,16 +634,10 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 	return events
 
 
-## 配達員の3杯専用列にする場面id（DESIGN.md 10.9「配達員の3杯専用列 → 複数杯の場面」）。
-## 3杯列そのもの（_delivery_man_events()）はGDScriptのまま。会話のデータ化は後の手順で、
-## そのときこの定数ごと消える。
-const THREE_CUPS_EPISODE := "delivery_man_01"
-
-
-## 複数杯の場面か（場面データに cups がある。E-②までは旧3杯列の場面も含める）。提供後の列・注文カード・
-## [聞き直す]など「1杯の場面だけの機能」を出さない判定を、ここ1つに統一する。
+## 複数杯の場面か（場面データに cups がある）。提供後の列・注文カード・[聞き直す]など「1杯の場面だけの
+## 機能」を出さない判定を、ここ1つに統一する（客idや場面idは直書きしない）。
 static func is_multi_cup_scene(customer_id: String, scene_id: String) -> bool:
-	return scene_id == THREE_CUPS_EPISODE or not ScheduleData.episode_cups(customer_id, scene_id).is_empty()
+	return not ScheduleData.episode_cups(customer_id, scene_id).is_empty()
 
 
 ## 複数杯の場面（場面データの cups）の Event 列：来店会話（greet）→ 各杯（ADJUST → SERVE → REACT →
@@ -901,92 +891,6 @@ static func _lines_text(lines: Array) -> String:
 
 ## 配達員（阿強）の接客：同じ客に3杯を、会話の合間に1杯ずつ出す（本番用会話稿
 ## 「１日目_運び屋_1.md」）。1杯目・2杯目は阿強本人の分として個別に評価し、3杯目は
-## 第八码頭の労働者への持ち帰り（評価なし）。客キューの上では退店まで1人の客のまま
-## （客のEvent列を1本にするので、退店会話が終わるまで次の客へ進まない）。
-##   - 各杯は ADJUST → SERVE → REACT。2杯目・3杯目の ADJUST は new_bowl:true で椀を新しくする
-##   - 1杯目・2杯目の REACT：aggregate:true（鍋の消費と売上はその場で、評判と提供記録は
-##     退店時に客1人分として1回だけ反映）。3杯目の REACT：judge:false を足す
-##     （判定・反応・評判なし。鍋の消費と売上は通常どおり）
-##   - 各杯 servings は1、売上は PRICE_PER_SERVING（合計150）
-##   - 要求タグ・好物は旧 delivery_man のデータ（_customer_flavor）をそのまま使う
-static func _delivery_man_events() -> Array:
-	var id := "delivery_man"
-	var flavor := _customer_flavor(id)
-	var options := _adjust_options()
-	var sale: int = GameState.PRICE_PER_SERVING * 1
-	var events := []
-	events.append_array(_talk(id, _DELIVERY_ARRIVAL))
-	# 一杯目
-	events.append({ "type": "ADJUST", "customer": id, "text": "（味を調える）", "options": options })
-	events.append({ "type": "SERVE", "customer": id, "text": "（湯気の立つ椀を置く）" })
-	events.append({ "type": "REACT", "customer": id, "servings": 1, "sale": sale,
-		"reactions": _delivery_reactions_first(), "wanted_tags": flavor["wanted_tags"],
-		"favorite": flavor["favorite"], "is_mob": false, "aggregate": true })
-	events.append_array(_talk(id, _DELIVERY_AFTER_FIRST))
-	# 二杯目
-	events.append({ "type": "ADJUST", "customer": id, "text": "（味を調える）",
-		"options": options, "new_bowl": true })
-	events.append({ "type": "SERVE", "customer": id, "text": "（湯気の立つ椀を置く）" })
-	events.append({ "type": "REACT", "customer": id, "servings": 1, "sale": sale,
-		"reactions": _delivery_reactions_second(), "wanted_tags": flavor["wanted_tags"],
-		"favorite": flavor["favorite"], "is_mob": false, "aggregate": true })
-	events.append_array(_talk(id, _DELIVERY_AFTER_SECOND))
-	# 三杯目（持ち帰り。F3 SaleRule/Judge・10.3.7で「今日の頼み」の通常注文へ変更）：
-	# judge:falseを外し、wanted_tags（MELLOW+GENTLE＝「噛まなくても食えるやつ」）を
-	# 持たせて判定・当夜品質の分母の対象にする。反応の台詞は出さない（持ち帰り先が
-	# その場にいないため。reactionsは空のまま）。favoriteは追加しない（配達員本人の
-	# 好物は1・2杯目が対象で、3杯目は「今日の頼み」のみという10.3.7の書きぶりに従う。
-	# raw_favoriteが空のままなので、_add_to_visit_tally()のpending_favorite上書きは
-	# 起きない＝1・2杯目で確定した好物開示のタイミングに影響しないことを確認済み）。
-	events.append({ "type": "ADJUST", "customer": id,
-		"text": "（持ち帰り用。辛さ控えめ、豆腐多め）", "options": options, "new_bowl": true })
-	events.append({ "type": "SERVE", "customer": id, "text": "（店主は蓋つきの容器を袋へ入れる）" })
-	events.append({ "type": "REACT", "customer": id, "servings": 1, "sale": sale,
-		"reactions": {}, "wanted_tags": ["MELLOW", "GENTLE"], "is_mob": false, "aggregate": true })
-	events.append_array(_talk(id, _DELIVERY_EXIT))
-	return events
-
-
-static func _delivery_reactions_first() -> Dictionary:
-	return {
-		"GREAT": ["配達員【GREAT】(1杯目)"],
-		"GOOD": ["配達員【GOOD】(1杯目)"],
-		"OK": ["配達員【OK】(1杯目)"],
-		"BAD": ["配達員【BAD】(1杯目)"],
-	}
-
-
-static func _delivery_reactions_second() -> Dictionary:
-	return {
-		"GREAT": ["配達員【GREAT】(2杯目)"],
-		"GOOD": ["配達員【GOOD】(2杯目)"],
-		"OK": ["配達員【OK】(2杯目)"],
-		"BAD": ["配達員【BAD】(2杯目)"],
-	}
-
-
-## 来店〜一杯目の注文（会話稿「登場・一杯目の注文」）。
-const _DELIVERY_ARRIVAL := [
-	"配達員「注文（HOT/POWER）」1杯目",
-]
-
-## 一杯目の共通会話（料理の結果に関係なく表示。会話稿「一杯目・共通会話」）。
-const _DELIVERY_AFTER_FIRST := [
-	"配達員「1杯目の共通会話（第八码頭の話は省略）」",
-]
-
-## 二杯目の共通会話（第八码頭の情報はここ。料理の結果に関係なく必ず表示。
-## 会話稿「二杯目・共通会話」。持ち帰りの注文まで）。
-const _DELIVERY_AFTER_SECOND := [
-	"配達員「2杯目の共通会話（持ち帰りを注文）」",
-]
-
-## 持ち帰りの提供後〜退店（会話稿「三杯目・提供と退店」。SERVE の後）。
-const _DELIVERY_EXIT := [
-	"配達員「退店（会計・名前は阿強）」",
-]
-
-
 ## 新人警官（Day2で初登場・表示名「警官」）。本番用会話稿「Day2_新人警官_1.md」。
 ## 昼の市場（PREP。ベース入手の後・市場の前）と、夜の来店（宵の口）の2部構成。
 ##   - 要求タグは昼の市場の会話で先に出す（仕入れの前に知る必要がある）。好物（米麺）は夜の来店会話で出す。
@@ -1078,9 +982,9 @@ static func _adjust_options() -> Array:
 ##   servingsは来店場面 ScheduleData.episode_data()（res://data/episodes/<客>/<id>.json）
 ##   へ外部化した（4-4a。日番号キーは無い）。ここでは「どのデータ源を読むか」の出し分けだけを
 ##   行う（データそのものは持たない）。
-##   配達員の最初の場面（THREE_CUPS_EPISODE）は customer_events が専用の Event 列
-##   （_delivery_man_events）を返すため、その間は is_mob・wanted_tags・favorite だけ使う。
-##   2回目以降の来店は、他の客と同じ下の汎用の返り値（1杯）を使う。
+##   複数杯の場面（cups を持つ場面。Day1の配達員）は customer_events が杯ごとの Event 列
+##   （_cups_events）を組み、そこでは is_mob・wanted_tags・favorite だけ使う（杯ごとの反応・注文は
+##   場面の cups が持つ）。2回目以降の来店は、他の客と同じ下の汎用の返り値（1杯）を使う。
 ## モブ（DESIGN.md 7.6）は、まずGameState.today_plan["mob_instances"]（customer_schedule()
 ##   が枠ごとに独立抽選した結果。F2 DayPlan）を見る。あれば、そのインスタンスの型で
 ##   ScheduleData.mob_data()を読む（favorite は持たない＝GREAT は出ない。個人の好物は
@@ -1109,15 +1013,15 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 	if profile.is_empty():
 		return _unknown_customer_flavor()
 	var episode_id := scene_id if scene_id != "" else episode_id_of(customer_id)
-	if is_multi_cup_scene(customer_id, episode_id):
-		# 複数杯の場面（3杯専用列を含む）は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
-		# 使わない＝ここでは返さない）。それ以外の来店は下の汎用の返り値（他の客と同じ形）。
-		return { "is_mob": profile.get("is_mob", false),
-			"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
 	var episode := ScheduleData.episode_data(customer_id, episode_id)
 	var flavor := { "greet": episode.get("greet", []), "reactions": episode.get("reactions", {}),
 		"servings": int(episode.get("servings", 1)), "is_mob": profile.get("is_mob", false),
 		"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }
+	# 複数杯の場面（cups）は杯数＝cups の数（場面直下の servings は持たない）。杯ごとの反応は杯が持つので、
+	# 場面直下の reactions は空。
+	var cups := ScheduleData.episode_cups(customer_id, episode_id)
+	if not cups.is_empty():
+		flavor["servings"] = cups.size()
 	# 実効注文（DESIGN.md 10.3.2・10.5.2）：基本注文（プロフィールのwanted_tags）を、今日の頼み
 	# （場面のorder.today_request.tags）があれば**上書き**する（足し算ではない）。好物・杯数は
 	# 変えない。今日の頼みが無ければ従来と同一（base_wanted_tagsも付かない）。

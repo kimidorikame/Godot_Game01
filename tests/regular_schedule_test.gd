@@ -94,8 +94,11 @@ func run(_t: SceneTree) -> int:
 			c.check("%s：基本注文が10.5.1どおり" % label,
 				profile.get("wanted_tags", []) == BASE_ORDER[id][0], str(profile.get("wanted_tags")))
 			c.check("%s：好物が10.5.1どおり" % label, str(profile.get("favorite", "")) == BASE_ORDER[id][1])
+			# 杯数：1杯の場面は場面の servings、複数杯の場面（cups。配達員の3杯）は cups の数（場面直下に servings は無い）
+			var cups := ScheduleData.episode_cups(id, str(ScheduleData.regular_slots(d)[i]["episode_id"]))
+			var cup_count: int = cups.size() if not cups.is_empty() else int(episode.get("servings", 0))
 			c.check("%s：杯数は1以上・会話がある" % label,
-				int(episode.get("servings", 0)) >= 1 and not (episode.get("greet", []) as Array).is_empty())
+				cup_count >= 1 and not (episode.get("greet", []) as Array).is_empty())
 
 	# --- 4. モブの抽選ルール（既定＋日別の上書き） ---
 	var rules := ScheduleData.mob_rules_data()

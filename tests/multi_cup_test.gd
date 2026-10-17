@@ -47,8 +47,10 @@ func run(t: SceneTree) -> int:
 	c.check("3杯の cups が読める（指定のあったキーだけを持つ）",
 		cups.size() == 3 and not (cups[0] as Dictionary).has("tags") and (cups[1] as Dictionary)["tags"] == ["HOT", "POWER"]
 			and (cups[2] as Dictionary)["favorite"] == false and (cups[0] as Dictionary)["after_talk"] == ["1杯目のあと"])
-	c.check("実データ：cups を持つ場面は無い（配達員の旧3杯列はE-②まで別）", ScheduleData.episode_cups("thug", "thug_01").is_empty()
-		and ScheduleData.episode_cups("delivery_man", "delivery_man_01").is_empty())
+	c.check("実データ：cups を持つのは delivery_man_01（3杯）だけ。他の場面は持たない",
+		ScheduleData.episode_cups("delivery_man", "delivery_man_01").size() == 3
+			and ScheduleData.episode_cups("thug", "thug_01").is_empty()
+			and ScheduleData.episode_cups("delivery_man", "delivery_man_02").is_empty())
 	ScheduleData._episode_cache["thug/multi_one"] = _cups_scene({ "cups": [ { "after_talk": ["x"] } ] })
 	c.check("1杯の cups は複数杯の場面ではない", ScheduleData.episode_cups("thug", "multi_one").is_empty())
 	ScheduleData._episode_cache["thug/multi_bad"] = _cups_scene({ "cups": [ {}, { "tags": "HOT" } ] })
@@ -58,8 +60,10 @@ func run(t: SceneTree) -> int:
 	c.check("is_multi_cup_scene：cups のある場面は true、1杯の場面は false",
 		Day1Events.is_multi_cup_scene("thug", "multi_x") and not Day1Events.is_multi_cup_scene("thug", "thug_01")
 			and not Day1Events.is_multi_cup_scene("thug", "multi_one"))
-	c.check("is_multi_cup_scene：旧3杯列の場面（delivery_man_01）も true（E-②まで）",
-		Day1Events.is_multi_cup_scene("delivery_man", Day1Events.THREE_CUPS_EPISODE))
+	c.check("is_multi_cup_scene：delivery_man_01 は true、delivery_man_02〜04 は false（通常の1杯）",
+		Day1Events.is_multi_cup_scene("delivery_man", "delivery_man_01")
+			and not Day1Events.is_multi_cup_scene("delivery_man", "delivery_man_02")
+			and not Day1Events.is_multi_cup_scene("delivery_man", "delivery_man_04"))
 
 	# --- 2. 形の検査（scene_problems） ---
 	c.check("正しい複数杯の場面は問題なし", ScheduleData.scene_problems(_cups_scene()).is_empty(),
@@ -208,24 +212,48 @@ func run(t: SceneTree) -> int:
 		and (CustomerMemory.last_visit("thug")["grades"] as Array).size() == 2)
 	panel.free()
 
-	# --- 7. E-①の時点では旧3杯列（delivery_man_01）が各ガードで取りこぼされない ---
+	# --- 7. 配達員のDay1（delivery_man_01）：cups から組んだ列が4-3の記録と完全に同一 ---
+	# 記録（tests/fixtures/customer_events_4_3.json）と、キーの有無まで含めて厳密に照合する
+	# （JSONを通した形にそろえ、辞書の値とキー集合が一致。3杯目の REACT に favorite が付かないことも）。
 	ScheduleData.clear_cache()
-	var legacy := Day1Events.THREE_CUPS_EPISODE
-	c.check("旧3杯列の場面：提供後の列・未提供版・締めは空（複数杯の場面として扱われる）",
-		Day1Events.after_serve_events("delivery_man", legacy, { "served": true }).is_empty()
-			and Day1Events.after_serve_events("delivery_man", legacy, { "served": false }).is_empty()
-			and Day1Events.unserved_exit_events("delivery_man", legacy).is_empty()
-			and Day1Events.closing_events("delivery_man", legacy).is_empty())
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
-	c.check("旧3杯列の場面：_customer_flavor は greet／reactions／servings を返さない（プロフィールだけ）",
-		not Day1Events._customer_flavor("delivery_man", 0, legacy).has("greet")
-			and not Day1Events._customer_flavor("delivery_man", 0, legacy).has("reactions"))
-	var legacy_events := Day1Events.customer_events("delivery_man")
-	c.check("旧3杯列は従来どおりの3杯（REACT×3・全 aggregate・3杯目に favorite なし）",
-		legacy_events.filter(func(e): return e["type"] == "REACT").size() == 3
-			and legacy_events.filter(func(e): return e["type"] == "REACT" and e["aggregate"] == true).size() == 3
-			and not legacy_events.filter(func(e): return e["type"] == "REACT")[2].has("favorite"))
+	GameState.add_inventory("nam_prik_pao", 2)   # 記録時と同じ固定の在庫（ADJUSTのoptionsが在庫から組まれる）
+	GameState.add_inventory("tofu", 1)
+	GameState.add_inventory("herbal_sauce", 1)
+	var recorded = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/customer_events_4_3.json"))
+	var recorded_events: Array = recorded["1"]["delivery_man"]
+	var now_events: Array = _norm(Day1Events.customer_events("delivery_man"))
+	c.check("（前提）Day1の配達員は複数杯の場面（delivery_man_01）", Day1Events.episode_id_of("delivery_man") == "delivery_man_01"
+		and Day1Events.is_multi_cup_scene("delivery_man", "delivery_man_01"))
+	c.check("イベント数が記録と同じ（%d）" % recorded_events.size(), now_events.size() == recorded_events.size())
+	var same_all := now_events == recorded_events
+	c.check("Day1の配達員のEvent列が記録と完全に一致（値の一致）", same_all)
+	var keys_same := true
+	for i in range(mini(now_events.size(), recorded_events.size())):
+		var a: Array = (now_events[i] as Dictionary).keys()
+		var b: Array = (recorded_events[i] as Dictionary).keys()
+		a.sort()
+		b.sort()
+		keys_same = keys_same and a == b
+	c.check("各イベントのキー集合も記録と一致（キーの過不足なし）", keys_same)
+	var recorded_reacts := recorded_events.filter(func(e): return e["type"] == "REACT")
+	var now_reacts := now_events.filter(func(e): return e["type"] == "REACT")
+	c.check("3杯目のREACTに favorite が付かない（記録と同じ）。1・2杯目は付く（tofu）",
+		recorded_reacts.size() == 3 and now_reacts.size() == 3 and not (now_reacts[2] as Dictionary).has("favorite")
+			and now_reacts[0]["favorite"] == "tofu" and now_reacts[1]["favorite"] == "tofu"
+			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size())
+	c.check("3杯目の注文は直書きだった MELLOW/GENTLE のまま・反応は空辞書",
+		now_reacts[2]["wanted_tags"] == ["MELLOW", "GENTLE"] and now_reacts[2]["reactions"] == {})
+	c.check("1・2杯目の要求タグはプロフィール（HOT/POWER）で、反応は各結果1パターンのまま",
+		now_reacts[0]["wanted_tags"] == ["HOT", "POWER"] and now_reacts[1]["wanted_tags"] == ["HOT", "POWER"]
+			and (now_reacts[0]["reactions"]["GOOD"] as Array).size() == 1 and (now_reacts[1]["reactions"]["GREAT"] as Array).size() == 1)
+	c.check("Day1の杯数の先読み：配達員3杯・Day1の予報の注文は3件",
+		Day1Events._customer_total_servings("delivery_man", "delivery_man_01") == 3 and Forecast.orders_of("delivery_man").size() == 3)
+	c.check("提供後の列・未提供版・締めは配達員の3杯には差さない",
+		Day1Events.after_serve_events("delivery_man", "delivery_man_01", { "served": true }).is_empty()
+			and Day1Events.unserved_exit_events("delivery_man", "delivery_man_01").is_empty()
+			and Day1Events.closing_events("delivery_man", "delivery_man_01").is_empty())
 	var legacy_panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(legacy_panel)
 	GameState.phase = GameState.Phase.OPEN
@@ -236,7 +264,7 @@ func run(t: SceneTree) -> int:
 	while legacy_panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		legacy_panel._on_next_event_pressed()
-	c.check("旧3杯列のADJUST：注文カードと[聞き直す]の対象外（_adjust_customer_id）",
+	c.check("Day1の配達員のADJUST：注文カードと[聞き直す]の対象外（_adjust_customer_id）",
 		str(legacy_panel.flow.runner.current()["type"]) == "ADJUST" and legacy_panel._adjust_customer_id() == "")
 	legacy_panel.free()
 

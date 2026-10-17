@@ -202,7 +202,7 @@ func run(t: SceneTree) -> int:
 	# --- 8. 対象外：モブ・配達員の3杯列・客でないid・場面なしは空 ---
 	c.check("モブ・3杯列・空id・場面なしは空",
 		Day1Events.after_serve_events("mob#0", "x", { "served": true }).is_empty()
-			and Day1Events.after_serve_events("delivery_man", Day1Events.THREE_CUPS_EPISODE, { "served": true }).is_empty()
+			and Day1Events.after_serve_events("delivery_man", "delivery_man_01", { "served": true }).is_empty()
 			and Day1Events.after_serve_events("", "thug_02", { "served": true }).is_empty()
 			and Day1Events.after_serve_events("thug", "", { "served": true }).is_empty())
 

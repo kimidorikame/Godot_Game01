@@ -13,9 +13,9 @@ class_name ScheduleData
 ## 日番号を引く関数は regular_slots(day)・mob_rule_for(day, slot) だけで、客のデータは
 ## 日番号を持たない（4-4a）：
 ## customers/<id>.json（基本プロフィール）：{ "is_mob", "favorite", "wanted_tags" }
-##   （wanted_tagsは基本注文。10.5.1「日によって変えない」。delivery_manの3杯専用列の
-##   会話は _delivery_man_events() 側にGDScriptのまま残す）。
+##   （wanted_tagsは基本注文。10.5.1「日によって変えない」）。
 ## episodes/<客>/<episode_id>.json（来店場面）：{ "id", "customer", "greet", "reactions", "servings" }
+##   複数杯の場面（Day1の配達員の3杯）は reactions・servings の代わりに cups（杯の配列）を持つ
 ##   どの場面を引くかはDayPlanの枠（regular_id・episode_id）が持つ（Day1Events.episode_id_of）。
 ## mobs/<id>.json のモデル：
 ##   { "is_mob", "greet", "reactions", "wanted_tags" }（日をまたいで変わらない＝days無し）。

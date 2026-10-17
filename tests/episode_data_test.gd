@@ -32,7 +32,11 @@ const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
 const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
-	"sets_facts", "must_info"]
+	"sets_facts", "must_info", "cups"]
+# 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
+const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
+# cups を持つ場面（Day1の配達員の3杯）。他の場面は持たない。
+const CUPS_EPISODES := ["delivery_man_01"]
 # 提供後の場面データ（システム整理C）の新キー。現行の21場面はどれも持たない（既存データは動作が変わらない）。
 const AFTER_SERVE_KEYS := ["pre_order", "body", "body_unserved", "choices", "closing", "sets_facts", "must_info"]
 const MARKET_TALK_EPISODES := ["officer_01"]
@@ -70,8 +74,10 @@ func run(_t: SceneTree) -> int:
 				str(ep.get("id", "")) == eid and str(ep.get("customer", "")) == regular)
 			var required_keys := ep.keys().filter(func(k): return not OPTIONAL_KEYS.has(k))
 			required_keys.sort()
-			c.check("%s：場面のキーは id/customer/greet/reactions/servings＋任意キーのみ（日番号キー無し）" % label,
-				required_keys == EPISODE_KEYS, str(ep.keys()))
+			var is_cups := ep.has("cups")
+			c.check("%s：cups を持つのは複数杯の場面（配達員の3杯）だけ" % label, is_cups == CUPS_EPISODES.has(eid))
+			c.check("%s：場面のキーは id/customer/greet/reactions/servings（複数杯の場面は id/customer/greet）＋任意キーのみ（日番号キー無し）" % label,
+				required_keys == (CUPS_EPISODE_KEYS if is_cups else EPISODE_KEYS), str(ep.keys()))
 			for k in AFTER_SERVE_KEYS:
 				c.check("%s：新しいキー %s は持たない（現行データは動作が変わらない）" % [label, k], not ep.has(k))
 			c.check("%s：場面データの形に問題が無い（scene_problems）" % label,
