@@ -199,6 +199,12 @@ var morning_snapshots: Dictionary = {}
 # 持たない（やり直した日を二重に数えない）。reset_for_new_gameでクリアする。
 var day_records: Array = []
 
+# 保存レシピ（フェーズ4・4-7①。DESIGN.md 10.4）。[{ name, ingredients:[具材id…（1〜3）] }, …]、最大
+# Rules.recipe_slots() 枠。書き手は RecipeBook.save() だけ。朝の辞書（SAVED_FIELDS）に含める＝再挑戦・
+# 続きからで、戻した朝より後の保存は持たない（周回の中の状態）。reset_for_new_gameで空にする。
+# 「いつもの」（客ごとの直近の料理）は来店記録から引くので、ここには持たない。
+var saved_recipes: Array = []
+
 # F7の保存対象（to_dict()/from_dict()が通す項目）。朝の辞書は「その日が始まる直前」
 # の状態なので、日ごとの使い捨て（soup・served・rent_paid_today・phase）は含めない
 # （from_dict()がreset_for_new_day()と同じ初期値に戻す）。F5「来店記録」を足すときは
@@ -206,7 +212,7 @@ var day_records: Array = []
 # どちらにも載っていない変数を検出する）。
 const SAVED_FIELDS := [
 	"day_count", "money", "reputation", "inventory", "perishable_batches", "rumors",
-	"dashi_units", "ledger", "today_plan", "day_records", "customer_memory",
+	"dashi_units", "ledger", "today_plan", "day_records", "customer_memory", "saved_recipes",
 ]
 # 保存しない項目（朝には初期値になっている、または保存の仕組み自身の置き場）。
 const TRANSIENT_FIELDS := [
@@ -319,6 +325,7 @@ func reset_for_new_game() -> void:
 	ledger.clear()
 	morning_snapshots.clear()
 	day_records.clear()
+	saved_recipes.clear()
 	phase = Phase.WAKE
 	reset_for_new_day()
 

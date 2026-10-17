@@ -15,6 +15,7 @@
     { "id": "water", "amount": 50, "days": [1], "reserve": "WAKE", "scene": "water_stall", "label": "水道代" }
   ],
   "market_open_from_day": 2,
+  "recipe_slots": 3,
   "day_overrides": {
     "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },

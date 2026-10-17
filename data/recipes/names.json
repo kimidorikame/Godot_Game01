@@ -1,0 +1,11 @@
+{
+  "note": "保存レシピの名前の候補（DESIGN.md 10.4.1）。名前は表示だけで性能は変えない。tags は表示用の説明で、判定には使わない。",
+  "names": [
+    { "id": "red_oil_meatball",       "name": "港湾夜勤の赤油つみれ湯",     "tags": ["HOT", "POWER"] },
+    { "id": "coconut_tofu",           "name": "終電後の椰子豆腐湯",         "tags": ["MELLOW", "GENTLE"] },
+    { "id": "lime_wintermelon",       "name": "雨よけ下の塩ライム冬瓜湯",   "tags": ["SOUR", "GENTLE", "BITE"] },
+    { "id": "bitter_melon_cartilage", "name": "苦瓜と軟骨の夜更け煮",       "tags": ["BITTER", "BITE"] },
+    { "id": "maw_fish_sauce",         "name": "浮き袋の香辛魚醤湯",         "tags": ["SAVORY", "TREAT", "BITE"] },
+    { "id": "wonton_scrap",           "name": "割れ雲呑皮のまかない湯",     "tags": ["SAVORY", "FILLING", "POWER"] }
+  ]
+}

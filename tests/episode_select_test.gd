@@ -184,7 +184,7 @@ func run(_t: SceneTree) -> int:
 	GameState.reputation = 65
 	DayPlanner.build()
 	var env := MorningSave.capture("")
-	c.check("MorningSaveの版は5", int(env["version"]) == 5 and MorningSave.VERSION == 5)
+	c.check("MorningSaveの版は6（4-7①で保存レシピを足して5→6）", int(env["version"]) == 6 and MorningSave.VERSION == 6)
 	c.check("today_requestを持つ枠の封筒は有効", MorningSave.is_valid(env))
 	var v4 := env.duplicate(true)
 	v4["version"] = 4

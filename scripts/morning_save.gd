@@ -13,7 +13,8 @@ class_name MorningSave
 ## 再挑戦では変わりうる（客・需要・組は変わらない）。
 
 ## 封筒の版。形を変えたら上げる（古い版のファイルはis_valid()で弾いて新規ゲームにする）。
-const VERSION := 5
+## 版6（4-7①）：保存レシピ（saved_recipes）を足した。版5以前は読めない（新規ゲームにする）。
+const VERSION := 6
 
 ## state の各項目の型（is_valid用）。GameState.SAVED_FIELDS と同じ項目を持つ。
 const _FIELD_TYPES := {
@@ -21,7 +22,7 @@ const _FIELD_TYPES := {
 	"inventory": TYPE_DICTIONARY, "perishable_batches": TYPE_DICTIONARY,
 	"rumors": TYPE_ARRAY, "dashi_units": TYPE_INT,
 	"ledger": TYPE_ARRAY, "today_plan": TYPE_DICTIONARY, "day_records": TYPE_ARRAY,
-	"customer_memory": TYPE_DICTIONARY,
+	"customer_memory": TYPE_DICTIONARY, "saved_recipes": TYPE_ARRAY,
 }
 
 
@@ -119,6 +120,13 @@ static func is_valid(envelope) -> bool:
 		for eid in e["seen_episodes"]:
 			if typeof(eid) != TYPE_STRING:
 				return false
+	# 版6（4-7①）：保存レシピは枠数以内で、各要素は name（文字列）と ingredients（1〜3個の文字列）。
+	var recipes: Array = state["saved_recipes"]
+	if recipes.size() > Rules.recipe_slots():
+		return false
+	for recipe in recipes:
+		if not RecipeBook.is_valid_recipe(recipe):
+			return false
 	var panel = env.get("panel")
 	if not (panel is Dictionary) or typeof((panel as Dictionary).get("day_summary_text")) != TYPE_STRING:
 		return false

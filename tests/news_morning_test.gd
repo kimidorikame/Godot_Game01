@@ -139,7 +139,7 @@ func run(t: SceneTree) -> int:
 		News.morning_events(5)
 		News.tab_text(5)
 	c.check("何度呼んでも状態（GameState）が変わらない", GameState.to_dict() == before)
-	c.check("保存の版は5のまま（ニュースは日番号から引く静的データで、保存する状態は無い）", MorningSave.VERSION == 5)
+	c.check("ニュースで保存の版を上げていない（日番号から引く静的データで、保存する状態は無い。版は4-7①の6）", MorningSave.VERSION == 6)
 
 	News.clear_cache()
 	GameState.reset_for_new_game()

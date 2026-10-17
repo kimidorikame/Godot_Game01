@@ -211,8 +211,8 @@ func run(t: SceneTree) -> int:
 	MorningSave.save_path = TEST_PATH
 	MorningSave.delete_file()
 	var env := MorningSave.capture("")
-	c.check("新形式の封筒は検証を通る（版は5のまま）", MorningSave.is_valid(env) and int(env["version"]) == 5
-		and MorningSave.VERSION == 5)
+	c.check("新形式の封筒は検証を通る（choices・request_honoredは任意キーで版を上げない。版は4-7①の6）",
+		MorningSave.is_valid(env) and int(env["version"]) == 6 and MorningSave.VERSION == 6)
 	c.check("ファイルへ書いて読むと、choices・request_honored・facts が型も含めて戻る",
 		MorningSave.write_file(env) and JSON.stringify(MorningSave.read_file()["state"]["customer_memory"])
 			== JSON.stringify(memory_after))

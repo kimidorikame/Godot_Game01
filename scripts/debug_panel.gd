@@ -183,6 +183,11 @@ var _pending_close_lines: Array = []
 # リセットする（システム整理D）。
 var _played_events: Array = []
 var _slot_event_ids := {}
+# レシピ保存（4-7①。仮UI）：保存の段階（""＝ボタン待ち／"slot"＝枠を選ぶ／"name"＝名前を選ぶ）と選んだ枠。
+# レシピ用のボタン行は _ready でコードから足す（.tscn は変えない）。
+var _recipe_save_stage := ""
+var _recipe_save_slot := -1
+var _recipe_row: HBoxContainer
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
 # 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
@@ -248,6 +253,13 @@ func _ready() -> void:
 	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
+
+	# レシピ用のボタン行（4-7①）：SeasoningRow の下。ADJUST 中の「いつもの」・保存レシピと、提供後の保存ボタン。
+	_recipe_row = HBoxContainer.new()
+	_recipe_row.add_theme_constant_override("separation", 8)
+	var vbox := _seasoning_row.get_parent()
+	vbox.add_child(_recipe_row)
+	vbox.move_child(_recipe_row, _seasoning_row.get_index() + 1)
 
 	_refresh()
 
@@ -465,6 +477,7 @@ func _load_current_customer() -> void:
 	_mob_recipe_number = 1
 	_pending_decline = false   # F3 断る操作：新しい客ごとにリセット
 	_declined_now = false
+	_recipe_save_stage = ""   # レシピ保存の段階も客ごとに消す
 	_reask_text = ""   # 聞き直しの再表示も客ごとに消す
 	if _open != null and _open.has_more():
 		# モブの人数はGameState.today_plan["mob_instances"]側で客ごとに覚えているので、
@@ -973,6 +986,7 @@ func _apply_event(ev) -> void:
 			# 同じ客の2杯目以降：新しい椀へ切り替える。ADJUST は入力待ちで、具材を選べる前に
 			# 「新しく current になった瞬間」に1回だけここへ来るので、必ず選ぶ前に新しくなる。
 			if ev.get("new_bowl", false) and _open != null:
+				_recipe_save_stage = ""
 				_open.reset_bowl()
 				_reset_mob_group_state()   # ②拒否と部分提供：同じ客の次の杯でも選択中の状態を破棄
 		"SET_SOUP":
@@ -1520,6 +1534,7 @@ func _reset_transient_panel_state() -> void:
 	_pending_close_lines = []
 	_played_events = []
 	_slot_event_ids = {}
+	_recipe_save_stage = ""
 	_mob_original_ordered = -1
 	_mob_recipe_number = 1
 	_bowl_discard_count = 0
@@ -1856,6 +1871,9 @@ func _update_options_row() -> void:
 	# 何もしなくても空のまま維持される。
 	for child in _seasoning_row.get_children():
 		child.queue_free()
+	if _recipe_row != null:
+		for child in _recipe_row.get_children():
+			child.queue_free()
 
 	# ボタンの有効/無効は毎回ここで決め直す（状態から描き直す方針に揃える）。
 	# 鍋がまだ無い（仕込み前）ときも押せない。
@@ -1962,6 +1980,8 @@ func _update_options_row() -> void:
 				_on_group_retry_pressed.bind(achievable, ordered))
 		return
 
+	_add_recipe_save_buttons()
+
 	var r: EventRunner = flow.runner
 	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
 		return
@@ -2052,6 +2072,149 @@ func _update_options_row() -> void:
 	# 配達員の3杯専用列には出さない（4-4aで動かさないと決めた列に触れない）。
 	if _adjust_customer_id() != "":
 		_add_pot_button("聞き直す", false, _on_reask_pressed)
+	_add_recipe_adjust_buttons()
+
+
+## --- レシピ保存と「いつもの」（4-7①。DESIGN.md 10.4。仮UI。本番UIはフェーズ6） ---
+
+## ADJUST 中の名前あり客（モブの団体注文は対象外）の客id。それ以外は空文字。
+func _recipe_adjust_customer() -> String:
+	if _open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN \
+			or flow.runner.status != EventRunner.Status.WAITING_INPUT or _phone_mode or _pot_mode \
+			or _pending_group_choice or _pending_shortage_ev != null:
+		return ""
+	var cur = flow.runner.current()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST":
+		return ""
+	var customer_id := str(cur.get("customer", ""))
+	if not CustomerMemory.is_recordable(customer_id) or _is_current_mob_order():
+		return ""
+	return customer_id
+
+
+## ADJUST 中のボタン：「いつもの」（その客の直近の料理）と保存レシピ。椀が空のときだけ出す。
+## 前回の評価は出さない（今回の注文に合うかの予測も出さない。注文カードが唯一の手がかり）。
+## 在庫が足りない具材（新鮮な在庫のみ）はラベルに出して無効にする。
+func _add_recipe_adjust_buttons() -> void:
+	var customer_id := _recipe_adjust_customer()
+	if customer_id == "" or not (_open.current_bowl.get("additions", []) as Array).is_empty():
+		return
+	var servings := _current_servings()
+	var usual := RecipeBook.usual_for(customer_id)
+	if not usual.is_empty():
+		_add_recipe_button("いつもの（%s）" % RecipeBook.ingredient_text(usual), usual, servings)
+	for recipe in GameState.saved_recipes:
+		_add_recipe_button("%s（%s）" % [str(recipe["name"]), RecipeBook.ingredient_text(recipe["ingredients"])],
+			recipe["ingredients"], servings)
+
+
+func _add_recipe_button(label: String, ingredients: Array, servings: int) -> void:
+	var missing := RecipeBook.shortage(ingredients, servings)
+	var text := label
+	if not missing.is_empty():
+		var names_text := PackedStringArray()
+		for id in missing:
+			names_text.append(Ingredients.name_for(str(id)))
+		text += " 足りない：%s" % "・".join(names_text)
+	_add_pot_button(text, not RecipeBook.can_apply(ingredients, servings),
+		_on_recipe_apply_pressed.bind(ingredients.duplicate()), _recipe_row)
+
+
+## レシピ／「いつもの」のボタン。**具材ボタンを順に押したのと同じ処理**（_on_ingredient_selected）で
+## 1つずつ椀に足す＝在庫・鮮度の確認と消費は省略しない。全部出せると確かめてから適用する
+## （途中で止まって一部だけ入る状態を作らない）。傷んだ側は自動では使わない。椀が空のときだけ。
+func _on_recipe_apply_pressed(ingredients: Array) -> void:
+	var customer_id := _recipe_adjust_customer()
+	if customer_id == "" or not (_open.current_bowl.get("additions", []) as Array).is_empty():
+		return
+	if not RecipeBook.can_apply(ingredients, _current_servings()):
+		return
+	for id in ingredients:
+		_on_ingredient_selected(str(id), false)
+
+
+## 今、今作った椀をレシピに保存できるか：OPEN で、名前あり客の判定済みの椀（提供後。複数杯の各杯を含む）
+## が残っていて、追加が1つ以上ある間。**その客の最後の行まで**押せる（次の杯の椀・次の客で消える）。
+func _can_save_recipe_now() -> bool:
+	if _open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN or _phone_mode:
+		return false
+	var customer = _open.current_customer()
+	if customer == null or not CustomerMemory.is_recordable(str(customer)):
+		return false
+	var bowl: Dictionary = _open.current_bowl
+	return str(bowl.get("result", "")) != "" and not (bowl.get("additions", []) as Array).is_empty()
+
+
+## 提供後の保存ボタン（段階：[レシピを保存] → 枠 → 名前）。名前は10.4.1の候補（椀のタグを含むものを先頭）。
+func _add_recipe_save_buttons() -> void:
+	if not _can_save_recipe_now():
+		_recipe_save_stage = ""
+		return
+	var additions: Array = _open.current_bowl["additions"]
+	match _recipe_save_stage:
+		"slot":
+			for i in range(RecipeBook.slot_count()):
+				var label := "枠%d：空き" % (i + 1)
+				if i < GameState.saved_recipes.size():
+					label = "枠%d：%s（上書き）" % [i + 1, str(GameState.saved_recipes[i]["name"])]
+				_add_pot_button(label, i > GameState.saved_recipes.size(),
+					_on_recipe_slot_selected.bind(i), _recipe_row)
+			_add_pot_button("やめる", false, _on_recipe_save_cancel_pressed, _recipe_row)
+		"name":
+			for item in RecipeBook.names_ordered(_open.bowl_addition_tags()):
+				_add_pot_button(str(item["name"]), false, _on_recipe_name_selected.bind(str(item["name"])), _recipe_row)
+			_add_pot_button("やめる", false, _on_recipe_save_cancel_pressed, _recipe_row)
+		_:
+			_add_pot_button("レシピを保存（%s）" % RecipeBook.ingredient_text(additions), false,
+				_on_recipe_save_pressed, _recipe_row)
+
+
+func _on_recipe_save_pressed() -> void:
+	if _can_save_recipe_now():
+		_recipe_save_stage = "slot"
+	_refresh()
+
+
+func _on_recipe_slot_selected(slot: int) -> void:
+	if _can_save_recipe_now() and slot >= 0 and slot < RecipeBook.slot_count() and slot <= GameState.saved_recipes.size():
+		_recipe_save_slot = slot
+		_recipe_save_stage = "name"
+	_refresh()
+
+
+func _on_recipe_name_selected(recipe_name: String) -> void:
+	if _can_save_recipe_now() and _recipe_save_stage == "name":
+		RecipeBook.save(_recipe_save_slot, recipe_name, _open.current_bowl["additions"])
+	_recipe_save_stage = ""
+	_refresh()
+
+
+func _on_recipe_save_cancel_pressed() -> void:
+	_recipe_save_stage = ""
+	_refresh()
+
+
+## スマホのレシピタブ：保存レシピ（枠ごとの名前・タグ・具材）と、客ごとの「いつもの」。
+func _format_recipe_tab() -> String:
+	var lines := PackedStringArray(["◆保存レシピ（%d/%d枠）◆" % [GameState.saved_recipes.size(), RecipeBook.slot_count()]])
+	for i in range(RecipeBook.slot_count()):
+		if i < GameState.saved_recipes.size():
+			var recipe: Dictionary = GameState.saved_recipes[i]
+			lines.append("枠%d：%s　%s　具材：%s" % [i + 1, str(recipe["name"]),
+				"/".join(PackedStringArray(RecipeBook.tags_of(recipe["ingredients"]))),
+				RecipeBook.ingredient_text(recipe["ingredients"])])
+		else:
+			lines.append("枠%d：（空き）" % (i + 1))
+	lines.append("◆いつもの（客ごとの直近の料理）◆")
+	var any := false
+	for customer_id in GameState.customer_memory:
+		var usual := RecipeBook.usual_for(str(customer_id))
+		if not usual.is_empty():
+			any = true
+			lines.append("%s：%s" % [ScheduleData.customer_display_name(str(customer_id)), RecipeBook.ingredient_text(usual)])
+	if not any:
+		lines.append("まだありません")
+	return "\n".join(lines)
 
 
 ## 動的なボタンを1つ並べる（鍋モード・市場の両方で使う汎用ヘルパー）。rowを省略
@@ -2209,7 +2372,7 @@ func _format_phone() -> String:
 		"sns":
 			body = _format_tonight_memo()
 		_:
-			body = "レシピ：まだ記録がありません"
+			body = _format_recipe_tab()
 	return "── スマホ ──\n%s" % body
 
 

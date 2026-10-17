@@ -176,6 +176,12 @@ static func market_open_from_day() -> int:
 	return int(_cache.get("market_open_from_day", 2))
 
 
+## 保存レシピの枠数（フェーズ4・4-7①。RecipeBook／朝の保存の検証が読む）。
+static func recipe_slots() -> int:
+	_ensure_loaded()
+	return int(_cache.get("recipe_slots", 3))
+
+
 ## 3-1では宣言のみ（朝の一画面・予報の幅を実装する3-7で使い始める）。
 static func forecast() -> Dictionary:
 	_ensure_loaded()
