@@ -163,11 +163,10 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 		events.append({ "type": "TEXT", "text": "%sにした。" % str(tier.get("label", "")) })
 	events.append({ "type": "ADD_ITEM", "item": "soup_base", "amount": 1,
 		"text": "萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "鶏骨と手羽端を受け取った" })
-	# Day2（新人警官の初登場）：ベース入手の後・市場の前に、昼の市場の会話を挟む。要求タグ
-	# （酸っぱい汁・噛める具）を仕入れの前に知らせるため。市場の enabled（day2_unlocked）とは
-	# 無関係に、会話は必ず出る。日付は _market_options と同じく関数の中で直接読む。
-	if GameState.day_count == 2:
-		events.append_array(_talk("officer", _OFFICER_MARKET))
+	# ベース入手の後・市場の前に、今日来る常連の場面が持つ昼の市場の会話（market_talk）を挟む
+	# （新人警官の初登場＝officer_01。要求タグを仕入れの前に知らせるため）。市場の enabled とは
+	# 無関係に、会話は必ず出る。日番号の直書きではなく、場面データから引く。
+	events.append_array(market_talk_events())
 	events.append({ "type": "MARKET", "text": "（市場をぶらつく）",
 		"options": _market_options(scraps_base) })
 	# 場所代・水道代の再編＋日々の運営費：市場を出た瞬間の物語上のけじめ（表示専用の
@@ -645,6 +644,39 @@ static func episode_id_of(customer_id: String) -> String:
 	return str(ids[ids.size() - 1]) if not ids.is_empty() else ""
 
 
+## 今日来る常連の場面（客id・場面id）を、枠の順に返す。今日のDayPlanがあればその枠
+## （regular_id・episode_id）、無ければ日程（regular_slots）の枠。episode_id_of() と同じ引き方。
+static func _todays_scenes() -> Array:
+	var scenes := []
+	var plan: Dictionary = GameState.today_plan
+	if int(plan.get("day", -1)) == GameState.day_count:
+		for slot in plan.get("slots", []):
+			if str(slot.get("regular_id", "")) != "" and str(slot.get("episode_id", "")) != "":
+				scenes.append({ "customer": str(slot["regular_id"]), "episode_id": str(slot["episode_id"]) })
+		return scenes
+	for entry in ScheduleData.regular_slots(GameState.day_count):
+		if str(entry.get("regular", "")) != "" and str(entry.get("episode_id", "")) != "":
+			scenes.append({ "customer": str(entry["regular"]), "episode_id": str(entry["episode_id"]) })
+	return scenes
+
+
+## 昼の市場の会話（場面データの market_talk）。PREPの市場の前に差す Event 列（_talk と同じ形）。
+## 今日来る場面が market_talk を持つものだけ、枠の順に全部出す（同じ場面は1回）。持つ場面が
+## 無い日は空。一度見た場面でも出す（seen_episodesは見ない：今の割り当てでは影響が無く、
+## 同じ場面が複数日に来る設計になった時点で決める）。状態を読むだけで書かない。
+static func market_talk_events() -> Array:
+	var events := []
+	var done := {}
+	for scene in _todays_scenes():
+		var key := "%s/%s" % [scene["customer"], scene["episode_id"]]
+		if done.has(key):
+			continue
+		done[key] = true
+		events.append_array(_talk(str(scene["customer"]),
+			ScheduleData.episode_market_talk(str(scene["customer"]), str(scene["episode_id"]))))
+	return events
+
+
 ## 前回の来店を読んだ2行（DESIGN.md 10.5.3・10.8.6。4-4b-2）。場面のcallbackから、前回の来店
 ## （今日より前の最後の来店。CustomerMemory.previous_visit）に応じた行を最大2行返す。出し分け：
 ##   前回の来店なし                → first
@@ -817,9 +849,8 @@ const _DELIVERY_EXIT := [
 ##   - 昼の市場の会話の冒頭のト書きは、場面を始めるために足したもの（原案に無い）。
 ##
 ## 昼・市場（PREP）。
-const _OFFICER_MARKET := [
-	"警官（市場・要求タグ: SOUR/BITE）",
-]
+## res://data/episodes/officer/officer_01.json（market_talk）へ移した（重複を避けるため
+## 定数としては持たない。中身を見るならJSON側を参照）。
 
 ## 夜・来店（宵の口）。REACT の前の GREET。§9-C「データの外部化」で
 ## res://data/customers/officer.json（days."2".greet）へ移した（重複を避けるため

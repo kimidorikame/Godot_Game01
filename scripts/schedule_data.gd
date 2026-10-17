@@ -171,6 +171,18 @@ static func episode_callback(customer_id: String, episode_id: String) -> Diction
 	return (callback as Dictionary).duplicate(true) if callback is Dictionary else {}
 
 
+## 場面の「昼の市場の会話」（market_talk。PREPの市場の前に出す行の配列）。無い・形が不正なら空配列。
+## 行は文字列だけを拾う（空文字は除く）。
+static func episode_market_talk(customer_id: String, episode_id: String) -> Array:
+	var talk = episode_data(customer_id, episode_id).get("market_talk", [])
+	var lines := []
+	if talk is Array:
+		for line in talk:
+			if line is String and line != "":
+				lines.append(line)
+	return lines
+
+
 ## その客の場面の候補（場面の置き場の<客>/*.jsonのid。id順）。置き場が無ければ空配列。
 static func episode_candidates(customer_id: String) -> Array:
 	var ids := []

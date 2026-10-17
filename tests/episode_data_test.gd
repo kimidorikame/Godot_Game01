@@ -30,6 +30,9 @@ const BASE_ORDER := {
 }
 const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
+# 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
+const OPTIONAL_KEYS := ["market_talk"]
+const MARKET_TALK_EPISODES := ["officer_01"]
 const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "streamer"]
 # 日程に無く、旧データでは当日のキーもDay1のキーも無く会話データを持たなかった組（日:客）。
 # 日番号で引くのをやめたため、日程に無い客はその客の最後の場面（通常の1杯）を返す＝
@@ -62,8 +65,21 @@ func run(_t: SceneTree) -> int:
 			c.check("%s：場面ファイルがある" % label, not ep.is_empty())
 			c.check("%s：場面のid・customerが枠と一致" % label,
 				str(ep.get("id", "")) == eid and str(ep.get("customer", "")) == regular)
-			c.check("%s：場面のキーは id/customer/greet/reactions/servings のみ（日番号キー無し）" % label,
-				_sorted_keys(ep) == EPISODE_KEYS, str(ep.keys()))
+			var required_keys := ep.keys().filter(func(k): return not OPTIONAL_KEYS.has(k))
+			required_keys.sort()
+			c.check("%s：場面のキーは id/customer/greet/reactions/servings＋任意の market_talk のみ（日番号キー無し）" % label,
+				required_keys == EPISODE_KEYS, str(ep.keys()))
+			var has_talk := ep.has("market_talk")
+			c.check("%s：market_talkを持つのは officer_01 だけ" % label, has_talk == MARKET_TALK_EPISODES.has(eid))
+			if has_talk:
+				var talk = ep["market_talk"]
+				var talk_ok: bool = talk is Array and not (talk as Array).is_empty()
+				if talk_ok:
+					for line in talk:
+						talk_ok = talk_ok and line is String and line != ""
+				c.check("%s：market_talkは空でない文字列の配列" % label, talk_ok, str(talk))
+				c.check("%s：episode_market_talk()が同じ行を返す" % label,
+					ScheduleData.episode_market_talk(regular, eid) == talk)
 			seen[eid] = true
 	c.check("episode_idは21個すべて異なる（来店順ごとに1場面）", seen.size() == 21)
 

@@ -1,0 +1,1084 @@
+{
+  "1:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": false,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸（訪問済み）"
+        },
+        {
+          "enabled": false,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": false,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": false,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": false,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": false,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "1:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": false,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": false,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": false,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": false,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": false,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": false,
+          "id": "scraps",
+          "label": "端材半端物（訪問済み）"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "2:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "customer": "officer",
+      "text": "警官（市場・要求タグ: SOUR/BITE）",
+      "type": "GREET"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "2:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "customer": "officer",
+      "text": "警官（市場・要求タグ: SOUR/BITE）",
+      "type": "GREET"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "3:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "3:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "4:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "4:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "5:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "5:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "6:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "6:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "7:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "7:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "8:normal": [
+    {
+      "text": "中仕込みにした。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "鶏骨と手羽端を受け取った",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "bone_broth",
+      "servings": 11,
+      "strength": 3,
+      "tags": [
+        "meaty"
+      ],
+      "text": "鶏の出汁が立ってきた。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ],
+  "8:scraps": [
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "萎れた野菜くずをひと抱え、譲ってもらった",
+      "type": "ADD_ITEM"
+    },
+    {
+      "options": [
+        {
+          "enabled": true,
+          "id": "meat_wholesale",
+          "label": "食肉仲卸"
+        },
+        {
+          "enabled": true,
+          "id": "produce",
+          "label": "青果"
+        },
+        {
+          "enabled": true,
+          "id": "dry_goods",
+          "label": "乾物調味料"
+        },
+        {
+          "enabled": true,
+          "id": "tofu_noodles",
+          "label": "豆腐麺"
+        },
+        {
+          "enabled": true,
+          "id": "seafood",
+          "label": "海鮮"
+        },
+        {
+          "enabled": true,
+          "id": "scraps",
+          "label": "端材半端物"
+        }
+      ],
+      "text": "（市場をぶらつく）",
+      "type": "MARKET"
+    },
+    {
+      "text": "共同水道と炭屋に寄り、市場を出た。",
+      "type": "TEXT"
+    },
+    {
+      "amount": 1,
+      "item": "soup_base",
+      "text": "さて、仕込むか。鍋に放り込む",
+      "type": "REMOVE_ITEM"
+    },
+    {
+      "base_id": "veg_scrap_broth",
+      "servings": 11,
+      "strength": 1,
+      "tags": [
+        "vegetal"
+      ],
+      "text": "野菜くずを煮出した。薄い……。今日の鍋ができた（11杯分）。",
+      "type": "SET_SOUP",
+      "water_doses": 2
+    }
+  ]
+}
