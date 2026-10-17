@@ -31,7 +31,10 @@ const BASE_ORDER := {
 const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
-const OPTIONAL_KEYS := ["market_talk"]
+const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
+	"sets_facts", "must_info"]
+# 提供後の場面データ（システム整理C）の新キー。現行の21場面はどれも持たない（既存データは動作が変わらない）。
+const AFTER_SERVE_KEYS := ["pre_order", "body", "body_unserved", "choices", "closing", "sets_facts", "must_info"]
 const MARKET_TALK_EPISODES := ["officer_01"]
 const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "streamer"]
 # 日程に無く、旧データでは当日のキーもDay1のキーも無く会話データを持たなかった組（日:客）。
@@ -67,8 +70,12 @@ func run(_t: SceneTree) -> int:
 				str(ep.get("id", "")) == eid and str(ep.get("customer", "")) == regular)
 			var required_keys := ep.keys().filter(func(k): return not OPTIONAL_KEYS.has(k))
 			required_keys.sort()
-			c.check("%s：場面のキーは id/customer/greet/reactions/servings＋任意の market_talk のみ（日番号キー無し）" % label,
+			c.check("%s：場面のキーは id/customer/greet/reactions/servings＋任意キーのみ（日番号キー無し）" % label,
 				required_keys == EPISODE_KEYS, str(ep.keys()))
+			for k in AFTER_SERVE_KEYS:
+				c.check("%s：新しいキー %s は持たない（現行データは動作が変わらない）" % [label, k], not ep.has(k))
+			c.check("%s：場面データの形に問題が無い（scene_problems）" % label,
+				ScheduleData.scene_problems(ep).is_empty(), str(ScheduleData.scene_problems(ep)))
 			var has_talk := ep.has("market_talk")
 			c.check("%s：market_talkを持つのは officer_01 だけ" % label, has_talk == MARKET_TALK_EPISODES.has(eid))
 			if has_talk:

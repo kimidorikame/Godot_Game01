@@ -601,6 +601,9 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 	# 来店の前に「前回の料理を読んだ2行」（場面にcallbackがあるときだけ。現行の21場面は無し）。
 	for line in _callback_lines(customer_id, scene):
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
+	# 注文の前の行（場面にpre_orderがあるときだけ。前回の2行と注文の間。現行の21場面は無し）。
+	for line in ScheduleData.episode_pre_order(customer_id, scene):
+		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	for line in flavor["greet"]:
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",

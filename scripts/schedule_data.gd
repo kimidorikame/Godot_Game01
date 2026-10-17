@@ -183,6 +183,160 @@ static func episode_market_talk(customer_id: String, episode_id: String) -> Arra
 	return lines
 
 
+## --- 提供後の場面データ（システム整理C。DESIGN.md 10.5.3・10.8.6） ---
+## 場面のキー pre_order / body / body_unserved / closing / must_info は任意。無い・形が不正な
+## ものは「無い」と同じに読む（空配列／空辞書。クラッシュしない）。形の検査は scene_problems()。
+
+## 文字列の配列として読む（空文字・文字列でない要素は捨てる）。
+static func _string_lines(value) -> Array:
+	var lines := []
+	if value is Array:
+		for line in value:
+			if line is String and line != "":
+				lines.append(line)
+	return lines
+
+
+## 注文の前の行（前回の2行と注文＝greet の間に出す）。無ければ空配列。
+static func episode_pre_order(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("pre_order", []))
+
+
+## 提供後の本文（食事中の話の行）。無ければ空配列。
+static func episode_body(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("body", []))
+
+
+## 提供しなかったときの本文（must_info を持つ場面だけが使う未提供版）。無ければ空配列。
+static func episode_body_unserved(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("body_unserved", []))
+
+
+## 締め。{ キー: 行の配列 }。"default" と、差分のキー（"<選択id>:<選択肢id>"・
+## "request_honored:true|false"）。行の配列でないキーは捨てる。無ければ空辞書。
+static func episode_closing(customer_id: String, episode_id: String) -> Dictionary:
+	var closing = episode_data(customer_id, episode_id).get("closing", {})
+	var result := {}
+	if closing is Dictionary:
+		for key in closing:
+			var lines := _string_lines(closing[key])
+			if key is String and not lines.is_empty():
+				result[key] = lines
+	return result
+
+
+## 必須情報の印（SEVEN_DAY_OUTLINE §11の9項目の識別子）。印を読むだけで、9項目の管理は
+## 日別ニュース（D）で扱う。印があれば、提供しなかったときも本文（未提供版）を再生する。
+static func episode_must_info(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("must_info", []))
+
+
+const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
+const _MAX_CHOICES := 2
+const _MAX_FACT_KEYS := 2
+
+
+static func _is_lines(value) -> bool:
+	if not (value is Array):
+		return false
+	for line in value:
+		if not (line is String) or line == "":
+			return false
+	return true
+
+
+## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
+## 配列を返す（空なら問題なし）。検査するのは新しいキーと反応のキーだけ：
+##   reactions … 4段階＋UNSERVED。値は文字列の配列
+##   market_talk / pre_order / body / body_unserved … 空でない文字列の配列
+##   choices … 最大2。各 { id, options:[2つ { id, label, set(辞書・任意) }] }。idは一意
+##   sets_facts … 辞書。選択肢の set と合わせた事実のキーが重複を除いて2個まで。両方に同じキーは不可
+##   closing … { default: 行の配列, <選択id>:<選択肢id> | request_honored:true|false: 行の配列 }
+##   must_info … 空でない文字列の配列。must_info と body の両方があれば body_unserved が必須
+static func scene_problems(ep: Dictionary) -> Array:
+	var problems := []
+	if ep.has("reactions"):
+		var reactions = ep["reactions"]
+		if not (reactions is Dictionary):
+			problems.append("reactions が辞書でない")
+		else:
+			for key in reactions:
+				if not _REACTION_KEYS.has(key):
+					problems.append("reactions に未知のキー %s" % str(key))
+				elif not (reactions[key] is Array):
+					problems.append("reactions.%s が配列でない" % str(key))
+	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info"]:
+		if ep.has(key) and not _is_lines(ep[key]):
+			problems.append("%s が空でない文字列の配列でない" % key)
+	var choice_ids := {}
+	var option_keys := {}   # "選択id:選択肢id" -> true
+	var fact_keys := {}
+	if ep.has("choices"):
+		var choices = ep["choices"]
+		if not (choices is Array):
+			problems.append("choices が配列でない")
+		else:
+			if (choices as Array).size() > _MAX_CHOICES:
+				problems.append("choices が%d個を超えている" % _MAX_CHOICES)
+			for choice in choices:
+				if not (choice is Dictionary) or not ((choice as Dictionary).get("id") is String) 						or str((choice as Dictionary)["id"]) == "":
+					problems.append("choices の要素に id が無い")
+					continue
+				var cid := str(choice["id"])
+				if choice_ids.has(cid):
+					problems.append("choices の id %s が重複" % cid)
+				choice_ids[cid] = true
+				var options = (choice as Dictionary).get("options")
+				if not (options is Array) or (options as Array).size() != 2:
+					problems.append("choices.%s の options が2つでない" % cid)
+					continue
+				var seen_options := {}
+				for option in options:
+					if not (option is Dictionary) or not ((option as Dictionary).get("id") is String) 							or str((option as Dictionary)["id"]) == "" 							or not ((option as Dictionary).get("label") is String) 							or str((option as Dictionary)["label"]) == "":
+						problems.append("choices.%s の選択肢に id / label が無い" % cid)
+						continue
+					var oid := str(option["id"])
+					if seen_options.has(oid):
+						problems.append("choices.%s の選択肢 id %s が重複" % [cid, oid])
+					seen_options[oid] = true
+					option_keys["%s:%s" % [cid, oid]] = true
+					var set_facts = (option as Dictionary).get("set", {})
+					if not (set_facts is Dictionary):
+						problems.append("choices.%s.%s の set が辞書でない" % [cid, oid])
+					else:
+						for fact_key in set_facts:
+							fact_keys[str(fact_key)] = true
+	var sets_keys := {}
+	if ep.has("sets_facts"):
+		var sets_facts = ep["sets_facts"]
+		if not (sets_facts is Dictionary):
+			problems.append("sets_facts が辞書でない")
+		else:
+			for fact_key in sets_facts:
+				if fact_keys.has(str(fact_key)):
+					problems.append("事実 %s が choices の set と sets_facts の両方にある" % str(fact_key))
+				sets_keys[str(fact_key)] = true
+	var distinct := fact_keys.duplicate()
+	distinct.merge(sets_keys)
+	if distinct.size() > _MAX_FACT_KEYS:
+		problems.append("事実のキーが%d個を超えている（%d個）" % [_MAX_FACT_KEYS, distinct.size()])
+	if ep.has("closing"):
+		var closing = ep["closing"]
+		if not (closing is Dictionary):
+			problems.append("closing が辞書でない")
+		else:
+			if not (closing as Dictionary).has("default"):
+				problems.append("closing に default が無い")
+			for key in closing:
+				if not _is_lines(closing[key]):
+					problems.append("closing.%s が空でない文字列の配列でない" % str(key))
+				elif key != "default" and key != "request_honored:true" and key != "request_honored:false" 						and not option_keys.has(key):
+					problems.append("closing のキー %s が choices にも request_honored にも対応しない" % str(key))
+	if _is_lines(ep.get("must_info", [])) and not (ep.get("must_info", []) as Array).is_empty() 			and _is_lines(ep.get("body", [])) and not (ep.get("body", []) as Array).is_empty() 			and (not _is_lines(ep.get("body_unserved", [])) or (ep.get("body_unserved", []) as Array).is_empty()):
+		problems.append("must_info と body があるのに body_unserved が無い")
+	return problems
+
+
 ## その客の場面の候補（場面の置き場の<客>/*.jsonのid。id順）。置き場が無ければ空配列。
 static func episode_candidates(customer_id: String) -> Array:
 	var ids := []
