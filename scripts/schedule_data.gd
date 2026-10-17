@@ -270,9 +270,91 @@ static func episode_sets_facts(customer_id: String, episode_id: String) -> Dicti
 	return result
 
 
+## --- 複数杯の場面（cups。システム整理E。DESIGN.md 10.8.6・10.9） ---
+## 同じ客へ複数の杯を1杯ずつ会話の合間に出す場面（Day1の配達員の3杯）。場面データの任意キー cups
+## （杯の配列。2杯以上）を持つ場面が複数杯の場面。杯のキー（すべて任意）：
+##   tags … その杯の要求タグ（省略＝客プロフィールの wanted_tags）
+##   favorite … false で好物なし（省略＝プロフィールの好物）
+##   adjust / serve … ADJUST・SERVE の text（省略＝通常の場面の既定文）
+##   reactions … その杯の反応（結果→文字列配列。省略または空＝反応を出さない）
+##   after_talk … その杯の REACT の後の会話の行（最後の杯の分が退店の会話）
+## 杯数は cups の数（各杯 servings:1）。場面の greet が来店〜1杯目の注文。
+const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk"]
+## 複数杯の場面で使えない場面のキー（黙って無視される書き間違いを作らないため scene_problems が弾く）。
+const _CUPS_FORBIDDEN_KEYS := ["reactions", "order", "callback", "pre_order", "body", "body_unserved",
+	"choices", "closing", "sets_facts"]
+
+
+## 複数杯の場面の杯の配列。形の整った場合だけ（2杯以上で、どの杯も辞書で、キーと型が正しい）読み、
+## 指定のあったキーだけを持つ辞書の配列で返す。cups が無い・形が不正なら空配列（＝複数杯の場面ではない。
+## 不正なデータは scene_problems が弾く）。
+static func episode_cups(customer_id: String, episode_id: String) -> Array:
+	var raw = episode_data(customer_id, episode_id).get("cups", null)
+	if not (raw is Array) or (raw as Array).size() < 2:
+		return []
+	var cups := []
+	for cup in raw:
+		if not (cup is Dictionary) or not _cup_problems(cup, "").is_empty():
+			return []
+		var normalized := {}
+		for key in _CUP_KEYS:
+			if (cup as Dictionary).has(key):
+				normalized[key] = cup[key].duplicate(true) if (cup[key] is Array or cup[key] is Dictionary) else cup[key]
+		cups.append(normalized)
+	return cups
+
+
+## 杯1つの形の問題（空なら問題なし）。whereは問題の説明に付ける位置の文字列。
+static func _cup_problems(cup: Dictionary, where: String) -> Array:
+	var problems := []
+	for key in cup:
+		if not _CUP_KEYS.has(key):
+			problems.append("%scups の杯に未知のキー %s" % [where, str(key)])
+	if cup.has("tags") and (not _is_lines(cup["tags"]) or (cup["tags"] as Array).is_empty()):
+		problems.append("%stags が空でない文字列の配列でない" % where)
+	if cup.has("favorite") and not (cup["favorite"] is bool):
+		problems.append("%sfavorite が真偽値でない" % where)
+	for key in ["adjust", "serve"]:
+		if cup.has(key) and (not (cup[key] is String) or cup[key] == ""):
+			problems.append("%s%s が空でない文字列でない" % [where, key])
+	if cup.has("reactions"):
+		if not (cup["reactions"] is Dictionary):
+			problems.append("%sreactions が辞書でない" % where)
+		else:
+			for key in cup["reactions"]:
+				if not _REACTION_KEYS.has(key):
+					problems.append("%sreactions に未知のキー %s" % [where, str(key)])
+				elif not (cup["reactions"][key] is Array):
+					problems.append("%sreactions.%s が配列でない" % [where, str(key)])
+	if cup.has("after_talk") and not _is_lines(cup["after_talk"]):
+		problems.append("%safter_talk が文字列の配列でない" % where)
+	return problems
+
+
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
 const _MAX_CHOICES := 2
 const _MAX_FACT_KEYS := 2
+
+
+## cups を持つ場面の問題：2杯以上、各杯の形、使えないキー、servings と杯数の一致。
+static func _cups_problems(ep: Dictionary) -> Array:
+	var problems := []
+	var cups = ep["cups"]
+	if not (cups is Array) or (cups as Array).size() < 2:
+		problems.append("cups が2杯以上の配列でない（1杯の場面は通常の場面で表す）")
+	else:
+		for i in range((cups as Array).size()):
+			if not (cups[i] is Dictionary):
+				problems.append("cups[%d] が辞書でない" % i)
+			else:
+				problems.append_array(_cup_problems(cups[i], "cups[%d]：" % i))
+		if ep.has("servings") and (not (ep["servings"] is int or ep["servings"] is float)
+				or int(ep["servings"]) != (cups as Array).size()):
+			problems.append("servings が cups の杯数（%d）と一致しない" % (cups as Array).size())
+	for key in _CUPS_FORBIDDEN_KEYS:
+		if ep.has(key):
+			problems.append("複数杯の場面（cups）では使えないキー %s" % key)
+	return problems
 
 
 static func _is_lines(value) -> bool:
@@ -294,7 +376,9 @@ static func _is_lines(value) -> bool:
 ##   must_info … 空でない文字列の配列。must_info と body の両方があれば body_unserved が必須
 static func scene_problems(ep: Dictionary) -> Array:
 	var problems := []
-	if ep.has("reactions"):
+	if ep.has("cups"):
+		problems.append_array(_cups_problems(ep))
+	if ep.has("reactions") and not ep.has("cups"):
 		var reactions = ep["reactions"]
 		if not (reactions is Dictionary):
 			problems.append("reactions が辞書でない")

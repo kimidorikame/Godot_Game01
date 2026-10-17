@@ -605,6 +605,10 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 	# には客IDを書かない）。判定は日番号ではなく場面id（4-4a。DESIGN.md 10.9）。2回目以降の
 	# 来店（delivery_man_02〜）は、他の客と同じ通常の1杯の流れ（下の汎用ロジック）を使う。
 	var scene := scene_id if scene_id != "" else episode_id_of(customer_id)
+	# 複数杯の場面（場面データの cups。システム整理E）。配達員のDay1の3杯列は、データ化（E-②）までは
+	# 専用のEvent列（_delivery_man_events）のまま。
+	if not ScheduleData.episode_cups(customer_id, scene).is_empty():
+		return _cups_events(customer_id, scene)
 	if scene == THREE_CUPS_EPISODE:
 		return _delivery_man_events()
 	var flavor := _customer_flavor(customer_id, mob_count, scene)
@@ -638,6 +642,44 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 ## 3杯列そのもの（_delivery_man_events()）はGDScriptのまま。会話のデータ化は後の手順で、
 ## そのときこの定数ごと消える。
 const THREE_CUPS_EPISODE := "delivery_man_01"
+
+
+## 複数杯の場面か（場面データに cups がある。E-②までは旧3杯列の場面も含める）。提供後の列・注文カード・
+## [聞き直す]など「1杯の場面だけの機能」を出さない判定を、ここ1つに統一する。
+static func is_multi_cup_scene(customer_id: String, scene_id: String) -> bool:
+	return scene_id == THREE_CUPS_EPISODE or not ScheduleData.episode_cups(customer_id, scene_id).is_empty()
+
+
+## 複数杯の場面（場面データの cups）の Event 列：来店会話（greet）→ 各杯（ADJUST → SERVE → REACT →
+## その杯の after_talk）。2杯目以降の ADJUST は new_bowl:true。全 REACT は servings:1・aggregate:true
+## （鍋の消費と売上はその場で、評判と提供記録は退店時に客1人分として1回だけ。受け側は変えない）。
+## 杯の要求タグ（tags）省略＝プロフィールの wanted_tags、好物（favorite）省略＝プロフィールの好物
+## （false なら REACT に favorite のキーを付けない）、反応（reactions）省略＝空（反応を出さない）。
+## 状態を読むだけ（乱数なし・何度呼んでも同じ）。
+static func _cups_events(customer_id: String, scene_id: String) -> Array:
+	var cups := ScheduleData.episode_cups(customer_id, scene_id)
+	var flavor := _customer_flavor(customer_id, 0, scene_id)
+	var options := _adjust_options()
+	var sale: int = GameState.PRICE_PER_SERVING * 1
+	var events := []
+	events.append_array(_talk(customer_id, ScheduleData.episode_data(customer_id, scene_id).get("greet", [])))
+	for i in range(cups.size()):
+		var cup: Dictionary = cups[i]
+		var adjust := { "type": "ADJUST", "customer": customer_id,
+			"text": str(cup.get("adjust", "（味を調える）")), "options": options }
+		if i > 0:
+			adjust["new_bowl"] = true
+		events.append(adjust)
+		events.append({ "type": "SERVE", "customer": customer_id, "text": str(cup.get("serve", "「はいよ、お待ち。」")) })
+		var react := { "type": "REACT", "customer": customer_id, "servings": 1, "sale": sale,
+			"reactions": (cup.get("reactions", {}) as Dictionary).duplicate(true),
+			"wanted_tags": (cup.get("tags", flavor["wanted_tags"]) as Array).duplicate(),
+			"is_mob": false, "aggregate": true }
+		if bool(cup.get("favorite", true)):
+			react["favorite"] = flavor["favorite"]
+		events.append(react)
+		events.append_array(_talk(customer_id, cup.get("after_talk", [])))
+	return events
 
 
 ## その客の今日の場面id（4-4a。会話・要求・杯数を引く元）。引き方：
@@ -708,7 +750,7 @@ static func market_talk_events() -> Array:
 ## （現行の21場面）・モブ・配達員の3杯列は空配列＝従来のイベント列と同一。
 static func after_serve_events(customer_id: String, scene_id: String, outcome: Dictionary) -> Array:
 	var events := []
-	if customer_id == "" or scene_id == "" or scene_id == THREE_CUPS_EPISODE 			or is_mob_customer(customer_id):
+	if customer_id == "" or scene_id == "" or is_multi_cup_scene(customer_id, scene_id) or is_mob_customer(customer_id):
 		return events
 	if bool(outcome.get("served", false)):
 		events.append_array(_scene_lines("body", customer_id, ScheduleData.episode_body(customer_id, scene_id)))
@@ -742,7 +784,7 @@ static func after_serve_events(customer_id: String, scene_id: String, outcome: D
 ## 到着前に閉店して来なかった客は対象外（場面が始まっていない。必須情報はニュースが担う）。
 static func unserved_exit_events(customer_id: String, scene_id: String) -> Array:
 	var events := []
-	if customer_id == "" or scene_id == "" or scene_id == THREE_CUPS_EPISODE 			or is_mob_customer(customer_id):
+	if customer_id == "" or scene_id == "" or is_multi_cup_scene(customer_id, scene_id) or is_mob_customer(customer_id):
 		return events
 	var reactions = ScheduleData.episode_data(customer_id, scene_id).get("reactions", {})
 	if reactions is Dictionary and (reactions as Dictionary).get("UNSERVED", []) is Array:
@@ -758,6 +800,8 @@ static func unserved_exit_events(customer_id: String, scene_id: String) -> Array
 ## 出来（grade）は引き当てに使わない（わざと失敗すると親密になる経路を作らない。10.5.3）。
 ## 今日の来店記録（CustomerMemory）を読むだけで書かない。
 static func closing_events(customer_id: String, scene_id: String) -> Array:
+	if is_multi_cup_scene(customer_id, scene_id):
+		return []
 	var closing := ScheduleData.episode_closing(customer_id, scene_id)
 	var lines: Array = closing.get("default", []).duplicate()
 	var made := CustomerMemory.choices_today(customer_id)
@@ -1065,8 +1109,8 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 	if profile.is_empty():
 		return _unknown_customer_flavor()
 	var episode_id := scene_id if scene_id != "" else episode_id_of(customer_id)
-	if episode_id == THREE_CUPS_EPISODE:
-		# 3杯専用列は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
+	if is_multi_cup_scene(customer_id, episode_id):
+		# 複数杯の場面（3杯専用列を含む）は_delivery_man_events()が専用のEvent列を組む（greet/reactions/servingsは
 		# 使わない＝ここでは返さない）。それ以外の来店は下の汎用の返り値（他の客と同じ形）。
 		return { "is_mob": profile.get("is_mob", false),
 			"wanted_tags": profile.get("wanted_tags", []), "favorite": profile.get("favorite", "") }

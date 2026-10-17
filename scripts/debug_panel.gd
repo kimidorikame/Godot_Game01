@@ -2367,7 +2367,7 @@ func _adjust_customer_id() -> String:
 	var customer_id := str(cur.get("customer", ""))
 	if customer_id == "" or Day1Events.is_mob_customer(customer_id):
 		return ""
-	if Day1Events.episode_id_of(customer_id) == Day1Events.THREE_CUPS_EPISODE:
+	if Day1Events.is_multi_cup_scene(customer_id, Day1Events.episode_id_of(customer_id)):
 		return ""
 	return customer_id
 
