@@ -1224,7 +1224,7 @@ GameState.dashi_units   # 濃縮だしの保有回数分
   読めないための設計。モブは「客層:港湾労働者（HOT/POWER）」と**種類のみ（重複除去・
   人数も組数も出さない）**。種類名は`data/mobs/*.json`の`"name"`
   （`Day1Events.mob_display_name(type_id)`。無ければ種類idをそのまま返す）。
-  名前あり客は基本注文（その日の`customer_data`）と、既知の好物のみ。「今日の頼み」は
+  名前あり客は基本注文（【4-4aで変更】客プロフィールの`wanted_tags`。旧：その日の`customer_data`）と、既知の好物のみ。「今日の頼み」は
   会話で判明するので出さない。
 - **必要な味・具の数は2案（range日）**：全タグ合計÷2で実際の総杯数が逆算されて
   幅の意味が無くなるのを避けるため、名前あり客は基本注文から正確に、モブ分は
@@ -1958,7 +1958,7 @@ GameState.try_pay(amount) -> bool
   `rent_paid_today`・`morning_snapshots`。保存しない項目は朝の初期値で、`from_dict()`が
   `phase`をWAKEに戻す。**新しいGameState変数は、どちらかに分類しないと`save_state_test`が落ちる**
   （F5の来店記録を足すときは`SAVED_FIELDS`に入れる）。辞書は往復とも深いコピー。**【4-2で`day_records`を追加】**
-- **封筒**（`MorningSave.capture()`）：`{version: 2（4-1は1。4-2で上げた）, campaign, day, state: GameState.to_dict(),
+- **封筒**（`MorningSave.capture()`）：`{version: 3（4-1は1、4-2で2、4-4aで3）, campaign, day, state: GameState.to_dict(),
   panel: {day_summary_text}}`。`is_valid()`が版・キャンペーンID・各項目の型を確かめる。
   `panel`は画面側の最小限の付随情報で、前日成績の一言だけ（戻った朝にも同じ文を見せる）。
 - **WAKEの処理順（4-1で変更）**：旧は「運営費→reserve→`DayPlanner.build()`」。新は
@@ -2083,8 +2083,8 @@ GameState.try_pay(amount) -> bool
   旧と同じ形`{"slots":[{name, main, mob}]}`を返す（`mob`は`false`か`{"pool":[…]}`）。
   `customer_schedule()`・`_plan_mob_groups()`・`Forecast`・`DayPlanner`は無改修。定義の無い日
   （Day8以降）は常連もモブ規則もDay1へフォールバックする。旧`data/day_schedule.json`と
-  その読み込みは削除した。**互換層と`_pick_main`の`main_pool`分岐（今は使われない）は、4-4で
-  DayPlanが日程を直接読む形になったときに消す**。
+  その読み込みは削除した。**【4-4aで撤去済み】互換層（`compose_day_schedule`・`day_schedule`）と
+  `_pick_main`の`main_pool`分岐は消え、DayPlanが日程を直接読む**（「客データの分割と場面ID（4-4a）」節）。
 - **常連の固定日程（10.5.1）**：
 
 | 日 | 宵の口 | 夜半 | 明け方 |
@@ -2117,6 +2117,60 @@ GameState.try_pay(amount) -> bool
   好物を使えば届く水準のまま。結果は`planning/playtest_2026_10_11/PLAYTHROUGH_RESULTS.md`の
   4-3の節（全13方針、30シードとシード1〜3）。
 - **未対応**：常連の注文カード・今日の頼み・来店記録・場面データは4-4以降。客JSONの`days`は未分割。
+
+### 客データの分割と場面ID（4-4a実装済み・2026-10-17・DESIGN.md 10.8.1・10.8.2・10.9）
+
+客の会話を「今日は何日目か」ではなく「今日の枠に割り当てた場面（episode）」で引く形にした。
+**動作は変えていない**（会話・要求・好物・杯数・反応文・乱数の消費順は4-3と同一）。コミットは
+`66ea16c`（データ追加。旧経路のまま）と`3127319`（切り替えと撤去）。ほかに`8721ae7`（テスト入口の
+修正。下記）。テストは1211件成功（4-3の958件に、場面データの検証248件・`episode_flow_test`などを
+追加）。3シード×13方針の自動試遊は4-3の結果と39/39周完全一致。
+
+- **データ構成**：`data/customers/<id>.json`＝基本プロフィール`{is_mob, favorite, wanted_tags}`
+  （基本注文は日によって変えない＝10.5.1。`days`は廃止）。`data/episodes/<客>/<客>_<連番>.json`＝
+  来店場面`{id, customer, greet, reactions, servings}`（来店順に配達員・チンピラ・新人警官が`_01`〜`_04`、
+  老婆・夜の女・配信者が`_01`〜`_03`の計21ファイル。`requires`・`callback`・`body`・`choices`・
+  `today_request`は未実装＝4-4b以降）。中身は旧`days`をそのまま移した仮データで、各客で全日同一。
+  `week7_regulars.json`の各枠に`episode_id`が付いた。
+- **21枠と場面ID**：
+
+| 日 | 宵の口 | 夜半 | 明け方 |
+|---|---|---|---|
+| 1 | delivery_man_01 | thug_01 | granny_01 |
+| 2 | officer_01 | delivery_man_02 | thug_02 |
+| 3 | hooker_01 | granny_02 | officer_02 |
+| 4 | streamer_01 | hooker_02 | delivery_man_03 |
+| 5 | thug_03 | officer_03 | streamer_02 |
+| 6 | delivery_man_04 | thug_04 | hooker_03 |
+| 7 | streamer_03 | officer_04 | granny_03 |
+
+- **DayPlanの枠**：`today_plan["slots"]`の各枠は`{name, customers, regular_id, episode_id}`。
+  `name`・`customers`（`[regular_id, "mob#N"…]`）・`mob_instances`は従来のままで、
+  `OpenController`は無改修。`customer_schedule()`は`ScheduleData.regular_slots(day)`を直接読み、
+  モブの可否は`ScheduleData.mob_rule_for(day, slot_name)`（`mob_rules.json`の既定＋日別上書き）で引く。
+- **場面の引き方**（`Day1Events.episode_id_of(customer_id)`）：(1) `today_plan["day"] == day_count`なら
+  その客の枠の`episode_id`（前日の枠で別の日の場面を引かないため、日が違うときは使わない）、
+  (2) なければ`regular_slots(day)`の枠、(3) 日程に無い客はその客の最後の場面（3杯列を踏まない）。
+  `_customer_flavor`は`customer_profile`＋`episode_data`をマージする。`Forecast`・杯数先読み・
+  `Result`は`customer_events`経由なので無改修。
+- **配達員の3杯列**：判定を`day_count == 1`の直書き（2箇所）から、定数`THREE_CUPS_EPISODE`
+  （`delivery_man_01`）との場面id比較に置き換えた。列そのもの（`_delivery_man_events()`）は動かしていない。
+  Day2・4・6の配達員は通常の1杯。
+- **撤去**：4-3の互換層（`compose_day_schedule`・`day_schedule`）、`Day1Events._pick_main`
+  （`main_pool`の抽選）、`ScheduleData._FALLBACK_DAY`・`customer_data(id, day)`、客JSONの`days`。
+  日程の無い日（Day8以降）は枠が空＝客なし（実プレイでは最終日7でRESULTへ入るので起きない）。
+- **保存**：封筒の版を2→3に上げ、`is_valid()`が各枠の`name`・`customers`・`regular_id`・`episode_id`の型を
+  検査する。4-3以前の保存（版2）は読めない扱い＝新規ゲーム。
+- **意図した差（ゲーム内で呼ばれない6組）**：日程に無い組（Day1の新人警官・夜の女・配信者、Day2の
+  夜の女・配信者、Day3の配信者）は、旧データでは会話の無い空の客で、新実装では通常の場面を返す。
+- **テストの書き方（`8721ae7`）**：`tests/run_tests.gd`は、読み込めない・インスタンス化できない・
+  `run()`が無い・実行中のエラーで途中打ち切りになったスイートを、止まらず失敗として数える
+  （書き換えたテストの構文エラーで73分終わらなかったため）。**各スイートの最後は
+  `return c.finish()`にする**（`TestCheck.finish()`が集計表示と走り切った印`completed_runs`を記録し、
+  `run()`の前後で増えなかったスイートを失敗にする）。存在しないスイートを指定したときも失敗で終わる。
+- **未対応**：来店記録（F5）・`known_favorites`の置き換え・場面の選び方（`requires`・`not_seen`）・
+  前回を読んだ2行・注文カード・今日の頼みは4-4b。新人警官の市場会話（`day_count == 2`）と
+  チンピラの場所代（`is_collection_day()`）の日番号判定も4-4b以降。
 
 ### 四つの支払いのトーン（金額処理は共通、text だけで差別化。2026-09-26改訂）
 - 市場（仕込みベース） -80: 淡々「いつもの。80だ」
@@ -2166,7 +2220,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/judge.gd` | F3・判定v2（一致数・favorite・減点。2026-09-28追記） |
 | `scripts/ledger.gd` | F4・支出・売上の記録と集計（2026-09-28追記）。3-7で`usable_cash()`追加 |
 | `scripts/forecast.gd` | 朝の一画面（SNSタブの客足予報）の集計。3-7実装・2026-10-11追記 |
-| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記。4-2で版2・`day_records`の型検査 |
+| `scripts/morning_save.gd` | F7・朝の封筒（capture／is_valid／apply）と1枠セーブのファイル入出力。4-1実装・2026-10-11追記。4-2で版2・`day_records`の型検査。4-4aで版3・枠の`regular_id`／`episode_id`の型検査 |
 | `scripts/result.gd` | 結果の集計と目標判定（`regular_stats`／`summarize`／`judge_goals`／`format_*`）。4-2実装・2026-10-11追記 |
 | `tests/result_test.gd`・`tests/result_flow_test.gd` | 集計・目標判定・累計の保存（4-2コミット①）／最終日の流れ・結果画面の選択肢（50件。4-2コミット②）。2026-10-11追記 |
 | `tests/save_state_test.gd`・`tests/save_file_test.gd` | 朝の保存・再挑戦（66件）／1枠セーブのファイル入出力（50件）。4-1実装・2026-10-11追記 |
@@ -2174,6 +2228,8 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `data/schedules/week7_regulars.json` | 常連の固定日程（21枠）。4-3実装・2026-10-12追記 |
 | `data/schedules/mob_rules.json` | モブの抽選ルール（既定＋日別の上書き）。4-3実装・2026-10-12追記 |
 | `tests/regular_schedule_test.gd` | 固定日程の21枠・互換層・`customer_schedule`の確認。4-3実装・2026-10-12追記 |
+| `data/episodes/<客>/<客>_<連番>.json` | 来店場面（21ファイル）。4-4a実装・2026-10-17追記 |
+| `tests/episode_data_test.gd`・`tests/episode_flow_test.gd` | 場面データ・fixture照合（`tests/fixtures/customer_events_4_3.json`）／DayPlanの枠・場面の引き方・版3。4-4a実装・2026-10-17追記 |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
 
@@ -2280,7 +2336,7 @@ scripts/schedule_data.gd       ← 上記JSONの読み込み＋キャッシュ�
 呼ばれた時点で引く。`OpenController`・`event_runner.gd`・`flow_controller.gd`
 は無改修（客リストが相変わらず文字列の配列であるため影響しない）。
 
-**customers/\*.jsonのモデル**：`favorite`/`is_mob`はトップレベル（日をまたいで
+**【4-4aで廃止。以下は4-4a以前の記述。現行は「客データの分割と場面ID（4-4a）」節】customers/\*.jsonのモデル**：`favorite`/`is_mob`はトップレベル（日をまたいで
 不変）、`greet`/`wanted_tags`/`reactions`/`servings`は`days.<day番号>`の下に
 置く。**該当日のデータが無い場合は客データ自身も独立して`days["1"]`へ
 フォールバックする**（day_schedule.json側のフォールバックとは別の、客データ
