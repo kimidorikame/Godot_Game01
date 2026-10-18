@@ -212,8 +212,91 @@ func run(t: SceneTree) -> int:
 	var panel2 = _setup(t, 600, 1)
 	c.check("通常の朝では選択肢の行は隠れている", not panel2._result_row.visible)
 
+	# --- 11. GAME_OVERの出口（先に直す②）：最後の朝・Day1の朝から・新しい周 ---
+	var over = _setup(t, 600, 1)
+	var over_fired := { "restarted": 0 }
+	over.flow.game_restarted.connect(func(): over_fired["restarted"] += 1)
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	c.check("GAME_OVERでは選択肢の行が見える", over._result_row.visible)
+	c.check("GAME_OVER（Day1の記録あり）：[直近の朝][Day1の朝から][新しい周]と仮の[同じ朝から]が押せる",
+		not over._btn_last_morning.disabled and not over._btn_run_again.disabled
+			and not over._btn_new_run.disabled and not over._btn_retry.disabled and over._btn_end.disabled)
+	c.check("GAME_OVER：Day1の記録があるとき[Day1の朝から]の文面は通常のもの",
+		over._btn_run_again.text.contains("Day1の客・需要のみ同じ"), over._btn_run_again.text)
+	over._on_run_again_pressed()
+	c.check("GAME_OVER→Day1の朝から：Day1のWAKE・運営費後の現金・GAME_OVERの理由は消える",
+		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+			and GameState.money == GameState.INITIAL_MONEY - daily and over._game_over_reason == "",
+		str(GameState.money))
+	c.check("GAME_OVER→Day1の朝から：結果行は隠れる", not over._result_row.visible)
+
+	# 続きから始めた周：Day1の記録が無い（Day2の朝だけ持つ）
+	GameState.morning_snapshots.clear()
+	GameState.day_count = 2
+	GameState.money = 700
+	GameState.record_morning(MorningSave.capture("昨日の一言"))
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	c.check("GAME_OVER（Day1の記録なし）：[Day1の朝から]も押せる（出口を塞がない）",
+		not over._btn_run_again.disabled and not over._btn_last_morning.disabled
+			and not over._btn_new_run.disabled)
+	c.check("GAME_OVER（Day1の記録なし）：新しい周と同じ動作だと文面で分かる",
+		over._btn_run_again.text.contains("新しい周と同じ") and over._btn_run_again.tooltip_text != "",
+		over._btn_run_again.text)
+	over._on_last_morning_pressed()
+	c.check("GAME_OVER→直近の朝：Day2の朝へ戻る", GameState.phase == GameState.Phase.WAKE
+		and GameState.day_count == 2)
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	var restarts_before: int = over_fired["restarted"]
+	over._on_run_again_pressed()
+	c.check("Day1の記録なしの[Day1の朝から]は新しい周になる（Day1・初期値・累計空・朝の記録は新Day1だけ）",
+		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+			and GameState.money == GameState.INITIAL_MONEY - daily
+			and GameState.reputation == GameState.INITIAL_REPUTATION
+			and GameState.day_records.is_empty() and _keys(GameState.morning_snapshots) == [1]
+			and over_fired["restarted"] == restarts_before + 1)
+
+	# 朝の記録がまったく無い：[直近の朝]は押せないが、Day1の朝から・新しい周は押せる
+	GameState.morning_snapshots.clear()
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	c.check("GAME_OVER（記録が空）：[直近の朝][同じ朝から]は押せず、[Day1の朝から][新しい周]は押せる",
+		over._btn_last_morning.disabled and over._btn_retry.disabled
+			and not over._btn_run_again.disabled and not over._btn_new_run.disabled)
+	over._on_run_again_pressed()
+	c.check("GAME_OVER（記録が空）→Day1の朝から：新しい周のDay1のWAKE",
+		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+			and _keys(GameState.morning_snapshots) == [1])
+	GameState.morning_snapshots.clear()
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	over._on_new_run_pressed()
+	c.check("GAME_OVER（記録が空）→新しい周：新しい周のDay1のWAKE",
+		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+			and _keys(GameState.morning_snapshots) == [1])
+
+	# スマホ中は押せない
+	GameState.money = 0
+	over._game_over("テスト用ゲームオーバー")
+	over._phone_mode = true
+	over._refresh()
+	c.check("GAME_OVER中でもスマホ画面を開いている間は出口を押せない",
+		over._btn_run_again.disabled and over._btn_last_morning.disabled and over._btn_new_run.disabled)
+	over._phone_mode = false
+
+	# RESULTの挙動は変わらない：Day1の記録が無ければ[もう一度]は押せない・文面は「使えません」
+	var res = _setup(t, 600, 1)
+	_play_to_result(res, 1)
+	GameState.morning_snapshots.erase(1)
+	res._refresh()
+	c.check("RESULT：Day1の記録が無いと[もう一度]は押せず、文面は「使えません」のまま",
+		res._btn_run_again.disabled and res._btn_run_again.text.contains("使えません"))
+	c.check("RESULT：[最後の朝]の文面は従来のまま", res._btn_last_morning.text == "最後の朝からやり直す")
+
 	GameState.reset_for_new_game()
-	for p in [panel, panel2]:
+	for p in [panel, panel2, over, res]:
 		if is_instance_valid(p):
 			p.free()
 	return c.finish()

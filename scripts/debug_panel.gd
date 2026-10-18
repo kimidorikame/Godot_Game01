@@ -300,22 +300,30 @@ func _seed_initial_inventory() -> void:
 		GameState.add_inventory(id, int(starting[id]))
 
 
-## 結果画面の選択肢の表示・有効無効（RESULTのときだけ見せる）。[もう一度]は、Day1の
-## 朝の記録が無い周（[続きから]で途中から始めた周）では押せず、理由をボタンに出す。
+## 結果画面の選択肢の表示・有効無効（RESULTとGAME_OVERのときだけ見せる）。
+## RESULT：[もう一度]は、Day1の朝の記録が無い周（[続きから]で途中から始めた周）では押せず、
+## 理由をボタンに出す。
+## GAME_OVER（先に直す②）：出口を3つ持つ。[最後の朝]（記録があるとき）・[Day1の朝から]・[新しい周]。
+## [Day1の朝から]はDay1の記録が無くても押せて、その場合は[新しい周]と同じ動作になる
+## （ボタンの文面で分かるようにする。_on_run_again_pressed）。
 func _refresh_result_row() -> void:
 	var in_result := GameState.phase == GameState.Phase.RESULT
-	_result_row.visible = in_result
+	var in_over := GameState.phase == GameState.Phase.GAME_OVER
+	_result_row.visible = in_result or in_over
 	var has_day1 := GameState.morning_snapshots.has(1)
-	_btn_run_again.disabled = not in_result or not has_day1 or _phone_mode
+	_btn_run_again.disabled = not (in_result or in_over) or (in_result and not has_day1) or _phone_mode
 	if has_day1:
 		_btn_run_again.text = "もう一度（Day1の朝から）\nDay1の客・需要のみ同じ。2日目以降は評判次第で変わる"
 		_btn_run_again.tooltip_text = ""
+	elif in_over:
+		_btn_run_again.text = "Day1の朝から（＝新しい周と同じ）\nDay1の朝の記録が無い（続きから始めた周のため）。新しい周が始まる"
+		_btn_run_again.tooltip_text = "続きから始めた周は、Day1の朝の記録を持っていません。押すと[新しい周]と同じ動作になります。"
 	else:
 		_btn_run_again.text = "もう一度（使えません）\nDay1の朝の記録が無い（続きから始めた周のため）"
 		_btn_run_again.tooltip_text = "続きから始めた周は、Day1の朝の記録を持っていません。"
-	_btn_last_morning.disabled = not in_result or GameState.morning_snapshots.is_empty() or _phone_mode
-	_btn_last_morning.text = "最後の朝からやり直す"
-	_btn_new_run.disabled = not in_result or _phone_mode
+	_btn_last_morning.disabled = not (in_result or in_over) or GameState.morning_snapshots.is_empty() or _phone_mode
+	_btn_last_morning.text = "最後の朝からやり直す" if in_result else "直近の朝からやり直す"
+	_btn_new_run.disabled = not (in_result or in_over) or _phone_mode
 	_btn_end.disabled = true   # 押せない仮ボタン（フェーズ6）
 
 
@@ -1583,8 +1591,12 @@ func _on_retry_pressed() -> void:
 
 ## 結果画面：もう一度（Day1の朝から）。Day1の朝の記録（morning_snapshots[1]）へ戻す。
 ## 累計（day_records）もDay1の朝の値（空）に戻る。Day1の客・需要は同じで、2日目以降は
-## 評判次第で抽選が変わる。[続きから]で始めた周はDay1の記録が無いので押せない。
+## 評判次第で抽選が変わる。[続きから]で始めた周はDay1の記録が無いので、RESULTでは押せない。
+## GAME_OVERでは押せて、Day1の記録が無いときは[新しい周]と同じ動作にする（出口を塞がない）。
 func _on_run_again_pressed() -> void:
+	if GameState.phase == GameState.Phase.GAME_OVER and not GameState.morning_snapshots.has(1):
+		_on_new_run_pressed()
+		return
 	retry_from_morning(1)
 
 
