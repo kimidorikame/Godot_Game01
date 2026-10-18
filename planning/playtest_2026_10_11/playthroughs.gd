@@ -11,7 +11,10 @@ extends RefCounted
 ## 乱数は朝ごとにシード＋日で固定し、方針間で需要の抽選を対にする。
 ##
 ## 引数（--以降）：[0]=旧7方針のシード数(既定30) [1]=新5方針のシード数(既定=[0])
-##   [2]=出力ファイル名(既定playthrough_results.json) [3]=方針のカンマ区切り絞り込み
+##   [2]=出力ファイル名(既定playthrough_results.json) [3]=方針のカンマ区切り絞り込み（"all"＝絞り込まない）
+##   [4]=到達杯数の表（"default"＝既定の12/13/14／"reach_true"＝12/15/18。再測定）
+##   [5]=運営費の上書き（整数。省略＝データのまま。データは変えず、実行中だけ GameState の値を差し替えて、
+##       終わったら元へ戻す）
 
 const OUT := "res://planning/playtest_2026_10_11/"
 const POLICIES_OLD := ["forecast_good", "forecast_favorites", "always_small", "always_large",
@@ -35,11 +38,18 @@ const POLICIES_NEW := ["favorite_oracle", "no_split", "strength_neglect",
 const POLICIES_FUND := ["fund_final_only", "fund_steady", "fund_max_safe"]
 const FUND_BASE_POLICY := "forecast_good"
 const TIER_REACH := { "small": 12, "medium": 13, "large": 14 }
+## 再測定（引数[4]=reach_true のときだけ使う）：営業中の水足しを含めて、その段階で一晩に出せる総杯数
+## （先に直す④の実測：小12／中15／大18）。choose_tier() が「その段階で足りるか」を測るための表。
+const TIER_REACH_TRUE := { "small": 12, "medium": 15, "large": 18 }
 const SHOPS := ["produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps"]
 
 var tree: SceneTree
 var panel
 var policy := ""
+var reach_name := "default"
+var tier_reach: Dictionary = TIER_REACH
+## 仕込み段階の選択の記録（再測定。最上位の tier_log に出す。各周のキーには足さない）。
+var tier_log: Array = []
 var clicks := 0
 var purchases := 0
 var incidents: Array = []
@@ -65,6 +75,22 @@ func run(t: SceneTree) -> void:
 	var seeds_new := int(args[1]) if args.size() > 1 else seeds_old
 	var out_name := str(args[2]) if args.size() > 2 else "playthrough_results.json"
 	var only: Array = str(args[3]).split(",") if args.size() > 3 else []
+	if only.has("all"):
+		only = []
+	reach_name = str(args[4]) if args.size() > 4 else "default"
+	if reach_name == "reach_true":
+		tier_reach = TIER_REACH_TRUE
+	elif reach_name == "default":
+		tier_reach = TIER_REACH
+	else:
+		push_error("unknown reach: " + reach_name)
+		return
+	# 運営費の上書き（再測定）。GameState.DAILY_OPERATING_COST は起動時に Rules から読んだ静的変数で、
+	# 使うのは WAKE の支払い・朝の文・RepairFund の翌日の確保だけ。データ（week7.json）は変えない。
+	var data_cost: int = GameState.DAILY_OPERATING_COST
+	var cost_override := int(args[5]) if args.size() > 5 and str(args[5]) != "" else -1
+	if cost_override >= 0:
+		GameState.DAILY_OPERATING_COST = cost_override
 	var policies: Array = []
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
@@ -79,9 +105,16 @@ func run(t: SceneTree) -> void:
 			results.append(await play(p, run_seed))
 		print("PLAYTEST_PROGRESS ", p, " ", n, " runs")
 	var output := { "commit": git_head(), "tracked_changes": git_dirty(),
-		"engine": Engine.get_version_info(), "daily_operating_cost": Rules.daily_operating_cost(),
+		"engine": Engine.get_version_info(), "daily_operating_cost": GameState.DAILY_OPERATING_COST,
 		"seeds_old": seeds_old, "seeds_new": seeds_new,
 		"policies": policies, "runs": results }
+	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
+	output["reach"] = reach_name
+	output["tier_log"] = tier_log
+	output["tier_reach"] = tier_reach.duplicate()
+	output["daily_operating_cost_data"] = data_cost
+	output["daily_operating_cost_overridden"] = cost_override >= 0
+	GameState.DAILY_OPERATING_COST = data_cost
 	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
 	if policies.any(func(x): return POLICIES_FUND.has(x)):
 		output["fund_checks"] = fund_checks(results)
@@ -188,8 +221,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 			if GameState.day_count == 1 and not day1_cash.has("after_kit"):
 				day1_cash["after_kit"] = GameState.money
 			var tier := choose_tier()
+			var chosen := tier
 			if GameState.money < int(Day1Events.prep_tier_by_id(tier).price):
 				tier = "small"
+			tier_log.append({ "policy": policy, "seed": run_seed, "day": GameState.day_count,
+				"target": target_cups(), "chosen": chosen, "tier": tier })
 			act("prep")
 			panel._on_prep_tier_selected(tier)
 			if GameState.day_count == 1:
@@ -326,7 +362,7 @@ func choose_tier() -> String:
 		return "large"
 	var target := target_cups()
 	for tier in ["small", "medium", "large"]:
-		if int(TIER_REACH[tier]) >= target:
+		if int(tier_reach[tier]) >= target:
 			return tier
 	return "large"
 
