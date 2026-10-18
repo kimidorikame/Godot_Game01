@@ -22,8 +22,9 @@ const POLICIES_OLD := ["forecast_good", "forecast_favorites", "always_small", "a
 ## （10.13の「1組を断る」をどちらの意味でも読めるよう、両方を測る）。
 const POLICIES_NEW := ["favorite_oracle", "no_split", "strength_neglect",
 	"decline_one_group", "two_failures", "decline_once"]
-## 各仕込み段階が（水・だしの操作込みで）届く最大杯数（小8→水2回で12／中11→水1回で13／
-## 大14→水0回。鍋の同時容量14・水は残量12以下のときだけ足せる。DESIGN.md 10.3.8）。
+## 各仕込み段階で「夜の始まりに鍋へ入れられる量」（水・だしの操作込み。小8→水2回で12／
+## 中11→水1回で13／大14→水0回）。一晩の総杯数ではない（営業中の水足し込みの総杯数は
+## 12／15／18）。鍋の同時容量14・水は残量12以下のときだけ足せる。DESIGN.md 10.3.8。
 ## 修繕基金の方針（4-9③。別枠）。既定の方針一覧（POLICIES_OLD + POLICIES_NEW）には入れず、引数[3]で
 ## 名前を指定したときだけ走る。仕入れ・仕込み・調理・接客の判断は基準方針 forecast_good と同じ（このファイルの
 ## policy == の分岐のどれにも当たらない＝既定の分岐）で、差は CLOSE の基金の操作だけ。押すのは DebugPanel の

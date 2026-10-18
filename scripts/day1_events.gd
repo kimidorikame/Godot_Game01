@@ -14,10 +14,9 @@ class_name Day1Events
 ## (WAKE)が直接支払う（Eventとしては持たない）。理由：WAKEは_phase_can_skip=trueで
 ## [次のPhase]がrunnerを消化せず先へ進めるため、支払いをPAY Eventとして置くと毎回
 ## スキップされてしまう（場所代・水道代の再編＋日々の運営費で確認済み）。ここに置く
-## 3つ目のTEXTは、既に支払い済みであることを見せるだけの表示専用の行（効果は持たない）。
-## 「共同水道と炭屋」という具体的な行き先にしているのは、実際に支払いが完了する
-## （物語上のけじめが付く）タイミングを市場を出るとき（prep_after_tier_events参照）に
-## 見せるため、ここでは「まとめて渡す分を先に取っておく」という前振りにしてある。
+## 3つ目のTEXTは、運営費をもう払い終えた（財布から出た）ことを見せるだけの表示専用の行
+## （効果は持たない）。先に直す③以降、運営費は「確保」にも積まない（払い済みのため）。
+## 確保するのは、徴収日の場所代・水道代のようにまだ払っていない請求だけ。
 static func wake_events() -> Array:
 	# システム整理D：スマホを見た後に、その日のニュースとDM（News.morning_events）を必ず差す。必須情報を
 	# 客の会話に頼らず届けるため。ニュースの無い日は従来の列と同一。表示だけで、数値には触れない。
@@ -25,7 +24,7 @@ static func wake_events() -> Array:
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
 	] + News.morning_events(GameState.day_count) + _wake_common_events() + [
-		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、市場を出るときにまとめて渡す分として先に取っておく。" % GameState.DAILY_OPERATING_COST },
+		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、もう済ませた。" % GameState.DAILY_OPERATING_COST },
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]
 

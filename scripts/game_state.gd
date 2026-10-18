@@ -589,9 +589,9 @@ func deepen_soup(delta: int = 1) -> void:
 ## add_water()側でclampiせずに済むよう、ここで事前にガードする。
 ## 3-6 鍋の同時容量（DESIGN.md 10.3.8）：残量がRules.pot_capacity()-WATER_SERVINGS
 ## （14-2=12）以下のときだけ足せる（足した後に容量14を超えないための事前ガード）。
-## 大仕込み（14杯）は仕込み直後から残量が12を超えているため、水を1回も足せない
-## （意図どおりの挙動）。一晩の総供給上限18（14＋水2回×2）という表示上の理論値は
-## 変えていないが、容量ガードのため実際に18杯へ達する経路は無い。
+## 大仕込み（14杯）は仕込み直後は残量が12を超えているので水を足せないが、営業中に
+## 残量が12以下になれば足せる。夜の始まりに鍋へ入れられる量は小12／中13／大14、
+## 営業中の水足し込みの一晩の総杯数は小12／中15／大18（実機で確認済み）。
 func can_add_water() -> bool:
 	return soup != null and int(soup.get("water_doses", 0)) > 0 \
 		and int(soup.get("strength", 3)) - WATER_STRENGTH_DELTA >= STRENGTH_HARD_FLOOR \
