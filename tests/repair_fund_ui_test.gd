@@ -4,7 +4,7 @@ extends RefCounted
 ## CLOSE の close_events（TEXT列）には足さない。修繕済みになった瞬間は label を使った一行「修繕できた：〇〇」。
 ## 翌朝サマリー・結果画面・STATE VIEWER に、積んだ（累計が1以上の）ときだけ各対象の進捗を足す（積まなければ
 ## 従来と同一）。機能オフの設定では何も出ない。基金でゲームオーバーにならない。
-## 状態は 評判55・今日の計画の需要の中心14 にそろえる（翌日の確保額555。所持金が確保額を上回った分だけ積める）。
+## 状態は 評判55・今日の計画の需要の中心14 にそろえる（翌日の確保額＝運営費＋仕込み140＋材料費350。所持金が確保額を上回った分だけ積める）。
 
 
 func _setup(t: SceneTree, day: int, money: int):
@@ -54,6 +54,11 @@ func _add_fund(day: int, amount: int, ref: String) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	# 運営費に連動する値は定数から計算する（運営費を変えても境目の検査が追従する）。
+	# r14＝見込み14杯の翌日の確保額＝運営費＋仕込み140＋材料費14×25、r11＝見込み11杯＝運営費＋仕込み110＋材料費11×25。
+	var op: int = GameState.DAILY_OPERATING_COST
+	var r14: int = op + 140 + 350
+	var r11: int = op + 110 + 275
 	Rules.set_campaign("week7")
 	Rules.bills()
 	ScheduleData.clear_cache()
@@ -72,7 +77,7 @@ func run(t: SceneTree) -> int:
 		label.contains("── 修繕基金（任意・返金なし）──")
 			and label.contains("手書きの看板 0/150／棚 0/200／雨よけ 0/200／屋台を自分の名義に 0/600（未解放）")
 			and label.contains("今夜積んだ額: 0／30") and label.contains("今日積める上限: 30"), label)
-	c.check("上限（600−555＝45）が1晩の上限（30）以上なので2つとも押せる", _fund_buttons(p1).all(func(b): return not b.disabled))
+	c.check("上限（600−確保額）が1晩の上限（30）以上なので2つとも押せる", _fund_buttons(p1).all(func(b): return not b.disabled))
 	c.check("CLOSE の close_events（TEXT列）は変えていない（足していない）",
 		JSON.stringify(p1.flow.runner.events) == JSON.stringify(Day1Events.close_events()))
 	c.check("積まなくても [次のPhase] は押せる（ゲートは変えない）", not p1.flow.is_advance_blocked())
@@ -95,13 +100,13 @@ func run(t: SceneTree) -> int:
 		and _fund_buttons(p1).is_empty() and p1._fund_notice == "" and not p1._runner_label.text.contains("修繕基金"))
 
 	# --- 3. 安全上限が1晩の上限より小さい夜：額のボタンの有効・無効 ---
-	var p3 = _setup(t, 2, 575)   # 575−555＝20（< 30）
+	var p3 = _setup(t, 2, r14 + 20)   # 確保額+20−確保額＝20（< 30）
 	_to_close_done(p3)
 	var b3 := _fund_buttons(p3)
 	c.check("安全上限20：+30は無効・+10は有効（上限が1晩の上限より小さい）", b3[0].disabled == false and b3[1].disabled == true
 		and p3._runner_label.text.contains("今日積める上限: 20"), p3._runner_label.text)
 	_press(p3, 30)
-	c.check("無効な+30を押しても積まれない", GameState.money == 575 and RepairFund.paid() == 0)
+	c.check("無効な+30を押しても積まれない", GameState.money == r14 + 20 and RepairFund.paid() == 0)
 	p3.free()
 
 	# --- 4. 修繕済みになった瞬間：label を使った一行「修繕できた：〇〇」。次の対象へ移る ---
@@ -187,7 +192,7 @@ func run(t: SceneTree) -> int:
 	Rules._cache["repair_fund"] = fund_config
 
 	# --- 9. 基金でゲームオーバーにならない：積めるだけ積んで翌朝へ ---
-	for money in [555, 560, 575, 585, 700, 1000]:
+	for money in [r14, r14 + 5, r14 + 20, r14 + 30, 700, 1000]:
 		var p9 = _setup(t, 2, money)
 		_to_close_done(p9)
 		var guard := 0
@@ -200,7 +205,7 @@ func run(t: SceneTree) -> int:
 		p9.flow.advance_phase()   # CLOSE → NEXT_DAY
 		p9.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
 		c.check("所持金%dから積めるだけ積んでも、翌朝（Day3）に運営費が払えてゲームオーバーにならない（残り%d）" % [money, GameState.money],
-			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= 555 - 65)
+			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= r14 - op)
 		p9.free()
 
 	# --- 10. 最終日：1晩の上限が掛かる。積んだ分が結果画面の現金＋修繕額に入る（翌朝の運営費は発生しない） ---
@@ -228,7 +233,7 @@ func run(t: SceneTree) -> int:
 		str(selectors.map(func(b): return b.text)))
 	c.check("状態の文：積む先は看板・安全上限の根拠（明日の仕入れ分を残す）が出る",
 		p11._runner_label.text.contains("積む先: 手書きの看板")
-			and p11._runner_label.text.contains("（明日の仕入れ分を残す：運営費65＋請求0＋仕込み140＋材料費350＝555。見込み14杯）"),
+			and p11._runner_label.text.contains("（明日の仕入れ分を残す：運営費%d＋請求0＋仕込み140＋材料費350＝%d。見込み14杯）" % [op, r14]),
 		p11._runner_label.text)
 	selectors[1].pressed.emit()   # 棚を選ぶ
 	c.check("棚を選ぶと「▶」が移り、状態の文の積む先も棚になる",

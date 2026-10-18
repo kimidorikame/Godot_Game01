@@ -37,6 +37,11 @@ func _others() -> String:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	# 運営費に連動する値は定数から計算する（運営費を変えても境目の検査が追従する）。
+	# r14＝見込み14杯の翌日の確保額＝運営費＋仕込み140＋材料費14×25、r11＝見込み11杯＝運営費＋仕込み110＋材料費11×25。
+	var op: int = GameState.DAILY_OPERATING_COST
+	var r14: int = op + 140 + 350
+	var r11: int = op + 110 + 275
 	Rules.set_campaign("week7")
 	Rules.bills()
 	GameState.reset_for_new_game()
@@ -131,55 +136,55 @@ func run(t: SceneTree) -> int:
 	_at_close(3, 1000, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 	var reserve := RepairFund.next_day_reserve()
-	c.check("翌日の確保額の内訳：運営費65＋請求0＋仕込み140＋材料費14×25＝350＝555（見込み14杯＝今日の計画14）",
-		reserve["operating"] == 65 and reserve["bills"] == 0 and reserve["prep"] == 140 and reserve["materials"] == 350
-			and reserve["expected_cups"] == 14 and reserve["total"] == 555, str(reserve))
+	c.check("翌日の確保額の内訳：運営費＋請求0＋仕込み140＋材料費14×25＝350（見込み14杯＝今日の計画14）",
+		reserve["operating"] == op and reserve["bills"] == 0 and reserve["prep"] == 140 and reserve["materials"] == 350
+			and reserve["expected_cups"] == 14 and reserve["total"] == r14, str(reserve))
 	GameState.today_plan = { "day": 3, "demand_center": 9, "slots": [], "mob_instances": {} }
-	c.check("評判から引く値（評判55→11）のほうが大きければそちら（11杯：仕込み110＋材料費275＋65＝450）",
-		RepairFund.expected_cups_tomorrow() == 11 and RepairFund.next_day_reserve()["total"] == 450)
+	c.check("評判から引く値（評判55→11）のほうが大きければそちら（11杯：運営費＋仕込み110＋材料費275）",
+		RepairFund.expected_cups_tomorrow() == 11 and RepairFund.next_day_reserve()["total"] == r11)
 	# 今日の計画の需要の中心が無い場合（再挑戦直後など）：評判から引く値だけを使う（安全側）
 	for plan in [{}, { "day": 3, "demand_center": -1, "slots": [] }, { "day": 2, "demand_center": 17, "slots": [] },
 			{ "slots": [] }, { "day": 3, "demand_center": "x" }]:
 		GameState.today_plan = plan
-		c.check("今日の計画に有効な需要の中心が無い（%s）：評判から引く値だけ（11杯・確保額450）" % str(plan),
-			RepairFund.expected_cups_tomorrow() == 11 and RepairFund.next_day_reserve()["total"] == 450)
+		c.check("今日の計画に有効な需要の中心が無い（%s）：評判から引く値だけ（11杯・確保額は運営費＋385）" % str(plan),
+			RepairFund.expected_cups_tomorrow() == 11 and RepairFund.next_day_reserve()["total"] == r11)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 
 	# 安全上限が1晩の上限（30）より小さくなる夜：その額を超えると拒否、ちょうどなら積める
-	_at_close(3, 575, 55)   # 使える現金575 − 確保額555 ＝ 上限20（< 1晩の上限30）
+	_at_close(3, r14 + 20, 55)   # 使える現金（確保額+20） − 確保額 ＝ 上限20（< 1晩の上限30）
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 	c.check("安全上限20：1晩の上限（30）より小さいので、積める最大は20", RepairFund.safe_limit() == 20
 		and RepairFund.nightly_remaining() == 30 and RepairFund.max_contribution("sign") == 20)
-	c.check("上限を超える30は拒否・所持金と帳簿は不変", not RepairFund.contribute("sign", 30) and GameState.money == 575 and _funds().is_empty())
-	c.check("10は積める。積んだ後の上限は10", RepairFund.contribute("sign", 10) and RepairFund.safe_limit() == 10 and GameState.money == 565)
+	c.check("上限を超える30は拒否・所持金と帳簿は不変", not RepairFund.contribute("sign", 30) and GameState.money == r14 + 20 and _funds().is_empty())
+	c.check("10は積める。積んだ後の上限は10", RepairFund.contribute("sign", 10) and RepairFund.safe_limit() == 10 and GameState.money == r14 + 10)
 	c.check("ちょうど（残り10）の10は積める。その後の上限は0で、もう積めない",
 		RepairFund.contribute("shelf", 10) and RepairFund.safe_limit() == 0 and not RepairFund.contribute("sign", 10)
-			and GameState.money == 555)
-	c.check("積んだ後の所持金555は翌日の確保額（555）ちょうど＝翌朝の運営費も仕込みも材料費も賄える",
+			and GameState.money == r14)
+	c.check("積んだ後の所持金は翌日の確保額ちょうど＝翌朝の運営費も仕込みも材料費も賄える",
 		GameState.money == int(RepairFund.next_day_reserve()["total"]))
-	_at_close(3, 584, 55)
+	_at_close(3, r14 + 29, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 	c.check("上限29：30は拒否・10は積める（刻みとの兼ね合い）", RepairFund.safe_limit() == 29 and not RepairFund.can_contribute("sign", 30)
 		and RepairFund.can_contribute("sign", 10))
-	_at_close(3, 585, 55)
+	_at_close(3, r14 + 30, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 	c.check("上限30ちょうど：30は積める（上限＝1晩の上限）", RepairFund.safe_limit() == 30 and RepairFund.contribute("sign", 30))
-	_at_close(3, 554, 55)
+	_at_close(3, r14 - 1, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
-	c.check("確保額に満たない所持金（554）では、どの額も積めない", RepairFund.safe_limit() == 0 and not RepairFund.can_contribute("sign", 10))
+	c.check("確保額に満たない所持金（確保額−1）では、どの額も積めない", RepairFund.safe_limit() == 0 and not RepairFund.can_contribute("sign", 10))
 	# 確保額（今日まだ払っていない請求）は使える現金から引く
-	_at_close(3, 700, 55)
+	_at_close(3, r14 + 145, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
 	Ledger.record("reserve", -140)
-	c.check("今日の確保額140があると、使える現金560−確保額555＝5が上限", Ledger.usable_cash() == 560 and RepairFund.safe_limit() == 5
+	c.check("今日の確保額140があると、使える現金（確保額+5）−確保額＝5が上限", Ledger.usable_cash() == r14 + 5 and RepairFund.safe_limit() == 5
 		and not RepairFund.can_contribute("sign", 10))
 	# 翌日が徴収日：請求140が確保額に加わる
 	Rules._cache["bills"] = [ { "id": "rent", "amount": 90, "days": [4.0], "scene": "thug" },
 		{ "id": "water", "amount": 50, "days": [4.0], "scene": "water_stall" } ]
-	_at_close(3, 700, 55)
+	_at_close(3, r14 + 145, 55)
 	GameState.today_plan = { "day": 3, "demand_center": 14, "slots": [], "mob_instances": {} }
-	c.check("翌日（Day4）が徴収日なら確保額に請求140が加わる（555＋140＝695。上限は700−695＝5）",
-		RepairFund.next_day_reserve()["bills"] == 140 and RepairFund.next_day_reserve()["total"] == 695 and RepairFund.safe_limit() == 5)
+	c.check("翌日（Day4）が徴収日なら確保額に請求140が加わる（確保額＋140。上限は所持金−それ＝5）",
+		RepairFund.next_day_reserve()["bills"] == 140 and RepairFund.next_day_reserve()["total"] == r14 + 140 and RepairFund.safe_limit() == 5)
 	Rules.set_campaign("week7")
 	Rules.bills()
 	# 最終日：翌日が無いので確保額は0（使える現金そのもの。1晩の上限は別に掛かる）
@@ -191,7 +196,7 @@ func run(t: SceneTree) -> int:
 		and RepairFund.max_contribution("sign") == 20)
 
 	# 毎晩上限まで積む周の模擬：どの所持金から始めても、積んだ後に翌朝の運営費・仕込み・材料費が賄える
-	for money in [300, 450, 555, 560, 580, 600, 700, 900]:
+	for money in [300, 450, r14, r14 + 5, r14 + 25, 600, 700, 900]:
 		_at_close(2, money, 55)
 		GameState.today_plan = { "day": 2, "demand_center": 14, "slots": [], "mob_instances": {} }
 		var need: int = int(RepairFund.next_day_reserve()["total"])
@@ -203,7 +208,7 @@ func run(t: SceneTree) -> int:
 		c.check("所持金%d：1晩の上限（30）を超えて積まない" % money, RepairFund.paid_tonight() <= 30)
 
 	# --- 3b. 実際の流れ：積めるだけ積んで、CLOSE → NEXT_DAY → WAKE（運営費を払う）へ進める（ゲームオーバーにならない） ---
-	for money in [575, 585, 700]:
+	for money in [r14 + 20, r14 + 30, 700]:
 		GameState.reset_for_new_game()
 		GameState.day_count = 2
 		var panel = load("res://scenes/debug_panel.tscn").instantiate()
@@ -224,7 +229,7 @@ func run(t: SceneTree) -> int:
 		panel.flow.advance_phase()   # CLOSE → NEXT_DAY
 		panel.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
 		c.check("所持金%d：積んだ後も翌朝（Day3）のWAKEへ進め、運営費が払えてゲームオーバーにならない（WAKE後%d）" % [money, GameState.money],
-			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= need2 - 65)
+			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= need2 - op)
 		panel.free()
 
 	# --- 4. 拒否される場合：所持金・帳簿が変わらない ---
