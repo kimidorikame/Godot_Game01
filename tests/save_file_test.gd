@@ -240,8 +240,8 @@ func run(t: SceneTree) -> int:
 	c.check("読み込んだ朝がmorning_snapshotsに入っている（起動直後のDay1の記録は無い）",
 		GameState.morning_snapshots.has(4) and not GameState.morning_snapshots.has(1)
 			and GameState.morning_snapshots.size() == 1)
-	c.check("続きから：読み込んだ朝のdaily_costとreserveは1回だけ",
-		_count_today("daily_cost") == 1 and _count_today("reserve") == 1)
+	c.check("続きから：読み込んだ朝のdaily_costは1回だけ・reserveは請求のある日（徴収日）だけ1回",
+		_count_today("daily_cost") == 1 and _count_today("reserve") == (1 if GameState.is_collection_day() else 0))
 	# 読み込み直後の朝で詰んだとき：読み込んだ朝へ戻れる
 	GameState.money = 5
 	GameState.inventory["probe"] = 1

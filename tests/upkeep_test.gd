@@ -102,11 +102,15 @@ func run(t: SceneTree) -> int:
 		close_reason.contains("店じまい") and close_reason.contains("場所代"), close_reason)
 
 	# --- 9. F4帳簿：確保額(Ledger.pending_bills_today()、旧pending_bills_today)：
-	#    非徴収日はWAKE直後65、市場を出ると0になる（GameStateは単一のシングルトンなので、
-	#    徴収日のケースと混ざらないよう各シナリオでresetから作り直して自己完結させる） ---
+	#    確保は「まだ払っていない請求」だけ（先に直す③）。日々の運営費65はWAKEで払い済みなので
+	#    確保しない。非徴収日は請求が無いので確保は0のまま、使える現金は残金と同じ
+	#    （GameStateは単一のシングルトンなので、徴収日のケースと混ざらないよう各シナリオで
+	#    resetから作り直して自己完結させる） ---
 	var panel8 = _setup(t, 300, 2)
-	c.check("非徴収日のWAKE直後は確保65のみ", Ledger.pending_bills_today() == 65,
+	c.check("非徴収日のWAKE直後は確保0（運営費は払い済みなので確保しない）", Ledger.pending_bills_today() == 0,
 		str(Ledger.pending_bills_today()))
+	c.check("非徴収日：使える現金は残金そのもの(300-65=235)", Ledger.usable_cash() == 235 and GameState.money == 235,
+		str(Ledger.usable_cash()))
 	var money_before8: int = GameState.money
 	panel8._on_market_exit_pressed()
 	c.check("非徴収日：市場を出ると確保が0になる", Ledger.pending_bills_today() == 0,
@@ -114,16 +118,18 @@ func run(t: SceneTree) -> int:
 	c.check("非徴収日は水道代が発生しないので市場を出てもmoneyは動かない",
 		GameState.money == money_before8, str(GameState.money))
 
-	# --- 10. F4帳簿/3-5（DESIGN.md 10.3.5）：徴収日はWAKE直後205（運営費65+場所代90+
-	#    水道代50。3-5で水道代も確保対象に加えた）、市場を出ると場所代ぶんの90だけ残る
+	# --- 10. F4帳簿/3-5（DESIGN.md 10.3.5）：徴収日はWAKE直後140（場所代90+水道代50。
+	#    3-5で水道代も確保対象に加えた。運営費65は払い済みなので含めない）、市場を出ると場所代ぶんの90だけ残る
 	#    （水道代の自動訪問も同時に起きて水道代ぶんもreleaseされる。moneyもここで動く）、
 	#    場所代を払うと0になる
 	#    (通常のREACT経路・特別請求経路のどちらから呼ばれても、mark_rent_paid()と
 	#    Ledger.record("release", RENT_PRICE)を同じタイミングで呼ぶペアで決済される。
 	#    ここではそのペアを直接呼んで検証する) ---
 	var panel9 = _setup(t, 300, 1)
-	c.check("徴収日のWAKE直後は確保65+90+50=205", Ledger.pending_bills_today() == 205,
+	c.check("徴収日のWAKE直後は確保90+50=140", Ledger.pending_bills_today() == 140,
 		str(Ledger.pending_bills_today()))
+	c.check("徴収日：Day1の使える現金は95(300-65-140)", Ledger.usable_cash() == 95,
+		str(Ledger.usable_cash()))
 	panel9._on_market_exit_pressed()
 	c.check("徴収日：市場を出ると確保は場所代ぶんの90だけ残る",
 		Ledger.pending_bills_today() == 90, str(Ledger.pending_bills_today()))
@@ -148,11 +154,16 @@ func run(t: SceneTree) -> int:
 	# --- 13. F4帳簿：STATE VIEWERのbudget行（残金/確保/使える）が確保額の変化を反映する
 	#    （常時表示。0になっても行自体は消えない） ---
 	var panel10 = _setup(t, 300, 1)
-	c.check("WAKE直後はbudget行が残金235(300-運営費65)/確保205(運営費65+場所代90+水道代50)/使える30になる",
-		panel10._format_game_state().contains("budget(残金/確保/使える): 235 / 205 / 30"),
+	c.check("WAKE直後はbudget行が残金235(300-運営費65)/確保140(場所代90+水道代50)/使える95になる",
+		panel10._format_game_state().contains("budget(残金/確保/使える): 235 / 140 / 95"),
 		panel10._format_game_state())
+	c.check("SNSタブの「使える現金」も同じ値(95円)", panel10._format_tonight_memo().contains("使える現金: 95円（残金235／確保140）"))
+	c.check("基金の安全上限は同じ使える現金95を元にする（95−翌日の確保額、0未満は0）",
+		RepairFund.safe_limit() == maxi(95 - int(RepairFund.next_day_reserve()["total"]), 0),
+		str(RepairFund.safe_limit()))
 	panel10._on_market_exit_pressed()
-	c.check("市場を出た後は確保が90に更新される", panel10._format_game_state().contains("/ 90 /"),
+	c.check("市場を出た後は確保が90、使える現金が95のまま(水道代50を払い、その分の確保も外れる)",
+		panel10._format_game_state().contains("budget(残金/確保/使える): 185 / 90 / 95"),
 		panel10._format_game_state())
 	GameState.mark_rent_paid()
 	Ledger.record("release", GameState.RENT_PRICE)

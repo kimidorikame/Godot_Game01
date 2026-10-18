@@ -399,15 +399,17 @@ func _set_runner_for_phase(phase: int) -> void:
 		# 運営費で詰むことは無い）。
 		if _save_armed:
 			MorningSave.write_file(morning)
-		# F4 帳簿：今日まだ物語上のけじめが付いていない金額を「確保」として記帳する
-		# （旧GameState.set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で
-		# 徴収日は場所代に加え水道代ぶんも確保対象に含めた（実際の支払いタイミングは
-		# 変えていない＝水道代は今までどおり水場訪問時に払う。Ledger.pending_bills_today()
-		# がこの記帳から確保額を計算し直す）。
-		var reserve_amount := GameState.DAILY_OPERATING_COST
+		# F4 帳簿：今日まだ払っていない請求を「確保」として記帳する（旧GameState.
+		# set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で徴収日は場所代に加え水道代ぶんも
+		# 確保対象に含めた＝実際の支払いタイミングは変えていない。水道代は水場訪問時、場所代は
+		# 場所代の支払い時に払い、その瞬間にreleaseする。Ledger.pending_bills_today()がこの記帳から
+		# 確保額を計算し直す）。日々の運営費は上でもう払い済みなので確保しない（先に直す③：
+		# 払った金額をもう一度確保すると、使える現金が運営費ぶん二重に引かれていた）。
+		var reserve_amount := 0
 		if GameState.is_collection_day():
-			reserve_amount += GameState.RENT_PRICE + GameState.WATER_PRICE
-		Ledger.record("reserve", -reserve_amount)
+			reserve_amount = GameState.RENT_PRICE + GameState.WATER_PRICE
+		if reserve_amount > 0:
+			Ledger.record("reserve", -reserve_amount)
 		# 予告（②）：今夜の客の並びは上のDayPlanner.build()で1回だけ確定させ、OPENでは
 		# （デバッグの一律上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も
 		# 人数も分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
@@ -801,8 +803,8 @@ func _visit_water_stall() -> bool:
 ## [市場を出る] のハンドラ（DESIGN.md 7.7）。水場に未訪問なら自動で訪れてから、
 ## [入力完了]と同じ手順（WAITING_INPUT解除→1つ進める→効果適用）で仕込みへ進む。
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
-## F4 帳簿：市場を出た瞬間に、日々の運営費ぶんの確保を「release」として記帳する
-## （実際の天引きはWAKEで既に済んでいる。旧GameState.settle_daily_cost_pending）。
+## 日々の運営費はWAKEで払い済みで確保もしていないので、市場を出るときのreleaseは無い
+## （先に直す③。旧GameState.settle_daily_cost_pending）。
 ## runnerはこの直後の_complete_input_and_advance()でMARKETの次（新設のTEXT
 ## 「共同水道と炭屋に寄り、市場を出た。」）へ進む。
 func _on_market_exit_pressed() -> void:
@@ -810,7 +812,6 @@ func _on_market_exit_pressed() -> void:
 		# 水道代が払えずゲームオーバーになったら、仕込みへ進まずここで止まる。
 		if not _visit_water_stall():
 			return
-	Ledger.record("release", GameState.DAILY_OPERATING_COST)
 	_complete_input_and_advance()
 
 
