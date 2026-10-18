@@ -37,6 +37,10 @@ const POLICIES_NEW := ["favorite_oracle", "no_split", "strength_neglect",
 ##   fund_max_safe   … 毎晩、安全上限と最終段階までの残りの範囲で積めるだけ積む
 const POLICIES_FUND := ["fund_final_only", "fund_steady", "fund_max_safe"]
 const FUND_BASE_POLICY := "forecast_good"
+## 切り分け用の方針（運営費75。別枠）。既定の方針一覧には入れず、引数[3]で名前を指定したときだけ走る。
+##   strength_neglect_dashi … strength_neglect と同じ判断（濃さ・鮮度のミス）で、毎朝のだし2個の買い置きだけ
+##                            基準方針と同じにしたもの（だしの買い置きが下振れの原因かを単独で見るため）
+const POLICIES_ISOLATION := ["strength_neglect_dashi"]
 const TIER_REACH := { "small": 12, "medium": 13, "large": 14 }
 ## 再測定（引数[4]=reach_true のときだけ使う）：営業中の水足しを含めて、その段階で一晩に出せる総杯数
 ## （先に直す④の実測：小12／中15／大18）。choose_tier() が「その段階で足りるか」を測るための表。
@@ -50,6 +54,11 @@ var reach_name := "default"
 var tier_reach: Dictionary = TIER_REACH
 ## 仕込み段階の選択の記録（再測定。最上位の tier_log に出す。各周のキーには足さない）。
 var tier_log: Array = []
+## 水を足したいのに足せなかった夜の理由の記録（運営費75の切り分け。最上位の water_stop_log に出す。
+## 各周のキーには足さない）。reason：doses＝水の回数切れ／remaining＝残量条件（13杯以上残っている）／
+## strength_floor＝濃さの下限（足すと0を下回る）／no_dashi＝濃さが低いのにだしを足せない／other。
+var water_stop_log: Array = []
+var cur_seed := 0
 var clicks := 0
 var purchases := 0
 var incidents: Array = []
@@ -95,7 +104,7 @@ func run(t: SceneTree) -> void:
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
 			policies.append(p)
-	for p in POLICIES_FUND:
+	for p in POLICIES_FUND + POLICIES_ISOLATION:
 		if only.has(p):
 			policies.append(p)
 	var results: Array = []
@@ -111,6 +120,7 @@ func run(t: SceneTree) -> void:
 	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
 	output["reach"] = reach_name
 	output["tier_log"] = tier_log
+	output["water_stop_log"] = water_stop_log
 	output["tier_reach"] = tier_reach.duplicate()
 	output["daily_operating_cost_data"] = data_cost
 	output["daily_operating_cost_overridden"] = cost_override >= 0
@@ -140,8 +150,14 @@ func git_dirty() -> String:
 	return str(out[0]).strip_edges() if not out.is_empty() else ""
 
 
+## strength_neglect とその切り分け版（判断は同じ。だしの買い置きだけが違う）。
+func is_neglect() -> bool:
+	return policy == "strength_neglect" or policy == "strength_neglect_dashi"
+
+
 func play(p: String, run_seed: int) -> Dictionary:
 	policy = p
+	cur_seed = run_seed
 	clicks = 0
 	purchases = 0
 	incidents = []
@@ -618,7 +634,7 @@ func cook(order: Dictionary) -> void:
 			act("ingredient")
 			panel._on_ingredient_selected(id)
 			added.append(id)
-		elif id == "" and policy == "strength_neglect":
+		elif id == "" and is_neglect():
 			# 鮮度のミス：新鮮な在庫が無ければ傷んだ在庫も使う（判定が1段階下がる）。
 			var damaged_id := choose_damaged(str(tag), n)
 			if damaged_id != "" and not added.has(damaged_id):
@@ -704,7 +720,7 @@ func fix_pot() -> bool:
 	if v >= n:
 		if policy == "bare_broth":
 			return false
-		if policy == "strength_neglect" and s >= 1:
+		if is_neglect() and s >= 1:
 			return false
 		if s >= 2 and s <= 4:
 			return false
@@ -731,6 +747,24 @@ func fix_pot() -> bool:
 				panel._on_add_water_pressed()
 				changed = true
 		else:
+			# 鍋を直したいのに直せないときだけ、理由を記録する（結果は変えない）。
+			# 水が要るのに足せない：doses＝回数切れ／remaining＝残量条件／strength_floor＝濃さの下限。
+			# 濃さが低い（2未満）のに、だしを足せない：no_dashi。
+			var reason := ""
+			if (v < n or s >= 5) and not GameState.can_add_water():
+				reason = "other"
+				if int(GameState.soup.get("water_doses", 0)) <= 0:
+					reason = "doses"
+				elif v > Rules.pot_capacity() - GameState.WATER_SERVINGS:
+					reason = "remaining"
+				elif s - GameState.WATER_STRENGTH_DELTA < GameState.STRENGTH_HARD_FLOOR:
+					reason = "strength_floor"
+			elif s < 2 and not GameState.can_add_dashi():
+				reason = "no_dashi"
+			if reason != "":
+				water_stop_log.append({ "policy": policy, "seed": cur_seed, "day": GameState.day_count,
+					"reason": reason, "remaining": v, "strength": s, "need": n,
+					"dashi_units": GameState.dashi_units })
 			break
 	var locked: bool = (panel._pot_locked_until_water() and GameState.can_add_water()) \
 		or (panel._pot_locked_until_dashi() and GameState.can_add_dashi())
