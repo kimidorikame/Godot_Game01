@@ -50,6 +50,23 @@ func _write_raw(bytes: PackedByteArray) -> void:
 	f.close()
 
 
+func _write_at(path: String, bytes: PackedByteArray) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_buffer(bytes)
+	f.close()
+
+
+## 有効なセーブのバイト列（マジック＋封筒）。money だけ変えて版を見分ける。
+func _save_bytes(base: Dictionary, money: int) -> PackedByteArray:
+	var e := base.duplicate(true)
+	e["state"]["money"] = money
+	return "YORUYUSAVE1".to_ascii_buffer() + var_to_bytes(e)
+
+
+func _money_of(env: Dictionary) -> int:
+	return int(env.get("state", {}).get("money", -1))
+
+
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 	var saved_path := MorningSave.save_path
@@ -123,6 +140,63 @@ func run(t: SceneTree) -> int:
 		not MorningSave.write_file({ "version": 1 }))
 	MorningSave.delete_file()
 	c.check("delete_file後はファイルが無い", not MorningSave.has_file())
+
+	# --- 2b. 安全な置換（先に直す①）：本体・.tmp・.bak の読み順と、置換の失敗 ---
+	var TMP := TEST_PATH + ".tmp"
+	var BAK := TEST_PATH + ".bak"
+	MorningSave.delete_file()
+	c.check("通常の書き込みでは.bak・.tmpが残らない（初回・上書きとも）",
+		MorningSave.write_file(env) and MorningSave.write_file(env2)
+			and not FileAccess.file_exists(TMP) and not FileAccess.file_exists(BAK))
+	# 置換の最中に落ちた状態：本体なし・.tmp＝新版・.bak＝旧版
+	MorningSave.delete_file()
+	_write_at(TMP, _save_bytes(env, 222))
+	_write_at(BAK, _save_bytes(env, 111))
+	c.check(".bakと.tmpだけでもhas_file", MorningSave.has_file())
+	c.check("本体なし・.tmp有効・.bak有効なら.tmp（新版）を返す", _money_of(MorningSave.read_file()) == 222)
+	# .tmp が書きかけ
+	var tmp_good := _save_bytes(env, 222)
+	_write_at(TMP, tmp_good.slice(0, int(tmp_good.size() * 0.5)))
+	c.check("書きかけの.tmpは弾いて.bak（旧版）を返す", _money_of(MorningSave.read_file()) == 111)
+	_write_at(TMP, "壊れた".to_utf8_buffer())
+	c.check("壊れた.tmpは弾いて.bakを返す", _money_of(MorningSave.read_file()) == 111)
+	# .bak だけ
+	MorningSave.delete_file()
+	_write_at(BAK, _save_bytes(env, 111))
+	c.check(".bakだけでもhas_fileで、読める", MorningSave.has_file() and _money_of(MorningSave.read_file()) == 111)
+	# 本体が壊れていて .bak が正しい
+	_write_raw("壊れた本体".to_utf8_buffer())
+	c.check("本体が壊れていて.bakが有効なら.bakを返す", _money_of(MorningSave.read_file()) == 111)
+	# 本体が有効なら.tmp・.bakより優先
+	_write_raw(_save_bytes(env, 333))
+	_write_at(TMP, _save_bytes(env, 222))
+	c.check("本体が有効なら本体を返す（.tmp・.bakより優先）", _money_of(MorningSave.read_file()) == 333)
+	# delete_file は3つとも消す
+	MorningSave.delete_file()
+	c.check("delete_fileで本体・.bak・.tmpがすべて消える",
+		not FileAccess.file_exists(TEST_PATH) and not FileAccess.file_exists(TMP)
+			and not FileAccess.file_exists(BAK) and not MorningSave.has_file())
+	# 置換の失敗：旧版が残る
+	var old_env := env.duplicate(true)
+	old_env["state"]["money"] = 500
+	c.check("旧版を書く", MorningSave.write_file(old_env))
+	var new_env := env.duplicate(true)
+	new_env["state"]["money"] = 600
+	MorningSave.fail_install_for_test = true
+	var failed := MorningSave.write_file(new_env)
+	MorningSave.fail_install_for_test = false
+	c.check("置換に失敗したらfalseを返す", not failed)
+	c.check("置換に失敗しても旧版が本体に戻っている", _money_of(MorningSave.read_file()) == 500
+		and FileAccess.file_exists(TEST_PATH))
+	c.check("失敗後に.tmp・.bakが残らない", not FileAccess.file_exists(TMP) and not FileAccess.file_exists(BAK))
+	# tmp が開けない（同名のディレクトリがある）：本体に触れない
+	DirAccess.make_dir_absolute(ProjectSettings.globalize_path(TMP))
+	c.check(".tmpを開けないときfalse・旧版は無傷", not MorningSave.write_file(new_env)
+		and _money_of(MorningSave.read_file()) == 500)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TMP))
+	c.check("失敗の後に通常の書き込みができる", MorningSave.write_file(new_env)
+		and _money_of(MorningSave.read_file()) == 600)
+	MorningSave.delete_file()
 
 	# --- 3. 朝のWAKEでセーブが書かれる（運営費が払えた朝だけ。書くのは運営費を引く前の辞書） ---
 	var panel = _setup(t, 300, 1)
