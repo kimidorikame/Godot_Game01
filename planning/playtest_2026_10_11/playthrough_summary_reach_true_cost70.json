@@ -1,0 +1,98 @@
+{
+  "commit": "6f8bfe205023ba9c1b4635540494a9804e0adaa6",
+  "tracked_changes": "",
+  "seeds_old": 30,
+  "seeds_new": 30,
+  "totalRuns": 60,
+  "dayAccountingChecks": 420,
+  "policies": [
+    {
+      "policy": "forecast_good",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "meanCash": 1671.0333333333333,
+      "minCash": 1484,
+      "maxCash": 1826,
+      "rep": 70.56666666666666,
+      "goodRate": 0.9850967048305423,
+      "served": 83.53333333333333,
+      "unserved": 1.2666666666666666,
+      "regularGreat": 0,
+      "regularGoodPlus": 22.933333333333334,
+      "spoiled": 57.63333333333333,
+      "target1500": 0.9666666666666667,
+      "target1600": 0.8666666666666667,
+      "earlyCloseNights": 0,
+      "forcedClose": 0,
+      "unsellableDeclined": 25,
+      "declineActions": 0.8333333333333334,
+      "clicks": 534.6
+    },
+    {
+      "policy": "forecast_favorites",
+      "n": 30,
+      "completed": 30,
+      "stalled": 0,
+      "gameOver": 0,
+      "meanCash": 1543.4333333333334,
+      "minCash": 1253,
+      "maxCash": 1673,
+      "rep": 73.83333333333333,
+      "goodRate": 0.9802875443731435,
+      "served": 88.13333333333334,
+      "unserved": 1.6666666666666667,
+      "regularGreat": 14.8,
+      "regularGoodPlus": 22.833333333333332,
+      "spoiled": 73.16666666666667,
+      "target1500": 0.7333333333333333,
+      "target1600": 0.3,
+      "earlyCloseNights": 0,
+      "forcedClose": 0,
+      "unsellableDeclined": 32,
+      "declineActions": 1.0666666666666667,
+      "clicks": 597.4
+    }
+  ],
+  "checks": [
+    {
+      "id": "1",
+      "item": "基本GOODの平均最終現金が1500〜1700",
+      "pass": true,
+      "detail": "平均1671（1484〜1826）"
+    },
+    {
+      "id": "1b",
+      "item": "基本GOODの1500達成率が85〜95%",
+      "pass": false,
+      "detail": "96.7%"
+    },
+    {
+      "id": "4",
+      "item": "資金不足の休業（ゲームオーバー）が0（空の椀を除く）",
+      "pass": true,
+      "noted": false,
+      "detail": "空の椀を除く60周でゲームオーバー0・全周の進行停止0"
+    },
+    {
+      "id": "D1",
+      "item": "Day1のキャッシュフロー（600→530→320→仕込み→水道代→場所代＋売上）が全周で一致",
+      "pass": true,
+      "detail": "60/60周が一致"
+    },
+    {
+      "id": "R1",
+      "item": "結果画面の集計（Result.summarize）が日別集計と全周で一致し、最終日の先がRESULT",
+      "pass": true,
+      "detail": "60/60周が一致"
+    }
+  ],
+  "day1": {
+    "ok": 60,
+    "total": 60,
+    "bad": [],
+    "smallTier9CupsEnd": 505,
+    "smallTier9CupsRuns": 60
+  }
+}
