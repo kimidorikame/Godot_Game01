@@ -186,9 +186,9 @@ func play(p: String, run_seed: int) -> Dictionary:
 		# 表示だけのニュース／共通イベントの TEXT（part が news または common_event）は、プレイヤーの
 		# 判断ではないので、操作回数（clicks・actions・steps）に数えずに読み飛ばす。これ以外の差は
 		# 見逃さない（TEXT 以外・他の part は対象外）。
-		while panel.flow.runner != null and panel.flow.runner.status == EventRunner.Status.PLAYING \
-				and is_display_only(panel.flow.runner.current()):
-			panel._on_next_event_pressed()
+		while panel.session.flow.runner != null and panel.session.flow.runner.status == EventRunner.Status.PLAYING \
+				and is_display_only(panel.session.flow.runner.current()):
+			panel.session.next_event()
 		steps += 1
 		if steps % 12 == 0:
 			await tree.process_frame # release queue_free UI controls
@@ -202,7 +202,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 			if GameState.phase == GameState.Phase.OPEN and not seen_open:
 				seen_open = true
 				day1_cash["after_market"] = GameState.money
-		var r: EventRunner = panel.flow.runner
+		var r: EventRunner = panel.session.flow.runner
 		if GameState.phase == GameState.Phase.NEXT_DAY:
 			rows.append(day_row())
 			if GameState.day_count == 1:
@@ -212,24 +212,24 @@ func play(p: String, run_seed: int) -> Dictionary:
 				# 記録を累計（day_records）へ足し、結果画面（Phase.RESULT）へ入る。新しい周へは
 				# 進めない（reset_for_new_gameは呼ばれない）。結果画面の集計（Result.summarize）を
 				# 記録し、集計スクリプトがこのスクリプト内の日別集計と突き合わせる。
-				panel.flow.advance_phase()
+				panel.session.flow.advance_phase()
 				result_phase = str(GameState.Phase.keys()[GameState.phase])
 				result_summary = Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
 				done = true
 				break
 			seed(run_seed * 1000 + GameState.day_count + 1)
 			declined_group_today = false
-			panel.flow.advance_phase()
+			panel.session.flow.advance_phase()
 			before_market = false
 			continue
 		if r.status == EventRunner.Status.DONE:
 			# 修繕基金の方針のときだけ、CLOSEの語りを読み終えた時点（基金を積める時点）で積む。
 			if GameState.phase == GameState.Phase.CLOSE and POLICIES_FUND.has(policy):
 				fund_contribute()
-			panel.flow.advance_phase()
+			panel.session.flow.advance_phase()
 			continue
 		if GameState.phase == GameState.Phase.WAKE:
-			panel.flow.advance_phase()
+			panel.session.flow.advance_phase()
 			continue
 		var ev = r.current()
 		var typ := str(ev.get("type", "")) if ev is Dictionary else ""
@@ -243,7 +243,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 			tier_log.append({ "policy": policy, "seed": run_seed, "day": GameState.day_count,
 				"target": target_cups(), "chosen": chosen, "tier": tier })
 			act("prep")
-			panel._on_prep_tier_selected(tier)
+			panel.session.choose_prep_tier(tier)
 			if GameState.day_count == 1:
 				day1_cash["tier"] = tier
 				day1_cash["after_tier"] = GameState.money
@@ -253,18 +253,18 @@ func play(p: String, run_seed: int) -> Dictionary:
 				shop()
 				before_market = true
 			act("market_exit")
-			panel._on_market_exit_pressed()
+			panel.session.exit_market()
 			continue
 		if GameState.phase == GameState.Phase.OPEN:
-			if panel._pot_mode:
+			if panel.session.pot_open:
 				incidents.append({ "type": "pot_mode_stuck", "day": GameState.day_count,
 					"soup": GameState.soup.duplicate(), "dashi": GameState.dashi_units })
 				stalled = true
 				break
-			if panel._pending_shortage_ev != null:
+			if panel.session.pending_shortage_ev != null:
 				if not fix_pot() and not panel._btn_close.disabled:
 					act("close")
-					panel._on_close_pressed()
+					panel.session.close_shop()
 				continue
 			if typ == "ADJUST":
 				handle_adjust()
@@ -278,14 +278,14 @@ func play(p: String, run_seed: int) -> Dictionary:
 		if typ == "CHOICE":
 			# 店主の距離感の選択（システム整理C2）：先頭の選択肢を押す。現行の21場面には無い（通らない分岐）
 			act("story_choice")
-			panel._on_story_choice_pressed(str(ev.get("choice_id", "")), str((ev["options"] as Array)[0]["id"]))
+			panel.session.choose_story_option(str(ev.get("choice_id", "")), str((ev["options"] as Array)[0]["id"]))
 			continue
 		if r.status == EventRunner.Status.WAITING_INPUT:
 			act("input")
-			panel._on_complete_input_pressed()
+			panel.session.complete_input()
 		else:
 			act("next_text_event")
-			panel._on_next_event_pressed()
+			panel.session.next_event()
 	var result := { "policy": policy, "seed": run_seed, "completed": done,
 		"stalled": stalled or steps >= 6000, "cash": GameState.money, "rep": GameState.reputation,
 		"rows": rows, "incidents": incidents.duplicate(true), "actions": counts.duplicate(),
@@ -313,7 +313,7 @@ var stalled_flag := false
 ## 空の椀方針（bare_broth）では、これが期待どおりの動作として計数される。
 func handle_adjust() -> void:
 	stalled_flag = false
-	var order: Dictionary = panel._react_for_now()
+	var order: Dictionary = panel.session.react_for_now()
 	var wanted := int(order.get("servings", 1))
 	var is_mob := bool(order.get("is_mob", false))
 	if int(GameState.soup.remaining_servings) < wanted or int(GameState.soup.strength) <= 0:
@@ -323,35 +323,35 @@ func handle_adjust() -> void:
 	cook(order)
 	if is_mob:
 		act("confirm")
-		panel._on_complete_input_pressed()
-		if panel._pending_group_choice:
-			var achievable: int = panel._mob_achievable_servings(wanted)
+		panel.session.complete_input()
+		if panel.session.pending_group_choice:
+			var achievable: int = panel.session.mob_achievable_servings(wanted)
 			act("group_choice")
 			var wants_decline := policy == "decline_one_group" \
 					or (policy == "decline_once" and GameState.day_count == 3)
 			if wants_decline and not declined_group_today:
 				declined_group_today = true
 				act("decline_group")
-				panel._on_group_decline_pressed(wanted)
-			elif achievable < wanted and panel._mob_recipe_number == 1 \
+				panel.session.group_decline(wanted)
+			elif achievable < wanted and panel.session.mob_recipe_number == 1 \
 					and policy not in ["bare_broth", "cheap_valid", "no_split"]:
-				panel._on_group_retry_pressed(achievable, wanted)
+				panel.session.group_retry(achievable, wanted)
 			elif achievable > 0:
-				panel._on_group_serve_pressed(achievable, wanted)
+				panel.session.group_serve(achievable, wanted)
 			else:
 				if policy != "bare_broth":
 					incidents.append({ "type": "group_unsellable_declined", "day": GameState.day_count,
-						"additions": panel._open.current_bowl.get("additions", []).duplicate() })
+						"additions": panel.session.open.current_bowl.get("additions", []).duplicate() })
 				act("decline_unsellable")
-				panel._on_group_decline_pressed(wanted)
+				panel.session.group_decline(wanted)
 		return
 	if panel._btn_complete_input.disabled:
-		if panel._is_short_in_adjust() or panel._is_strength_zero_in_adjust():
+		if panel.session.is_short_in_adjust() or panel.session.is_strength_zero_in_adjust():
 			if not panel._btn_close.disabled:
 				incidents.append({ "type": "forced_close", "day": GameState.day_count,
 					"soup": GameState.soup.duplicate(), "dashi": GameState.dashi_units })
 				act("close")
-				panel._on_close_pressed()
+				panel.session.close_shop()
 				return
 			stalled_flag = true
 			incidents.append({ "type": "adjust_stuck", "day": GameState.day_count,
@@ -361,13 +361,13 @@ func handle_adjust() -> void:
 		if policy != "bare_broth":
 			incidents.append({ "type": "unsellable_declined", "day": GameState.day_count,
 				"customer": str(order.get("customer", "")),
-				"reasons": SaleRule.check(panel._open.current_bowl, GameState.soup).get("reasons", []),
-				"additions": panel._open.current_bowl.get("additions", []).duplicate() })
+				"reasons": SaleRule.check(panel.session.open.current_bowl, GameState.soup).get("reasons", []),
+				"additions": panel.session.open.current_bowl.get("additions", []).duplicate() })
 		act("decline_unsellable")
-		panel._on_customer_decline_pressed()
+		panel.session.decline_customer()
 		return
 	act("confirm")
-	panel._on_complete_input_pressed()
+	panel.session.complete_input()
 
 
 ## 仕込み段階：公開予報の上限案（range日）または確定杯数（exact日）を満たす最小の段階。
@@ -429,7 +429,7 @@ func push_fund(step: int) -> int:
 		return 0
 	var before := GameState.money
 	act("fund")
-	panel._on_fund_contribute_pressed(step)
+	panel.session.contribute_fund(step)
 	return before - GameState.money
 
 
@@ -544,7 +544,7 @@ func shop() -> void:
 			var short := n - fresh_supply(str(tag))
 			var best := {}
 			for shop_id in SHOPS:
-				for good in panel._shop_goods(shop_id):
+				for good in PlaySession.shop_goods(shop_id):
 					var id := str(good.get("item", ""))
 					if id == "" or id == "dashi" or not Ingredients.tags_for(id).has(str(tag)):
 						continue
@@ -570,16 +570,16 @@ func shop() -> void:
 				var favorite := str(flavor.get("favorite", ""))
 				if favorite != "":
 					ensure(favorite, GameState.fresh_count(favorite) + 1)
-	if panel._market_shop != "":
+	if panel.session.market_shop != "":
 		act("shop_exit")
-		panel._on_shop_exit_pressed()
+		panel.session.leave_shop()
 
 
 func ensure(id: String, target: int) -> void:
 	while GameState.fresh_count(id) < target:
 		var choices: Array = []
 		for shop_id in SHOPS:
-			for good in panel._shop_goods(shop_id):
+			for good in PlaySession.shop_goods(shop_id):
 				if str(good.get("item", "")) == id:
 					var short := target - GameState.fresh_count(id)
 					var units := int(good.get("count", 1))
@@ -592,15 +592,15 @@ func ensure(id: String, target: int) -> void:
 
 
 func buy(shop_id: String, id: String) -> void:
-	if panel._market_shop != shop_id:
-		if panel._market_shop != "":
+	if panel.session.market_shop != shop_id:
+		if panel.session.market_shop != "":
 			act("shop_exit")
-			panel._on_shop_exit_pressed()
+			panel.session.leave_shop()
 		act("shop_enter")
-		panel._on_market_stall_selected(shop_id)
+		panel.session.select_stall(shop_id)
 	var before := GameState.money
 	act("purchase")
-	panel._on_shop_item_selected(shop_id, id)
+	panel.session.buy_item(shop_id, id)
 	purchases += before - GameState.money
 
 
@@ -613,7 +613,7 @@ func cook(order: Dictionary) -> void:
 	if policy == "cheap_valid":
 		wanted = cheap_wanted(n)
 	if policy == "forecast_mistakes" and GameState.day_count in [3, 5] \
-			and panel._open.slot_index == 0 and not is_mob:
+			and panel.session.open.slot_index == 0 and not is_mob:
 		wanted = ["SAVORY", "FILLING"] if not wanted.has("SAVORY") else ["HOT", "POWER"]
 	# 品質失敗2件（個人1杯＋団体1組）を3日目に1回ずつ意図的に起こす（10.13の3番目）。
 	if policy == "two_failures" and GameState.day_count == 3:
@@ -632,14 +632,14 @@ func cook(order: Dictionary) -> void:
 		var id := choose(str(tag), n)
 		if id != "" and not added.has(id):
 			act("ingredient")
-			panel._on_ingredient_selected(id)
+			panel.session.select_ingredient(id)
 			added.append(id)
 		elif id == "" and is_neglect():
 			# 鮮度のミス：新鮮な在庫が無ければ傷んだ在庫も使う（判定が1段階下がる）。
 			var damaged_id := choose_damaged(str(tag), n)
 			if damaged_id != "" and not added.has(damaged_id):
 				act("ingredient_damaged")
-				panel._on_ingredient_selected(damaged_id, true)
+				panel.session.select_ingredient(damaged_id, true)
 				added.append(damaged_id)
 	var customer := str(order.get("customer", ""))
 	if policy == "forecast_favorites" and GameState.knows_favorite(customer):
@@ -669,7 +669,7 @@ func add_favorite(order: Dictionary, added: Array, n: int) -> void:
 	var favorite := str(order.get("favorite", ""))
 	if favorite != "" and not added.has(favorite) and GameState.fresh_count(favorite) >= n:
 		act("ingredient")
-		panel._on_ingredient_selected(favorite)
+		panel.session.select_ingredient(favorite)
 
 
 func choose(tag: String, n: int) -> String:
@@ -714,7 +714,7 @@ func first_day(id: String) -> int:
 func fix_pot() -> bool:
 	if panel._btn_pot.disabled:
 		return false
-	var n: int = int(panel._react_for_now().get("servings", 1))
+	var n: int = int(panel.session.react_for_now().get("servings", 1))
 	var v := int(GameState.soup.remaining_servings)
 	var s := int(GameState.soup.strength)
 	if v >= n:
@@ -725,26 +725,26 @@ func fix_pot() -> bool:
 		if s >= 2 and s <= 4:
 			return false
 	act("pot_open")
-	panel._on_pot_pressed()
+	panel.session.open_pot()
 	var changed := false
 	for attempt in range(6):
 		v = int(GameState.soup.remaining_servings)
 		s = int(GameState.soup.strength)
 		var need_water := (v < n or s >= 5) and GameState.water_reachable()
-		if s < 2 and GameState.can_add_dashi() and not panel._pot_locked_until_water():
+		if s < 2 and GameState.can_add_dashi() and not panel.session.pot_locked_until_water():
 			act("dashi")
-			panel._on_add_dashi_pressed()
+			panel.session.add_dashi()
 			changed = true
 		elif need_water and GameState.can_add_water():
 			# 水で濃さが1以下になるなら、先にだしで濃さを上げておく。
 			if s - GameState.WATER_STRENGTH_DELTA < 2 and GameState.can_add_dashi() \
 					and s + GameState.DASHI_STRENGTH_DELTA <= GameState.STRENGTH_MAX:
 				act("dashi")
-				panel._on_add_dashi_pressed()
+				panel.session.add_dashi()
 				changed = true
 			else:
 				act("water")
-				panel._on_add_water_pressed()
+				panel.session.add_water()
 				changed = true
 		else:
 			# 鍋を直したいのに直せないときだけ、理由を記録する（結果は変えない）。
@@ -766,11 +766,13 @@ func fix_pot() -> bool:
 					"reason": reason, "remaining": v, "strength": s, "need": n,
 					"dashi_units": GameState.dashi_units })
 			break
-	var locked: bool = (panel._pot_locked_until_water() and GameState.can_add_water()) \
-		or (panel._pot_locked_until_dashi() and GameState.can_add_dashi())
+	var locked: bool = (panel.session.pot_locked_until_water() and GameState.can_add_water()) \
+		or (panel.session.pot_locked_until_dashi() and GameState.can_add_dashi())
 	if not locked:
 		act("pot_back")
-		panel._on_pot_back_pressed()
+		panel.session.pot_open = false
+		panel.session.resume_after_shortage()
+		panel.session.notify_changed()
 	return changed
 
 
@@ -797,15 +799,15 @@ func day_row() -> Dictionary:
 				reg_good_plus += int(grades.get("GREAT", 0)) + int(grades.get("GOOD", 0))
 		if bool(rec.get("declined", false)):
 			declined += 1
-	var quality: float = panel._quality_score(panel._log_quality_counts, panel._log_judged_planned_cups)
+	var quality: float = panel.session.quality_score(panel.session.log_quality_counts, panel.session.log_judged_planned_cups)
 	return { "day": GameState.day_count, "cash": GameState.money, "open_rep": GameState.reputation,
 		"next_rep": roundi(GameState.reputation * 0.7 + quality * 0.3), "quality": quality,
-		"demand": panel._log_planned_cups, "judged_demand": panel._log_judged_planned_cups,
-		"served": served, "unserved": panel._log_planned_cups - served, "declined_records": declined,
+		"demand": panel.session.log_planned_cups, "judged_demand": panel.session.log_judged_planned_cups,
+		"served": served, "unserved": panel.session.log_planned_cups - served, "declined_records": declined,
 		"regular_cups": reg_cups, "regular_good_plus": reg_good_plus, "regular_great": reg_great,
-		"sales": sale, "grades": panel._log_quality_counts.duplicate(),
-		"spoiled_value": panel._spoiled_value(panel._log_spoiled_items),
-		"water": panel._log_water_used, "dashi": panel._log_dashi_used,
+		"sales": sale, "grades": panel.session.log_quality_counts.duplicate(),
+		"spoiled_value": panel.session.spoiled_value(panel.session.log_spoiled_items),
+		"water": panel.session.log_water_used, "dashi": panel.session.log_dashi_used,
 		"soup_left": GameState.soup.get("remaining_servings", 0),
 		"stock": GameState.inventory.duplicate(), "actions_cumulative": clicks,
-		"spend": Ledger.spend_by_category_today(), "closed_early": panel._log_closed_early }
+		"spend": Ledger.spend_by_category_today(), "closed_early": panel.session.log_closed_early }
