@@ -71,7 +71,7 @@ var _game_over_reason: String:
 # 区別はなくなり、どの客でも共通の得点表を使う（旧REPUTATION_NAMED/REPUTATION_MOBは
 # ④評判の更新+⑤客数の決め方で廃止。評判は閉店時に_quality_score()の結果をまとめて
 # GameState.settle_reputation()へ渡す1回だけの処理に変わった＝杯ごとの即時加算はしない）。
-const REPUTATION_SCORE := { "GREAT": 100, "GOOD": 75, "OK": 35, "BAD": 0 }
+# （評点の表 REPUTATION_SCORE は PlaySession へ移した）
 
 # [鍋を見る] の操作モード中か（DESIGN.md 7.6）。
 # EventRunner には一切触れない＝ index も status も動かさない。表示と操作対象を
@@ -175,7 +175,12 @@ var _debug_mob_count := -1
 # 前日の営業成績（翌朝のWAKE先頭で一度だけ見せる一言サマリー）。_game_over_reasonと
 # 同じ「一度だけ消費するテキスト」の形。_on_day_ending()（day_ending。NEXT_DAY→WAKEの
 # 折り返し直前に発火）で組み立て、次にWAKEのrunnerを組むときに読んで空文字へ戻す。
-var _last_day_summary_text := ""
+# UI準備Aの橋。テストを移したら削除（実体は session.last_day_summary_text）。
+var _last_day_summary_text: String:
+	get:
+		return session.last_day_summary_text
+	set(value):
+		session.last_day_summary_text = value
 
 # F7 同じ朝への復元（再挑戦・セーブ読み込み）の直後のWAKEで、保存してあるDayPlanを
 # そのまま使うための一度きりの印（_set_runner_for_phase(WAKE)が読んで消費する。
@@ -346,9 +351,19 @@ var _recipe_save_stage: String:
 	set(value):
 		session.recipe_save_stage = value
 # 修繕基金（4-9。RepairFund）：段階が上がった瞬間の一行（CLOSEの間だけ出す。runnerのイベントではない）。
-var _fund_notice := ""
+# UI準備Aの橋。テストを移したら削除（実体は session.fund_notice）。
+var _fund_notice: String:
+	get:
+		return session.fund_notice
+	set(value):
+		session.fund_notice = value
 # 積む先の対象のid（選択は実行時のみ・保存しない）。空・修繕済み・未解放なら既定（最初の未修繕の対象）を使う。
-var _fund_target := ""
+# UI準備Aの橋。テストを移したら削除（実体は session.fund_target）。
+var _fund_target: String:
+	get:
+		return session.fund_target
+	set(value):
+		session.fund_target = value
 # 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
 # _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
 var _logged_positions := {}
@@ -417,7 +432,7 @@ func _ready() -> void:
 	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
 	# 日次ログ：NEXT_DAY→WAKEの折り返しで、日次リセットの前に一日分の集計を確定して出す
 	# （シグナルは同期発火なので、ここが完了してからFlowController側の日次リセットへ進む）。
-	flow.day_ending.connect(_on_day_ending)
+	# （日の終わり day_ending は PlaySession が自分で受ける。ここでは結線しない）
 	# [次のEvent] = _on_next_event_pressed:
 	#   flow.runner_advance() で PLAYING のときだけ index を1つ進める。
 	#   WAITING_INPUT / DONE では何もしない（＝WAIT_INPUT で確実に止まる）。
@@ -1093,135 +1108,29 @@ func _on_runner_updated() -> void:
 	_refresh()
 
 
-## 日次ログの本体（FlowController.day_ending。NEXT_DAY→WAKEの折り返しで、日次リセットの
-## 前に発火する）。GameStateがまだその日の値のうちに集計を確定し、コンソールとファイルへ
-## 出す。④評判の更新（BALANCE_REDESIGN_PLAN.md§5）：ここで初めて、当夜品質Qから
-## GameState.settle_reputation()を1回だけ呼んで評判を確定させる（OPEN中は動かさない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.on_day_ending() を直接使う）。
 func _on_day_ending() -> void:
-	ReadState.flush()   # 既読は日の終わりに書き出す（1行ごとには書かない）
-	var served_cups := 0
-	var sale_total := 0
-	for record in GameState.served:
-		if record is Dictionary and not bool(record.get("discarded", false)):
-			served_cups += int(record.get("servings", 0))
-			sale_total += int(record.get("sale", 0))
-	var unserved_cups: int = maxi(_log_planned_cups - served_cups, 0)
-	var spoiled_value := _spoiled_value(_log_spoiled_items)
-	var quality := _quality_score(_log_quality_counts, _log_judged_planned_cups)
-	# 4-2：常連（名前あり客）への提供の杯数・GREAT・GOOD以上と、その日に来た常連のid。
-	# 結果画面の「常連GREAT」「客との間に残ったこと」の元になる（Result.regular_stats）。
-	var regulars := Result.regular_stats(GameState.served)
-	GameState.settle_reputation(quality)
-	var log_entry := {
-		"day": GameState.day_count,
-		"opening_money": _log_opening_money, "closing_money": GameState.money,
-		"opening_reputation": _log_opening_reputation, "closing_reputation": GameState.reputation,
-		"planned_cups": _log_planned_cups, "served_cups": served_cups,
-		"unserved_cups": unserved_cups, "sale_total": sale_total,
-		"quality_counts": _log_quality_counts.duplicate(),
-		"judged_planned_cups": _log_judged_planned_cups, "quality": quality,
-		"spoiled_items": _log_spoiled_items.duplicate(),
-		"spoiled_value": spoiled_value,
-		"water_used": _log_water_used, "dashi_used": _log_dashi_used,
-		"closed_early": _log_closed_early,
-		# F4 前日成績v2（DESIGN.md 10.8.4）：Ledgerから初めて出せるようになった追加情報。
-		# 既存キーは1つも変更していない（balance_log.jsonlの互換性を保つため、追加のみ）。
-		"spend_by_category": Ledger.spend_by_category_today(),
-		# 4-2 結果画面用（追加のみ）：常連の杯数・GREAT・GOOD以上・来店した常連のid。
-		"regular_cups": int(regulars["cups"]), "regular_great": int(regulars["great"]),
-		"regular_good_plus": int(regulars["good_plus"]),
-		"regular_visits": regulars["visits"],
-	}
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
-		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
-		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
-		served_cups, unserved_cups, _log_planned_cups, sale_total, spoiled_value,
-		_log_water_used, _log_dashi_used, str(_log_closed_early), str(_log_quality_counts)])
-	BalanceLog.append(log_entry)
-	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
-	# 続きからで戻した朝より後の日は持たない）。
-	GameState.record_day(log_entry)
-	# 日次の成績表示（③）：今日作ったlog_entryをそのまま人間向けの文にして、次のWAKE（別日）の先頭で一度だけ見せる。ここでのdebug_panel.gd内のローカル変数ではなくlog_entryの値だけを使うのは、日次ログファイルJSONと完全に同じ内容にして、二重の集計ロジックを作らないため。
-	_last_day_summary_text = _format_day_summary(log_entry)
+	session.on_day_ending()
 
 
-## 日次の成績表示（③）：_on_day_ending()が組み立てたlog_entry（opening/closingの所持金・評判、
-## 提供杯数、売上、品質内訳、廃棄額、水・だし回数、早期閉店）を、プレイヤー向けの
-## 日本語一言サマリーへ整形する。日内ログファイルJSONと同じlog_entryだけを参照し、新しい集計はしない。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.format_day_summary() を直接使う）。
 func _format_day_summary(log_entry: Dictionary) -> String:
-	var money_diff: int = int(log_entry["closing_money"]) - int(log_entry["opening_money"])
-	var counts: Dictionary = log_entry["quality_counts"]
-	var lines := PackedStringArray([
-		"◆前日（Day%d）の成績◆" % int(log_entry["day"]),
-		"所持金: %d → %d（%s%d）" % [
-			int(log_entry["opening_money"]), int(log_entry["closing_money"]),
-			"+" if money_diff >= 0 else "", money_diff],
-		"評判: %d → %d" % [
-			int(log_entry["opening_reputation"]), int(log_entry["closing_reputation"])],
-		"提供: %d/%d杯（未提供%d杯）　売上: %d" % [
-			int(log_entry["served_cups"]), int(log_entry["planned_cups"]),
-			int(log_entry["unserved_cups"]), int(log_entry["sale_total"])],
-		"品質: GREAT%d GOOD%d OK%d BAD%d（Q=%.1f）" % [
-			int(counts.get("GREAT", 0)), int(counts.get("GOOD", 0)),
-			int(counts.get("OK", 0)), int(counts.get("BAD", 0)), float(log_entry["quality"])],
-		"廃棄額: %d　水%d回／だし%d回" % [
-			int(log_entry["spoiled_value"]), int(log_entry["water_used"]), int(log_entry["dashi_used"])],
-	])
-	# F4 前日成績v2：Ledgerのカテゴリ別支出をそのまま並べる（新しい集計はしない。
-	# spend_by_categoryはLedger.spend_by_category_today()の結果をそのまま持つ）。
-	var spend_line := _format_spend_by_category(log_entry.get("spend_by_category", {}))
-	if spend_line != "":
-		lines.append(spend_line)
-	# 修繕基金（4-9）：基金を積んだ日だけ、屋台の段階を1行足す（積まなかった日の文面は従来と同一）。
-	if RepairFund.enabled() and int((log_entry.get("spend_by_category", {}) as Dictionary).get("fund", 0)) > 0:
-		lines.append("屋台: %s" % RepairFund.progress_text())
-	if bool(log_entry.get("closed_early", false)):
-		lines.append("（鍋が尽きて早めに閉店した）")
-	return "\n".join(lines)
+	return session.format_day_summary(log_entry)
 
 
-## F4 前日成績v2：Ledger.spend_by_category_today()の結果を「運営費80／場所代90」の
-## ような1行にする。固定の並び順で、支出が無かったカテゴリ（0または未記帳）は出さない。
-## 全カテゴリ0（何も支出が無い日）なら空文字を返す（_format_day_summary側で行を足さない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session._format_spend_by_category() を直接使う）。
 func _format_spend_by_category(spend: Dictionary) -> String:
-	const CATEGORY_LABELS := {
-		"daily_cost": "運営費", "rent": "場所代", "water": "水道代",
-		"kit": "初日セット", "prep": "仕込み", "market": "市場", "dashi": "だし",
-		"fund": "修繕基金",
-	}
-	var parts := PackedStringArray()
-	for category in ["daily_cost", "rent", "water", "kit", "prep", "market", "dashi", "fund"]:
-		var amount: int = int(spend.get(category, 0))
-		if amount > 0:
-			parts.append("%s%d" % [CATEGORY_LABELS[category], amount])
-	if parts.is_empty():
-		return ""
-	return "支出内訳: %s" % "／".join(parts)
+	return session._format_spend_by_category(spend)
 
 
-## discard_spoiled_inventory()が返す各品目の"value"（ロットごとに実際に払った単価×個数の
-## 合計。①具材の購入単位でGameStateが計算するようになった）をそのまま足し合わせるだけ。
-## 概算はしない（パック購入と小口購入で単価が違っても、GameStateが記録した実額を使う）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.spoiled_value() を直接使う）。
 func _spoiled_value(spoiled_items: Dictionary) -> int:
-	var total := 0
-	for item in spoiled_items:
-		total += int(spoiled_items[item].get("value", 0))
-	return total
+	return session.spoiled_value(spoiled_items)
 
 
-## 当夜品質Q（BALANCE_REDESIGN_PLAN.md§5）＝判定した杯の得点合計 ÷ 朝に確定した
-## 判定対象杯数（judge:falseの杯は数えない。judged_plannedはOPEN開始時に先読みした
-## _log_judged_planned_cups）。未提供の杯（部分提供の残り・早期閉店で届かなかった杯）は
-## 得点0のまま分母にだけ残る（quality_countsに積まれないため。指示文どおり、未提供への
-## 別の固定減点は重ねない）。judged_plannedが0（判定対象の杯が1つも無い日。実際には
-## 起こらない想定だがガードする）ならQは0とみなす。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.quality_score() を直接使う）。
 func _quality_score(counts: Dictionary, judged_planned: int) -> float:
-	if judged_planned <= 0:
-		return 0.0
-	var total := 0
-	for key in REPUTATION_SCORE:
-		total += int(REPUTATION_SCORE[key]) * int(counts.get(key, 0))
-	return float(total) / float(judged_planned)
+	return session.quality_score(counts, judged_planned)
 
 
 func _on_day_plus_pressed() -> void:
@@ -1474,8 +1383,7 @@ func _update_options_row() -> void:
 ## 積み立て行を出す時点：機能オン・CLOSE の語りを読み終えた後（runner が DONE）・スマホを開いていない間。
 ## [次のPhase]のゲートは変えない（押さなければ「積まない」）。CLOSE の close_events（TEXT列）には足さない。
 func _fund_row_visible() -> bool:
-	return RepairFund.enabled() and GameState.phase == GameState.Phase.CLOSE and flow.runner != null \
-			and flow.is_runner_done() and not _phone_mode
+	return session.fund_row_available() and not _phone_mode
 
 
 ## 刻みごとの「修繕基金に積む +N」ボタン。安全上限・最終段階までの残りを超える額は無効。
@@ -1498,33 +1406,25 @@ func _add_fund_buttons() -> void:
 			_on_fund_contribute_pressed.bind(step))
 
 
-## いま積む先の対象のid：選んだ対象（未修繕で解放済み）、無効なら最初の未修繕の対象。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.fund_selected() を直接使う）。
 func _fund_selected() -> String:
-	if _fund_target != "" and not RepairFund.target(_fund_target).is_empty() and not RepairFund.is_repaired(_fund_target) \
-			and RepairFund.unlocked(_fund_target):
-		return _fund_target
-	return RepairFund.first_open_target()
+	return session.fund_selected()
 
 
-## 積む先を切り替える（実行時のみ。保存しない）。修繕済み・未解放・存在しない対象は選べない。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.select_fund_target() を直接使う）。
+# スマホを開いている間は表示の状態なので、ここで足す（積み立て行は出ていない＝選べない）。
 func _on_fund_target_selected(target_id: String) -> void:
-	if _fund_row_visible() and not RepairFund.target(target_id).is_empty() and not RepairFund.is_repaired(target_id) \
-			and RepairFund.unlocked(target_id):
-		_fund_target = target_id
-	_refresh()
-
-
-## 積む。段階が上がったら、label を使った一行を覚えて CLOSE の間だけ表示する。
-## ゲームオーバーにはならない（RepairFund.contribute は払えるときだけ払う）。
-func _on_fund_contribute_pressed(amount: int) -> void:
-	if not _fund_row_visible():
+	if _phone_mode:
+		_refresh()
 		return
-	var before := RepairFund.repaired_ids()
-	if RepairFund.contribute(_fund_selected(), amount):
-		var message := RepairFund.repaired_message(before, RepairFund.repaired_ids())
-		if message != "":
-			_fund_notice = message
-	_refresh()
+	session.select_fund_target(target_id)
+
+
+# UI準備Aの橋。テストを移したら削除（本番UIは session.contribute_fund() を直接使う）。
+func _on_fund_contribute_pressed(amount: int) -> void:
+	if _phone_mode:
+		return
+	session.contribute_fund(amount)
 
 
 ## CLOSE の積み立て行の状態表示（runner のラベルの末尾）。累計・段階・次の段階まで・今日積める上限・
@@ -2234,27 +2134,26 @@ func _format_bowl() -> String:
 ## F3 減点の事前表示（DESIGN.md 10.3.1・10.3.2・判断が必要な点4）。まだ判定していない
 ## 椀について、SaleRuleで提供不可なら理由を（優先）、提供はできてもJudgeで濃さ・傷みの
 ## 減点が見込まれるならその理由を返す。どちらも該当しなければ空文字（_format_bowl()側で
-## 行を足さない）。
+## 行を足さない）。理由は PlaySession.sale_hint() のコード（UI準備A④で抜き出した）から文にする。
 func _format_sale_hint() -> String:
 	if _open == null or not _open.current_bowl.has("customer_id"):
 		return ""
-	var reasons: Array = SaleRule.check(_open.current_bowl, GameState.soup).get("reasons", [])
+	var hint: Dictionary = session.sale_hint()
+	var blockers: Array = hint["blockers"]
 	var composition_reasons := PackedStringArray()
-	if reasons.has(SaleRule.NO_FLAVOR):
+	if blockers.has(SaleRule.NO_FLAVOR):
 		composition_reasons.append("味付けが入っていません")
-	if reasons.has(SaleRule.NO_TOPPING):
+	if blockers.has(SaleRule.NO_TOPPING):
 		composition_reasons.append("具が入っていません")
 	if not composition_reasons.is_empty():
 		return "（このままでは提供できません：%s）" % "・".join(composition_reasons)
-	var used_spoiled: bool = bool(_open.current_bowl.get("used_spoiled", false))
-	var strength := int(GameState.soup.get("strength", 3)) if GameState.soup != null else 3
-	var bad_strength: bool = strength == GameState.STRENGTH_MIN or strength == GameState.STRENGTH_MAX
-	if bad_strength or used_spoiled:
-		var penalty_reasons := PackedStringArray()
-		if bad_strength:
-			penalty_reasons.append("濃さが%d" % strength)
-		if used_spoiled:
+	var penalty_reasons := PackedStringArray()
+	for penalty in hint["penalties"]:
+		if str(penalty["code"]) == "STRENGTH_EXTREME":
+			penalty_reasons.append("濃さが%d" % int(penalty["value"]))
+		elif str(penalty["code"]) == "SPOILED":
 			penalty_reasons.append("傷んだ具材を使っています")
+	if not penalty_reasons.is_empty():
 		return "（このままだと1段階下がります：%s）" % "・".join(penalty_reasons)
 	return ""
 
