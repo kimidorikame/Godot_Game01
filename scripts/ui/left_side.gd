@@ -1,0 +1,201 @@
+extends Control
+class_name UiLeftSide
+## 本番UIの左側（共通）：上部の日・時間帯、所持金・評判、立ち絵枠、名前の札、会話枠、選択肢、
+## スマホ・ログのアイコン、既読スキップ。鍋でもトッピングでも位置は動かさない（寸法表 KAITEN_UI_LAYOUT §1）。
+## ゲームの判定は持たない。PlaySession の問い（current_line・current_choices・day_info など）を読んで描き、
+## 会話を進める操作だけを PlaySession へ送る。親（game_root）が bind_session() を1回、refresh() を changed のたびに呼ぶ。
+
+signal phone_requested()
+signal log_requested()
+
+const CHARS_PER_LINE := 30    # 会話枠：1行30字（全角。半角は0.5字）
+const LINES_PER_PAGE := 3     # ×3行。入りきらない文は枠内でページ送り
+const SLOT_SHORT := { "宵の口": "宵", "夜半": "夜半", "明け方": "明" }
+const SUMMARY_LINE := "昨夜の成績を確かめた。"   # part:"day_summary" の行は、会話枠にはこの1行だけを出す（中身は右の枠）
+
+var session: PlaySession = null
+var _pages: Array = []
+var _page := 0
+var _key := ""
+
+@onready var _day_label: Label = %DayLabel
+@onready var _screen_name: Label = %ScreenName
+@onready var _time_gauge: Control = %TimeGauge
+@onready var _money_label: Label = %MoneyLabel
+@onready var _reputation_label: Label = %ReputationLabel
+@onready var _portrait: Control = %Portrait
+@onready var _choices: VBoxContainer = %Choices
+@onready var _phone_icon: Button = %PhoneIcon
+@onready var _log_icon: Button = %LogIcon
+@onready var _name_plate: Control = %NamePlate
+@onready var _name_label: Label = %NameLabel
+@onready var _dialogue_box: Control = %DialogueBox
+@onready var _dialogue_text: Label = %DialogueText
+@onready var _page_mark: Label = %PageMark
+@onready var _skip_button: Button = %SkipButton
+
+
+func _ready() -> void:
+	_phone_icon.pressed.connect(func(): phone_requested.emit())
+	_log_icon.pressed.connect(func(): log_requested.emit())
+	_skip_button.pressed.connect(_on_skip_pressed)
+	_dialogue_box.gui_input.connect(_on_dialogue_input)
+
+
+func bind_session(s: PlaySession) -> void:
+	session = s
+
+
+## 会話の文を、30字×3行のページに分ける（全角1字＝1、半角＝0.5。\n は改行）。1ページの行は3つまで。
+## 文字の幅はフォントに依らず数える（24px の全角30字＝720px）ので、ヘッドレスのテストでも同じに動く。
+static func paginate(text: String, chars_per_line: int = CHARS_PER_LINE, lines_per_page: int = LINES_PER_PAGE) -> Array:
+	var lines: Array = []
+	for raw in text.split("\n"):
+		var current := ""
+		var width := 0.0
+		for ch in raw:
+			var w := 0.5 if ch.unicode_at(0) < 0x100 else 1.0
+			if width + w > float(chars_per_line):
+				lines.append(current)
+				current = ""
+				width = 0.0
+			current += ch
+			width += w
+		lines.append(current)
+	var pages: Array = []
+	var i := 0
+	while i < lines.size():
+		pages.append("\n".join(lines.slice(i, i + lines_per_page)))
+		i += lines_per_page
+	if pages.is_empty():
+		pages.append("")
+	return pages
+
+
+## 会話枠に出す内容：{ speaker（客id。地の文は ""）, text }。聞き直しの再表示があるときはそれを優先する。
+func _display() -> Dictionary:
+	if session.reask_customer_id != "" and session.adjust_customer_id() == session.reask_customer_id \
+			and not session.reask_lines.is_empty():
+		var lines: Array = []
+		for l in session.reask_lines:
+			lines.append(str(l))
+		return { "speaker": session.reask_customer_id, "text": "\n".join(lines) }
+	var line := session.current_line()
+	if line.is_empty():
+		return { "speaker": "", "text": "" }
+	var text := str(line.get("text", ""))
+	if str(line.get("part", "")) == "day_summary":
+		text = SUMMARY_LINE
+	return { "speaker": str(line.get("speaker", "")), "text": text }
+
+
+func refresh() -> void:
+	if session == null:
+		return
+	var info := session.day_info()
+	_day_label.text = "Day %d" % int(info["day"])
+	_money_label.text = "¥%d" % int(info["money"])
+	_reputation_label.text = "評判 %d" % int(info["reputation"])
+	_refresh_time(info)
+	var shown := _display()
+	var speaker := str(shown["speaker"])
+	_portrait.visible = speaker != "" or _customer_present(info)
+	_name_plate.visible = speaker != ""
+	_name_label.text = session.log_speaker(speaker) if speaker != "" else ""
+	var run_index := session.flow.runner.index if session.flow.runner != null else -1
+	var key := "%d|%d|%s" % [int(info["phase"]), run_index, str(shown["text"])]
+	if key != _key:
+		_key = key
+		_pages = paginate(str(shown["text"]))
+		_page = 0
+	_show_page()
+	_refresh_choices()
+	_skip_button.disabled = not session.can_skip_step()
+
+
+## 開店中、いま客がそこにいるか（立ち絵の枠を出す）。語りの行でも、客が店にいる間は枠を残す。
+func _customer_present(info: Dictionary) -> bool:
+	return str(info["phase_name"]) == "OPEN" and session.open != null and session.open.current_customer() != null
+
+
+func _show_page() -> void:
+	_dialogue_text.text = str(_pages[_page])
+	var more := _page < _pages.size() - 1
+	_page_mark.text = "▼続く" if more else "▼"
+	_page_mark.visible = _dialogue_text.text != ""
+
+
+## 上部：開店中だけ時間帯ゲージ（宵／夜半／明）、それ以外は画面名（朝／市場／閉店）。
+func _refresh_time(info: Dictionary) -> void:
+	var in_open := str(info["phase_name"]) == "OPEN" and session.open != null
+	_time_gauge.visible = in_open
+	_screen_name.visible = not in_open
+	if in_open:
+		var schedule: Array = session.open.schedule
+		for i in range(_time_gauge.get_child_count()):
+			var slot_ui: Control = _time_gauge.get_child(i)
+			slot_ui.visible = i < schedule.size()
+			if i < schedule.size():
+				var name_text := str(schedule[i].get("name", ""))
+				var on := i == int(info["slot_index"])
+				var name_node: Label = slot_ui.get_node("Name")
+				name_node.text = str(SLOT_SHORT.get(name_text, name_text))
+				name_node.theme_type_variation = &"" if on else &"LabelDim"
+				(slot_ui.get_node("Bar") as ColorRect).color = get_theme_color(&"accent", &"UiPalette") if on \
+					else get_theme_color(&"line", &"UiPalette")
+	else:
+		match str(info["phase_name"]):
+			"WAKE":
+				_screen_name.text = "朝"
+			"PREP":
+				_screen_name.text = "市場"
+			"CLOSE":
+				_screen_name.text = "閉店"
+			_:
+				_screen_name.text = ""
+
+
+func _refresh_choices() -> void:
+	for child in _choices.get_children():
+		_choices.remove_child(child)
+		child.queue_free()
+	var data := session.current_choices()
+	if data.is_empty():
+		return
+	for option in data["options"]:
+		var button := Button.new()
+		button.theme_type_variation = &"ButtonChoice"
+		button.text = str(option["label"])
+		button.custom_minimum_size = Vector2(400, 52)
+		button.pressed.connect(session.choose_story_option.bind(str(data["choice_id"]), str(option["id"])))
+		_choices.add_child(button)
+
+
+## 会話を進める（会話枠のクリック・Enter・Space）。ページが残っていれば先にページを送り、
+## 残っていなければ PlaySession の次のEventへ（can_next_event のとき）。
+func advance() -> void:
+	if session == null:
+		return
+	if _page < _pages.size() - 1:
+		_page += 1
+		_show_page()
+		return
+	if session.can_next_event():
+		session.next_event()
+
+
+## 区切り（phase_entering）で、表示だけの状態を捨てる。
+func reset_ui_state() -> void:
+	_key = ""
+	_page = 0
+
+
+func _on_skip_pressed() -> void:
+	if session != null:
+		session.skip_read()
+
+
+func _on_dialogue_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		advance()
+		accept_event()

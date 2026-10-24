@@ -1,0 +1,44 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Theme" path="res://resources/ui_theme.tres" id="1_iusj4"]
+[ext_resource type="Script" path="res://scripts/ui/game_root.gd" id="2_a1rh6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/left_side.tscn" id="3_j7aru"]
+[ext_resource type="Script" path="res://scripts/ui/left_side.gd" id="4_ylec3"]
+[ext_resource type="Script" path="res://scripts/play_session.gd" id="5_6v30a"]
+
+[node name="GameRoot" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+theme = ExtResource("1_iusj4")
+script = ExtResource("2_a1rh6")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+color = Color(0.0705882, 0.0862745, 0.113725, 1)
+
+[node name="LeftSide" type="Control" parent="." instance=ExtResource("3_j7aru")]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 0
+offset_right = 820.0
+offset_bottom = 720.0
+mouse_filter = 2
+script = ExtResource("4_ylec3")
+
+[node name="RightPane" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 836.0
+offset_top = 24.0
+offset_right = 1256.0
+offset_bottom = 696.0
+mouse_filter = 2
+
+[node name="Session" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_6v30a")
