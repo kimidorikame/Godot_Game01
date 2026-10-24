@@ -262,7 +262,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 				stalled = true
 				break
 			if panel.session.pending_shortage_ev != null:
-				if not fix_pot() and not panel._btn_close.disabled:
+				if not fix_pot() and panel.session.can_close_now():
 					act("close")
 					panel.session.close_shop()
 				continue
@@ -273,7 +273,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 					break
 				continue
 			# 注文を取る前に濃さを整える（ADJUST中は通常の鍋操作がロックされる）。
-			if typ not in ["SERVE", "REACT"] and not panel._btn_pot.disabled:
+			if typ not in ["SERVE", "REACT"] and panel.session.can_touch_pot():
 				fix_pot()
 		if typ == "CHOICE":
 			# 店主の距離感の選択（システム整理C2）：先頭の選択肢を押す。現行の21場面には無い（通らない分岐）
@@ -345,9 +345,9 @@ func handle_adjust() -> void:
 				act("decline_unsellable")
 				panel.session.group_decline(wanted)
 		return
-	if panel._btn_complete_input.disabled:
+	if not panel.session.can_complete_input():
 		if panel.session.is_short_in_adjust() or panel.session.is_strength_zero_in_adjust():
-			if not panel._btn_close.disabled:
+			if panel.session.can_close_now():
 				incidents.append({ "type": "forced_close", "day": GameState.day_count,
 					"soup": GameState.soup.duplicate(), "dashi": GameState.dashi_units })
 				act("close")
@@ -712,7 +712,7 @@ func first_day(id: String) -> int:
 ## （3→5→3で減点なしに残量+2。だしが無ければ従来どおり水のみ）。
 ## strength_neglect方針は、残量不足か濃さ0（提供不可）でない限り調整しない。
 func fix_pot() -> bool:
-	if panel._btn_pot.disabled:
+	if not panel.session.can_touch_pot():
 		return false
 	var n: int = int(panel.session.react_for_now().get("servings", 1))
 	var v := int(GameState.soup.remaining_servings)
