@@ -23,14 +23,14 @@ func run(t: SceneTree) -> int:
 	# --- 2. DebugPanelとの結線 ---
 	GameState.reset_for_new_game()
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
-	c.check("木に入れる前から session と flow を使える（flow は session.flow の橋）",
-		panel.session is PlaySession and panel.flow == panel.session.flow and panel.flow is FlowController)
+	c.check("木に入れる前から session と flow を使える",
+		panel.session is PlaySession and panel.session.flow is FlowController)
 	t.root.add_child(panel)
 	c.check("PlaySession はパネルの子ノード", panel.session.get_parent() == panel)
 	c.check("FlowController は PlaySession の子で、パネル直下にもう無い（.tscn から外した）",
 		panel.get_node_or_null("FlowController") == null and panel.session.flow.get_parent() == panel.session)
 	c.check("起動すると最初の朝（WAKE）の列が組まれる（従来どおり）",
-		GameState.phase == GameState.Phase.WAKE and panel.flow.runner != null and panel.flow.runner.events.size() > 0)
+		GameState.phase == GameState.Phase.WAKE and panel.session.flow.runner != null and panel.session.flow.runner.events.size() > 0)
 	panel._runner_label.text = "（描き直す前）"
 	panel.session.notify_changed()
 	c.check("changed を受けるとパネルが描き直す（_refresh）", panel._runner_label.text != "（描き直す前）")

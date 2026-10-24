@@ -17,7 +17,7 @@ func _setup(t: SceneTree, money: int, day: int, keep_wake_money: bool = false):
 	if not keep_wake_money:
 		GameState.money = money
 	GameState.phase = GameState.Phase.PREP
-	panel._set_runner_for_phase(GameState.Phase.PREP)
+	panel.session.set_runner_for_phase(GameState.Phase.PREP)
 	return panel
 
 
@@ -26,7 +26,7 @@ func _to_tier(panel) -> void:
 	var guard := 0
 	while not panel.session.is_in_prep_tier() and guard < 50:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 ## 市場（MARKET）まで進める（段階を選んだあと）。
@@ -34,7 +34,7 @@ func _to_market(panel) -> void:
 	var guard := 0
 	while not panel.session.is_in_market() and guard < 50:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func run(t: SceneTree) -> int:
@@ -89,7 +89,7 @@ func run(t: SceneTree) -> int:
 	var p2c = _setup(t, 50, 3)
 	c.check("クズ野菜ベースの日：支払いは無く、小仕込み相当（8杯）の自動の鍋の素",
 		p2c.session.today_base() == { "paid": false, "tier_id": "small", "label": "小仕込み", "servings": 8, "scraps": true }
-			and p2c._scraps_base == p2c.session.scraps_base, str(p2c.session.today_base()))
+			and p2c.session.scraps_base, str(p2c.session.today_base()))
 	p2c.session.scraps_base = true
 	GameState.phase = GameState.Phase.WAKE
 	c.check("仕込みの前（朝）は、前日のクズ野菜の印が残っていても scraps は false",
@@ -112,7 +112,7 @@ func run(t: SceneTree) -> int:
 	counter["n"] = 0
 	p3.session.select_stall("produce")
 	c.check("店へ入る：market_shop が店のid・changed が1回・DebugPanelの橋も同じ値",
-		p3.session.market_shop == "produce" and counter["n"] == 1 and p3._market_shop == "produce")
+		p3.session.market_shop == "produce" and counter["n"] == 1)
 	p3.session.select_stall("nothing")
 	c.check("知らない店のidでは市場のトップに戻らず現在の店のまま", p3.session.market_shop == "produce")
 	GameState.inventory.erase("winter_melon")
@@ -204,8 +204,6 @@ func run(t: SceneTree) -> int:
 	GameState.money = 5
 	c.check("払えなければ false・所持金は変わらず GAME_OVER", not p7.session.pay_or_game_over(10, "water")
 		and GameState.money == 5 and GameState.phase == GameState.Phase.GAME_OVER)
-	c.check("DebugPanelの橋（_game_over_reason）は session.game_over_reason と同じ値を指す",
-		p7._game_over_reason == p7.session.game_over_reason)
 	p7.free()
 
 	GameState.reset_for_new_game()

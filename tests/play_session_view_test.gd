@@ -41,7 +41,7 @@ func run(t: SceneTree) -> int:
 	s.open = OpenController.new([{ "name": "宵の口", "customers": ["officer"] }])
 	s.load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		s.next_event()
 	info = s.day_info()

@@ -27,7 +27,7 @@ func run(t: SceneTree) -> int:
 	s.open = OpenController.new([{ "name": "宵の口", "customers": ["officer"] }])
 	s.load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		s.next_event()
 	var buttons: Array = s.recipe_adjust_buttons()
@@ -54,8 +54,7 @@ func run(t: SceneTree) -> int:
 			and view["slots"].size() == 3 and view["slots"][0]["selectable"] and not view["slots"][1]["selectable"]
 			and not view["names"].is_empty(), str(view))
 	s.start_recipe_save()
-	c.check("start_recipe_save()：枠を選ぶ段階（橋 _recipe_save_stage も同じ値）", s.recipe_save_view()["stage"] == "slot"
-		and panel._recipe_save_stage == "slot")
+	c.check("start_recipe_save()：枠を選ぶ段階", s.recipe_save_view()["stage"] == "slot")
 	s.select_recipe_slot(0)
 	c.check("select_recipe_slot(0)：名前を選ぶ段階・選んだ枠が session に入る", s.recipe_save_view()["stage"] == "name" and s.recipe_save_slot == 0)
 	var chosen: String = s.recipe_save_view()["names"][0]

@@ -94,8 +94,6 @@ func run(t: SceneTree) -> int:
 	c.check("new_run()：新しい周のDay1のWAKE・累計空・朝の記録は新しいDay1だけ",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1 and GameState.day_records.is_empty()
 			and GameState.morning_snapshots.size() == 1 and GameState.morning_snapshots.has(1))
-	c.check("橋 _save_armed／_pending_continue は session の状態を指す",
-		panel._save_armed == p.save_armed and panel._pending_continue == p.pending_continue)
 	ex = p.exits()
 	c.check("exits()：結果でもゲームオーバーでもない通常の朝は available が false", not ex["available"])
 	GameState.phase = GameState.Phase.RESULT

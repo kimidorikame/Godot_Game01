@@ -268,8 +268,8 @@ func run(t: SceneTree) -> int:
 		ReadState.mark(ReadState.line_key("narration", "", "", "長い行%d" % i))
 	plimit.session.flow.set_runner(long_events)
 	var steps_limit: int = plimit._on_skip_read_pressed()
-	c.check("上限（%d回）で止まる" % plimit.SKIP_READ_LIMIT, steps_limit == plimit.SKIP_READ_LIMIT
-		and plimit.session.flow.runner.index == plimit.SKIP_READ_LIMIT)
+	c.check("上限（%d回）で止まる" % PlaySession.SKIP_READ_LIMIT, steps_limit == PlaySession.SKIP_READ_LIMIT
+		and plimit.session.flow.runner.index == PlaySession.SKIP_READ_LIMIT)
 	plimit.free()
 
 	# 無効（試遊）：既読にならず、毎回その行で止まる

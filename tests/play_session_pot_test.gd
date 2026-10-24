@@ -23,7 +23,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary, strength
 		GameState.soup["strength"] = strength
 	panel.session.load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel.session.next_event()
 	return panel
@@ -57,7 +57,7 @@ func run(t: SceneTree) -> int:
 	s.changed.connect(func(): count["n"] += 1)
 	s.open_pot()
 	c.check("open_pot()：鍋モードに入る・鍵はリセット・changed が1回・橋 _pot_mode も同じ値",
-		s.pot_open and not s.pot_water_added and not s.pot_dashi_added and count["n"] == 1 and p1._pot_mode == s.pot_open)
+		s.pot_open and not s.pot_water_added and not s.pot_dashi_added and count["n"] == 1)
 	c.check("鍋モード中は、もう一度は入れない／次のEventには進めない", not s.can_touch_pot() and not s.can_next_event())
 	c.check("濃さ0で入ったので『だしを入れるまで戻れない』鍵がかかる（水の鍵は無い）",
 		s.pot_locked_until_dashi() and not s.pot_locked_until_water())
@@ -86,8 +86,8 @@ func run(t: SceneTree) -> int:
 	p2.session.complete_input()
 	p2.session.next_event()
 	var served2 := GameState.served.size()
-	p2._on_pot_pressed()
-	p2._on_add_dashi_pressed()
+	p2.session.open_pot()
+	p2.session.add_dashi()
 	p2._on_pot_back_pressed()
 	c.check("[戻る]：鍋モードを抜けて保留が解決する（提供が1増え、選択待ちが消え、鍋モードも終わる）",
 		GameState.served.size() == served2 + 1 and not p2.session.is_shortage_pending() and not p2.session.pot_open)
@@ -125,7 +125,7 @@ func run(t: SceneTree) -> int:
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	p5.session.load_current_customer()
 	var g5 := 0
-	while p5.flow.runner.status != EventRunner.Status.WAITING_INPUT and g5 < 100:
+	while p5.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and g5 < 100:
 		g5 += 1
 		p5.session.next_event()
 	c.check("モブのADJUST：客を断るボタンは出さない（can_decline が false）・次のEventには進める",

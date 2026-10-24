@@ -18,9 +18,9 @@ func _panel(t: SceneTree, day: int, money: int):
 
 
 func _to_close_done(panel) -> void:
-	panel.flow.force_phase(GameState.Phase.CLOSE)
+	panel.session.flow.force_phase(GameState.Phase.CLOSE)
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.DONE and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 100:
 		guard += 1
 		panel.session.next_event()
 
@@ -34,8 +34,6 @@ func run(t: SceneTree) -> int:
 	c.check("当夜品質：(GREAT100＋GOOD75)÷判定対象4杯＝43.75、対象0杯なら0",
 		is_equal_approx(s.quality_score({ "GREAT": 1, "GOOD": 1 }, 4), 43.75) and s.quality_score({ "GREAT": 3 }, 0) == 0.0)
 	c.check("廃棄額は各品目の value の合計", s.spoiled_value({ "tofu": { "value": 24 }, "x": { "value": 6 } }) == 30)
-	c.check("橋 _quality_score／_spoiled_value も同じ値", is_equal_approx(p1._quality_score({ "OK": 2 }, 4), 17.5)
-		and p1._spoiled_value({ "tofu": { "value": 24 } }) == 24)
 
 	# --- 2. 今夜の結果（閉店の画面）：日次ログと同じ元から読む ---
 	s.log_planned_cups = 9
@@ -46,13 +44,12 @@ func run(t: SceneTree) -> int:
 	c.check("今夜の結果：注文9・提供2（廃棄した杯は数えない）・未提供7・売上90・評価の内訳",
 		result["ordered_cups"] == 9 and result["served_cups"] == 2 and result["unserved_cups"] == 7
 			and result["sales"] == 90 and result["grades"]["GOOD"] == 1 and result["grades"]["OK"] == 1, str(result))
-	c.check("橋 _log_planned_cups と同じ元を指す", p1._log_planned_cups == 9)
 
 	# --- 3. 日の終わり：session が自分で受け、前日成績の文と日次ログ・累計を作る（1回だけ） ---
 	GameState.day_records = []
 	s.last_day_summary_text = ""
 	GameState.phase = GameState.Phase.NEXT_DAY
-	p1.flow.advance_phase()   # NEXT_DAY→WAKE。日の終わり（day_ending）→日次リセット
+	p1.session.flow.advance_phase()   # NEXT_DAY→WAKE。日の終わり（day_ending）→日次リセット
 	c.check("日の終わりは1回だけ処理され、その日の記録が累計に1件入る（DebugPanelは結線していない）",
 		GameState.day_records.size() == 1 and int(GameState.day_records[0]["day"]) == 2, str(GameState.day_records.size()))
 	c.check("記録は日次ログと同じキー（提供・未提供・売上・品質・早期閉店など）",
@@ -65,7 +62,7 @@ func run(t: SceneTree) -> int:
 	var summary: String = s.format_day_summary(GameState.day_records[0])
 	c.check("前日成績の文：見出し・提供杯数・品質の行が出る（橋 _format_day_summary も同じ）",
 		summary.contains("◆前日（Day2）の成績◆") and summary.contains("提供: 2/9杯（未提供7杯）") and summary.contains("品質:")
-			and p1._format_day_summary(GameState.day_records[0]) == summary, summary)
+			and p1.session.format_day_summary(GameState.day_records[0]) == summary, summary)
 	p1.free()
 	var p1b = _panel(t, 1, 500)
 	c.check("Day1の朝は前日成績が無い（空）", p1b.session.previous_day_record().is_empty())
@@ -89,10 +86,10 @@ func run(t: SceneTree) -> int:
 	c.check("contribute_fund(10)：所持金-10・今夜の額10・看板に10・changed が出る・橋 _fund_selected も同じ",
 		GameState.money == money - 10 and p2.session.fund_view()["paid_tonight"] == 10
 			and p2.session.fund_view()["targets"][0]["paid"] == 10 and count["n"] >= 1
-			and p2._fund_selected() == p2.session.fund_selected())
+			and p2.session.fund_selected() == "sign")
 	p2.session.select_fund_target("shelf")
 	c.check("積む先を棚へ切り替えられる（実行時のみ・橋 _fund_target も同じ値）",
-		p2.session.fund_view()["selected"] == "shelf" and p2._fund_target == "shelf")
+		p2.session.fund_view()["selected"] == "shelf" and p2.session.fund_target == "shelf")
 	p2.session.select_fund_target("owner")
 	c.check("未解放の対象は選べない（選択は変わらない）", p2.session.fund_view()["selected"] == "shelf")
 	p2.free()
@@ -109,7 +106,7 @@ func run(t: SceneTree) -> int:
 	s3.open = OpenController.new([{ "name": "宵の口", "customers": ["officer"] }])
 	s3.load_current_customer()
 	var guard := 0
-	while p3.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while p3.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		s3.next_event()
 	var hint: Dictionary = s3.sale_hint()

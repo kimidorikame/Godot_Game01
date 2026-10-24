@@ -27,8 +27,8 @@ func run(t: SceneTree) -> int:
 	var count := { "n": 0 }
 	s.changed.connect(func(): count["n"] += 1)
 
-	c.check("客キュー（open）：橋 _open も同じものを指し、最初の客は新人警官",
-		s.open != null and panel._open == s.open and str(s.open.current_customer()) == "officer")
+	c.check("客キュー（open）が作られ、最初の客は新人警官",
+		s.open != null and str(s.open.current_customer()) == "officer")
 	var guard := 0
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 30:
 		guard += 1
@@ -67,15 +67,13 @@ func run(t: SceneTree) -> int:
 
 	# 廃棄：椀を作り直す（客は進めない）
 	s.discard_bowl()
-	c.check("discard_bowl()：作り直し（具材が空）・廃棄回数が1・橋 _bowl_discard_count も同じ値",
-		(s.open.current_bowl["additions"] as Array).is_empty() and s.bowl_discard_count == 1 and panel._bowl_discard_count == 1)
+	c.check("discard_bowl()：作り直し（具材が空）・廃棄回数が1",
+		(s.open.current_bowl["additions"] as Array).is_empty() and s.bowl_discard_count == 1)
 	s.select_ingredient("nam_prik_pao")
 	s.select_ingredient("tofu")
 	s.complete_input()
 	c.check("complete_input()：入力待ちを抜けて先へ進む（ADJUSTより先）", s.flow.runner.current().get("type", "") != "ADJUST",
 		str(s.flow.runner.current().get("type", "")))
-	c.check("ログの記録用の状態も session が持つ（日次ログの客・杯数は橋 _log_* と同じ値）",
-		panel._log_planned_cups == s.log_planned_cups and panel._log_quality_counts == s.log_quality_counts)
 
 	panel.free()
 	GameState.reset_for_new_game()
