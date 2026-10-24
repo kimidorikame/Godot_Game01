@@ -50,7 +50,12 @@ var _closed_early_reason := ""
 
 # ゲームオーバーの理由テキスト。_set_runner_for_phase(GAME_OVER) が読んで消費する
 # （_closed_early_reason と同じく一度きり）。
-var _game_over_reason := ""
+# UI準備Aの橋。テストを移したら削除（実体は session.game_over_reason）。
+var _game_over_reason: String:
+	get:
+		return session.game_over_reason
+	set(value):
+		session.game_over_reason = value
 
 # 判定結果 → 評点（BALANCE_REDESIGN_PLAN.md§5「評判・需要・日程」）。名前あり客・モブの
 # 区別はなくなり、どの客でも共通の得点表を使う（旧REPUTATION_NAMED/REPUTATION_MOBは
@@ -77,12 +82,22 @@ var _pot_water_added := false
 var _pot_dashi_added := false
 
 # 市場（DESIGN.md 7.7）で水場に寄ったか。PREPに入るたびリセットする。
-var _market_visited_water := false
+# UI準備Aの橋。テストを移したら削除（実体は session.market_visited_water）。
+var _market_visited_water: bool:
+	get:
+		return session.market_visited_water
+	set(value):
+		session.market_visited_water = value
 
 # 今どの店の中にいるか（例: "produce"）。空文字なら市場のトップ（7店舗選択）にいる。
 # 鍋モード（_pot_mode）と同じ「EventRunnerには触れないUIだけの入れ子」。
 # PREPに入るたびリセットする。
-var _market_shop := ""
+# UI準備Aの橋。テストを移したら削除（実体は session.market_shop）。
+var _market_shop: String:
+	get:
+		return session.market_shop
+	set(value):
+		session.market_shop = value
 
 # スマホ（3つ目の入れ子モード）。鍋モード・市場モードと同じくEventRunnerには一切触れない。
 # フェーズ・鍋モード・市場モードのどれからでも開ける（排他にしない）。_update_options_row()の
@@ -720,125 +735,46 @@ func _on_phone_tab_selected(tab: String) -> void:
 	_refresh()
 
 
-## 市場の店ボタンが押されたときのハンドラ（DESIGN.md 7.7）。ADJUSTの具材ボタンと同じく
-## 進めない（EventRunnerには触れない）。押せない店（Day1の食肉仲卸など）は
-## 押せる状態にならない限りここには来ない（data側の"enabled"で塞いである）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.select_stall() を直接使う）。
 func _on_market_stall_selected(id: String) -> void:
-	match id:
-		"produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps":
-			_market_shop = id  # 店内へ（鍋モードと同じ、UIだけの入れ子）
-		_:
-			pass
-	_refresh()
+	session.select_stall(id)
 
 
-## 店名から、その店の商品リストを引く。店ごとの商品データは day1_events.gd 側
-## （"today's shop"の事実として、enabledと同じ置き場所）。未実装の店は空配列。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.shop_goods() を直接使う）。
 func _shop_goods(shop: String) -> Array:
-	match shop:
-		"produce":
-			return Day1Events.produce_goods()
-		"meat_wholesale":
-			return Day1Events.meat_wholesale_goods()
-		"dry_goods":
-			return Day1Events.dry_goods_goods()
-		"tofu_noodles":
-			return Day1Events.tofu_noodles_goods()
-		"seafood":
-			return Day1Events.seafood_goods()
-		"scraps":
-			return Day1Events.scraps_goods()
-		_:
-			return []
+	return PlaySession.shop_goods(shop)
 
 
-## 店の商品ボタンが押されたときのハンドラ（DESIGN.md 7.7）。店を出ずその場に留まる
-## （何度でも買える）。所持金が足りない商品はボタン側で無効化済みなので、ここでは
-## 二重チェックだけ（防御的）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.buy_item() を直接使う）。
 func _on_shop_item_selected(shop: String, id: String) -> void:
-	for good in _shop_goods(shop):
-		if str(good.get("id", "")) == id:
-			var price: int = int(good.get("price", 0))
-			if id == "dashi":
-				if GameState.money >= price:
-					GameState.apply_money(-price)
-					GameState.buy_dashi()
-					Ledger.record("dashi", -price, "dashi", 1, price)
-			elif GameState.money >= price:
-				var item = good.get("item", id)
-				var count: int = int(good.get("count", 1))
-				var unit_price: int = int(price / count) if count > 0 else price
-				GameState.apply_money(-price)
-				GameState.add_inventory(item, count, unit_price)
-				Ledger.record("market", -price, str(item), count, unit_price)
-			break
-	_refresh()
+	session.buy_item(shop, id)
 
 
-## 仕込み3段階（PREP_TIER）のボタンが押されたときのハンドラ。MARKETの商品選択と同じく
-## 「押した瞬間にGameStateへ直接反映する」即時方式（EventRunnerのcomplete_input()は
-## 経由しない）。ただしMARKETと違い一発選択で終わるため、選んだ段階を確定させたら
-## 残りのPREP Event列（ADD_ITEM→市場→REMOVE_ITEM→SET_SOUP）をその場で組み立て直し、
-## flow.set_runner()でrunnerごと差し替える（prep_events()を呼んだ時点ではまだ段階が
-## 決まっていなかったため、SET_SOUPの杯数はここで初めて確定する。
-## Day1Events.prep_after_tier_events参照）。
-## 差し替え後の新しいEvent列の先頭はEventRunnerの仕様で効果が適用されない（index 0）ため、
-## prep_after_tier_events()側で必ず効果の無いTEXTを先頭にしてある。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.choose_prep_tier() を直接使う）。
 func _on_prep_tier_selected(tier_id: String) -> void:
-	var tier := Day1Events.prep_tier_by_id(tier_id)
-	var price: int = int(tier.get("price", 0))
-	if GameState.money < price:
-		return   # ボタン側で無効化済みのはずの二重チェック（防御的）
-	GameState.apply_money(-price)
-	Ledger.record("prep", -price, tier_id, 0, price)
-	flow.set_runner(Day1Events.prep_after_tier_events(tier, false))
-	_refresh()
+	session.choose_prep_tier(tier_id)
 
 
-## [市場に戻る]（店から出る）。鍋モードの[戻る]と同じくEventRunnerには触れない。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.leave_shop() を直接使う）。
 func _on_shop_exit_pressed() -> void:
-	_market_shop = ""
-	_refresh()
+	session.leave_shop()
 
 
-## 水場を訪れる（水道代の支払いのみ。会話・ボタンは廃止し、[市場を出る]の際に
-## 自動で1回だけ呼ばれる。場所代・水道代の再編＋日々の運営費：水場は市場のボタン
-## 一覧には出さない。_market_visited_waterは「今日もう払ったか」の防御用に残す）。
-## 水道代が払えずゲームオーバーになったら false（呼び出し元は先へ進めないこと）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.visit_water_stall() を直接使う）。
 func _visit_water_stall() -> bool:
-	if GameState.is_collection_day():
-		if not _pay_or_game_over(GameState.WATER_PRICE, "water"):
-			return false
-		# F4/3-5：水道代もWAKEで確保対象に含めた（上記reserve_amount参照）ので、
-		# 実際に払ったこの瞬間に場所代と同じ形でreleaseする。
-		Ledger.record("release", GameState.WATER_PRICE)
-	_market_visited_water = true
-	return true
+	return session.visit_water_stall()
 
 
-## [市場を出る] のハンドラ（DESIGN.md 7.7）。水場に未訪問なら自動で訪れてから、
-## [入力完了]と同じ手順（WAITING_INPUT解除→1つ進める→効果適用）で仕込みへ進む。
-## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。
-## 日々の運営費はWAKEで払い済みで確保もしていないので、市場を出るときのreleaseは無い
-## （先に直す③。旧GameState.settle_daily_cost_pending）。
-## runnerはこの直後の_complete_input_and_advance()でMARKETの次（新設のTEXT
-## 「共同水道と炭屋に寄り、市場を出た。」）へ進む。
+# UI準備Aの橋。テストを移したら削除。session.exit_market() は水道代の精算まで（②の暫定。
+# 「入力完了して先へ進む」は、Eventの受け側を移す③で session へ吸収する）。
 func _on_market_exit_pressed() -> void:
-	if not _market_visited_water:
-		# 水道代が払えずゲームオーバーになったら、仕込みへ進まずここで止まる。
-		if not _visit_water_stall():
-			return
-	_complete_input_and_advance()
+	if session.exit_market():
+		_complete_input_and_advance()
 
 
-## いま MARKET が現在の Event か（options を持つ WAITING_INPUT の一種）。
-## [次のEvent]/[入力完了] を無効化する判定に使う（抜ける経路を[市場を出る]だけにする）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.is_in_market() を直接使う）。
 func _is_in_market() -> bool:
-	var r: EventRunner = flow.runner
-	if r == null:
-		return false
-	var cur = r.current()
-	return cur is Dictionary and cur.get("type", "") == "MARKET"
+	return session.is_in_market()
 
 
 ## いま PREP_TIER（仕込み3段階の選択）が現在の Event か。_is_in_market() と同じ形。
@@ -887,12 +823,9 @@ func _on_story_choice_pressed(choice_id: String, option_id: String) -> void:
 	_complete_input_and_advance()
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.is_in_prep_tier() を直接使う）。
 func _is_in_prep_tier() -> bool:
-	var r: EventRunner = flow.runner
-	if r == null:
-		return false
-	var cur = r.current()
-	return cur is Dictionary and cur.get("type", "") == "PREP_TIER"
+	return session.is_in_prep_tier()
 
 
 ## いま ADJUST で3枠を選んでいる最中か（options を持つ WAITING_INPUT）。
@@ -1529,26 +1462,14 @@ func _no_named_customers_remaining() -> bool:
 	return true
 
 
-## 義務的な支払い（水道代・場所代）。払えれば true。払えなければ支払いを実行せず
-## （所持金はマイナスにならない）ゲームオーバーにして false を返す。
-## F4 帳簿：category（"daily_cost"/"water"/"rent"）を渡すと、実際に払えたときだけ
-## Ledger.record(category, -amount)を記帳する（水道代・場所代・運営費という「義務的な
-## 支払い」の共有入口なので、記帳もここに一本化する）。categoryを省略した呼び出し元は
-## 記帳しない（既定値""はLedger.CATEGORIESに無い値なので、record()を呼ばない目印にする）。
+# UI準備Aの橋。呼び出し元（WAKE・PAY・場所代の特別請求）を移したら削除（実体は session.pay_or_game_over()）。
 func _pay_or_game_over(amount: int, category: String = "") -> bool:
-	if GameState.try_pay(amount):
-		if category != "":
-			Ledger.record(category, -amount)
-		return true
-	_game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
-	return false
+	return session.pay_or_game_over(amount, category)
 
 
-## ゲームオーバーにする。自動閉店（_auto_close_kitchen）と同じく force_phase で終端フェーズへ
-## 飛ばす（_set_runner_for_phase の冒頭リセットで、OPEN・市場の途中状態も片付く）。
+# UI準備Aの橋。呼び出し元を移したら削除（実体は session.game_over()）。
 func _game_over(reason: String) -> void:
-	_game_over_reason = reason
-	flow.force_phase(GameState.Phase.GAME_OVER)
+	session.game_over(reason)
 
 
 ## F7 同じ朝からの再挑戦（DESIGN.md 10.6・10.8.7）。戻れる最後の朝（GameState.latest_morning()）
