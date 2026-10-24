@@ -1291,3 +1291,236 @@ func reask() -> void:
 	reask_customer_id = customer_id
 	reask_lines = lines
 	changed.emit()
+
+# --- 状態（UI準備A③b）---
+
+# [鍋を見る] の操作モード中か（DESIGN.md 7.6）。
+# EventRunner には一切触れない＝ index も status も動かさない。表示と操作対象を
+# 切り替えるだけなので、会話は止まったまま鍋をいじって戻れる。
+var pot_open := false
+
+# 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れるまでの間だけ true。
+# open_pot() で毎回リセットする。
+var pot_water_added := false
+
+# 鍋モードに入った時点で濃さ0（提供不可）だった場合、濃縮だしを入れるまでの間だけ true。
+# pot_water_added と同じ形（濃さメカニクス三点セット）。open_pot() で毎回リセットする。
+var pot_dashi_added := false
+
+
+# --- 鍋・団体・断る（UI準備A③b） ---
+
+## [鍋を見る] のハンドラ（7.6）。モードに入るだけで、EventRunner には触れない。
+## 鍋モードに入るたびに「水を入れたか」「だしを入れたか」をリセットする
+## （pot_locked_until_water / pot_locked_until_dashi 用）。
+func open_pot() -> void:
+	pot_open = true
+	pot_water_added = false
+	pot_dashi_added = false
+	changed.emit()
+
+
+## 鍋モードを抜ける（会話へ戻る。EventRunner には触れない）。保留中の客の処理は含まない
+## （鍋が尽きて選択待ちだった客は、resume_after_shortage() か close_shop() で決める）。
+## 本番UIでは、鍋タブから別のタブへ切り替えたときに呼ぶ（表示の切り替えに対応）。
+func close_pot() -> void:
+	pot_open = false
+	changed.emit()
+
+
+## 鍋が尽きて保留中の客に、「営業を続ける」を選ぶ（7.6）。保留中のREACTをここで初めて適用して提供する。
+## 作り直しが実際に足りているかは再チェックしない（一度決めたら、その結果のまま提供する）。
+## 鍋モードの出入りとは独立した操作（DebugPanelの[戻る]は、モードを抜けてからこれを呼ぶだけ。本番UIの
+## 鍋⇄トッピングは表示の切り替えだけで[戻る]に当たる操作が無いので、これを「営業を続ける」ボタンから呼ぶ）。
+## 保留が無ければ何もしない。
+func resume_after_shortage() -> void:
+	if pending_shortage_ev == null:
+		return
+	var ev = pending_shortage_ev
+	pending_shortage_ev = null
+	_serve_customer(ev)
+	changed.emit()
+
+
+## 鍋が尽きて、「営業を続ける」か「閉店」かの選択待ちの客がいるか（pending_shortage_ev が入っている間）。
+## このとき、次のEvent・入力完了は押せない（can_next_event／can_complete_input が false）。
+func is_shortage_pending() -> bool:
+	return pending_shortage_ev != null
+
+
+## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのとき、またはADJUST中に鍋が足りず水も
+## 無いときだけ押せる（can_close_now）。保留中のREACTは適用しない（この客には出せなかった
+## 扱い）。理由テキストを添えてCLOSEへ飛ばす。評判・売上の扱いは変えない。
+## 場所代が未払いなら、CLOSEへ飛ばす前に特別請求する（§11「未解決」の直し方の実装。
+## _reason_after_collecting_rent参照）。払えずゲームオーバーになったらCLOSEへは進まない。
+func close_shop() -> void:
+	if not can_close_now():
+		return
+	var reason := reason_after_collecting_rent("（今日はここで店じまいにする。）")
+	if reason == "":
+		return
+	pending_shortage_ev = null
+	pot_open = false
+	closed_early_reason = reason
+	queue_unserved_exit()
+	log_closed_early = true   # 日次ログ：鍋不足で名前あり客を最後まで回せなかった
+	flow.force_phase(GameState.Phase.CLOSE)
+	changed.emit()
+
+
+## 鍋モードの [水を足す] / [だしを足す]。効果は GameState の入口にまとめてある
+## （残量・濃さ・資源が同時に動くので、受け側から分けて呼べないようにしている）。
+func add_water() -> void:
+	GameState.add_water()
+	pot_water_added = true
+	log_water_used += 1   # 日次ログ：水を足した回数
+	changed.emit()
+
+
+func add_dashi() -> void:
+	GameState.add_dashi()
+	pot_dashi_added = true
+	log_dashi_used += 1   # 日次ログ：だしを足した回数
+	changed.emit()
+
+
+## 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れる（pot_water_added）
+## までの間だけ true（DESIGN.md 7.6：だしだけ入れても煮出す水が無く意味をなさない）。
+## "どうやって鍋モードに入ったか" ではなく "残量が実際に空かどうか" で判定するので、
+## 選択待ち経由でも普段の任意タイミングでの訪問でも同じルールが自然にかかる。
+func pot_locked_until_water() -> bool:
+	if pot_water_added:
+		return false
+	if GameState.soup == null or int(GameState.soup.get("remaining_servings", 0)) > 0:
+		return false
+	# 鍋操作不能バグの修正：残量0でも、濃さが低すぎて「今すぐは」水を出せない
+	# （can_add_water()がfalse）場合はロックしない。ロックしたままだと、
+	# だしボタンも「水待ちロック中」を理由に塞がれ、濃さを上げる唯一の手段である
+	# だしすら使えなくなり、詰んでしまう（濃さが上がって初めて水が出せるように
+	# なる、という順序を考慮できていなかった）。水が今すぐ出せる状態でだけ
+	# 「まず水を」の順序を強制する。
+	return GameState.can_add_water()
+
+
+## 濃さメカニクス三点セット：鍋モードに入った時点で濃さ0（提供不可）だった場合、
+## 濃縮だしを入れる（pot_dashi_added）までの間だけ true。pot_locked_until_water() と
+## 同じ形（"どうやって入ったか"ではなく"濃さが実際に0かどうか"で判定）。
+func pot_locked_until_dashi() -> bool:
+	if pot_dashi_added:
+		return false
+	return GameState.soup != null and int(GameState.soup.get("strength", 3)) <= 0
+
+
+## 「N人分を提供」ボタン。人数を確定してADJUST→SERVEへ進める（実際の消費・判定・売上・
+## 評判・記録はREACT到達時の_serve_mob_partial()で行う。Event（データ）はここでは
+## 一切書き換えない）。レシピ1のときだけ元注文数を覚える（レシピ2ではordered自体が
+## 「残り人数」になるため、_mob_original_orderedを上書きしない）。
+func group_serve(n: int, ordered: int) -> void:
+	if mob_recipe_number == 1:
+		mob_original_ordered = ordered
+	pending_group_result = { "servings": n, "ordered": ordered }
+	pending_group_choice = false
+	complete_input_and_advance()
+
+
+## 「注文を断る」ボタン。人数0で確定させる（_serve_mob_partial側で「断り」として扱う）。
+func group_decline(ordered: int) -> void:
+	if mob_recipe_number == 1:
+		mob_original_ordered = ordered
+	pending_group_result = { "servings": 0, "ordered": ordered }
+	pending_group_choice = false
+	complete_input_and_advance()
+
+
+## 「残り◯人に別の具材で挑戦する」ボタン（団体客の分割提供：最大2レシピ）。達成可能分
+## （achievable）はこの場で確定・提供し、残り（ordered-achievable）人ぶんを2レシピ目の
+## ADJUSTへ回す。mob_recipe_number==1のときしか出さないボタンなので、ここに来る時点で
+## 必ずレシピ1（_serve_mob_recipe_and_retry側でレシピ番号を2へ進める）。
+func group_retry(achievable: int, ordered: int) -> void:
+	if mob_recipe_number == 1:
+		mob_original_ordered = ordered
+	pending_group_result = { "servings": achievable, "ordered": ordered,
+		"retry_remaining": ordered - achievable }
+	pending_group_choice = false
+	complete_input_and_advance()
+
+
+## [客を断る]のハンドラ（F3・DESIGN.md 10.3.6）。名前あり客・配達員のADJUST中、いつでも
+## 押せる（達成可能かどうかを問わない。モブの「注文を断る」は既に無条件で選べるので対象外＝
+## is_current_mob_order()のときはこのボタン自体を出さない）。判定・鍋消費・売上を一切
+## 発生させず、_pending_group_serveと同じ「ADJUST側で確定させてREACT到達時に反映する」
+## パターンでSERVE→REACTへ進める。
+func decline_customer() -> void:
+	pending_decline = true
+	complete_input_and_advance()
+
+
+# --- 押せるか・団体の確認（問い。UI準備A③b） ---
+# どれも「ゲームの状態として押せるか」だけを返す。スマホを開いている間の無効化など、表示だけの状態は
+# UI側で足す（DebugPanelは `or _phone_mode` を足している）。
+
+## 鍋を触れるか（鍋モードに入れるか）。鍋が無い・もう鍋モード中・ADJUSTで椀を作っている最中（残量不足か
+## 濃さ0でなければ）・判定待ち（SERVE）・ゲームオーバー・足せるものが無い、のときは false。
+## 残量不足を埋められるのは水（だし経由を含む）、濃さ0を埋められるのはだしだけで、独立に見る。
+## ※開店中に鍋を触れる条件を変える（ADJUST中も触れる）のはCで行う。ここは今の挙動のまま。
+func can_touch_pot() -> bool:
+	var servings_short := is_servings_short_context()
+	var strength_zero := is_strength_zero()
+	var nothing_to_add: bool
+	if servings_short or strength_zero:
+		var can_fix_servings := servings_short and GameState.water_reachable()
+		var can_fix_strength := strength_zero and GameState.can_add_dashi()
+		nothing_to_add = not can_fix_servings and not can_fix_strength
+	else:
+		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_dashi()
+	return not (GameState.soup == null or pot_open \
+			or (is_choosing_ingredients() and not is_short_now() and not strength_zero) \
+			or is_awaiting_react() \
+			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add)
+
+
+## 次のEventへ進めるか（会話を進める）。鍋モード中・鍋不足の選択待ち・市場・仕込みの段階選択・
+## 物語の選択・団体の確認の間は false。
+func can_next_event() -> bool:
+	return not (pot_open or pending_shortage_ev != null \
+			or is_in_market() or is_in_prep_tier() or is_in_story_choice() or pending_group_choice)
+
+
+## 入力完了（提供）できるか。can_next_event の条件に加えて、鍋不足・濃さ0・具や味が欠けた椀のADJUSTでは
+## 名前あり客は塞ぐ（モブは達成可能人数の計算に含めるので塞がない）。
+func can_complete_input() -> bool:
+	return not (pot_open or pending_shortage_ev != null \
+			or is_in_market() or is_in_prep_tier() or is_in_story_choice() or pending_group_choice \
+			or (is_short_in_adjust() and not is_current_mob_order()) \
+			or (is_strength_zero_in_adjust() and not is_current_mob_order()) \
+			or (is_bowl_unsellable_in_adjust() and not is_current_mob_order()))
+
+
+## 廃棄（椀を作り直す）できるか。鍋の残量が客の注文に満たないときは、無駄にできる一杯が無いので false。
+func can_discard() -> bool:
+	return not is_short_now()
+
+
+## 客を断れるか。名前あり客・配達員だけ（モブは団体の確認の「注文を断る」で断る）。
+func can_decline() -> bool:
+	return not is_current_mob_order()
+
+
+## 聞き直せるか（名前あり客のADJUST中。モブと3杯専用列は不可）。
+func can_reask() -> bool:
+	return adjust_customer_id() != ""
+
+
+## モブの団体の確認（入力完了を押したあとの「N人分を提供／注文を断る／残りに挑戦」）の中身。
+## 確認中でなければ空。{ ordered, achievable, remaining, recipe_number, can_serve, can_retry }
+##   achievable：今の鍋・具材で出せる人数（毎回計算し直す＝鍋に寄り道して水を足したあとも最新）。
+##   can_serve：achievable が1以上。can_retry：レシピ1で、出せる人数が注文に満たないとき（最大2レシピ）。
+## 「注文を断る」は常に選べる（group_decline）。
+func mob_group_choice() -> Dictionary:
+	if not pending_group_choice:
+		return {}
+	var ordered := int(react_for_now().get("servings", 0))
+	var achievable := mob_achievable_servings(ordered)
+	return { "ordered": ordered, "achievable": achievable, "remaining": ordered - achievable,
+		"recipe_number": mob_recipe_number, "can_serve": achievable >= 1,
+		"can_retry": mob_recipe_number == 1 and achievable < ordered }

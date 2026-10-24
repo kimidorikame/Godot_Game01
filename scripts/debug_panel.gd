@@ -76,7 +76,12 @@ const REPUTATION_SCORE := { "GREAT": 100, "GOOD": 75, "OK": 35, "BAD": 0 }
 # [鍋を見る] の操作モード中か（DESIGN.md 7.6）。
 # EventRunner には一切触れない＝ index も status も動かさない。表示と操作対象を
 # 切り替えるだけなので、会話は止まったまま鍋をいじって戻れる。
-var _pot_mode := false
+# UI準備Aの橋。テストを移したら削除（実体は session.pot_open）。
+var _pot_mode: bool:
+	get:
+		return session.pot_open
+	set(value):
+		session.pot_open = value
 
 # 鍋が尽きて「作り直すか閉店するか」の選択待ちのとき、保留中のREACT Eventを持つ。
 # null なら選択待ちではない（DESIGN.md 7.6：条件1・2のどちらか一方だけ成立したとき）。
@@ -90,11 +95,21 @@ var _pending_shortage_ev: Variant:
 
 # 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れるまでの間だけ true。
 # _on_pot_pressed() で毎回リセットする。
-var _pot_water_added := false
+# UI準備Aの橋。テストを移したら削除（実体は session.pot_water_added）。
+var _pot_water_added: bool:
+	get:
+		return session.pot_water_added
+	set(value):
+		session.pot_water_added = value
 
 # 鍋モードに入った時点で濃さ0（提供不可）だった場合、濃縮だしを入れるまでの間だけ true。
 # _pot_water_added と同じ形（濃さメカニクス三点セット）。_on_pot_pressed() で毎回リセットする。
-var _pot_dashi_added := false
+# UI準備Aの橋。テストを移したら削除（実体は session.pot_dashi_added）。
+var _pot_dashi_added: bool:
+	get:
+		return session.pot_dashi_added
+	set(value):
+		session.pot_dashi_added = value
 
 # 市場（DESIGN.md 7.7）で水場に寄ったか。PREPに入るたびリセットする。
 # UI準備Aの橋。テストを移したら削除（実体は session.market_visited_water）。
@@ -704,63 +719,33 @@ func _on_discard_pressed() -> void:
 	session.discard_bowl()
 
 
-## [鍋を見る] のハンドラ（7.6）。モードに入るだけで、EventRunner には触れない。
-## 鍋モードに入るたびに「水を入れたか」「だしを入れたか」をリセットする
-## （_pot_locked_until_water / _pot_locked_until_dashi 用）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.open_pot() を直接使う）。
 func _on_pot_pressed() -> void:
-	_pot_mode = true
-	_pot_water_added = false
-	_pot_dashi_added = false
-	_refresh()
+	session.open_pot()
 
 
-## 鍋モードの [戻る]。会話へ戻る（こちらも EventRunner には触れない）。
-## 7.6: 鍋が尽きての選択待ち中だった場合、ここで初めて保留中のREACTを適用する
-## （＝「営業を続ける」を選んだことになる）。作り直しが実際に足りているかは
-## 再チェックしない（一度決めたら、その結果のまま提供する）。
+# UI準備Aの橋。テストを移したら削除。[戻る]＝鍋モードを抜けて、鍋不足で保留中の客がいれば「営業を続ける」。
+# 本番UIは鍋タブの切り替え（session.close_pot()）と、「営業を続ける」ボタン（session.resume_after_shortage()）を
+# それぞれ直接使う（[戻る]に当たる操作は無い）。
 func _on_pot_back_pressed() -> void:
 	_pot_mode = false
-	if _pending_shortage_ev != null:
-		var ev = _pending_shortage_ev
-		_pending_shortage_ev = null
-		_serve_customer(ev)
+	session.resume_after_shortage()
 	_refresh()
 
 
-## [閉店] のハンドラ（7.6）。鍋が尽きて選択待ちのとき、またはADJUST中に鍋が足りず水も
-## 無いときだけ押せる（_can_close_now）。保留中のREACTは適用しない（この客には出せなかった
-## 扱い）。理由テキストを添えてCLOSEへ飛ばす。評判・売上の扱いは変えない。
-## 場所代が未払いなら、CLOSEへ飛ばす前に特別請求する（§11「未解決」の直し方の実装。
-## _reason_after_collecting_rent参照）。払えずゲームオーバーになったらCLOSEへは進まない。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.close_shop() を直接使う）。
 func _on_close_pressed() -> void:
-	if not _can_close_now():
-		return
-	var reason := _reason_after_collecting_rent("（今日はここで店じまいにする。）")
-	if reason == "":
-		return
-	_pending_shortage_ev = null
-	_pot_mode = false
-	_closed_early_reason = reason
-	_queue_unserved_exit()
-	_log_closed_early = true   # 日次ログ：鍋不足で名前あり客を最後まで回せなかった
-	flow.force_phase(GameState.Phase.CLOSE)
-	_refresh()
+	session.close_shop()
 
 
-## 鍋モードの [水を足す] / [だしを足す]。効果は GameState の入口にまとめてある
-## （残量・濃さ・資源が同時に動くので、受け側から分けて呼べないようにしている）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.add_water() を直接使う）。
 func _on_add_water_pressed() -> void:
-	GameState.add_water()
-	_pot_water_added = true
-	_log_water_used += 1   # 日次ログ：水を足した回数
-	_refresh()
+	session.add_water()
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.add_dashi() を直接使う）。
 func _on_add_dashi_pressed() -> void:
-	GameState.add_dashi()
-	_pot_dashi_added = true
-	_log_dashi_used += 1   # 日次ログ：だしを足した回数
-	_refresh()
+	session.add_dashi()
 
 
 ## [スマホ] のハンドラ。モードに入るだけで、EventRunner には触れない（_on_pot_pressed()
@@ -847,31 +832,14 @@ func _is_awaiting_react() -> bool:
 	return session.is_awaiting_react()
 
 
-## 鍋モードに入った時点で鍋が空（残量0以下）だった場合、水を入れる（_pot_water_added）
-## までの間だけ true（DESIGN.md 7.6：だしだけ入れても煮出す水が無く意味をなさない）。
-## "どうやって鍋モードに入ったか" ではなく "残量が実際に空かどうか" で判定するので、
-## 選択待ち経由でも普段の任意タイミングでの訪問でも同じルールが自然にかかる。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.pot_locked_until_water() を直接使う）。
 func _pot_locked_until_water() -> bool:
-	if _pot_water_added:
-		return false
-	if GameState.soup == null or int(GameState.soup.get("remaining_servings", 0)) > 0:
-		return false
-	# 鍋操作不能バグの修正：残量0でも、濃さが低すぎて「今すぐは」水を出せない
-	# （can_add_water()がfalse）場合はロックしない。ロックしたままだと、
-	# だしボタンも「水待ちロック中」を理由に塞がれ、濃さを上げる唯一の手段である
-	# だしすら使えなくなり、詰んでしまう（濃さが上がって初めて水が出せるように
-	# なる、という順序を考慮できていなかった）。水が今すぐ出せる状態でだけ
-	# 「まず水を」の順序を強制する。
-	return GameState.can_add_water()
+	return session.pot_locked_until_water()
 
 
-## 濃さメカニクス三点セット：鍋モードに入った時点で濃さ0（提供不可）だった場合、
-## 濃縮だしを入れる（_pot_dashi_added）までの間だけ true。_pot_locked_until_water() と
-## 同じ形（"どうやって入ったか"ではなく"濃さが実際に0かどうか"で判定）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.pot_locked_until_dashi() を直接使う）。
 func _pot_locked_until_dashi() -> bool:
-	if _pot_dashi_added:
-		return false
-	return GameState.soup != null and int(GameState.soup.get("strength", 3)) <= 0
+	return session.pot_locked_until_dashi()
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session.complete_input_and_advance() を直接使う）。
@@ -904,38 +872,19 @@ func _reset_mob_group_state() -> void:
 	session.reset_mob_group_state()
 
 
-## 「N人分を提供」ボタン。人数を確定してADJUST→SERVEへ進める（実際の消費・判定・売上・
-## 評判・記録はREACT到達時の_serve_mob_partial()で行う。Event（データ）はここでは
-## 一切書き換えない）。レシピ1のときだけ元注文数を覚える（レシピ2ではordered自体が
-## 「残り人数」になるため、_mob_original_orderedを上書きしない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.group_serve() を直接使う）。
 func _on_group_serve_pressed(n: int, ordered: int) -> void:
-	if _mob_recipe_number == 1:
-		_mob_original_ordered = ordered
-	_pending_group_result = { "servings": n, "ordered": ordered }
-	_pending_group_choice = false
-	_complete_input_and_advance()
+	session.group_serve(n, ordered)
 
 
-## 「注文を断る」ボタン。人数0で確定させる（_serve_mob_partial側で「断り」として扱う）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.group_decline() を直接使う）。
 func _on_group_decline_pressed(ordered: int) -> void:
-	if _mob_recipe_number == 1:
-		_mob_original_ordered = ordered
-	_pending_group_result = { "servings": 0, "ordered": ordered }
-	_pending_group_choice = false
-	_complete_input_and_advance()
+	session.group_decline(ordered)
 
 
-## 「残り◯人に別の具材で挑戦する」ボタン（団体客の分割提供：最大2レシピ）。達成可能分
-## （achievable）はこの場で確定・提供し、残り（ordered-achievable）人ぶんを2レシピ目の
-## ADJUSTへ回す。_mob_recipe_number==1のときしか出さないボタンなので、ここに来る時点で
-## 必ずレシピ1（_serve_mob_recipe_and_retry側でレシピ番号を2へ進める）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.group_retry() を直接使う）。
 func _on_group_retry_pressed(achievable: int, ordered: int) -> void:
-	if _mob_recipe_number == 1:
-		_mob_original_ordered = ordered
-	_pending_group_result = { "servings": achievable, "ordered": ordered,
-		"retry_remaining": ordered - achievable }
-	_pending_group_choice = false
-	_complete_input_and_advance()
+	session.group_retry(achievable, ordered)
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session._serve_mob_partial() を直接使う）。
@@ -953,14 +902,9 @@ func _serve_customer(ev: Dictionary) -> void:
 	session._serve_customer(ev)
 
 
-## [客を断る]のハンドラ（F3・DESIGN.md 10.3.6）。名前あり客・配達員のADJUST中、いつでも
-## 押せる（達成可能かどうかを問わない。モブの「注文を断る」は既に無条件で選べるので対象外＝
-## _is_current_mob_order()のときはこのボタン自体を出さない）。判定・鍋消費・売上を一切
-## 発生させず、_pending_group_serveと同じ「ADJUST側で確定させてREACT到達時に反映する」
-## パターンでSERVE→REACTへ進める。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.decline_customer() を直接使う）。
 func _on_customer_decline_pressed() -> void:
-	_pending_decline = true
-	_complete_input_and_advance()
+	session.decline_customer()
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session.flush_visit_tally() を直接使う）。
@@ -1364,39 +1308,12 @@ func _update_options_row() -> void:
 	# それ以外（不足の文脈でない・濃さの調整だけ）では水かだしのどちらかがあるかを見る。
 	# SERVE中（_is_awaiting_react）は不足の文脈になり得ない（ADJUSTの[入力完了]は不足時
 	# 押せないので、無事SERVEまで来た時点で足りている）ため、無条件で塞いでよい。
-	var servings_short := _is_servings_short_context()
-	var strength_zero := _is_strength_zero()
-	var nothing_to_add: bool
-	if servings_short or strength_zero:
-		# 鍋操作不能バグの修正：ここもcan_add_water()単独ではなく、だし経由の回復まで
-		# 含めたwater_reachable()で判定する（さもないと[鍋を見る]ボタン自体が
-		# 無効化され、回復手順に一歩も入れない）。
-		var can_fix_servings := servings_short and GameState.water_reachable()
-		var can_fix_strength := strength_zero and GameState.can_add_dashi()
-		nothing_to_add = not can_fix_servings and not can_fix_strength
-	else:
-		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_dashi()
-	var pot_disabled := GameState.soup == null or _pot_mode \
-			or (_is_choosing_ingredients() and not _is_short_now() and not strength_zero) \
-			or _is_awaiting_react() \
-			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add
-	_btn_pot.disabled = pot_disabled or _phone_mode
-	_btn_next_event.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_in_prep_tier() or _is_in_story_choice() \
-			or _phone_mode or _pending_group_choice
-	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ。
-	# ②拒否と部分提供：モブ客は鍋不足だけでは塞がない（達成可能人数の計算に鍋残量も
-	# 含めており、[入力完了]を押せば確認ボタンへ進めるため。名前あり客・配達員は無変更）。
-	# 濃さメカニクス三点セット：濃さ0も同じ扱い（モブは_mob_achievable_servings()が
-	# 強制的に0を返すので「断る」しか出せなくなる。名前あり客・配達員は塞ぐ）。
-	# 仕込み3段階化：PREP_TIER中は段階ボタン以外で抜けさせない（_is_in_marketと同じ理由）。
-	# F3 SaleRule（DESIGN.md 10.3.1）：具・味のどちらかが欠けた椀も同じ扱いで塞ぐ
-	# （モブは_mob_achievable_servings()側で達成可能0に落とすので、ここでは無視する）。
-	_btn_complete_input.disabled = _pot_mode or _pending_shortage_ev != null \
-			or _is_in_market() or _is_in_prep_tier() or _is_in_story_choice() or _phone_mode or _pending_group_choice \
-			or (_is_short_in_adjust() and not _is_current_mob_order()) \
-			or (_is_strength_zero_in_adjust() and not _is_current_mob_order()) \
-			or (_is_bowl_unsellable_in_adjust() and not _is_current_mob_order())
+	# 押せるかの問いは PlaySession が持つ（スマホを開いている間の無効化は表示の状態なので、ここで足す）。
+	_btn_pot.disabled = not session.can_touch_pot() or _phone_mode
+	_btn_next_event.disabled = not session.can_next_event() or _phone_mode
+	# 不足のADJUSTでは提供（[入力完了]）できない。補充するか、閉店するか廃棄以外を選ぶ（モブは塞がない。
+	# 条件の詳細は session.can_complete_input）。
+	_btn_complete_input.disabled = not session.can_complete_input() or _phone_mode
 	if _btn_skip_read != null:
 		_btn_skip_read.disabled = not _can_skip_step()
 	_btn_close.disabled = not _can_close_now() or _phone_mode
@@ -1442,17 +1359,17 @@ func _update_options_row() -> void:
 	# レシピ1（_mob_recipe_number==1）に限り「残り◯人に別の具材で挑戦する」も出す。
 	# レシピ2ではこのボタンを出さない＝最大2レシピで打ち止め。
 	if _pending_group_choice:
-		var order := _react_for_now()
-		var ordered: int = int(order.get("servings", 0))
-		var achievable := _mob_achievable_servings(ordered)
-		if achievable >= 1:
-			var serve_label := "%d人分を提供（注文%d人）" if _mob_recipe_number == 1 \
+		var group: Dictionary = session.mob_group_choice()
+		var ordered: int = int(group["ordered"])
+		var achievable: int = int(group["achievable"])
+		if group["can_serve"]:
+			var serve_label := "%d人分を提供（注文%d人）" if group["recipe_number"] == 1 \
 				else "%d人分を提供（残り%d人）"
 			_add_pot_button(serve_label % [achievable, ordered], false,
 				_on_group_serve_pressed.bind(achievable, ordered))
 		_add_pot_button("注文を断る", false, _on_group_decline_pressed.bind(ordered))
-		if _mob_recipe_number == 1 and achievable < ordered:
-			_add_pot_button("残り%d人に別の具材で挑戦する" % (ordered - achievable), false,
+		if group["can_retry"]:
+			_add_pot_button("残り%d人に別の具材で挑戦する" % int(group["remaining"]), false,
 				_on_group_retry_pressed.bind(achievable, ordered))
 		return
 
@@ -1538,16 +1455,16 @@ func _update_options_row() -> void:
 	# [廃棄する]：枠が0〜3個どの状態でも／at_cap・在庫切れに関係なく押せるが、鍋の残量が
 	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
 	# MARKETの[市場を出る]と同じ「今のモードに常駐する専用ボタン」の扱い。
-	_add_pot_button("廃棄する", _is_short_now(), _on_discard_pressed)
+	_add_pot_button("廃棄する", not session.can_discard(), _on_discard_pressed)
 	# [客を断る]（F3・DESIGN.md 10.3.6）：名前あり客・配達員だけに出す。達成可能かどうかを
 	# 問わずいつでも押せる（常に有効）。モブはこのADJUST具材ループにも来る（[入力完了]を
 	# 押すまでは通常のADJUSTと同じ画面のため）が、モブには既に無条件の「注文を断る」が
 	# [入力完了]の後に出るので、二重に出さないようここで除外する。
-	if not _is_current_mob_order():
+	if session.can_decline():
 		_add_pot_button("客を断る", false, _on_customer_decline_pressed)
 	# [聞き直す]（仮ボタン。4-4b-2・DESIGN.md 10.5.2）：名前あり客のADJUST中だけ。モブと、
 	# 配達員の3杯専用列には出さない（4-4aで動かさないと決めた列に触れない）。
-	if _adjust_customer_id() != "":
+	if session.can_reask():
 		_add_pot_button("聞き直す", false, _on_reask_pressed)
 	_add_recipe_adjust_buttons()
 
