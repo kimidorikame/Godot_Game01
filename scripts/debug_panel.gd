@@ -414,7 +414,7 @@ var _recipe_row: HBoxContainer
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
 # 帳簿・来店記録を一切変えない（何度押しても同じ。保存しない）。客が替わる・保存から戻すと消える。
-# UI準備Aの橋。テストを移したら削除（実体は session.reask_customer_id／reask_lines。表示用の文はここで組む）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（実体は session.reask_customer_id／reask_lines。表示用の文はここで組む）。
 var _reask_text: String:
 	get:
 		if session.reask_customer_id == "":
@@ -470,19 +470,19 @@ func _ready() -> void:
 	#   flow.runner_advance() で PLAYING のときだけ index を1つ進める。
 	#   WAITING_INPUT / DONE では何もしない（＝WAIT_INPUT で確実に止まる）。
 	#   STEP 4: 進んだ先の Event が PAY / ADD_ITEM なら、その効果をここで GameState に反映する。
-	_btn_next_event.pressed.connect(_on_next_event_pressed)
+	_btn_next_event.pressed.connect(session.next_event)
 	# [入力完了] = _on_complete_input_pressed:
 	#   flow.runner_complete_input() で WAITING_INPUT を PLAYING に戻してから1つ進める。
 	#   「入力待ちの解除」専用。[次のEvent] との違い: あちらは止まっている列を動かせないが、
 	#   こちらは解除したうえで先へ進める。PLAYING 中に押しても無効。
 	#   STEP 4: 進んだ先の Event の効果反映は [次のEvent] と同じ扱い。
-	_btn_complete_input.pressed.connect(_on_complete_input_pressed)
+	_btn_complete_input.pressed.connect(session.complete_input)
 	# [鍋を見る] = 鍋の操作モードに入る（7.6）。EventRunner は進めない。
 	#   ADJUST 中（3枠を選んでいる間）は押せない＝調理の途中で鍋をいじらせない。
-	_btn_pot.pressed.connect(_on_pot_pressed)
+	_btn_pot.pressed.connect(session.open_pot)
 	# [閉店] = 鍋が尽きて選択待ちのときだけ押せる（7.6）。保留中のREACTは適用しない。
-	_btn_close.pressed.connect(_on_close_pressed)
-	_btn_next_phase.pressed.connect(flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
+	_btn_close.pressed.connect(session.close_shop)
+	_btn_next_phase.pressed.connect(session.flow.advance_phase)  # [次のPhase] = 上位フェーズを一方向に1つ進める
 	_btn_day_plus.pressed.connect(_on_day_plus_pressed)  # [Day+] = 日数だけ +1（デバッグ用）
 	# [所持金 ±50] = 所持金だけ動かす（デバッグ用。クズ野菜ベースやゲームオーバーの確認に使う）。
 	_btn_money_minus.pressed.connect(_on_money_debug_pressed.bind(-50))
@@ -490,13 +490,13 @@ func _ready() -> void:
 	# [モブ人数] = 今夜のモブ人数を 自動→1→2→3→4→自動… と切り替える（デバッグ用）。
 	_btn_mob_debug.pressed.connect(_on_mob_debug_pressed)
 	# [同じ朝からやり直す] = ゲームオーバーのときだけ押せる（F7。仮ボタン。本番UIはフェーズ6）。
-	_btn_retry.pressed.connect(_on_retry_pressed)
+	_btn_retry.pressed.connect(session.retry)
 	# [続きから] = 起動時に読めたセーブの朝へ戻る（仮ボタン。本番UIはフェーズ6）。
-	_btn_continue.pressed.connect(_on_continue_pressed)
+	_btn_continue.pressed.connect(session.continue_game)
 	# 結果画面の選択肢（4-2）。[終わる]は押せない仮ボタン（フェーズ6）なので結線しない。
-	_btn_run_again.pressed.connect(_on_run_again_pressed)
-	_btn_last_morning.pressed.connect(_on_last_morning_pressed)
-	_btn_new_run.pressed.connect(_on_new_run_pressed)
+	_btn_run_again.pressed.connect(session.run_again)
+	_btn_last_morning.pressed.connect(session.last_morning)
+	_btn_new_run.pressed.connect(session.new_run)
 	# [スマホ] = 3つ目の入れ子モードに入るだけ（EventRunner・GameStateには触れない。
 	#   _on_pot_pressed() と同じ形）。常時押せる（例外は開いている間、自身が無効化される）。
 	_btn_phone.pressed.connect(_on_phone_pressed)
@@ -591,7 +591,7 @@ func _on_pot_pressed() -> void:
 	session.open_pot()
 
 
-# UI準備Aの橋。テストを移したら削除。[戻る]＝鍋モードを抜けて、鍋不足で保留中の客がいれば「営業を続ける」。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）。[戻る]＝鍋モードを抜けて、鍋不足で保留中の客がいれば「営業を続ける」。
 # 本番UIは鍋タブの切り替え（session.close_pot()）と、「営業を続ける」ボタン（session.resume_after_shortage()）を
 # それぞれ直接使う（[戻る]に当たる操作は無い）。
 func _on_pot_back_pressed() -> void:
@@ -911,10 +911,10 @@ func _on_day_plus_pressed() -> void:
 
 ## デバッグ用：モブ人数の強制指定を 自動→1→2→3→4→自動 と回す。次に OPEN に入るときから効く。
 func _on_mob_debug_pressed() -> void:
-	_debug_mob_count = _debug_mob_count + 1 if _debug_mob_count < 4 else -1
-	if _debug_mob_count == 0:
-		_debug_mob_count = 1
-	_btn_mob_debug.text = "モブ人数: %s" % ("自動" if _debug_mob_count < 0 else str(_debug_mob_count))
+	session.debug_mob_count = session.debug_mob_count + 1 if session.debug_mob_count < 4 else -1
+	if session.debug_mob_count == 0:
+		session.debug_mob_count = 1
+	_btn_mob_debug.text = "モブ人数: %s" % ("自動" if session.debug_mob_count < 0 else str(session.debug_mob_count))
 	_refresh()
 
 
@@ -938,7 +938,7 @@ func _refresh() -> void:
 	else:
 		_runner_label.text = _format_runner() + _format_open() + _format_market() + _format_fund()
 	_update_options_row()
-	_record_visible_event()
+	session.record_visible_event()
 
 
 ## 動的なボタン行の描画。毎回 _refresh() から呼び、状態から描き直す
@@ -996,11 +996,11 @@ func _update_options_row() -> void:
 	_btn_complete_input.disabled = not session.can_complete_input() or _phone_mode
 	if _btn_skip_read != null:
 		_btn_skip_read.disabled = not _can_skip_step()
-	_btn_close.disabled = not _can_close_now() or _phone_mode
+	_btn_close.disabled = not session.can_close_now() or _phone_mode
 	_btn_next_phase.disabled = _phone_mode
 	_btn_retry.disabled = GameState.phase != GameState.Phase.GAME_OVER \
 			or GameState.morning_snapshots.is_empty() or _phone_mode
-	_btn_continue.disabled = _pending_continue.is_empty() or _phone_mode
+	_btn_continue.disabled = session.pending_continue.is_empty() or _phone_mode
 	_refresh_result_row()
 	# スマホ自体は、開いている間だけ無効化する（隠さない。押せないボタンとして残す）。
 	_btn_phone.disabled = _phone_mode
@@ -1015,15 +1015,15 @@ func _update_options_row() -> void:
 		_add_pot_button("閉じる", false, _on_phone_close_pressed)
 		return
 
-	if _pot_mode:
-		var locked_water := _pot_locked_until_water()
-		var locked_dashi := _pot_locked_until_dashi()
+	if session.pot_open:
+		var locked_water := session.pot_locked_until_water()
+		var locked_dashi := session.pot_locked_until_dashi()
 		_add_pot_button("水を足す（残量+%d 濃さ-%d）" % [GameState.WATER_SERVINGS, GameState.WATER_STRENGTH_DELTA],
-			not GameState.can_add_water(), _on_add_water_pressed)
+			not GameState.can_add_water(), session.add_water)
 		# だしだけ入れても煮出す水が無く意味をなさない（旧ベースと同じ理由）ので、
 		# 水待ちロック中はだしボタンも塞ぐ。
 		_add_pot_button("だしを足す（濃さ+%d）" % GameState.DASHI_STRENGTH_DELTA,
-			not GameState.can_add_dashi() or locked_water, _on_add_dashi_pressed)
+			not GameState.can_add_dashi() or locked_water, session.add_dashi)
 		# 水待ち・だし待ちで[戻る]を塞ぐのは、それぞれ[水を足す]/[だしを足す]で
 		# 解ける（資源がある）ときだけ。資源が無ければ塞がない＝鍋モードには必ず出口がある。
 		_add_pot_button("戻る",
@@ -1038,7 +1038,7 @@ func _update_options_row() -> void:
 	# 団体客の分割提供（最大2レシピ）：達成可能人数が注文人数に満たない（0を含む）とき、
 	# レシピ1（_mob_recipe_number==1）に限り「残り◯人に別の具材で挑戦する」も出す。
 	# レシピ2ではこのボタンを出さない＝最大2レシピで打ち止め。
-	if _pending_group_choice:
+	if session.pending_group_choice:
 		var group: Dictionary = session.mob_group_choice()
 		var ordered: int = int(group["ordered"])
 		var achievable: int = int(group["achievable"])
@@ -1046,17 +1046,17 @@ func _update_options_row() -> void:
 			var serve_label := "%d人分を提供（注文%d人）" if group["recipe_number"] == 1 \
 				else "%d人分を提供（残り%d人）"
 			_add_pot_button(serve_label % [achievable, ordered], false,
-				_on_group_serve_pressed.bind(achievable, ordered))
-		_add_pot_button("注文を断る", false, _on_group_decline_pressed.bind(ordered))
+				session.group_serve.bind(achievable, ordered))
+		_add_pot_button("注文を断る", false, session.group_decline.bind(ordered))
 		if group["can_retry"]:
 			_add_pot_button("残り%d人に別の具材で挑戦する" % int(group["remaining"]), false,
-				_on_group_retry_pressed.bind(achievable, ordered))
+				session.group_retry.bind(achievable, ordered))
 		return
 
 	_add_recipe_save_buttons()
 	_add_fund_buttons()
 
-	var r: EventRunner = flow.runner
+	var r: EventRunner = session.flow.runner
 	if r == null or r.status != EventRunner.Status.WAITING_INPUT:
 		return
 	var cur = r.current()
@@ -1067,18 +1067,18 @@ func _update_options_row() -> void:
 		for tier in cur.get("options", []):
 			var price: int = int(tier.get("price", 0))
 			_add_pot_button("%s（-%d・%d杯）" % [str(tier.get("label", "")), price, int(tier.get("servings", 0))],
-				GameState.money < price, _on_prep_tier_selected.bind(str(tier.get("id", ""))))
+				GameState.money < price, session.choose_prep_tier.bind(str(tier.get("id", ""))))
 		return
 
 	if cur.get("type", "") == "CHOICE":
 		for option in cur.get("options", []):
 			_add_pot_button(str(option.get("label", "")), false,
-				_on_story_choice_pressed.bind(str(cur.get("choice_id", "")), str(option.get("id", ""))))
+				session.choose_story_option.bind(str(cur.get("choice_id", "")), str(option.get("id", ""))))
 		return
 
 	if cur.get("type", "") == "MARKET":
-		if _market_shop != "":
-			for good in _shop_goods(_market_shop):
+		if session.market_shop != "":
+			for good in PlaySession.shop_goods(session.market_shop):
 				var gid: String = str(good.get("id", ""))
 				var price: int = int(good.get("price", 0))
 				# F4：個数・単価を表示する（DESIGN.md 10.4「豆腐 3個24／単価8／在庫2」）。
@@ -1093,21 +1093,21 @@ func _update_options_row() -> void:
 					btn_label = "%s（-%d）" % [label, price]
 				# 調味料の行と具材の行に分ける（ADJUSTと同じ2行。行の決め方は_shop_good_row）。
 				_add_pot_button(btn_label,
-					GameState.money < price, _on_shop_item_selected.bind(_market_shop, gid),
+					GameState.money < price, session.buy_item.bind(session.market_shop, gid),
 					_shop_good_row(good))
-			_add_pot_button("市場に戻る", false, _on_shop_exit_pressed)
+			_add_pot_button("市場に戻る", false, session.leave_shop)
 			return
 		for option in cur.get("options", []):
 			var id: String = str(option.get("id", ""))
 			var disabled: bool = not bool(option.get("enabled", true))
 			_add_pot_button(str(option.get("label", id)), disabled,
-				_on_market_stall_selected.bind(id))
-		_add_pot_button("市場を出る", false, _on_market_exit_pressed)
+				session.select_stall.bind(id))
+		_add_pot_button("市場を出る", false, session.exit_market)
 		return
 
 	var at_cap := false
-	if _open != null:
-		at_cap = _open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
+	if session.open != null:
+		at_cap = session.open.current_bowl.get("additions", []).size() >= OpenController.MAX_ADDITIONS
 	for option in cur["options"]:
 		var opt_id: String = str(option.get("id", ""))
 		# 7.7: options は接客開始時に1回だけ組み立てた在庫のスナップショット（MARKETの
@@ -1124,7 +1124,7 @@ func _update_options_row() -> void:
 		# B: 所持数を表示（既に無効化判定に使っているownをそのまま表示に使うだけ）。
 		btn.text = "%s(%d)" % [str(option.get("label", opt_id if opt_id != "" else "?")), own]
 		btn.disabled = at_cap or out_of_stock
-		btn.pressed.connect(_on_ingredient_selected.bind(opt_id, opt_damaged))
+		btn.pressed.connect(session.select_ingredient.bind(opt_id, opt_damaged))
 		# C: 調味料（味の軸のみ）と具材（具の軸を持つ）で行を分ける。「具」の判定基準は
 		# 「具なしの椀は常に最低評価」で使っているIngredients.is_topping()をそのまま流用する
 		# （新しい分類基準を増やさないため。ADJUST以外の文脈はこのループを通らないので無影響）。
@@ -1135,17 +1135,17 @@ func _update_options_row() -> void:
 	# [廃棄する]：枠が0〜3個どの状態でも／at_cap・在庫切れに関係なく押せるが、鍋の残量が
 	# 客の注文（servings）に満たないときは無効（無駄にできる一杯が無い）。鍋モードの[戻る]・
 	# MARKETの[市場を出る]と同じ「今のモードに常駐する専用ボタン」の扱い。
-	_add_pot_button("廃棄する", not session.can_discard(), _on_discard_pressed)
+	_add_pot_button("廃棄する", not session.can_discard(), session.discard_bowl)
 	# [客を断る]（F3・DESIGN.md 10.3.6）：名前あり客・配達員だけに出す。達成可能かどうかを
 	# 問わずいつでも押せる（常に有効）。モブはこのADJUST具材ループにも来る（[入力完了]を
 	# 押すまでは通常のADJUSTと同じ画面のため）が、モブには既に無条件の「注文を断る」が
 	# [入力完了]の後に出るので、二重に出さないようここで除外する。
 	if session.can_decline():
-		_add_pot_button("客を断る", false, _on_customer_decline_pressed)
+		_add_pot_button("客を断る", false, session.decline_customer)
 	# [聞き直す]（仮ボタン。4-4b-2・DESIGN.md 10.5.2）：名前あり客のADJUST中だけ。モブと、
 	# 配達員の3杯専用列には出さない（4-4aで動かさないと決めた列に触れない）。
 	if session.can_reask():
-		_add_pot_button("聞き直す", false, _on_reask_pressed)
+		_add_pot_button("聞き直す", false, session.reask)
 	_add_recipe_adjust_buttons()
 
 
@@ -1163,7 +1163,7 @@ func _add_fund_buttons() -> void:
 	if not _fund_row_visible() or RepairFund.complete():
 		return
 	# 積む先の選択（切り替えボタン。選んだ対象に「▶」）。修繕済み・未解放の対象は選べない。
-	var selected := _fund_selected()
+	var selected := session.fund_selected()
 	for t in RepairFund.targets():
 		var s := RepairFund.target_state(t["id"])
 		var text := "積む先：%s%s %d/%d" % ["▶" if t["id"] == selected else "", s["label"], s["paid"], s["price"]]
@@ -1182,7 +1182,7 @@ func _fund_selected() -> String:
 	return session.fund_selected()
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.select_fund_target() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.select_fund_target() を直接使う）。
 # スマホを開いている間は表示の状態なので、ここで足す（積み立て行は出ていない＝選べない）。
 func _on_fund_target_selected(target_id: String) -> void:
 	if _phone_mode:
@@ -1191,7 +1191,7 @@ func _on_fund_target_selected(target_id: String) -> void:
 	session.select_fund_target(target_id)
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.contribute_fund() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.contribute_fund() を直接使う）。
 func _on_fund_contribute_pressed(amount: int) -> void:
 	if _phone_mode:
 		return
@@ -1209,7 +1209,7 @@ func _format_fund() -> String:
 		lines.append("完了")
 	else:
 		lines.append("今夜積んだ額: %d／%d" % [RepairFund.paid_tonight(), RepairFund.nightly_max()])
-		var selected := _fund_selected()
+		var selected := session.fund_selected()
 		lines.append("積む先: %s" % str(RepairFund.target(selected).get("label", "なし")))
 		lines.append("今日積める上限: %d" % RepairFund.max_contribution(selected))
 		# 安全上限の根拠（仮文面）：翌日に全客へ椀を出せるだけの仕込みと材料費を残す。
@@ -1218,8 +1218,8 @@ func _format_fund() -> String:
 			lines.append("（明日の仕入れ分を残す：運営費%d＋請求%d＋仕込み%d＋材料費%d＝%d。見込み%d杯）" % [
 				reserve["operating"], reserve["bills"], reserve["prep"], reserve["materials"], reserve["total"],
 				reserve["expected_cups"]])
-	if _fund_notice != "":
-		lines.append(_fund_notice)
+	if session.fund_notice != "":
+		lines.append(session.fund_notice)
 	return "\n".join(lines)
 
 
@@ -1232,13 +1232,13 @@ func _record_visible_event() -> void:
 
 ## --- 既読スキップ（4-7③。ReadState。仮UI） ---
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.can_skip_step() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.can_skip_step() を直接使う）。
 # スマホを開いている間は[次のEvent]が押せない（表示の状態）ので、ここで足す。
 func _can_skip_step() -> bool:
 	return not _phone_mode and session.can_skip_step()
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.skip_read() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.skip_read() を直接使う）。
 func _on_skip_read_pressed() -> int:
 	if _phone_mode:
 		return 0
@@ -1247,7 +1247,7 @@ func _on_skip_read_pressed() -> int:
 
 ## --- レシピ保存と「いつもの」（4-7①。DESIGN.md 10.4。仮UI。本番UIはフェーズ6） ---
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.recipe_adjust_customer() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.recipe_adjust_customer() を直接使う）。
 # スマホを開いている間は出さない（表示の状態）ので、ここで足す。
 func _recipe_adjust_customer() -> String:
 	if _phone_mode:
@@ -1260,9 +1260,9 @@ func _recipe_adjust_customer() -> String:
 ## 在庫が足りない具材（新鮮な在庫のみ）はラベルに出して無効にする。
 func _add_recipe_adjust_buttons() -> void:
 	var customer_id := _recipe_adjust_customer()
-	if customer_id == "" or not (_open.current_bowl.get("additions", []) as Array).is_empty():
+	if customer_id == "" or not (session.open.current_bowl.get("additions", []) as Array).is_empty():
 		return
-	var servings := _current_servings()
+	var servings := session.current_servings()
 	var usual := RecipeBook.usual_for(customer_id)
 	if not usual.is_empty():
 		_add_recipe_button("いつもの（%s）" % RecipeBook.ingredient_text(usual), usual, servings)
@@ -1283,14 +1283,14 @@ func _add_recipe_button(label: String, ingredients: Array, servings: int) -> voi
 		_on_recipe_apply_pressed.bind(ingredients.duplicate()), _recipe_row)
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.apply_recipe() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.apply_recipe() を直接使う）。
 func _on_recipe_apply_pressed(ingredients: Array) -> void:
 	if _phone_mode:
 		return
 	session.apply_recipe(ingredients)
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.can_save_recipe() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.can_save_recipe() を直接使う）。
 func _can_save_recipe_now() -> bool:
 	return not _phone_mode and session.can_save_recipe()
 
@@ -1298,10 +1298,10 @@ func _can_save_recipe_now() -> bool:
 ## 提供後の保存ボタン（段階：[レシピを保存] → 枠 → 名前）。名前は10.4.1の候補（椀のタグを含むものを先頭）。
 func _add_recipe_save_buttons() -> void:
 	if not _can_save_recipe_now():
-		_recipe_save_stage = ""
+		session.recipe_save_stage = ""
 		return
-	var additions: Array = _open.current_bowl["additions"]
-	match _recipe_save_stage:
+	var additions: Array = session.open.current_bowl["additions"]
+	match session.recipe_save_stage:
 		"slot":
 			for i in range(RecipeBook.slot_count()):
 				var label := "枠%d：空き" % (i + 1)
@@ -1309,17 +1309,17 @@ func _add_recipe_save_buttons() -> void:
 					label = "枠%d：%s（上書き）" % [i + 1, str(GameState.saved_recipes[i]["name"])]
 				_add_pot_button(label, i > GameState.saved_recipes.size(),
 					_on_recipe_slot_selected.bind(i), _recipe_row)
-			_add_pot_button("やめる", false, _on_recipe_save_cancel_pressed, _recipe_row)
+			_add_pot_button("やめる", false, session.cancel_recipe_save, _recipe_row)
 		"name":
-			for item in RecipeBook.names_ordered(_open.bowl_addition_tags()):
+			for item in RecipeBook.names_ordered(session.open.bowl_addition_tags()):
 				_add_pot_button(str(item["name"]), false, _on_recipe_name_selected.bind(str(item["name"])), _recipe_row)
-			_add_pot_button("やめる", false, _on_recipe_save_cancel_pressed, _recipe_row)
+			_add_pot_button("やめる", false, session.cancel_recipe_save, _recipe_row)
 		_:
 			_add_pot_button("レシピを保存（%s）" % RecipeBook.ingredient_text(additions), false,
 				_on_recipe_save_pressed, _recipe_row)
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.start_recipe_save() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.start_recipe_save() を直接使う）。
 func _on_recipe_save_pressed() -> void:
 	if _phone_mode:
 		_refresh()
@@ -1327,7 +1327,7 @@ func _on_recipe_save_pressed() -> void:
 	session.start_recipe_save()
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.select_recipe_slot() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.select_recipe_slot() を直接使う）。
 func _on_recipe_slot_selected(slot: int) -> void:
 	if _phone_mode:
 		_refresh()
@@ -1335,7 +1335,7 @@ func _on_recipe_slot_selected(slot: int) -> void:
 	session.select_recipe_slot(slot)
 
 
-# UI準備Aの橋。テストを移したら削除（本番UIは session.select_recipe_name() を直接使う）。
+# DebugPanelの実体（転送だけの橋ではない。橋の整理でも残す）（本番UIは session.select_recipe_name() を直接使う）。
 func _on_recipe_name_selected(recipe_name: String) -> void:
 	if _phone_mode:
 		session.recipe_save_stage = ""
@@ -1528,7 +1528,7 @@ func _format_phone() -> String:
 	var body: String
 	match _phone_tab:
 		"news":
-			body = News.tab_text(GameState.day_count, _played_events)
+			body = News.tab_text(GameState.day_count, session.played_events)
 		"sns":
 			body = _format_tonight_memo()
 		"log":
@@ -1619,7 +1619,7 @@ func _format_orders_for_memo(orders: Array) -> String:
 
 
 func _format_runner() -> String:
-	var r: EventRunner = flow.runner
+	var r: EventRunner = session.flow.runner
 	if r == null:
 		return "── EventRunner（イベント列の再生位置）──\n(none)"
 	var status_name: String = EventRunner.Status.keys()[r.status]
@@ -1638,9 +1638,9 @@ func _format_runner() -> String:
 		"index(現在位置): %d" % r.index,
 		"status(進行状態): %s (%d)" % [status_name, r.status],
 		"current(接客中の客): %s" % cur_text,
-		"runner_done(完了フラグ): %s" % str(flow.is_runner_done()),
+		"runner_done(完了フラグ): %s" % str(session.flow.is_runner_done()),
 		# STEP 4: このフェーズは DONE 必須か。ブロック中なら [次のPhase] は no-op。
-		"next_phase(次へ進めるか): %s" % ("OK" if not flow.is_advance_blocked() else "ブロック中(runner未DONE)"),
+		"next_phase(次へ進めるか): %s" % ("OK" if not session.flow.is_advance_blocked() else "ブロック中(runner未DONE)"),
 	]))
 
 
@@ -1652,32 +1652,32 @@ func _format_runner() -> String:
 ##   open_done … 全時間帯をさばき切ったか。true で [次のPhase] → CLOSE へ進める
 ##   pending   … 鍋が尽きて[鍋を見る]/[閉店]の選択待ちか（7.6）
 func _format_open() -> String:
-	if _open == null:
+	if session.open == null:
 		return ""
-	var slot_customers: Array = _open.current_slot_customers()
+	var slot_customers: Array = session.open.current_slot_customers()
 	var slot_text := "(終了)"
-	if _open.current_slot_name() != "":
+	if session.open.current_slot_name() != "":
 		slot_text = "%s (%d/%d)" % [
-			_open.current_slot_name(), _open.slot_index + 1, _open.schedule.size()]
-	var cust = _open.current_customer()
+			session.open.current_slot_name(), session.open.slot_index + 1, session.open.schedule.size()]
+	var cust = session.open.current_customer()
 	var cust_text := "(なし)"
 	if cust != null:
 		cust_text = "%s (%d/%d) %d杯" % [
-			cust, _open.index + 1, slot_customers.size(), _current_servings()]
+			cust, session.open.index + 1, slot_customers.size(), session.current_servings()]
 	var lines := PackedStringArray([
 		"── OpenController（客キュー）──",
 		"時間帯: %s" % slot_text,
 		"queue(この時間帯の客数): %d" % slot_customers.size(),
 		"customer(接客中): %s" % cust_text,
-		"open_done(さばき切った): %s" % str(_open.is_open_done()),
-		"pending(鍋の選択待ち): %s" % ("はい" if _pending_shortage_ev != null else "いいえ"),
+		"open_done(さばき切った): %s" % str(session.open.is_open_done()),
+		"pending(鍋の選択待ち): %s" % ("はい" if session.pending_shortage_ev != null else "いいえ"),
 	])
 	# 1杯ずつ接客する客の集計中だけ出す（退店時に提供記録として1回反映される。
 	# 評判はもう客ごとに積まないので、この表示からは外れた）。
-	if not _visit_tally.is_empty():
+	if not session.visit_tally.is_empty():
 		lines.append("visit(この客の集計): 判定内訳%s 売上%d %d杯" % [
-			str(_visit_tally.get("results", {})),
-			int(_visit_tally["sale"]), int(_visit_tally["servings"])])
+			str(session.visit_tally.get("results", {})),
+			int(session.visit_tally["sale"]), int(session.visit_tally["servings"])])
 	return "\n" + "\n".join(lines) + _format_order_card_block() + _format_bowl()
 
 
@@ -1702,7 +1702,7 @@ func _format_order_card(customer_id: String) -> String:
 
 ## _format_open()に足す、注文カードと聞き直しの表示（ADJUST中の名前あり客だけ。他は空文字）。
 func _format_order_card_block() -> String:
-	var customer_id := _adjust_customer_id()
+	var customer_id := session.adjust_customer_id()
 	if customer_id == "":
 		return ""
 	var block := "\n── 注文カード ──\n%s" % _format_order_card(customer_id)
@@ -1725,8 +1725,8 @@ func _format_market() -> String:
 		return ""
 	var lines := PackedStringArray([
 		"── 市場（7.7）──",
-		"base(今日のベース): %s" % ("端材屋のクズ野菜（濃さ1スタート）" if _scraps_base else "食肉仲卸"),
-		"water(水場訪問済み): %s" % ("はい" if _market_visited_water else "いいえ"),
+		"base(今日のベース): %s" % ("端材屋のクズ野菜（濃さ1スタート）" if session.scraps_base else "食肉仲卸"),
+		"water(水場訪問済み): %s" % ("はい" if session.market_visited_water else "いいえ"),
 	])
 	return "\n" + "\n".join(lines)
 
@@ -1755,53 +1755,53 @@ func _react_for_now() -> Dictionary:
 ##                データ（reactions の文言）には入れない＝本番UIでは付けなければよい
 ## 椀が無い（客がいない）ときは空文字（表示に何も足さない）。
 func _format_bowl() -> String:
-	if _open == null or not _open.current_bowl.has("customer_id"):
+	if session.open == null or not session.open.current_bowl.has("customer_id"):
 		return ""
-	var additions: Array = _open.current_bowl.get("additions", [])
-	var result: String = str(_open.current_bowl.get("result", ""))
+	var additions: Array = session.open.current_bowl.get("additions", [])
+	var result: String = str(session.open.current_bowl.get("result", ""))
 	var judge_text := "(未定)"
 	# 評価しない杯（REACT に judge:false。例：持ち帰り用の杯）は、判定前から
 	# 「(評価なし)」と出す（「まだ判定していないだけ」に見えないように）。
-	if result == "" and not bool(_react_for_now().get("judge", true)):
+	if result == "" and not bool(session.react_for_now().get("judge", true)):
 		judge_text = "(評価なし)"
 	if result != "":
-		var base_result: String = str(_open.current_bowl.get("base_result", result))
+		var base_result: String = str(session.open.current_bowl.get("base_result", result))
 		var penalty_suffix := ""
 		if base_result != result:
 			# 下げる理由を併記する（両方成立しても下げるのは1段階だけ）。
 			var reasons := PackedStringArray()
-			if _open.current_bowl.get("penalty_strength", false):
-				reasons.append("濃さ%d" % int(_open.current_bowl.get("strength_at_judge", 0)))
-			if _open.current_bowl.get("penalty_spoiled", false):
+			if session.open.current_bowl.get("penalty_strength", false):
+				reasons.append("濃さ%d" % int(session.open.current_bowl.get("strength_at_judge", 0)))
+			if session.open.current_bowl.get("penalty_spoiled", false):
 				reasons.append("傷んだ具材")
 			penalty_suffix = " → %sで1段下げ" % "・".join(reasons)
 		# 具なし（フェーズ1 ステップ3）で強制BADになった場合、一致数だけ見ると
 		# なぜBADなのか分からないので理由を併記する。
-		var no_topping_suffix := "・具なし" if _open.current_bowl.get("no_topping", false) else ""
+		var no_topping_suffix := "・具なし" if session.open.current_bowl.get("no_topping", false) else ""
 		judge_text = "%s (一致%d%s%s%s)" % [
 			result,
-			int(_open.current_bowl.get("match_count", 0)),
-			" + favorite" if _open.current_bowl.get("has_favorite", false) else "",
+			int(session.open.current_bowl.get("match_count", 0)),
+			" + favorite" if session.open.current_bowl.get("has_favorite", false) else "",
 			no_topping_suffix,
 			penalty_suffix,
 		]
 	var lines := [
 		"── Bowl（接客中の椀）──",
 		"additions(具材): %s (%d/%d)" % [str(additions), additions.size(), OpenController.MAX_ADDITIONS],
-		"bowl_tags(3枠のtags): %s" % str(_open.bowl_addition_tags()),
-		"final_tags(最終tags): %s" % str(_open.bowl_final_tags()),
+		"bowl_tags(3枠のtags): %s" % str(session.open.bowl_addition_tags()),
+		"final_tags(最終tags): %s" % str(session.open.bowl_final_tags()),
 	]
 	# favorite は判定後（REACT適用後）だけ出す。判定前は好物を伏せておく（判定に実際に
 	# 使った値＝初回は空になる。current_bowlはjudge_bowlに渡した後の値を持つ）。
-	var favorite: String = str(_open.current_bowl.get("favorite", ""))
+	var favorite: String = str(session.open.current_bowl.get("favorite", ""))
 	if result != "" and favorite != "":
-		var in_bowl: bool = _open.current_bowl.get("has_favorite", false)
+		var in_bowl: bool = session.open.current_bowl.get("has_favorite", false)
 		lines.append("favorite(好物): %s → %s" % [favorite, "入っている" if in_bowl else "入っていない"])
 	# ③初回好物の開示：検証用に、判定の有無に関わらず「本来の好物」と既知状態を出す
 	# （Event側の生の値。current_bowlの上のfavoriteとは別。書き換えない読み取り専用）。
-	var raw_favorite: String = str(_react_for_now().get("favorite", ""))
+	var raw_favorite: String = str(session.react_for_now().get("favorite", ""))
 	if raw_favorite != "":
-		var customer_id: String = str(_open.current_bowl.get("customer_id", ""))
+		var customer_id: String = str(session.open.current_bowl.get("customer_id", ""))
 		lines.append("favorite_true(本来の好物・デバッグ): %s (known=%s)" % [
 			raw_favorite, str(GameState.knows_favorite(customer_id))])
 	lines.append("judge(判定): %s" % judge_text)
@@ -1814,9 +1814,9 @@ func _format_bowl() -> String:
 			lines.append(sale_hint)
 	# 廃棄回数（0回なら出さない）。椀自体は廃棄のたびに作り直されて消えるので、
 	# 「この客で何回作り直したか」は current_bowl とは別に _bowl_discard_count で持つ。
-	if _bowl_discard_count > 0:
-		lines.append("discard_count(この客での廃棄回数): %d回" % _bowl_discard_count)
-	var reaction := _current_reaction_text()
+	if session.bowl_discard_count > 0:
+		lines.append("discard_count(この客での廃棄回数): %d回" % session.bowl_discard_count)
+	var reaction := session.current_reaction_text()
 	if reaction != "":
 		lines.append("reaction(反応): 【%s】%s" % [result, reaction])
 	return "\n" + "\n".join(PackedStringArray(lines))
@@ -1827,7 +1827,7 @@ func _format_bowl() -> String:
 ## 減点が見込まれるならその理由を返す。どちらも該当しなければ空文字（_format_bowl()側で
 ## 行を足さない）。理由は PlaySession.sale_hint() のコード（UI準備A④で抜き出した）から文にする。
 func _format_sale_hint() -> String:
-	if _open == null or not _open.current_bowl.has("customer_id"):
+	if session.open == null or not session.open.current_bowl.has("customer_id"):
 		return ""
 	var hint: Dictionary = session.sale_hint()
 	var blockers: Array = hint["blockers"]
