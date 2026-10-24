@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/debug_panel.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/flow_controller.gd" id="2"]
 
 [node name="DebugPanel" type="PanelContainer"]
 anchors_preset = 15
@@ -140,6 +139,3 @@ disabled = true
 layout_mode = 2
 text = "終わる（フェーズ6）"
 disabled = true
-
-[node name="FlowController" type="Node" parent="."]
-script = ExtResource("2")

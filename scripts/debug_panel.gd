@@ -3,9 +3,18 @@ extends PanelContainer
 ##
 ## GameState と EventRunner.status を画面に映し、デバッグボタンで手叩きする。
 ## 本番のゲーム画面ではない。絵もシナリオも無し。
-## FlowController はこのシーンの子ノードとして持つ（autoload にはしない）。
+## 遊びの進行（FlowController・Eventの受け側・状態）は、UI準備Aで共有部品 PlaySession へ移している最中
+## （本番UIと同じ処理を使うため）。PlaySession はこのシーンの子ノードとして持つ（autoload にはしない）。
+## このパネルは「表示と結線」だけの役に寄せていく。
 
-@onready var flow: FlowController = $FlowController as FlowController
+# UI準備A：遊びの進行を持つ共有部品。_init() で作る（_ready より前から使えるように）。
+var session: PlaySession = null
+
+# UI準備Aの橋。テストを移したら削除（本番UIは session.flow を直接使う）。
+var flow: FlowController:
+	get:
+		return session.flow
+
 @onready var _game_state_label: Label = $Margin/VBox/TextScroll/TextBox/GameStateLabel as Label
 @onready var _runner_label: Label = $Margin/VBox/TextScroll/TextBox/RunnerLabel as Label
 @onready var _btn_next_event: Button = $Margin/VBox/EventRow/BtnNextEvent as Button
@@ -216,6 +225,12 @@ var _mob_original_ordered := -1
 var _mob_recipe_number := 1
 
 
+func _init() -> void:
+	session = PlaySession.new()
+	session.name = "PlaySession"
+	add_child(session)
+
+
 func _ready() -> void:
 	# 1枠セーブ：最初の朝のWAKE処理より前に、起動時のセーブを読んでおく。
 	_pending_continue = MorningSave.read_file()
@@ -225,6 +240,7 @@ func _ready() -> void:
 
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
 	# 最終日の翌朝の巻き戻し後に、初期在庫を積み直す（reset → 積み直し → phase_changed の順）。
+	session.changed.connect(_refresh)                  # 遊びの状態が変わった → 描き直す（UI準備A）
 	flow.game_restarted.connect(_seed_initial_inventory)
 	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
 	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
