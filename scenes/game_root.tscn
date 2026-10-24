@@ -1,28 +1,36 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=24 format=3]
 
-[ext_resource type="Theme" path="res://resources/ui_theme.tres" id="1_x5456"]
-[ext_resource type="Script" path="res://scripts/ui/game_root.gd" id="2_6puu6"]
-[ext_resource type="PackedScene" path="res://scenes/ui/left_side.tscn" id="3_k6861"]
-[ext_resource type="Script" path="res://scripts/ui/left_side.gd" id="4_x42w8"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_morning.tscn" id="5_1vvmy"]
-[ext_resource type="Script" path="res://scripts/ui/pane_morning.gd" id="6_0aloa"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_market.tscn" id="7_35vvr"]
-[ext_resource type="Script" path="res://scripts/ui/pane_market.gd" id="8_so1mv"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_buy_meat.tscn" id="9_6y7e7"]
-[ext_resource type="Script" path="res://scripts/ui/pane_buy_meat.gd" id="10_0ns5a"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_buy_shop.tscn" id="11_lfyj4"]
-[ext_resource type="Script" path="res://scripts/ui/pane_buy_shop.gd" id="12_3isrv"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_kaiten.tscn" id="13_r4kn7"]
-[ext_resource type="Script" path="res://scripts/ui/pane_kaiten.gd" id="14_wt8xl"]
-[ext_resource type="Script" path="res://scripts/play_session.gd" id="15_nj3bt"]
+[ext_resource type="Theme" path="res://resources/ui_theme.tres" id="1_6y7e7"]
+[ext_resource type="Script" path="res://scripts/ui/game_root.gd" id="2_0ns5a"]
+[ext_resource type="PackedScene" path="res://scenes/ui/left_side.tscn" id="3_lfyj4"]
+[ext_resource type="Script" path="res://scripts/ui/left_side.gd" id="4_3isrv"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_morning.tscn" id="5_r4kn7"]
+[ext_resource type="Script" path="res://scripts/ui/pane_morning.gd" id="6_wt8xl"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_market.tscn" id="7_nj3bt"]
+[ext_resource type="Script" path="res://scripts/ui/pane_market.gd" id="8_ens0h"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_buy_meat.tscn" id="9_x6uho"]
+[ext_resource type="Script" path="res://scripts/ui/pane_buy_meat.gd" id="10_1lucu"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_buy_shop.tscn" id="11_uqkft"]
+[ext_resource type="Script" path="res://scripts/ui/pane_buy_shop.gd" id="12_tp2pr"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_kaiten.tscn" id="13_1ybbh"]
+[ext_resource type="Script" path="res://scripts/ui/pane_kaiten.gd" id="14_xf5nq"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_close.tscn" id="15_yjs5w"]
+[ext_resource type="Script" path="res://scripts/ui/pane_close.gd" id="16_rm5wl"]
+[ext_resource type="PackedScene" path="res://scenes/ui/full_prep.tscn" id="17_2jolb"]
+[ext_resource type="Script" path="res://scripts/ui/full_prep.gd" id="18_b62s3"]
+[ext_resource type="PackedScene" path="res://scenes/ui/full_result.tscn" id="19_n6ofd"]
+[ext_resource type="Script" path="res://scripts/ui/full_result.gd" id="20_2l3ii"]
+[ext_resource type="PackedScene" path="res://scenes/ui/full_gameover.tscn" id="21_jccvb"]
+[ext_resource type="Script" path="res://scripts/ui/full_gameover.gd" id="22_lxrpf"]
+[ext_resource type="Script" path="res://scripts/play_session.gd" id="23_2un5i"]
 
 [node name="GameRoot" type="Control"]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 1280.0
 offset_bottom = 720.0
-theme = ExtResource("1_x5456")
-script = ExtResource("2_6puu6")
+theme = ExtResource("1_6y7e7")
+script = ExtResource("2_0ns5a")
 
 [node name="Background" type="ColorRect" parent="."]
 layout_mode = 0
@@ -31,14 +39,14 @@ offset_bottom = 720.0
 mouse_filter = 2
 color = Color(0.0705882, 0.0862745, 0.113725, 1)
 
-[node name="LeftSide" type="Control" parent="." instance=ExtResource("3_k6861")]
+[node name="LeftSide" type="Control" parent="." instance=ExtResource("3_lfyj4")]
 unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 0
 offset_right = 820.0
 offset_bottom = 720.0
 mouse_filter = 2
-script = ExtResource("4_x42w8")
+script = ExtResource("4_3isrv")
 
 [node name="RightPane" type="Control" parent="."]
 unique_name_in_owner = true
@@ -49,46 +57,85 @@ offset_right = 1256.0
 offset_bottom = 696.0
 mouse_filter = 2
 
-[node name="PaneMorning" type="Panel" parent="RightPane" instance=ExtResource("5_1vvmy")]
+[node name="PaneMorning" type="Panel" parent="RightPane" instance=ExtResource("5_r4kn7")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
-script = ExtResource("6_0aloa")
+script = ExtResource("6_wt8xl")
 
-[node name="PaneMarket" type="Panel" parent="RightPane" instance=ExtResource("7_35vvr")]
+[node name="PaneMarket" type="Panel" parent="RightPane" instance=ExtResource("7_nj3bt")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
-script = ExtResource("8_so1mv")
+script = ExtResource("8_ens0h")
 
-[node name="PaneBuyMeat" type="Panel" parent="RightPane" instance=ExtResource("9_6y7e7")]
+[node name="PaneBuyMeat" type="Panel" parent="RightPane" instance=ExtResource("9_x6uho")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
-script = ExtResource("10_0ns5a")
+script = ExtResource("10_1lucu")
 
-[node name="PaneBuyShop" type="Panel" parent="RightPane" instance=ExtResource("11_lfyj4")]
+[node name="PaneBuyShop" type="Panel" parent="RightPane" instance=ExtResource("11_uqkft")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
-script = ExtResource("12_3isrv")
+script = ExtResource("12_tp2pr")
 
-[node name="PaneKaiten" type="Panel" parent="RightPane" instance=ExtResource("13_r4kn7")]
+[node name="PaneKaiten" type="Panel" parent="RightPane" instance=ExtResource("13_1ybbh")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
-script = ExtResource("14_wt8xl")
+script = ExtResource("14_xf5nq")
+
+[node name="PaneClose" type="Panel" parent="RightPane" instance=ExtResource("15_yjs5w")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("16_rm5wl")
+
+[node name="Full" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+
+[node name="FullPrep" type="Control" parent="Full" instance=ExtResource("17_2jolb")]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+script = ExtResource("18_b62s3")
+
+[node name="FullResult" type="Control" parent="Full" instance=ExtResource("19_n6ofd")]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+script = ExtResource("20_2l3ii")
+
+[node name="FullGameOver" type="Control" parent="Full" instance=ExtResource("21_jccvb")]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+script = ExtResource("22_lxrpf")
 
 [node name="Session" type="Node" parent="."]
 unique_name_in_owner = true
-script = ExtResource("15_nj3bt")
+script = ExtResource("23_2un5i")

@@ -1,0 +1,156 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/full_result.gd" id="1_5c02g"]
+
+[node name="FullResult" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+script = ExtResource("1_5c02g")
+
+[node name="Still" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+color = Color(0.101961, 0.12549, 0.168627, 1)
+
+[node name="StillNote" type="Label" parent="."]
+layout_mode = 0
+offset_left = 24.0
+offset_top = 680.0
+offset_right = 424.0
+offset_bottom = 704.0
+theme_type_variation = &"LabelCaption"
+text = "静止画（結果・仮）"
+vertical_alignment = 1
+
+[node name="Frame" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 260.0
+offset_top = 80.0
+offset_right = 1020.0
+offset_bottom = 640.0
+mouse_filter = 1
+theme_type_variation = &"Panel"
+
+[node name="Tabs" type="Control" parent="Frame"]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 758.0
+offset_bottom = 51.0
+mouse_filter = 2
+
+[node name="Tab1" type="Button" parent="Frame/Tabs"]
+layout_mode = 0
+offset_right = 252.0
+offset_bottom = 49.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+text = "1"
+
+[node name="Tab2" type="Button" parent="Frame/Tabs"]
+layout_mode = 0
+offset_left = 252.0
+offset_right = 504.0
+offset_bottom = 49.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+text = "2"
+
+[node name="Tab3" type="Button" parent="Frame/Tabs"]
+layout_mode = 0
+offset_left = 504.0
+offset_right = 756.0
+offset_bottom = 49.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+text = "3"
+
+[node name="Underline" type="ColorRect" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 48.0
+offset_right = 254.0
+offset_bottom = 51.0
+mouse_filter = 2
+color = Color(0.909804, 0.639216, 0.239216, 1)
+
+[node name="BodyScroll" type="ScrollContainer" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 66.0
+offset_right = 736.0
+offset_bottom = 426.0
+horizontal_scroll_mode = 0
+
+[node name="Body" type="Label" parent="Frame/BodyScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"LabelResult"
+autowrap_mode = 1
+
+[node name="Exits" type="HBoxContainer" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 24.0
+offset_top = 436.0
+offset_right = 736.0
+offset_bottom = 482.0
+theme_override_constants/separation = 8
+
+[node name="RunAgainButton" type="Button" parent="Frame/Exits"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "もう一度（Day1の朝から）"
+
+[node name="LastMorningButton" type="Button" parent="Frame/Exits"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "最後の朝から"
+
+[node name="NewRunButton" type="Button" parent="Frame/Exits"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "新しい周"
+
+[node name="TitleButton" type="Button" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 380.0
+offset_top = 498.0
+offset_right = 550.0
+offset_bottom = 544.0
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "タイトルへ"
+
+[node name="NextButton" type="Button" parent="Frame"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 566.0
+offset_top = 498.0
+offset_right = 736.0
+offset_bottom = 544.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "次へ"

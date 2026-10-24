@@ -73,6 +73,10 @@ var market_shop := ""
 var market_visited_water := false
 ## ゲームオーバーの理由の文。_set_runner_for_phase(GAME_OVER) が読んで消費する（一度きり）。
 var game_over_reason := ""
+## ゲームオーバーの種類と額（UI準備B④。表示だけ）。払えなかった支払いの { kind（帳簿のカテゴリ。"daily_cost"／"water"／
+## "rent"／"kit"／""＝その他）, amount（必要額）, money（そのときの所持金）, day, phase（どのフェーズで詰んだか） }。
+## pay_or_game_over が詰んだときに入れ、再挑戦・新しい周・続きから（reset_transient_state）で消す。読むのは game_over_info()。
+var game_over_detail := {}
 ## 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。仕込みに入る瞬間に1回だけ決める。
 var scraps_base := false
 
@@ -288,6 +292,8 @@ func pay_or_game_over(amount: int, category: String = "") -> bool:
 		if category != "":
 			Ledger.record(category, -amount)
 		return true
+	game_over_detail = { "kind": category, "amount": amount, "money": GameState.money, "day": GameState.day_count,
+		"phase": GameState.phase }
 	game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
 	return false
 
@@ -2103,6 +2109,7 @@ func reset_transient_state() -> void:
 	bowl_discard_count = 0
 	closed_early_reason = ""
 	game_over_reason = ""
+	game_over_detail = {}
 	clear_reask()
 
 
@@ -2522,6 +2529,16 @@ func ingredient_options() -> Array:
 ## 今朝払った運営費（朝のWAKEで払った分。帳簿の "daily_cost" の今日の合計）。
 func morning_cost() -> int:
 	return int(Ledger.spend_by_category_today().get("daily_cost", 0))
+
+
+## ゲームオーバーの中身（UI準備B④。表示だけ）：{ available（GAME_OVER で、詰んだ支払いの記録があるか）, kind, amount, money, day, phase }。
+## kind は帳簿のカテゴリ（"daily_cost"＝運営費／"water"＝水道代／"rent"＝場所代／"kit"＝初日セット／""＝その他）。文面はUI側で決める。
+func game_over_info() -> Dictionary:
+	if GameState.phase != GameState.Phase.GAME_OVER or game_over_detail.is_empty():
+		return { "available": false }
+	var out := game_over_detail.duplicate()
+	out["available"] = true
+	return out
 
 
 ## 結果画面・ゲームオーバーの出口：{ available（RESULT か GAME_OVER か）, can_retry（同じ朝から＝直近の朝。GAME_OVER で記録があるとき）,

@@ -5,6 +5,7 @@ class_name UiGameRoot
 ## 描き直しの最後に record_visible_event() を呼ぶ（会話ログ・既読。PLAY_SESSION_API §1）。
 ## 部品は bind_session(session) を1回、refresh() を描き直しのたびに受ける（引数なし）。
 ## 右の枠は同じ位置に重ねた画面のうち、いまの状態の1つだけを出す（_right_pane）。
+## 全面（仕込み・結果・ゲームオーバー）が出ている間は、左側と右の枠を隠す（_full_screen）。
 
 @onready var session: PlaySession = %Session
 @onready var left: UiLeftSide = %LeftSide
@@ -13,23 +14,33 @@ class_name UiGameRoot
 @onready var pane_buy_meat: UiPaneBuyMeat = %PaneBuyMeat
 @onready var pane_buy_shop: UiPaneBuyShop = %PaneBuyShop
 @onready var pane_kaiten: UiPaneKaiten = %PaneKaiten
+@onready var pane_close: UiPaneClose = %PaneClose
+@onready var right_pane: Control = %RightPane
+@onready var full_prep: UiFullPrep = %FullPrep
+@onready var full_result: UiFullResult = %FullResult
+@onready var full_gameover: UiFullGameOver = %FullGameOver
 
 ## 市場の「この店で買ったもの」のUIだけの集計（plan Q10）。仕込みに入るたびに捨てる。
 var tally := UiShopTally.new()
 
 
 func _panes() -> Array:
-	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten]
+	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten, pane_close]
+
+
+func _fulls() -> Array:
+	return [full_prep, full_result, full_gameover]
 
 
 func _ready() -> void:
 	left.bind_session(session)
-	for pane in _panes():
+	for pane in _panes() + _fulls():
 		pane.bind_session(session)
 	pane_market.tally = tally
 	pane_buy_meat.tally = tally
 	pane_buy_shop.tally = tally
 	pane_buy_meat.advance_requested.connect(left.advance)
+	full_prep.advance_requested.connect(left.advance)
 	session.phase_entering.connect(_on_phase_entering)
 	session.changed.connect(_redraw)
 	session.start()
@@ -37,13 +48,32 @@ func _ready() -> void:
 
 
 func _redraw() -> void:
+	var full := _full_screen()
+	for screen in _fulls():
+		screen.visible = screen == full
+	left.visible = full == null
+	right_pane.visible = full == null
+	if full != null:
+		full.refresh()
 	left.refresh()
-	var shown := _right_pane()
+	var shown := _right_pane() if full == null else null
 	for pane in _panes():
 		pane.visible = pane == shown
 	if shown != null:
 		shown.refresh()
 	session.record_visible_event()
+
+
+## いま出す全面（無ければ null）：市場を出たあとの仕込み・結果・ゲームオーバー。
+func _full_screen() -> Control:
+	match GameState.phase:
+		GameState.Phase.PREP:
+			return full_prep if _market_stage() == "after" else null
+		GameState.Phase.RESULT:
+			return full_result
+		GameState.Phase.GAME_OVER:
+			return full_gameover
+	return null
 
 
 ## いま右の枠に出す画面（無ければ null）。
@@ -62,10 +92,10 @@ func _right_pane() -> Control:
 				"before":
 					# 所持金が鍋の素に満たない日は、張記の画面を出さない（端材屋のクズ野菜ベースが自動で決まる）
 					return pane_market if session.today_base()["scraps"] else pane_buy_meat
-				_:
-					return pane_market   # 市場を出たあと（仕込みの全面はUI準備B④）
 		GameState.Phase.OPEN:
 			return pane_kaiten
+		GameState.Phase.CLOSE:
+			return pane_close
 	return null
 
 
@@ -87,6 +117,7 @@ func _market_stage() -> String:
 func _on_phase_entering(phase: int) -> void:
 	left.reset_ui_state()
 	pane_kaiten.reset_ui_state()
+	full_result.reset_ui_state()
 	if phase == GameState.Phase.PREP:
 		tally.clear()
 

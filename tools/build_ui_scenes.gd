@@ -22,6 +22,10 @@ const INGREDIENT_BUTTON_PATH := "res://scenes/ui/ingredient_button.tscn"
 const KAITEN_POT_PATH := "res://scenes/ui/kaiten_pot.tscn"
 const KAITEN_TOPPING_PATH := "res://scenes/ui/kaiten_topping.tscn"
 const PANE_KAITEN_PATH := "res://scenes/ui/pane_kaiten.tscn"
+const PANE_CLOSE_PATH := "res://scenes/ui/pane_close.tscn"
+const FULL_PREP_PATH := "res://scenes/ui/full_prep.tscn"
+const FULL_RESULT_PATH := "res://scenes/ui/full_result.tscn"
+const FULL_GAMEOVER_PATH := "res://scenes/ui/full_gameover.tscn"
 const TNUM := 1953396077   # OpenType の機能 "tnum"（数字の幅をそろえる）のタグ
 const FONT_PATH := "res://assets/fonts/NotoSansJP[wght].ttf"   # Noto Sans JP（OFL。assets/fonts/OFL.txt）
 const WGHT := 2003265652   # OpenType の軸 "wght"（太さ）のタグ
@@ -51,6 +55,11 @@ func _initialize() -> void:
 	_build(KAITEN_POT_PATH, _make_kaiten_pot, built, skipped)
 	_build(KAITEN_TOPPING_PATH, _make_kaiten_topping, built, skipped)
 	_build(PANE_KAITEN_PATH, _make_pane_kaiten, built, skipped)
+	# 閉店と全面（UI準備B④）
+	_build(PANE_CLOSE_PATH, _make_pane_close, built, skipped)
+	_build(FULL_PREP_PATH, _make_full_prep, built, skipped)
+	_build(FULL_RESULT_PATH, _make_full_result, built, skipped)
+	_build(FULL_GAMEOVER_PATH, _make_full_gameover, built, skipped)
 	_build(GAME_ROOT_PATH, _make_game_root, built, skipped)
 	print("作った: %s" % ", ".join(built))
 	print("読み飛ばした（既にある）: %s" % ", ".join(skipped))
@@ -159,6 +168,12 @@ func _make_theme() -> Theme:
 	for numeric_type in ["LabelMoney", "LabelValue", "LabelValueAccent", "LabelBig", "LabelServings", "LabelPrice",
 			"LabelPriceWarn", "LabelPotCount", "LabelIngCount"]:
 		t.set_font("font", numeric_type, numeric)
+	# 閉店と全面（UI準備B④）
+	_label_variation(t, "LabelPrepTitle", UiPalette.TEXT, 34)
+	_label_variation(t, "LabelTitleWarn", UiPalette.WARN, 32)
+	_label_variation(t, "LabelResult", UiPalette.TEXT, 18)
+	t.set_font("font", "LabelPrepTitle", bold)
+	t.set_font("font", "LabelTitleWarn", bold)
 	for bold_type in ["LabelDay", "LabelName", "ButtonPrimary", "LabelHeading"]:
 		t.set_font("font", bold_type, bold)
 
@@ -789,6 +804,131 @@ func _make_pane_kaiten() -> PackedScene:
 	return _pack(root)
 
 
+# --- 閉店と全面（UI準備B④）---
+
+## 右の枠：閉店（今夜の結果と修繕基金）。寸法表 SCREENS_UI_LAYOUT §7。
+func _make_pane_close() -> PackedScene:
+	var root := _pane_root("PaneClose", "res://scripts/ui/pane_close.gd")
+	var sales := _panel(root, "SalesBox", "PanelBox", Rect2(16, 62, 388, 99), root)
+	_label(sales, "Caption", "売上", Rect2(12, 4, 120, 18), root, "LabelCaption")
+	_label(sales, "SalesValue", "¥0", Rect2(12, 22, 180, 42), root, "LabelBig", true)
+	_label(sales, "ServedLabel", "提供 0杯 / 注文0杯", Rect2(190, 22, 186, 42), root, "LabelBody", true, HORIZONTAL_ALIGNMENT_RIGHT)
+	_label(sales, "ShortLabel", "足りなかった 0杯", Rect2(12, 66, 364, 26), root, "LabelWarnBody", true)
+	var grades_box := _panel(root, "GradesBox", "PanelBox", Rect2(16, 171, 388, 96), root)
+	_label(grades_box, "Caption", "出来", Rect2(12, 4, 120, 18), root, "LabelCaption")
+	var grades := Control.new()
+	grades.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(grades_box, grades, "Grades", Rect2(12, 22, 366, 50), root, true)
+	var names := ["GREAT", "GOOD", "OK", "BAD"]
+	for i in range(names.size()):
+		var cell := _panel(grades, names[i], "PanelBand", Rect2(i * 93, 0, 87, 50), root)
+		_label(cell, "Name", names[i], Rect2(0, 0, 87, 18), root, "LabelCaptionAccent" if i == 0 else "LabelCaption", false,
+			HORIZONTAL_ALIGNMENT_CENTER)
+		_label(cell, "Count", "0", Rect2(0, 18, 87, 30), root, "LabelValueAccent" if i == 0 else "LabelValue", false,
+			HORIZONTAL_ALIGNMENT_CENTER)
+	_label(grades_box, "Note", "評判は明日の朝に決まる", Rect2(12, 74, 364, 18), root, "LabelCaption")
+	var fund := _panel(root, "FundBox", "PanelBox", Rect2(16, 276, 388, 233), root, true)
+	_label(fund, "Caption", "修繕基金(任意・積まなくてもよい)", Rect2(12, 4, 364, 20), root, "LabelSub")
+	var wait := _label(fund, "FundWait", "閉店の語りを読み終えると積める", Rect2(12, 30, 364, 40), root, "LabelDim", true)
+	wait.visible = false
+	var targets := VBoxContainer.new()
+	targets.add_theme_constant_override("separation", 4)
+	_node(fund, targets, "Targets", Rect2(12, 28, 364, 128), root, true)
+	for i in range(4):
+		var row := _button(targets, "Target%d" % (i + 1), "", "ButtonRow", Rect2(0, 0, 364, 29), root)
+		_label(row, "Mark", "", Rect2(6, 0, 18, 29), root, "LabelAccentBody")
+		_label(row, "Name", "対象", Rect2(24, 0, 200, 29), root, "LabelBody")
+		_label(row, "State", "0/0", Rect2(224, 0, 132, 29), root, "LabelSub", false, HORIZONTAL_ALIGNMENT_RIGHT)
+	var info := _label(fund, "FundInfo", "", Rect2(12, 158, 364, 30), root, "LabelSub", true)
+	info.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	var steps := HBoxContainer.new()
+	steps.add_theme_constant_override("separation", 6)
+	_node(fund, steps, "Steps", Rect2(12, 191, 364, 34), root, true)
+	for i in range(2):
+		var b := _button(steps, "Step%d" % (i + 1), "+10 積む", "ButtonSmall", Rect2(0, 0, 179, 34), root)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_button(root, "NextButton", "次の日へ", "ButtonPrimary", Rect2(16, 610, 388, 46), root, true)
+	return _pack(root)
+
+
+## 全面の地（静止画1枚の仮）。左側の会話・上部の数字・アイコンは出さない。
+func _full_root(node_name: String, script_path: String, still_text: String) -> Control:
+	var root := Control.new()
+	root.name = node_name
+	root.set_script(load(script_path))
+	root.layout_mode = 3
+	root.size = Vector2(1280, 720)
+	var still := ColorRect.new()
+	still.color = UiPalette.BG2
+	still.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, still, "Still", Rect2(0, 0, 1280, 720), root)
+	_label(root, "StillNote", still_text, Rect2(24, 680, 400, 24), root, "LabelCaption")
+	return root
+
+
+## 全面：仕込み。寸法表 SCREENS_UI_LAYOUT §8（中央・約206×107）。
+func _make_full_prep() -> PackedScene:
+	var root := _full_root("FullPrep", "res://scripts/ui/full_prep.gd", "静止画（仕込み・仮）")
+	_label(root, "Title", "仕込み中", Rect2(440, 300, 400, 48), root, "LabelPrepTitle", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(root, "Detail", "鍋の素 中・11杯・濃さ3", Rect2(440, 350, 400, 28), root, "LabelResult", true, HORIZONTAL_ALIGNMENT_CENTER)
+	var dots := Control.new()
+	dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, dots, "Dots", Rect2(616, 392, 48, 10), root, true)
+	for i in range(3):
+		var dot := ColorRect.new()
+		dot.color = UiPalette.LINE
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_node(dots, dot, "Dot%d" % (i + 1), Rect2(i * 19, 0, 10, 10), root)
+	var open := _button(root, "OpenButton", "開店する", "ButtonPrimary", Rect2(540, 440, 200, 46), root, true)
+	open.visible = false
+	return _pack(root)
+
+
+## 全面：結果。寸法表 SCREENS_UI_LAYOUT §8（枠 (260,80) 760×560、タブ1つ252×49、ボタン1つ170×46）。
+func _make_full_result() -> PackedScene:
+	var root := _full_root("FullResult", "res://scripts/ui/full_result.gd", "静止画（結果・仮）")
+	var frame := _panel(root, "Frame", "Panel", Rect2(260, 80, 760, 560), root, true)
+	frame.mouse_filter = Control.MOUSE_FILTER_PASS
+	var tabs := Control.new()
+	tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(frame, tabs, "Tabs", Rect2(2, 2, 756, 49), root, true)
+	for i in range(3):
+		_button(tabs, "Tab%d" % (i + 1), "%d" % (i + 1), "ButtonTab", Rect2(i * 252, 0, 252, 49), root)
+	var underline := ColorRect.new()
+	underline.color = UiPalette.ACCENT
+	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(frame, underline, "Underline", Rect2(2, 48, 252, 3), root, true)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_node(frame, scroll, "BodyScroll", Rect2(24, 66, 712, 360), root, true)
+	var body := _label(scroll, "Body", "", Rect2(), root, "LabelResult", true)
+	body.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	var exits := HBoxContainer.new()
+	exits.add_theme_constant_override("separation", 8)
+	_node(frame, exits, "Exits", Rect2(24, 436, 712, 46), root, true)
+	for spec in [["RunAgainButton", "もう一度（Day1の朝から）"], ["LastMorningButton", "最後の朝から"], ["NewRunButton", "新しい周"]]:
+		var b := _button(exits, spec[0], spec[1], "ButtonSecondary", Rect2(0, 0, 0, 46), root, true)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_button(frame, "TitleButton", "タイトルへ", "ButtonSecondary", Rect2(380, 498, 170, 46), root, true)
+	_button(frame, "NextButton", "次へ", "ButtonPrimary", Rect2(566, 498, 170, 46), root, true)
+	return _pack(root)
+
+
+## 全面：ゲームオーバー。寸法表 SCREENS_UI_LAYOUT §8（枠 (320,234) 640×251、ボタン1つ223×46）。
+func _make_full_gameover() -> PackedScene:
+	var root := _full_root("FullGameOver", "res://scripts/ui/full_gameover.gd", "静止画（ゲームオーバー・仮）")
+	var frame := _panel(root, "Frame", "Panel", Rect2(320, 234, 640, 251), root, true)
+	frame.mouse_filter = Control.MOUSE_FILTER_PASS
+	_label(frame, "Title", "ゲームオーバー", Rect2(24, 18, 592, 48), root, "LabelTitleWarn", false, HORIZONTAL_ALIGNMENT_CENTER)
+	var detail := _label(frame, "Detail", "", Rect2(24, 74, 592, 90), root, "LabelResult", true, HORIZONTAL_ALIGNMENT_CENTER)
+	detail.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	_button(frame, "RetryButton", "Day 1 の朝からやり直す", "ButtonPrimary", Rect2(89, 185, 223, 46), root, true)
+	_button(frame, "QuitButton", "終わる", "ButtonSecondary", Rect2(328, 185, 223, 46), root, true)
+	return _pack(root)
+
+
 # --- ルート ---
 
 func _make_game_root() -> PackedScene:
@@ -815,10 +955,17 @@ func _make_game_root() -> PackedScene:
 	_node(root, right, "RightPane", Rect2(836, 24, 420, 672), root, true)
 	# 右の枠の画面は同じ位置に重ね、ルートがいまの1つだけを出す
 	for pane in [["PaneMorning", PANE_MORNING_PATH], ["PaneMarket", PANE_MARKET_PATH], ["PaneBuyMeat", PANE_BUY_MEAT_PATH],
-			["PaneBuyShop", PANE_BUY_SHOP_PATH], ["PaneKaiten", PANE_KAITEN_PATH]]:
+			["PaneBuyShop", PANE_BUY_SHOP_PATH], ["PaneKaiten", PANE_KAITEN_PATH],
+			["PaneClose", PANE_CLOSE_PATH]]:
 		var inst := _instance(right, pane[1], pane[0], Rect2(0, 0, 420, 672), root, true)
 		inst.visible = false
-
+	# 全面（仕込み・結果・ゲームオーバー）。出ている間は左側と右の枠を隠す
+	var full := Control.new()
+	full.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, full, "Full", Rect2(0, 0, 1280, 720), root, true)
+	for screen in [["FullPrep", FULL_PREP_PATH], ["FullResult", FULL_RESULT_PATH], ["FullGameOver", FULL_GAMEOVER_PATH]]:
+		var inst := _instance(full, screen[1], screen[0], Rect2(0, 0, 1280, 720), root, true)
+		inst.visible = false
 
 	var session := Node.new()
 	session.set_script(load("res://scripts/play_session.gd"))

@@ -127,6 +127,7 @@ session.record_visible_event()
 | `fund_view()` | `{available, complete, targets[{id,label,paid,price,repaired,locked,selected}], selected, paid_tonight, nightly_max, max_contribution, steps[{amount,can}], notice, reserve}`（積み立てが出ない間は `{available:false}`） |
 | `result_view()` | `{summary（Result.summarize）, goals（Result.judge_goals。完走・標準・挑戦・料理・常連）}` |
 | `exits()` | `{available, can_retry, can_last_morning, can_run_again, run_again_is_new_run, can_new_run, can_continue}` |
+| `game_over_info()` | `{available, kind（"daily_cost"／"water"／"rent"／"kit"／""）, amount, money, day, phase}`。GAME_OVER で、払えなかった支払いの記録があるときだけ available（UI準備B④で追加。表示だけ） |
 | `phone_news()` | `[{day, is_today, news[{headline,body[],provisional}], dm[{from,text,provisional}], events[{lines[],provisional}]}]`（新しい日が上・今日と過ぎた日だけ） |
 | `phone_recipes()` | `{slots[{index,name,tags,ingredients}], usual[{customer,ingredients}]}`（空き枠は name が ""） |
 | `talk_log_entries()` | `[{day, kind, speaker, text}]`（今日の会話ログ。コピー） |
@@ -193,7 +194,7 @@ session.record_visible_event()
 | 項目 | 読むもの |
 |---|---|
 | 成績・目標 | `result_view()`（`Result.format_report`／`format_goals`／`format_story` で文面） |
-| ゲームオーバーの理由 | 理由の**文**だけ：`current_line()`（種類と額は **取れない**＝§7） |
+| ゲームオーバーの理由 | 理由の文：`current_line()`。種類と額：`game_over_info()`（UI準備B④で追加） |
 | 出口（同じ朝から／直近の朝／Day1から／新しい周／続きから） | `exits()` と `retry()`・`last_morning()`・`run_again()`・`new_run()`・`continue_game()` |
 
 ### スマホ
@@ -209,7 +210,6 @@ session.record_visible_event()
 
 | 項目 | 状況 | 予定 |
 |---|---|---|
-| ゲームオーバーの種類と額 | 理由の文字列だけ（`pay_or_game_over(amount, category)` の引数としてしか通らず、保持しない） | B か C |
 | 足りなかった杯数の内訳（素材・鍋・断った） | `tonight_result()` は未提供の合計だけ | C |
 | 客足（評判の横の言葉） | 無い | C |
 | DM（常連からのDM） | `phone_news()` の `dm` は街のDMだけ | C |
