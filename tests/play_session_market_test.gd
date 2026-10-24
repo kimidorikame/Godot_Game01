@@ -70,7 +70,31 @@ func run(t: SceneTree) -> int:
 	c.check("小仕込みを選ぶ：所持金-80・鍋の素を買った・changed が1回", GameState.money == 20
 		and p2.session.prep_tier_paid() and counter["n"] == 1, str(counter["n"]))
 	c.check("選んだあとは段階の選択ではなくなる（残りの列に差し替わる）", not p2.session.is_in_prep_tier())
+	var base: Dictionary = p2.session.today_base()
+	c.check("今日の鍋の素：買った・小仕込み・8杯・クズ野菜ではない",
+		base == { "paid": true, "tier_id": "small", "label": "小仕込み", "servings": 8, "scraps": false }, str(base))
 	p2.free()
+	# 今日の鍋の素：買う前
+	var p2b = _setup(t, 1000, 3)
+	_to_tier(p2b)
+	c.check("買う前の鍋の素：買っていない・段階なし",
+		p2b.session.today_base() == { "paid": false, "tier_id": "", "label": "", "servings": 0, "scraps": false },
+		str(p2b.session.today_base()))
+	p2b.session.choose_prep_tier("medium")
+	c.check("中仕込みを買うと『中・11杯・買った』",
+		p2b.session.today_base() == { "paid": true, "tier_id": "medium", "label": "中仕込み", "servings": 11, "scraps": false },
+		str(p2b.session.today_base()))
+	p2b.free()
+	# クズ野菜ベースの日：所持金が一番安い仕込みにも満たない
+	var p2c = _setup(t, 50, 3)
+	c.check("クズ野菜ベースの日：支払いは無く、小仕込み相当（8杯）の自動の鍋の素",
+		p2c.session.today_base() == { "paid": false, "tier_id": "small", "label": "小仕込み", "servings": 8, "scraps": true }
+			and p2c._scraps_base == p2c.session.scraps_base, str(p2c.session.today_base()))
+	p2c.session.scraps_base = true
+	GameState.phase = GameState.Phase.WAKE
+	c.check("仕込みの前（朝）は、前日のクズ野菜の印が残っていても scraps は false",
+		p2c.session.today_base()["scraps"] == false)
+	p2c.free()
 
 	# --- 3. 市場：店の一覧・店の商品・買う・店を出る ---
 	var p3 = _setup(t, 1000, 3)
