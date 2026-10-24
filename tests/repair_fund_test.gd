@@ -217,17 +217,17 @@ func run(t: SceneTree) -> int:
 		GameState.money = money
 		GameState.reputation = 55
 		GameState.today_plan = { "day": 2, "demand_center": 14, "slots": [], "mob_instances": {} }
-		panel.flow.force_phase(GameState.Phase.CLOSE)
+		panel.session.flow.force_phase(GameState.Phase.CLOSE)
 		var g2 := 0
-		while panel.flow.runner.status != EventRunner.Status.DONE and g2 < 100:
+		while panel.session.flow.runner.status != EventRunner.Status.DONE and g2 < 100:
 			g2 += 1
 			panel._on_next_event_pressed()
 		var need2: int = int(RepairFund.next_day_reserve()["total"])
 		var guard2 := 0
 		while guard2 < 100 and (RepairFund.contribute("sign", 30) or RepairFund.contribute("sign", 10)):
 			guard2 += 1
-		panel.flow.advance_phase()   # CLOSE → NEXT_DAY
-		panel.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
+		panel.session.flow.advance_phase()   # CLOSE → NEXT_DAY
+		panel.session.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
 		c.check("所持金%d：積んだ後も翌朝（Day3）のWAKEへ進め、運営費が払えてゲームオーバーにならない（WAKE後%d）" % [money, GameState.money],
 			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= need2 - op)
 		panel.free()

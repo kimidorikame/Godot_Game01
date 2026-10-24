@@ -11,7 +11,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": customers }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -21,7 +21,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 
 func _drive_to_adjust(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -41,14 +41,14 @@ func run(t: SceneTree) -> int:
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()   # SERVE -> REACT
 	c.check("初回でも要求2つ一致+好物ありでGREATになる(F3: 判定には初回から好物を使う)",
-		str(panel._open.current_bowl.get("result", "")) == "GREAT",
-		str(panel._open.current_bowl.get("result", "")))
+		str(panel.session.open.current_bowl.get("result", "")) == "GREAT",
+		str(panel.session.open.current_bowl.get("result", "")))
 	c.check("初回でも判定には本来のfavoriteが使われる(current_bowl)",
-		str(panel._open.current_bowl.get("favorite", "")) == "offal")
+		str(panel.session.open.current_bowl.get("favorite", "")) == "offal")
 	c.check("退店(このREACTの直後)で老婆の好物は知った扱いになる", GameState.knows_favorite("granny"))
 
 	# --- 2回目の来店（同じ構成）：知っているのでGREATになる ---
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["granny"] }])
 	GameState.add_inventory("herbal_sauce", 5)
 	GameState.add_inventory("broken_wrapper", 5)
 	GameState.add_inventory("offal", 5)
@@ -60,10 +60,10 @@ func run(t: SceneTree) -> int:
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()
 	c.check("2回目：同じ構成でGREATになる",
-		str(panel._open.current_bowl.get("result", "")) == "GREAT",
-		str(panel._open.current_bowl.get("result", "")))
+		str(panel.session.open.current_bowl.get("result", "")) == "GREAT",
+		str(panel.session.open.current_bowl.get("result", "")))
 	c.check("2回目の判定に使ったfavoriteは本来の値(offal)",
-		str(panel._open.current_bowl.get("favorite", "")) == "offal")
+		str(panel.session.open.current_bowl.get("favorite", "")) == "offal")
 	c.check("_format_bowlに本来の好物とknown=trueが出る(2回目)",
 		panel._format_bowl().contains("favorite_true(本来の好物・デバッグ): offal (known=true)"),
 		panel._format_bowl())
@@ -75,7 +75,7 @@ func run(t: SceneTree) -> int:
 	var panel2 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel2)
 	GameState.phase = GameState.Phase.OPEN
-	panel2._open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
+	panel2.session.open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
 	# 3-5：Day1Events.initial_inventory()は空になった（無料在庫0）ため、_ready()の
 	# 自動シードに頼らず、このテストで使う分（下のpicks参照）を直接積む。
 	GameState.add_inventory("nam_prik_pao", 10)
@@ -89,16 +89,16 @@ func run(t: SceneTree) -> int:
 	# ため、tofuを足す（本題は3杯目まで通しで好物の既知化タイミングを見ること）。
 	var picks := [["nam_prik_pao", "offal", "tofu"], ["nam_prik_pao", "tofu"], ["nam_prik_pao", "tofu"]]
 	var ai := 0
-	while str(panel2._open.current_customer()) == "delivery_man" and guard < 400:
+	while str(panel2.session.open.current_customer()) == "delivery_man" and guard < 400:
 		guard += 1
-		if panel2.flow.runner.status == EventRunner.Status.WAITING_INPUT:
+		if panel2.session.flow.runner.status == EventRunner.Status.WAITING_INPUT:
 			for id in picks[ai]:
 				panel2._on_ingredient_selected(id)
 			ai += 1
 			panel2._on_complete_input_pressed()
 		else:
 			panel2._on_next_event_pressed()
-			var cur = panel2.flow.runner.current()
+			var cur = panel2.session.flow.runner.current()
 			if ai == 1 and cur is Dictionary and cur.get("type", "") == "REACT":
 				# 1杯目のREACTが適用された直後（まだ2杯目のGREETより前）。
 				c.check("1杯目の判定直後もまだ知った扱いにならない(退店前)",
@@ -123,7 +123,7 @@ func run(t: SceneTree) -> int:
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
 	GameState.today_plan["mob_instances"]["mob_fav_test"] = { "type": "dock_workers", "count": 2 }
-	panel3._open = OpenController.new([{ "name": "宵の口", "customers": ["mob_fav_test"] }])
+	panel3.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob_fav_test"] }])
 	GameState.add_inventory("nam_prik_pao", 5)
 	GameState.add_inventory("meat_ball", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -135,8 +135,8 @@ func run(t: SceneTree) -> int:
 	panel3._on_group_serve_pressed(2, 2)
 	panel3._on_next_event_pressed()
 	c.check("モブの判定はGOOD(要求2つ一致・好物なしなのでGREATにはならない)",
-		str(panel3._open.current_bowl.get("result", "")) == "GOOD",
-		str(panel3._open.current_bowl.get("result", "")))
+		str(panel3.session.open.current_bowl.get("result", "")) == "GOOD",
+		str(panel3.session.open.current_bowl.get("result", "")))
 
 	# --- 7. _format_bowl() の新しい行（モブはfavoriteが空なので行自体が出ない） ---
 	c.check("モブはfavorite_true行が出ない(favoriteが常に空のため)",

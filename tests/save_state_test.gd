@@ -214,7 +214,7 @@ func run(t: SceneTree) -> int:
 		_count("daily_cost") == 1 and _count("reserve") == 1,
 		"daily=%d reserve=%d" % [_count("daily_cost"), _count("reserve")])
 	c.check("戻した後のWAKEのrunnerが組まれている",
-		panel.flow.runner != null and panel.flow.runner.current().has("type"))
+		panel.session.flow.runner != null and panel.session.flow.runner.current().has("type"))
 	c.check("戻した朝も記録が1件のまま（同じ日は置き換え）", GameState.morning_snapshots.size() == 1)
 	c.check("戻った朝では仮ボタンは押せない（GAME_OVERではない）", panel._btn_retry.disabled)
 
@@ -256,16 +256,16 @@ func run(t: SceneTree) -> int:
 
 	# --- 9. 前日成績の一言も、戻った朝の先頭に再表示される ---
 	var panel4 = _setup(t, 600, 2)
-	panel4._last_day_summary_text = "昨日の成績の一言"
+	panel4.session.last_day_summary_text = "昨日の成績の一言"
 	panel4._set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("朝の先頭に前日の一言が出る",
-		str(panel4.flow.runner.current().get("text", "")) == "昨日の成績の一言")
+		str(panel4.session.flow.runner.current().get("text", "")) == "昨日の成績の一言")
 	panel4._game_over("テスト")
 	panel4.retry_from_morning()
 	c.check("戻った朝の先頭にも前日の一言が出る",
-		str(panel4.flow.runner.current().get("text", "")) == "昨日の成績の一言")
+		str(panel4.session.flow.runner.current().get("text", "")) == "昨日の成績の一言")
 	c.check("一言は一度だけ消費される（保存した封筒には残る）",
-		panel4._last_day_summary_text == "" and
+		panel4.session.last_day_summary_text == "" and
 			str(GameState.latest_morning()["panel"]["day_summary_text"]) == "昨日の成績の一言")
 
 	# --- 10. 戻る先が無い／封筒が壊れていれば何もしない ---

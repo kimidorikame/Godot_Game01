@@ -43,7 +43,7 @@ func run(t: SceneTree) -> int:
 	var panel2 = _setup(t, 300, 1)
 	var money_after_wake: int = GameState.money
 	c.check("スキップ前の時点で既に225円に減っている", money_after_wake == 225)
-	panel2.flow.advance_phase()   # WAKEのrunner(4要素)を1つも消化せずPREPへ進む
+	panel2.session.flow.advance_phase()   # WAKEのrunner(4要素)を1つも消化せずPREPへ進む
 	c.check("[次のPhase]で即座にWAKEを抜けても運営費は二重に引かれない・戻らない",
 		GameState.money == money_after_wake, str(GameState.money))
 
@@ -53,7 +53,7 @@ func run(t: SceneTree) -> int:
 	c.check("WAKE後の所持金は140-75=65", GameState.money == 65, str(GameState.money))
 	GameState.phase = GameState.Phase.PREP
 	panel3._set_runner_for_phase(GameState.Phase.PREP)
-	c.check("運営費差し引き後(65<80)なので端材屋ルートになる", panel3._scraps_base)
+	c.check("運営費差し引き後(65<80)なので端材屋ルートになる", panel3.session.scraps_base)
 
 	# --- 5. 運営費未満ならWAKEでゲームオーバー。理由テキストは水道代・場所代と同じ形式 ---
 	# 通常のDay1 WAKE(成功)を経てから資金が尽きたDay2のWAKEへ再突入する形にする
@@ -68,7 +68,7 @@ func run(t: SceneTree) -> int:
 	panel4._set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("運営費(75)未満ならゲームオーバーになる", GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("支払えなかったので所持金は変化しない", GameState.money == 50)
-	var reason: String = str(panel4.flow.runner.current().get("text", ""))
+	var reason: String = str(panel4.session.flow.runner.current().get("text", ""))
 	c.check("ゲームオーバー理由が水道代・場所代と同じ形式(必要額・所持額を含む)",
 		reason.contains("所持金が足りない") and reason.contains("¥75") and reason.contains("¥50"),
 		reason)

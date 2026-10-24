@@ -12,7 +12,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": customers }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -22,7 +22,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 
 func _drive_to_adjust(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -136,7 +136,7 @@ func run(t: SceneTree) -> int:
 	c.check("提供で記録が更新される（served=1・入れた具材）",
 		int(tv["served"]) == 1 and tv["ingredients"] == [["coconut_milk", "tofu"]], str(tv))
 	c.check("記録のgradeは判定結果と同じ",
-		str(tv["grade"]) == str(panel._open.current_bowl.get("result", "?")) and tv["grades"] == [tv["grade"]])
+		str(tv["grade"]) == str(panel.session.open.current_bowl.get("result", "?")) and tv["grades"] == [tv["grade"]])
 	c.check("好物は提供の瞬間に知った扱いになる（従来どおり）。favorite_knownも一致",
 		GameState.knows_favorite("thug") and GameState.memory_entry("thug")["favorite_known"] == true)
 
@@ -153,7 +153,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 8. 早仕舞い：来店済みの客の記録は残り、まだ来ていない客は記録されない ---
 	var panel3 = _setup(t, ["thug", "granny"], { "coconut_milk": 5, "tofu": 5 })
-	panel3.flow.force_phase(GameState.Phase.CLOSE)   # 1人目の途中で閉店（鍋切れ・早仕舞いと同じ経路）
+	panel3.session.flow.force_phase(GameState.Phase.CLOSE)   # 1人目の途中で閉店（鍋切れ・早仕舞いと同じ経路）
 	c.check("途中で閉店：来店済みの客（チンピラ）の記録は残る（served=0）",
 		CustomerMemory.visits_of("thug").size() == 1 and int(CustomerMemory.last_visit("thug")["served"]) == 0)
 	c.check("まだ来ていない客（老婆）は記録されない", not GameState.customer_memory.has("granny"))
@@ -164,7 +164,7 @@ func run(t: SceneTree) -> int:
 	var panel4 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel4)
 	GameState.phase = GameState.Phase.OPEN
-	panel4._open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
+	panel4.session.open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
 	GameState.add_inventory("nam_prik_pao", 10)
 	GameState.add_inventory("offal", 5)
 	GameState.add_inventory("tofu", 5)
@@ -174,9 +174,9 @@ func run(t: SceneTree) -> int:
 	var ai := 0
 	var guard := 0
 	var known_during := false
-	while str(panel4._open.current_customer()) == "delivery_man" and guard < 400:
+	while str(panel4.session.open.current_customer()) == "delivery_man" and guard < 400:
 		guard += 1
-		if panel4.flow.runner.status == EventRunner.Status.WAITING_INPUT:
+		if panel4.session.flow.runner.status == EventRunner.Status.WAITING_INPUT:
 			for id in picks[ai]:
 				panel4._on_ingredient_selected(id)
 			ai += 1

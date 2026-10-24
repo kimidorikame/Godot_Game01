@@ -74,35 +74,35 @@ func run(t: SceneTree) -> int:
 
 	# --- 4. 実際のWAKE（前日の成績の一言があるとき）：成績 → 目が覚めた → スマホ → ニュース ---
 	var p4 = _wake_panel(t, 3)
-	var ev4: Array = p4.flow.runner.events
+	var ev4: Array = p4.session.flow.runner.events
 	c.check("パネルのWAKEにも差し込まれる（Day3：迂回輸送の見出し）",
 		_texts(ev4).has("ニュース：迂回輸送で市内の物流が混乱。歓楽街では客足が落ちている"))
 	p4.free()
 	GameState.reset_for_new_game()
 	GameState.day_count = 3
 	var p4b = load("res://scenes/debug_panel.tscn").instantiate()
-	p4b._last_day_summary_text = "【前日の成績】テスト"
+	p4b.session.last_day_summary_text = "【前日の成績】テスト"
 	t.root.add_child(p4b)
 	# _ready()がWAKEを組むときに前日の成績の一言を先頭へ差す
 	c.check("前日の成績の一言があれば先頭、その後に 目が覚めた → スマホ → ニュース",
-		str(p4b.flow.runner.events[0]["text"]).begins_with("【前日の成績】")
-			and str(p4b.flow.runner.events[1]["text"]).begins_with("……目が覚めた")
-			and str(p4b.flow.runner.events[2]["text"]) == "スマホを見る。"
-			and str(p4b.flow.runner.events[3]["text"]).begins_with("ニュース："))
+		str(p4b.session.flow.runner.events[0]["text"]).begins_with("【前日の成績】")
+			and str(p4b.session.flow.runner.events[1]["text"]).begins_with("……目が覚めた")
+			and str(p4b.session.flow.runner.events[2]["text"]) == "スマホを見る。"
+			and str(p4b.session.flow.runner.events[3]["text"]).begins_with("ニュース："))
 	p4b.free()
 
 	# --- 5. 再挑戦（朝へ戻す）・続きから・新しい周で、同じ表示 ---
 	var p5 = _wake_panel(t, 3)
-	var first_events = _norm(p5.flow.runner.events)
+	var first_events = _norm(p5.session.flow.runner.events)
 	GameState.day_count = 5   # 先へ進んだことにして、朝へ戻す
 	c.check("朝（Day3）へ戻せる", p5.retry_from_morning(3) and GameState.day_count == 3)
-	c.check("再挑戦：同じ朝のWAKEのイベント列が同一（ニュースも同じ）", _norm(p5.flow.runner.events) == first_events)
-	p5._pending_continue = GameState.morning_of(3)
+	c.check("再挑戦：同じ朝のWAKEのイベント列が同一（ニュースも同じ）", _norm(p5.session.flow.runner.events) == first_events)
+	p5.session.pending_continue = GameState.morning_of(3)
 	p5._on_continue_pressed()
-	c.check("続きから読み込んだ朝も同じ表示", _norm(p5.flow.runner.events) == first_events)
+	c.check("続きから読み込んだ朝も同じ表示", _norm(p5.session.flow.runner.events) == first_events)
 	p5._on_new_run_pressed()
 	c.check("新しい周：Day1の朝のニュース（ストの見出し）",
-		GameState.day_count == 1 and _texts(p5.flow.runner.events).has("ニュース：第八码頭で夜間荷役がストに入った"))
+		GameState.day_count == 1 and _texts(p5.session.flow.runner.events).has("ニュース：第八码頭で夜間荷役がストに入った"))
 	p5.free()
 
 	# --- 6. ニュースタブ：今日と過ぎた日だけ。未来は見せない。ニュースとDMは別の見出し ---

@@ -29,14 +29,14 @@ func _setup(t: SceneTree, mob_count: int, inventory: Dictionary, kettle_remainin
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
 	GameState.today_plan["mob_instances"][MOB_ID] = { "type": "dock_workers", "count": mob_count }
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], kettle_remaining, 3, 2)
 	panel._load_current_customer()
 	# GREETを読み進めてADJUST（options持ちのWAITING_INPUT）まで進める。
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 50:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 50:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -52,8 +52,8 @@ func run(t: SceneTree) -> int:
 	panel._on_ingredient_selected("meat_ball", false)
 	c.check("在庫はまだ引かれない(選択時点)", GameState.inventory.get("meat_ball", 0) == 3)
 	panel._on_complete_input_pressed()
-	c.check("1回目の[入力完了]は進まず確認状態になる", panel._pending_group_choice
-		and panel.flow.runner.current()["type"] == "ADJUST")
+	c.check("1回目の[入力完了]は進まず確認状態になる", panel.session.pending_group_choice
+		and panel.session.flow.runner.current()["type"] == "ADJUST")
 	c.check("達成可能人数は3(具材律速)", panel._mob_achievable_servings(4) == 3)
 	var money0: int = GameState.money
 	var rep0: int = GameState.reputation
@@ -67,7 +67,7 @@ func run(t: SceneTree) -> int:
 	# （tests/reputation_demand_test.gdで閉店時の確定を別途検証する）。
 	c.check("評判は提供直後には動かない(閉店時に一括確定)", GameState.reputation == rep0)
 	c.check("代わりに_log_quality_countsのGOODが3(提供人数)だけ増える",
-		int(panel._log_quality_counts.get("GOOD", 0)) == 3, str(panel._log_quality_counts))
+		int(panel.session.log_quality_counts.get("GOOD", 0)) == 3, str(panel.session.log_quality_counts))
 	var rec: Dictionary = GameState.served[GameState.served.size() - 1]
 	c.check("servings=3 / ordered_servings=4 / unserved_servings=1が記録される",
 		int(rec.get("servings")) == 3 and int(rec.get("ordered_servings")) == 4
@@ -109,11 +109,11 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(panel)
 	GameState.phase = GameState.Phase.OPEN
 	GameState.today_plan["mob_instances"][MOB_ID] = { "type": "dock_workers", "count": 4 }
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": [MOB_ID] }])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard3 := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard3 < 50:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard3 < 50:
 		guard3 += 1
 		panel._on_next_event_pressed()
 	c.check("下準備: offalは新鮮2・傷み2", GameState.fresh_count("offal") == 2 and GameState.damaged_count("offal") == 2)
@@ -160,11 +160,11 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("nam_prik_pao", 10)
 	GameState.add_inventory("meat_ball", 10)
 	GameState.phase = GameState.Phase.OPEN
-	panel2._open = OpenController.new([{ "name": "宵の口", "customers": ["thug"] }])
+	panel2.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug"] }])
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
 	panel2._load_current_customer()
 	var guard7 := 0
-	while panel2.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard7 < 50:
+	while panel2.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard7 < 50:
 		guard7 += 1
 		panel2._on_next_event_pressed()
 	c.check("名前あり客はis_mobでない", not panel2._is_current_mob_order())
@@ -174,7 +174,7 @@ func run(t: SceneTree) -> int:
 	panel2._on_ingredient_selected("meat_ball", false)
 	panel2._on_complete_input_pressed()
 	c.check("名前あり客は[入力完了]1回で即座に進む(確認状態にならない)",
-		not panel2._pending_group_choice and panel2.flow.runner.current()["type"] == "SERVE")
+		not panel2.session.pending_group_choice and panel2.session.flow.runner.current()["type"] == "SERVE")
 	c.check("名前あり客は選んだ瞬間に在庫が減る(即時消費のまま)",
 		int(GameState.inventory.get("nam_prik_pao", 0)) == 9)
 
@@ -195,11 +195,11 @@ func run(t: SceneTree) -> int:
 	c.check("挑戦する選択直後はまだrecord_servedされない(レシピ2待ち)",
 		GameState.served.size() == served_before8)
 	c.check("肉団子は3個消費される(在庫0)", not GameState.inventory.has("meat_ball"))
-	c.check("レシピ番号が2に進む", panel._mob_recipe_number == 2)
+	c.check("レシピ番号が2に進む", panel.session.mob_recipe_number == 2)
 	panel._on_next_event_pressed()   # REACT -> 新しいADJUST(new_bowl)
 	c.check("レシピ2のADJUSTに入る(WAITING_INPUT)",
-		panel.flow.runner.current()["type"] == "ADJUST"
-		and panel.flow.runner.status == EventRunner.Status.WAITING_INPUT)
+		panel.session.flow.runner.current()["type"] == "ADJUST"
+		and panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
 	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("offal", false)
 	_button_texts(panel._options_row)   # 具材選択中に積んだボタンを掃除
@@ -220,7 +220,7 @@ func run(t: SceneTree) -> int:
 	c.check("resultsはGOODが4件(両レシピともHOT+POWER一致)",
 		int(rec8.get("results", {}).get("GOOD", 0)) == 4, str(rec8.get("results")))
 	c.check("_log_quality_countsのGOODも合計4(レシピごとの二重加算をしていない)",
-		int(panel._log_quality_counts.get("GOOD", 0)) == 4, str(panel._log_quality_counts))
+		int(panel.session.log_quality_counts.get("GOOD", 0)) == 4, str(panel.session.log_quality_counts))
 
 	# --- 9. 挑戦した2回目も鍋残量律速で不足する場合、record_servedのunserved_servingsは
 	#        両レシピ合計後の最終的な不足人数になる。レシピ2は達成可能0でも「断る」だけは

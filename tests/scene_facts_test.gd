@@ -42,13 +42,13 @@ func _start_open(panel) -> void:
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -63,9 +63,9 @@ func _serve(panel, picks: Array) -> void:
 ## 現在の events のうち、次の type が来るまで1つずつ進める（CHOICE は押さない）。
 func _advance_until(panel, type: String) -> void:
 	var guard := 0
-	while guard < 30 and panel.flow.runner.current() != null \
-			and str(panel.flow.runner.current().get("type", "")) != type \
-			and panel.flow.runner.status == EventRunner.Status.PLAYING:
+	while guard < 30 and panel.session.flow.runner.current() != null \
+			and str(panel.session.flow.runner.current().get("type", "")) != type \
+			and panel.session.flow.runner.status == EventRunner.Status.PLAYING:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -86,7 +86,7 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t)
 	_serve(panel, GOOD_PICKS)
 	var kinds := []
-	for ev in panel.flow.runner.events:
+	for ev in panel.session.flow.runner.events:
 		kinds.append(str(ev["type"]))
 	c.check("提供後の列は 本文 → 締め → SCENE_END（事実は列の最後に積む）",
 		kinds.slice(kinds.size() - 3) == ["GREET", "GREET", "SCENE_END"], str(kinds))
@@ -133,7 +133,7 @@ func run(t: SceneTree) -> int:
 	p3._on_customer_decline_pressed()
 	p3._on_next_event_pressed()
 	var has_end := false
-	for ev in p3.flow.runner.events:
+	for ev in p3.session.flow.runner.events:
 		has_end = has_end or str(ev["type"]) == "SCENE_END"
 	c.check("断った客：SCENE_ENDは付かず、未提供版の本文を読み終えても事実は書かれない",
 		not has_end and _facts("thug").is_empty())
@@ -151,7 +151,7 @@ func run(t: SceneTree) -> int:
 	c.check("頼み（HOT/POWER）を両方満たした椀：request_honored=true",
 		CustomerMemory.today_visit("thug").get("request_honored") == true, str(CustomerMemory.today_visit("thug")))
 	var lines4 := []
-	for ev in p4.flow.runner.events:
+	for ev in p4.session.flow.runner.events:
 		if str(ev.get("part", "")) == "closing":
 			lines4.append(str(ev["text"]))
 	c.check("締めに request_honored:true の差分が足される（default → 差分）", lines4 == ["C1", "HT"], str(lines4))
@@ -161,7 +161,7 @@ func run(t: SceneTree) -> int:
 	c.check("頼みを満たさない椀（基本注文だけ満たす）：request_honored=false",
 		CustomerMemory.today_visit("thug").get("request_honored") == false)
 	var lines4b := []
-	for ev in p4b.flow.runner.events:
+	for ev in p4b.session.flow.runner.events:
 		if str(ev.get("part", "")) == "closing":
 			lines4b.append(str(ev["text"]))
 	c.check("締めは request_honored:false の差分（評価が下がっても締めは default ＋ 差分のみ）",

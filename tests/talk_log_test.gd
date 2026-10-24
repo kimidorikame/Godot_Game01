@@ -21,13 +21,13 @@ func _start_open(panel) -> void:
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -73,7 +73,7 @@ func run(t: SceneTree) -> int:
 	# --- 3. 客の接客：同じ客を何度組み直しても二重にならず、台詞の順に記録される ---
 	var p3 = _setup(t, 2)
 	TalkLog.clear()
-	p3._logged_positions = {}
+	p3.session.logged_positions = {}
 	_start_open(p3)
 	var greet_text: String = Day1Events.customer_events("thug")[0]["text"]
 	c.check("客の最初の GREET（index 0）が talk・話し手は表示名で1回だけ記録される",
@@ -85,7 +85,7 @@ func run(t: SceneTree) -> int:
 	p3._refresh()
 	c.check("同じ客で _load_current_customer を3回呼んでも、行は増えない（二重にならない）", TalkLog.entries.size() == size3 and _count(greet_text) == 1)
 	var guard3 := 0
-	while p3.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard3 < 100:
+	while p3.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard3 < 100:
 		guard3 += 1
 		p3._on_next_event_pressed()   # 組み直した列を ADJUST まで読み直す（もう一度読んでも行は増えない）
 	var adjust_text := "（味を調える）"
@@ -103,7 +103,7 @@ func run(t: SceneTree) -> int:
 	c.check("反応が kind:reaction・話し手＝客で、_current_reaction_text() の文のまま1回", reaction != ""
 		and reaction_entries.size() == 1 and reaction_entries[0]["text"] == reaction and reaction_entries[0]["speaker"] == "チンピラ")
 	seed(4242)
-	var before_state := JSON.stringify([GameState.to_dict(), p3._open.current_bowl])
+	var before_state := JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl])
 	for i in range(20):
 		p3._refresh()
 		p3._record_visible_event()
@@ -112,7 +112,7 @@ func run(t: SceneTree) -> int:
 	var rng_expected := randi()
 	c.check("記録は乱数を引かない（再描画・記録を繰り返しても乱数列が進まない）", rng_after == rng_expected)
 	c.check("記録は状態（GameState・椀）を変えない・反応文も変わらない（reaction_variant は固定済み）",
-		JSON.stringify([GameState.to_dict(), p3._open.current_bowl]) == before_state and p3._current_reaction_text() == reaction)
+		JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl]) == before_state and p3._current_reaction_text() == reaction)
 	c.check("反応は何度再描画しても1回のまま", TalkLog.entries.filter(func(e): return e["kind"] == "reaction").size() == 1)
 	p3.free()
 
@@ -144,7 +144,7 @@ func run(t: SceneTree) -> int:
 	var lines_first_day := TalkLog.entries.size()
 	c.check("朝（Day2）へ戻すとログは空から（朝の最初の行だけ）", p6.retry_from_morning(2) and TalkLog.entries.size() <= 3
 		and _texts()[0] == "……目が覚めた。まだ薄暗い店の奥。" and lines_first_day > TalkLog.entries.size())
-	p6.flow.force_phase(GameState.Phase.WAKE)
+	p6.session.flow.force_phase(GameState.Phase.WAKE)
 	c.check("WAKE に入るたびに今日の分としてクリアされる", _texts()[0] == "……目が覚めた。まだ薄暗い店の奥。" and TalkLog.entries.size() <= 3)
 	p6.free()
 

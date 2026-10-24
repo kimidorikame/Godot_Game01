@@ -178,14 +178,14 @@ func run(t: SceneTree) -> int:
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	var money_before: int = GameState.money
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	c.check("1杯目のADJUST：注文カードと[聞き直す]の対象外", panel._adjust_customer_id() == "")
@@ -194,14 +194,14 @@ func run(t: SceneTree) -> int:
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()   # REACT（1杯目）
 	c.check("1杯目の反応は杯の reactions（GOOD）", panel._current_reaction_text() == "R1:GOOD", panel._current_reaction_text())
-	c.check("提供後の列（本文・選択）は差し込まれない（aggregate）", not str(panel.flow.runner.events).contains("\"part\""))
+	c.check("提供後の列（本文・選択）は差し込まれない（aggregate）", not str(panel.session.flow.runner.events).contains("\"part\""))
 	panel._on_next_event_pressed()   # 1杯目のあと
 	guard = 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 20:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 20:
 		guard += 1
 		panel._on_next_event_pressed()
 	c.check("2杯目のADJUST：椀は新しくなり（new_bowl）、注文カードの対象外のまま",
-		(panel._open.current_bowl.get("additions", []) as Array).is_empty() and panel._adjust_customer_id() == "")
+		(panel.session.open.current_bowl.get("additions", []) as Array).is_empty() and panel._adjust_customer_id() == "")
 	panel._on_ingredient_selected("nam_prik_pao")
 	panel._on_ingredient_selected("offal")
 	panel._on_complete_input_pressed()
@@ -257,15 +257,15 @@ func run(t: SceneTree) -> int:
 	var legacy_panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(legacy_panel)
 	GameState.phase = GameState.Phase.OPEN
-	legacy_panel._open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
+	legacy_panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	legacy_panel._load_current_customer()
 	guard = 0
-	while legacy_panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while legacy_panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		legacy_panel._on_next_event_pressed()
 	c.check("Day1の配達員のADJUST：注文カードと[聞き直す]の対象外（_adjust_customer_id）",
-		str(legacy_panel.flow.runner.current()["type"]) == "ADJUST" and legacy_panel._adjust_customer_id() == "")
+		str(legacy_panel.session.flow.runner.current()["type"]) == "ADJUST" and legacy_panel._adjust_customer_id() == "")
 	legacy_panel.free()
 
 	ScheduleData.clear_cache()

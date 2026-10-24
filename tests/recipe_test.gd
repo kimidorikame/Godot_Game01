@@ -32,7 +32,7 @@ func _setup(t: SceneTree, seed_value: int = 1, visits: Array = []):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -40,7 +40,7 @@ func _setup(t: SceneTree, seed_value: int = 1, visits: Array = []):
 		_memory_with(visits)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -192,12 +192,12 @@ func run(t: SceneTree) -> int:
 		var manual = _setup(t, 77, old_visits)
 		for id in ids:
 			manual._on_ingredient_selected(id)
-		var manual_bowl := _json(manual._open.current_bowl)
+		var manual_bowl := _json(manual.session.open.current_bowl)
 		seed(555)
 		manual._on_complete_input_pressed()
 		manual._on_next_event_pressed()
 		var manual_state := _json(GameState.to_dict())
-		var manual_extra := _json([GameState.served, GameState.ledger, manual._open.current_bowl])
+		var manual_extra := _json([GameState.served, GameState.ledger, manual.session.open.current_bowl])
 		manual.free()
 		var by_recipe = _setup(t, 77, old_visits)
 		if case[2]:
@@ -205,8 +205,8 @@ func run(t: SceneTree) -> int:
 		else:
 			GameState.saved_recipes = [{ "name": "テスト", "ingredients": ids.duplicate() }]
 			by_recipe._on_recipe_apply_pressed(GameState.saved_recipes[0]["ingredients"])
-		c.check("%s：適用後の椀（additions・鮮度の印）が手で押した場合と同一" % case[0], _json(by_recipe._open.current_bowl) == manual_bowl,
-			_json(by_recipe._open.current_bowl))
+		c.check("%s：適用後の椀（additions・鮮度の印）が手で押した場合と同一" % case[0], _json(by_recipe.session.open.current_bowl) == manual_bowl,
+			_json(by_recipe.session.open.current_bowl))
 		seed(555)
 		by_recipe._on_complete_input_pressed()
 		by_recipe._on_next_event_pressed()
@@ -222,7 +222,7 @@ func run(t: SceneTree) -> int:
 		c.check("%s：提供後のGameState（在庫・腐敗・所持金・評判・来店記録・帳簿・DayPlan）まで同一" % case[0],
 			diff_keys.is_empty(), str(diff_keys))
 		c.check("%s：提供記録・帳簿・椀の判定も同一（レシピの使用は記録しない）" % case[0],
-			_json([GameState.served, GameState.ledger, by_recipe._open.current_bowl]) == manual_extra)
+			_json([GameState.served, GameState.ledger, by_recipe.session.open.current_bowl]) == manual_extra)
 		by_recipe.free()
 
 	# --- 8. 無効になる条件：椀が空でない／在庫不足／傷んだ側しか無い／ADJUST以外 ---
@@ -238,7 +238,7 @@ func run(t: SceneTree) -> int:
 		str(labels))
 	p8._on_ingredient_selected("offal")
 	p8._on_recipe_apply_pressed(["coconut_milk", "tofu"])
-	c.check("椀が空でないと適用されない（途中の椀には使えない）", p8._open.current_bowl["additions"] == ["offal"])
+	c.check("椀が空でないと適用されない（途中の椀には使えない）", p8.session.open.current_bowl["additions"] == ["offal"])
 	c.check("椀が空でない間はボタンも出ない", _row_buttons(p8).is_empty())
 	p8._on_discard_pressed()
 	p8._refresh()
@@ -254,7 +254,7 @@ func run(t: SceneTree) -> int:
 	var stock_before := _json([GameState.inventory, GameState.perishable_batches])
 	p8._on_recipe_apply_pressed(["coconut_milk", "tofu"])
 	c.check("足りないときは適用されない（一部だけ入る状態を作らない。在庫も不変）",
-		(p8._open.current_bowl["additions"] as Array).is_empty() and _json([GameState.inventory, GameState.perishable_batches]) == stock_before)
+		(p8.session.open.current_bowl["additions"] as Array).is_empty() and _json([GameState.inventory, GameState.perishable_batches]) == stock_before)
 	# 傷んだ側しか無い（tofu は傷んだ3個だけ）
 	GameState.day_count = GameState.SPOIL_DAMAGED_DAY
 	GameState.add_inventory("tofu", 0)
@@ -262,7 +262,7 @@ func run(t: SceneTree) -> int:
 	GameState.perishable_batches["tofu"] = [{ "day": 1, "count": 3, "unit_price": 8 }]
 	p8._on_recipe_apply_pressed(["coconut_milk", "tofu"])
 	c.check("傷んだ側しか無い具材は自動では使わない（適用されない）",
-		(p8._open.current_bowl["additions"] as Array).is_empty() and GameState.inventory["tofu"] == 3)
+		(p8.session.open.current_bowl["additions"] as Array).is_empty() and GameState.inventory["tofu"] == 3)
 	GameState.day_count = 2
 	# ADJUST 以外では出ない・効かない
 	p8.free()
@@ -272,7 +272,7 @@ func run(t: SceneTree) -> int:
 	p8b._on_complete_input_pressed()
 	var money_serving: int = GameState.money
 	p8b._on_recipe_apply_pressed(["coconut_milk", "tofu"])
-	c.check("SERVE／REACT の最中（ADJUSTでない）には適用できない", p8b._open.current_bowl["additions"] == ["coconut_milk", "tofu"]
+	c.check("SERVE／REACT の最中（ADJUSTでない）には適用できない", p8b.session.open.current_bowl["additions"] == ["coconut_milk", "tofu"]
 		and GameState.money == money_serving)
 	p8b.free()
 
@@ -283,7 +283,7 @@ func run(t: SceneTree) -> int:
 	p9._on_ingredient_selected("tofu")
 	p9._on_complete_input_pressed()
 	p9._on_next_event_pressed()   # REACT（thug_02 の最後のイベント）
-	var last_event: bool = p9.flow.runner.index == p9.flow.runner.events.size() - 1
+	var last_event: bool = p9.session.flow.runner.index == p9.session.flow.runner.events.size() - 1
 	c.check("提供後（その客の最後の行でも）保存できる", p9._can_save_recipe_now() and last_event)
 	p9._refresh()
 	c.check("[レシピを保存] のボタンが出る", _labels(_row_buttons(p9)).size() == 1 and str(_labels(_row_buttons(p9))[0]).begins_with("レシピを保存"))
@@ -296,7 +296,7 @@ func run(t: SceneTree) -> int:
 	var name_labels := _labels(_row_buttons(p9))
 	c.check("段階：名前（候補6つ＋やめる。椀のタグを含む候補が先頭）", name_labels.size() == 7 and name_labels[6] == "やめる")
 	p9._on_recipe_save_cancel_pressed()
-	c.check("やめると何も保存せず最初の段階へ", GameState.saved_recipes.is_empty() and p9._recipe_save_stage == "")
+	c.check("やめると何も保存せず最初の段階へ", GameState.saved_recipes.is_empty() and p9.session.recipe_save_stage == "")
 	p9._on_recipe_save_pressed()
 	p9._on_recipe_slot_selected(0)
 	p9._on_recipe_name_selected("終電後の椰子豆腐湯")
@@ -306,7 +306,7 @@ func run(t: SceneTree) -> int:
 	p9._on_recipe_slot_selected(0)
 	p9._on_recipe_name_selected("港湾夜勤の赤油つみれ湯")
 	c.check("保存済みの枠は上書きできる", GameState.saved_recipes.size() == 1 and GameState.saved_recipes[0]["name"] == "港湾夜勤の赤油つみれ湯")
-	c.check("保存はゲームの数値に触れない（評価・所持金は提供の結果のまま）", str(p9._open.current_bowl["result"]) != "")
+	c.check("保存はゲームの数値に触れない（評価・所持金は提供の結果のまま）", str(p9.session.open.current_bowl["result"]) != "")
 	p9.free()
 	# 複数杯の各杯・その客の最後の行まで
 	ScheduleData._episode_cache["thug/thug_02"] = { "id": "thug_02", "customer": "thug", "greet": ["来店"],
@@ -322,14 +322,14 @@ func run(t: SceneTree) -> int:
 	p9b._on_next_event_pressed()   # もう1行（1杯目の最後の会話）
 	c.check("複数杯：その杯の最後の会話の行まで保存できる", p9b._can_save_recipe_now())
 	p9b._on_next_event_pressed()   # 2杯目のADJUST（new_bowl）
-	c.check("次の杯のADJUSTに入ると、保存の対象は消える（椀が新しくなる）", not p9b._can_save_recipe_now() and p9b._recipe_save_stage == "")
+	c.check("次の杯のADJUSTに入ると、保存の対象は消える（椀が新しくなる）", not p9b._can_save_recipe_now() and p9b.session.recipe_save_stage == "")
 	p9b._on_ingredient_selected("nam_prik_pao")
 	p9b._on_ingredient_selected("offal")
 	p9b._on_complete_input_pressed()
 	p9b._on_next_event_pressed()   # 2杯目のREACT（反応なし）
 	p9b._on_next_event_pressed()   # 退店（その客の最後の行）
 	c.check("複数杯：その客の最後の行まで保存できる", p9b._can_save_recipe_now()
-		and p9b.flow.runner.index == p9b.flow.runner.events.size() - 1)
+		and p9b.session.flow.runner.index == p9b.session.flow.runner.events.size() - 1)
 	p9b.free()
 	ScheduleData.clear_cache()
 	# モブ・断った客
@@ -337,9 +337,9 @@ func run(t: SceneTree) -> int:
 	p9c._on_customer_decline_pressed()
 	p9c._on_next_event_pressed()
 	c.check("断った客（判定なし）は保存できない", not p9c._can_save_recipe_now())
-	p9c._open = OpenController.new([{ "name": "宵の口", "customers": ["mob#0"] }])
-	p9c._open.current_bowl["result"] = "GOOD"
-	p9c._open.current_bowl["additions"] = ["tofu", "offal"]
+	p9c.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob#0"] }])
+	p9c.session.open.current_bowl["result"] = "GOOD"
+	p9c.session.open.current_bowl["additions"] = ["tofu", "offal"]
 	c.check("モブの団体注文の杯は対象外（分割提供との整合が重い）", not p9c._can_save_recipe_now())
 	p9c.free()
 
@@ -363,7 +363,7 @@ func run(t: SceneTree) -> int:
 		presses += 1
 		pr._on_next_event_pressed()   # REACT（提供の確認。操作回数には数えない：手の側も同じ）
 		c.check("%s：レシピ経路は %d 回の操作で提供まで進む" % [case[0], presses],
-			presses == recipe_presses and str(pr._open.current_bowl.get("result", "")) != "" and pr._open.current_bowl["additions"] == ids)
+			presses == recipe_presses and str(pr.session.open.current_bowl.get("result", "")) != "" and pr.session.open.current_bowl["additions"] == ids)
 		pr.free()
 	c.check("最小でも33%短縮（追加2つ：3回→2回）、追加3つは50%（4回→2回）",
 		is_equal_approx(float(counts["追加2つ"][2]), 1.0 / 3.0) and is_equal_approx(float(counts["追加3つ"][2]), 0.5))

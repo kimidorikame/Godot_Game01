@@ -36,7 +36,7 @@ func _play_to_result(panel, start_day: int) -> void:
 				"regular_visits": ["granny"], "closing_money": 1000 + d,
 				"opening_reputation": 30 + d, "closing_reputation": 31 + d })
 	GameState.phase = GameState.Phase.NEXT_DAY
-	panel.flow.advance_phase()
+	panel.session.flow.advance_phase()
 
 
 func _keys(d: Dictionary) -> Array:
@@ -52,8 +52,8 @@ func run(t: SceneTree) -> int:
 	# --- 1. 最終日の流れ：NEXT_DAYの先でRESULTに入る。reset_for_new_gameは呼ばれない ---
 	var panel = _setup(t, 600, 1)
 	var fired := { "ending": 0, "restarted": 0 }
-	panel.flow.day_ending.connect(func(): fired["ending"] += 1)
-	panel.flow.game_restarted.connect(func(): fired["restarted"] += 1)
+	panel.session.flow.day_ending.connect(func(): fired["ending"] += 1)
+	panel.session.flow.game_restarted.connect(func(): fired["restarted"] += 1)
 	GameState.mark_favorite_known("granny")
 	var day1_env: Dictionary = GameState.morning_of(1)
 	c.check("（前提）Day1の朝が記録されている", not day1_env.is_empty())
@@ -68,13 +68,13 @@ func run(t: SceneTree) -> int:
 	c.check("reset_for_new_gameは呼ばれていない（朝の記録が全日分残る）",
 		_keys(GameState.morning_snapshots) == [1, 2, 3, 4, 5, 6, 7], str(_keys(GameState.morning_snapshots)))
 	var phase_before := GameState.phase
-	panel.flow.advance_phase()
+	panel.session.flow.advance_phase()
 	panel._btn_next_phase.pressed.emit()
 	c.check("RESULTでは[次のPhase]が効かない（フェーズも日数も変わらない）",
 		GameState.phase == phase_before and GameState.day_count == GameState.FINAL_DAY)
 
 	# --- 2. 結果画面の3ブロック ---
-	var events: Array = panel.flow.runner.events
+	var events: Array = panel.session.flow.runner.events
 	c.check("結果画面のイベントはTEXT3本（成績・目標・物語）",
 		events.size() == 3 and events.all(func(e): return str(e["type"]) == "TEXT"), str(events.size()))
 	var report := str(events[0]["text"])
@@ -215,7 +215,7 @@ func run(t: SceneTree) -> int:
 	# --- 11. GAME_OVERの出口（先に直す②）：最後の朝・Day1の朝から・新しい周 ---
 	var over = _setup(t, 600, 1)
 	var over_fired := { "restarted": 0 }
-	over.flow.game_restarted.connect(func(): over_fired["restarted"] += 1)
+	over.session.flow.game_restarted.connect(func(): over_fired["restarted"] += 1)
 	GameState.money = 0
 	over._game_over("テスト用ゲームオーバー")
 	c.check("GAME_OVERでは選択肢の行が見える", over._result_row.visible)
@@ -227,7 +227,7 @@ func run(t: SceneTree) -> int:
 	over._on_run_again_pressed()
 	c.check("GAME_OVER→Day1の朝から：Day1のWAKE・運営費後の現金・GAME_OVERの理由は消える",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
-			and GameState.money == GameState.INITIAL_MONEY - daily and over._game_over_reason == "",
+			and GameState.money == GameState.INITIAL_MONEY - daily and over.session.game_over_reason == "",
 		str(GameState.money))
 	c.check("GAME_OVER→Day1の朝から：結果行は隠れる", not over._result_row.visible)
 

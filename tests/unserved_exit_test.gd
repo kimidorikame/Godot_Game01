@@ -25,14 +25,14 @@ func _setup(t: SceneTree, soup_empty: bool = true):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.dashi_units = 0
 	GameState.set_soup("bone_broth", ["meaty"], 0 if soup_empty else 999, 3, 0)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -41,7 +41,7 @@ func _setup(t: SceneTree, soup_empty: bool = true):
 ## CLOSEのイベント列の [type, part, text]（先頭から、閉店の語り「看板の灯を落とす。」の手前まで）。
 func _before_close_talk(panel) -> Array:
 	var out := []
-	for ev in panel.flow.runner.events:
+	for ev in panel.session.flow.runner.events:
 		if str(ev.get("text", "")) == "看板の灯を落とす。":
 			break
 		out.append([str(ev["type"]), str(ev.get("part", "")), str(ev.get("text", ""))])
@@ -68,14 +68,14 @@ func run(t: SceneTree) -> int:
 			["GREET", "reaction", "R:UNSERVED"], ["GREET", "body", "U1"], ["GREET", "body", "U2"]],
 		str(_before_close_talk(p1)))
 	c.check("通常の本文・締めは出ない（提供していない）",
-		not str(p1.flow.runner.events).contains("B1") and not str(p1.flow.runner.events).contains("C1"))
+		not str(p1.session.flow.runner.events).contains("B1") and not str(p1.session.flow.runner.events).contains("C1"))
 	c.check("facts は立てない・来店記録は served=0・料金と評判は変わらない",
 		(GameState.customer_memory["thug"]["facts"] as Dictionary).is_empty()
 			and int(CustomerMemory.last_visit("thug")["served"]) == 0
 			and GameState.money == money_before and GameState.reputation == rep_before)
 	c.check("到着前だった老婆は来店記録も作らず、場面も再生しない",
-		not GameState.customer_memory.has("granny") and not str(p1.flow.runner.events).contains("granny"))
-	c.check("一度だけ：CLOSEに積んだ後は残らない", p1._pending_close_lines.is_empty())
+		not GameState.customer_memory.has("granny") and not str(p1.session.flow.runner.events).contains("granny"))
+	c.check("一度だけ：CLOSEに積んだ後は残らない", p1.session.pending_close_lines.is_empty())
 	p1.free()
 
 	# --- 2. 自動閉店（鍋が尽きた）：同じ未提供版 ---
@@ -105,7 +105,7 @@ func run(t: SceneTree) -> int:
 	c.check("実データ：CLOSEの先頭は理由だけ（従来どおり）",
 		_before_close_talk(p4) == [["TEXT", "", "（今日はここで店じまいにする。）"]], str(_before_close_talk(p4)))
 	c.check("実データ：CLOSEのイベント数は 理由1＋閉店の語り（従来と同じ）",
-		p4.flow.runner.events.size() == 1 + Day1Events.close_events().size())
+		p4.session.flow.runner.events.size() == 1 + Day1Events.close_events().size())
 	p4.free()
 
 	# --- 5. すでに提供した客・来店記録の無い客は積まない ---
@@ -114,18 +114,18 @@ func run(t: SceneTree) -> int:
 	var p5 = _setup(t, false)
 	CustomerMemory.record_serve("thug", "宵の口", "thug_02", 1, "GOOD", ["tofu"])
 	p5._queue_unserved_exit()
-	c.check("提供した客（served>0）は積まない", p5._pending_close_lines.is_empty())
+	c.check("提供した客（served>0）は積まない", p5.session.pending_close_lines.is_empty())
 	GameState.customer_memory.erase("thug")
 	p5._queue_unserved_exit()
-	c.check("来店記録の無い客は積まない", p5._pending_close_lines.is_empty())
+	c.check("来店記録の無い客は積まない", p5.session.pending_close_lines.is_empty())
 	p5.free()
 
 	# --- 6. 再挑戦・新しい周で持ち越さない ---
 	var p6 = _setup(t)
 	p6._queue_unserved_exit()
-	c.check("（前提）積んだ", not p6._pending_close_lines.is_empty())
+	c.check("（前提）積んだ", not p6.session.pending_close_lines.is_empty())
 	p6._reset_transient_panel_state()
-	c.check("画面側の一時状態のリセットで消える", p6._pending_close_lines.is_empty() and not p6._declined_now)
+	c.check("画面側の一時状態のリセットで消える", p6.session.pending_close_lines.is_empty() and not p6.session.declined_now)
 	p6.free()
 
 	ScheduleData.clear_cache()

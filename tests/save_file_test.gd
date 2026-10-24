@@ -259,7 +259,7 @@ func run(t: SceneTree) -> int:
 	MorningSave.write_file(_sample_envelope())
 	var panel3 = _setup(t, 600, 1)
 	c.check("（前提）起動直後はまだ上書きしていない", int(MorningSave.read_file()["day"]) == 4)
-	panel3.flow.advance_phase()   # WAKE→PREP（最初の朝を抜ける）
+	panel3.session.flow.advance_phase()   # WAKE→PREP（最初の朝を抜ける）
 	var after := MorningSave.read_file()
 	c.check("最初の朝を抜けると、そのゲームのDay1の朝で上書きされる",
 		int(after.get("day", -1)) == 1 and int(after["state"]["money"]) == 600, str(after.get("day")))

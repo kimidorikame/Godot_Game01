@@ -18,8 +18,8 @@ func _setup(t: SceneTree, money: int, day: int = 3):
 ## PREP_TIER（またはDONE）に着くまで[次のEvent]で進める。
 func _drive_to_waiting_input(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT \
-			and panel.flow.runner.status != EventRunner.Status.DONE and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT \
+			and panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -28,7 +28,7 @@ func _drive_to_waiting_input(panel) -> void:
 ## WAITING_INPUTなので[市場を出る]で抜け、他は[次のEvent]で進む。
 func _drive_after_tier(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.DONE and guard < 50:
+	while panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 50:
 		guard += 1
 		if panel._is_in_market():
 			panel._on_market_exit_pressed()
@@ -70,7 +70,7 @@ func run(t: SceneTree) -> int:
 	# --- 3. 端材屋フォールバック(所持金<80): PREP_TIERが出ず、支払い無し・8杯・濃さ1 ---
 	var panel2 = _setup(t, 50, 3)
 	c.check("所持金50(<80)ではPREP_TIERが出ない",
-		not panel2._is_in_prep_tier() and str(panel2.flow.runner.current().get("type", "")) == "TEXT")
+		not panel2._is_in_prep_tier() and str(panel2.session.flow.runner.current().get("type", "")) == "TEXT")
 	var money_before2: int = GameState.money
 	_drive_after_tier(panel2)
 	c.check("端材屋ルート: 支払い無し", GameState.money == money_before2, str(GameState.money))
@@ -81,10 +81,10 @@ func run(t: SceneTree) -> int:
 	var panel3 = _setup(t, 100, 3)   # 小(80)は買えるが中(110)/大(140)は買えない
 	_drive_to_waiting_input(panel3)
 	var before_money3: int = GameState.money
-	var before_index3: int = panel3.flow.runner.index
+	var before_index3: int = panel3.session.flow.runner.index
 	panel3._on_prep_tier_selected("large")
 	c.check("所持金不足の段階を選んでも所持金・進行が変わらない",
-		GameState.money == before_money3 and panel3.flow.runner.index == before_index3)
+		GameState.money == before_money3 and panel3.session.flow.runner.index == before_index3)
 
 	# --- 5. 水の使える回数と残量上限（濃さメカニクス三点セット＋3-6 鍋の同時容量14。
 	#    DESIGN.md 10.3.8）。濃さ3スタートのまま水を連続2回は使えない（1回目で3→1、

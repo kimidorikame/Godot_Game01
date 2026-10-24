@@ -70,13 +70,13 @@ func _panel(t: SceneTree, customer: String, mob: bool = false):
 	GameState.phase = GameState.Phase.OPEN
 	if mob:
 		GameState.today_plan["mob_instances"][customer] = { "type": "dock_workers", "count": 2 }
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": [customer] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": [customer] }])
 	for id in ["nam_prik_pao", "offal", "coconut_milk", "tofu"]:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -225,7 +225,7 @@ func run(t: SceneTree) -> int:
 	c.check("聞き直しは所持金・評判・提供記録・帳簿・来店記録（visits・facts）・DayPlanを一切変えない",
 		GameState.money == money and GameState.served.size() == served and GameState.ledger.size() == ledger
 			and _norm(GameState.customer_memory) == visits_before and _norm(GameState.to_dict()) == snapshot
-			and panel._visit_tally.is_empty())
+			and panel.session.visit_tally.is_empty())
 	c.check("聞き直しても料金・評判は下がらない（所持金・評判が同じ）",
 		GameState.money == money and GameState.reputation == int(snapshot["reputation"]))
 	panel._load_current_customer()
@@ -249,13 +249,13 @@ func run(t: SceneTree) -> int:
 	var panel_d = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel_d)
 	GameState.phase = GameState.Phase.OPEN
-	panel_d._open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
+	panel_d.session.open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
 	GameState.add_inventory("nam_prik_pao", 5)
 	GameState.add_inventory("tofu", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel_d._load_current_customer()
 	var guard := 0
-	while panel_d.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel_d.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel_d._on_next_event_pressed()
 	c.check("配達員のDay1の3杯専用列には、注文カード・[聞き直す]を出さない（動かさない列）",

@@ -22,13 +22,13 @@ func _setup(t: SceneTree, inventory: Dictionary):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "明け方", "customers": ["thug"] }])
+	panel.session.open = OpenController.new([{ "name": "明け方", "customers": ["thug"] }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -39,7 +39,7 @@ func _serve(panel, picks: Array) -> Dictionary:
 		panel._on_ingredient_selected(id)
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()   # SERVE→REACT（判定が適用される）
-	return panel._open.current_bowl
+	return panel.session.open.current_bowl
 
 
 func _react(events: Array) -> Dictionary:

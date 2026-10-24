@@ -32,8 +32,8 @@ func _open_market(panel) -> void:
 	var stalls := []
 	for id in EXPECT:
 		stalls.append({ "id": id, "label": id, "enabled": true })
-	panel.flow.set_runner([{ "type": "MARKET", "text": "（市場をぶらつく）", "options": stalls }])
-	panel._market_shop = ""
+	panel.session.flow.set_runner([{ "type": "MARKET", "text": "（市場をぶらつく）", "options": stalls }])
+	panel.session.market_shop = ""
 
 
 ## 行の、削除予約されていないボタンの文言。
@@ -71,7 +71,7 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t, 1000)
 	_open_market(panel)
 	c.check("（前提）市場は入力待ちで、MARKETイベントが現在位置",
-		panel.flow.runner.status == EventRunner.Status.WAITING_INPUT and panel._is_in_market())
+		panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT and panel._is_in_market())
 
 	# --- 1. 店を選ぶ画面：行は分けない（調味料の行は空。店の一覧と[市場を出る]は具材の行） ---
 	panel._update_options_row()
@@ -135,8 +135,8 @@ func run(t: SceneTree) -> int:
 	panel._update_options_row()
 	c.check("（前提）店の画面では両方の行に商品がある",
 		not _buttons(panel._seasoning_row).is_empty() and not _buttons(panel._options_row).is_empty())
-	panel.flow.set_runner([])   # 別のフェーズ・コンテキスト（イベント無し）へ
-	panel._market_shop = ""
+	panel.session.flow.set_runner([])   # 別のフェーズ・コンテキスト（イベント無し）へ
+	panel.session.market_shop = ""
 	panel._update_options_row()
 	c.check("別の画面へ移ると調味料の行・具材の行とも空",
 		_buttons(panel._seasoning_row).is_empty() and _buttons(panel._options_row).is_empty(),

@@ -39,7 +39,7 @@ func _setup(t: SceneTree, seed_value: int = 1, day: int = 1):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "夜半", "customers": ["thug"] }])
+	panel.session.open = OpenController.new([{ "name": "夜半", "customers": ["thug"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -49,7 +49,7 @@ func _setup(t: SceneTree, seed_value: int = 1, day: int = 1):
 
 func _to_adjust(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -64,7 +64,7 @@ func _serve(panel) -> void:
 
 func _state(panel) -> String:
 	return JSON.stringify([GameState.to_dict(), GameState.served, GameState.ledger,
-		GameState.rent_paid_today, panel._open.current_bowl, panel.flow.runner.index])
+		GameState.rent_paid_today, panel.session.open.current_bowl, panel.session.flow.runner.index])
 
 
 func run(t: SceneTree) -> int:
@@ -144,10 +144,10 @@ func run(t: SceneTree) -> int:
 	_serve(p3a)
 	var kinds := []
 	var manual_steps := 0
-	while p3a.flow.runner.index < p3a.flow.runner.events.size() - 1:
+	while p3a.session.flow.runner.index < p3a.session.flow.runner.events.size() - 1:
 		p3a._on_next_event_pressed()
 		manual_steps += 1
-	for ev in p3a.flow.runner.events:
+	for ev in p3a.session.flow.runner.events:
 		kinds.append(str(ev["type"]))
 	var manual_state := _state(p3a)
 	c.check("（前提）列に SERVE・REACT・SCENE_END・場所代の PAY を含む",
@@ -162,7 +162,7 @@ func run(t: SceneTree) -> int:
 	_to_adjust(p3b)
 	_serve(p3b)
 	var manual_steps_b := 0
-	while p3b.flow.runner.index < p3b.flow.runner.events.size() - 1:
+	while p3b.session.flow.runner.index < p3b.session.flow.runner.events.size() - 1:
 		p3b._on_next_event_pressed()
 		manual_steps_b += 1
 	var manual_state_b := _state(p3b)
@@ -180,7 +180,7 @@ func run(t: SceneTree) -> int:
 		GameState.money == money_manual and (GameState.customer_memory["thug"]["facts"] as Dictionary) == facts_manual)
 	c.check("来店記録の提供は1杯のまま（served=1）", int(CustomerMemory.last_visit("thug")["served"]) == 1
 		and (CustomerMemory.last_visit("thug")["grades"] as Array).size() == 1)
-	c.check("最後のイベントで止まる（客の切り替わりをまたがない）", p3c.flow.runner.index == p3c.flow.runner.events.size() - 1)
+	c.check("最後のイベントで止まる（客の切り替わりをまたがない）", p3c.session.flow.runner.index == p3c.session.flow.runner.events.size() - 1)
 	c.check("最後のイベントでは [既読スキップ] は無効・押しても進まない",
 		p3c._btn_skip_read.disabled and p3c._on_skip_read_pressed() == 0)
 	p3c.free()
@@ -194,11 +194,11 @@ func run(t: SceneTree) -> int:
 	p4._load_current_customer()   # 先頭（g1）から組み直す
 	var steps_unread: int = p4._on_skip_read_pressed()
 	c.check("未読の行（g3）の手前の既読（g2）は飛ばし、未読の行で止まる（その行は見えている）",
-		steps_unread == 2 and str(p4.flow.runner.current()["text"]) == "g3", "%d / %s" % [steps_unread, str(p4.flow.runner.current())])
+		steps_unread == 2 and str(p4.session.flow.runner.current()["text"]) == "g3", "%d / %s" % [steps_unread, str(p4.session.flow.runner.current())])
 	c.check("止まった未読の行は既読になる（次回は飛ばせる）", ReadState.is_read(ReadState.line_key("talk", "チンピラ", "", "g3")))
 	# 入力待ち：全部既読にして ADJUST（入力待ち）で止まる
 	p4._on_skip_read_pressed()   # g4 は既読、ADJUST の文は未読 → ADJUST で止まる
-	c.check("入力待ち（ADJUST）で止まる", str(p4.flow.runner.current()["type"]) == "ADJUST" and p4.flow.runner.status == EventRunner.Status.WAITING_INPUT)
+	c.check("入力待ち（ADJUST）で止まる", str(p4.session.flow.runner.current()["type"]) == "ADJUST" and p4.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
 	c.check("入力待ちでは [既読スキップ] は無効・押しても進まない", p4._btn_skip_read.disabled and p4._on_skip_read_pressed() == 0)
 	p4.free()
 
@@ -207,7 +207,7 @@ func run(t: SceneTree) -> int:
 	var p4b = _setup(t, 31)
 	_to_adjust(p4b)
 	_serve(p4b)
-	while p4b.flow.runner.index < p4b.flow.runner.events.size() - 1:
+	while p4b.session.flow.runner.index < p4b.session.flow.runner.events.size() - 1:
 		p4b._on_next_event_pressed()   # 手で全部読む（既読にする）
 	p4b.free()
 	var reaction_key := ReadState.line_key("reaction", "チンピラ", "", "R:GOOD")
@@ -218,7 +218,7 @@ func run(t: SceneTree) -> int:
 	_serve(p4c)
 	var steps_reaction: int = p4c._on_skip_read_pressed()
 	c.check("反応文が未読ならその行（REACT）で止まる（選ばれた反応文の本文で数える）",
-		steps_reaction == 1 and str(p4c.flow.runner.current()["type"]) == "REACT" and p4c._current_reaction_text() == "R:GOOD")
+		steps_reaction == 1 and str(p4c.session.flow.runner.current()["type"]) == "REACT" and p4c._current_reaction_text() == "R:GOOD")
 	p4c.free()
 
 	# 選択は決して飛ばさない
@@ -229,7 +229,7 @@ func run(t: SceneTree) -> int:
 	var pc = _setup(t, 31)
 	_to_adjust(pc)
 	_serve(pc)
-	while not pc._is_in_story_choice() and pc.flow.runner.index < pc.flow.runner.events.size() - 1:
+	while not pc._is_in_story_choice() and pc.session.flow.runner.index < pc.session.flow.runner.events.size() - 1:
 		pc._on_next_event_pressed()   # 手で CHOICE まで読む（本文までを既読にする）
 	pc.free()
 	var pc2 = _setup(t, 31)
@@ -247,7 +247,7 @@ func run(t: SceneTree) -> int:
 	var pg1 = _setup(t, 31)
 	_to_adjust(pg1)
 	_serve(pg1)
-	while pg1.flow.runner.index < pg1.flow.runner.events.size() - 1:
+	while pg1.session.flow.runner.index < pg1.session.flow.runner.events.size() - 1:
 		pg1._on_next_event_pressed()
 	pg1.free()
 	var pg2 = _setup(t, 31)
@@ -266,10 +266,10 @@ func run(t: SceneTree) -> int:
 	for i in range(300):
 		long_events.append({ "type": "TEXT", "text": "長い行%d" % i })
 		ReadState.mark(ReadState.line_key("narration", "", "", "長い行%d" % i))
-	plimit.flow.set_runner(long_events)
+	plimit.session.flow.set_runner(long_events)
 	var steps_limit: int = plimit._on_skip_read_pressed()
 	c.check("上限（%d回）で止まる" % plimit.SKIP_READ_LIMIT, steps_limit == plimit.SKIP_READ_LIMIT
-		and plimit.flow.runner.index == plimit.SKIP_READ_LIMIT)
+		and plimit.session.flow.runner.index == plimit.SKIP_READ_LIMIT)
 	plimit.free()
 
 	# 無効（試遊）：既読にならず、毎回その行で止まる

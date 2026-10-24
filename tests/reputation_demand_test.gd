@@ -22,7 +22,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": customers }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
@@ -32,7 +32,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary):
 
 func _drive_to_adjust(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -43,12 +43,12 @@ func run(t: SceneTree) -> int:
 	# --- 1. 評判の確定式：GREAT/GOOD/OK/BAD混在+未提供混在で、閉店時に1回だけ動く ---
 	var panel = _setup(t)
 	GameState.reputation = 50
-	panel._log_quality_counts = { "GREAT": 1, "GOOD": 1, "OK": 1, "BAD": 1, "": 0 }
+	panel.session.log_quality_counts = { "GREAT": 1, "GOOD": 1, "OK": 1, "BAD": 1, "": 0 }
 	# 評点合計 = 100+75+35+0 = 210。判定対象4杯+未提供1杯(部分提供の残り等)=分母5。
-	panel._log_judged_planned_cups = 5
+	panel.session.log_judged_planned_cups = 5
 	GameState.phase = GameState.Phase.NEXT_DAY
-	panel.flow.set_runner([])
-	panel.flow.advance_phase()
+	panel.session.flow.set_runner([])
+	panel.session.flow.advance_phase()
 	# Q = 210/5 = 42.0。新評判 = round(50*0.7 + 42*0.3) = round(35+12.6) = round(47.6) = 48
 	c.check("評判はround(現評判*0.7+Q*0.3)どおりに閉店時1回だけ動く",
 		GameState.reputation == 48, str(GameState.reputation))
@@ -56,11 +56,11 @@ func run(t: SceneTree) -> int:
 	# --- 2. Qの分母0ガード：判定対象の杯が1つも無ければQは0扱い(評判は0.3倍だけ動く) ---
 	panel = _setup(t)
 	GameState.reputation = 50
-	panel._log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
-	panel._log_judged_planned_cups = 0
+	panel.session.log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
+	panel.session.log_judged_planned_cups = 0
 	GameState.phase = GameState.Phase.NEXT_DAY
-	panel.flow.set_runner([])
-	panel.flow.advance_phase()
+	panel.session.flow.set_runner([])
+	panel.session.flow.advance_phase()
 	c.check("判定対象0杯ならQ=0とみなし、評判はround(50*0.7)=35になる",
 		GameState.reputation == 35, str(GameState.reputation))
 	c.check("_quality_scoreは分母0のとき例外を出さず0.0を返す",
@@ -80,10 +80,10 @@ func run(t: SceneTree) -> int:
 	panel._seed_initial_inventory()
 	GameState.phase = GameState.Phase.OPEN
 	panel._set_runner_for_phase(GameState.Phase.OPEN)
-	c.check("Day1のjudged_planned_cupsは9", panel._log_judged_planned_cups == 9,
-		str(panel._log_judged_planned_cups))
+	c.check("Day1のjudged_planned_cupsは9", panel.session.log_judged_planned_cups == 9,
+		str(panel.session.log_judged_planned_cups))
 	c.check("planned_cupsとjudged_planned_cupsの差は0(判定対象外の杯が無い)",
-		panel._log_planned_cups - panel._log_judged_planned_cups == 0)
+		panel.session.log_planned_cups - panel.session.log_judged_planned_cups == 0)
 
 	# --- 5. 評判は接客中(OPEN)は動かない。名前あり客(granny)を1人提供した直後も朝の値のまま ---
 	# _setup_openの内部でreset_for_new_game()が走る(評判がINITIAL_REPUTATION=30に戻る)ため、

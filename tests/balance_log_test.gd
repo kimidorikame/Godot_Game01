@@ -57,7 +57,7 @@ func run(t: SceneTree) -> int:
 	panel._set_runner_for_phase(GameState.Phase.OPEN)
 	# 3-5（DESIGN.md 10.3.3）：配達員3(1+1+1) + 宵の口港湾労働者2(day_overrides.mobs固定)
 	# + チンピラ1 + 夜半安宿受付2(day_overrides.mobs固定) + 老婆1 = 9
-	c.check("Day1のplanned_cupsは9", panel._log_planned_cups == 9, str(panel._log_planned_cups))
+	c.check("Day1のplanned_cupsは9", panel.session.log_planned_cups == 9, str(panel.session.log_planned_cups))
 
 	# --- 5. quality_counts: 合計が served_cups(廃棄した椀を除く)と一致する ---
 	GameState.reset_for_new_game()

@@ -34,13 +34,13 @@ func _setup(t: SceneTree):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -64,8 +64,8 @@ func _to_choice(panel) -> void:
 ## runnerの現在位置より後ろの [part, text]。
 func _after(panel) -> Array:
 	var out := []
-	var events: Array = panel.flow.runner.events
-	for i in range(panel.flow.runner.index + 1, events.size()):
+	var events: Array = panel.session.flow.runner.events
+	for i in range(panel.session.flow.runner.index + 1, events.size()):
 		if events[i].has("part"):
 			out.append([str(events[i]["part"]), str(events[i].get("text", events[i].get("choice_id", "")))])
 	return out
@@ -77,8 +77,8 @@ func _snapshot(panel) -> Dictionary:
 		"soup": GameState.soup.duplicate(true), "inventory": GameState.inventory.duplicate(true),
 		"batches": GameState.perishable_batches.duplicate(true), "dashi": GameState.dashi_units,
 		"served": GameState.served.duplicate(true), "ledger": GameState.ledger.size(),
-		"slot_index": panel._open.slot_index, "customer_index": panel._open.index,
-		"result": str(panel._open.current_bowl.get("result", "")),
+		"slot_index": panel.session.open.slot_index, "customer_index": panel.session.open.index,
+		"result": str(panel.session.open.current_bowl.get("result", "")),
 	}
 
 
@@ -95,7 +95,7 @@ func run(t: SceneTree) -> int:
 		_after(panel) == [["body", "B1"], ["choice", "message"]], str(_after(panel)))
 	_to_choice(panel)
 	c.check("本文を読んだ後、CHOICEで入力待ちになる",
-		panel._is_in_story_choice() and panel.flow.runner.status == EventRunner.Status.WAITING_INPUT)
+		panel._is_in_story_choice() and panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
 	panel._refresh()
 	var labels := []
 	for child in panel._options_row.get_children():
@@ -103,14 +103,14 @@ func run(t: SceneTree) -> int:
 			labels.append(child.text)
 	c.check("仮ボタンは選択肢の数（預かる／本人に）", labels == ["預かる", "本人に"], str(labels))
 	c.check("[次のEvent]・[入力完了]は無効", panel._btn_next_event.disabled and panel._btn_complete_input.disabled)
-	var index_at_choice: int = panel.flow.runner.index
+	var index_at_choice: int = panel.session.flow.runner.index
 	panel._on_complete_input_pressed()
 	panel._on_next_event_pressed()
-	c.check("[入力完了]・[次のEvent]では選択を飛ばせない", panel.flow.runner.index == index_at_choice
+	c.check("[入力完了]・[次のEvent]では選択を飛ばせない", panel.session.flow.runner.index == index_at_choice
 		and CustomerMemory.choices_today("thug").is_empty())
 	panel._on_story_choice_pressed("message", "zzz")
 	panel._on_story_choice_pressed("other", "yes")
-	c.check("合わない選択・選択肢のidは何もしない", panel.flow.runner.index == index_at_choice
+	c.check("合わない選択・選択肢のidは何もしない", panel.session.flow.runner.index == index_at_choice
 		and CustomerMemory.choices_today("thug").is_empty())
 
 	# --- 2. 選ぶ：来店記録のchoicesと事実(facts)に残り、締めは default ＋ 差分。料金・評判・評価は不変 ---
@@ -121,21 +121,21 @@ func run(t: SceneTree) -> int:
 			and CustomerMemory.today_visit("thug")["choices"] == { "message": "yes" })
 	c.check("選択肢のsetが facts に書かれる", CustomerMemory.fact("thug", "holding_message") == true)
 	c.check("選んだ直後は締めの先頭（default）に進み、差分がその後ろに続く（足し算）",
-		str(panel.flow.runner.current().get("text", "")) == "C1" and _after(panel) == [["closing", "Y"]],
+		str(panel.session.flow.runner.current().get("text", "")) == "C1" and _after(panel) == [["closing", "Y"]],
 		str(_after(panel)))
 	var closing_lines := []
 	var guard := 0
-	while panel.flow.runner.current() != null and guard < 10:
-		var cur = panel.flow.runner.current()
+	while panel.session.flow.runner.current() != null and guard < 10:
+		var cur = panel.session.flow.runner.current()
 		if str(cur.get("part", "")) == "closing":
 			closing_lines.append(str(cur["text"]))
-		if panel.flow.runner.index + 1 >= panel.flow.runner.events.size():
+		if panel.session.flow.runner.index + 1 >= panel.session.flow.runner.events.size():
 			break
 		guard += 1
 		panel._on_next_event_pressed()
 	c.check("読み進めると 締め: C1 → Y の順", closing_lines == ["C1", "Y"], str(closing_lines))
 	c.check("選択の前後で料金・評判・評価・鍋・在庫・腐敗・時間帯・客の位置は不変", _snapshot(panel) == before)
-	c.check("選択でも判定の評価は変わらない（提供の瞬間に決まったまま）", str(panel._open.current_bowl.get("result", "")) == "GOOD")
+	c.check("選択でも判定の評価は変わらない（提供の瞬間に決まったまま）", str(panel.session.open.current_bowl.get("result", "")) == "GOOD")
 	panel.free()
 
 	# --- 3. もう一方を選ぶと、別の差分と別の事実の値。該当する差分が無ければ default のみ ---
@@ -153,7 +153,7 @@ func run(t: SceneTree) -> int:
 	_to_choice(p3)
 	p3._on_story_choice_pressed("message", "yes")
 	c.check("差分のキーが無ければ default だけ",
-		str(p3.flow.runner.current().get("text", "")) == "C1" and _after(p3).is_empty(), str(_after(p3)))
+		str(p3.session.flow.runner.current().get("text", "")) == "C1" and _after(p3).is_empty(), str(_after(p3)))
 	p3.free()
 
 	# --- 4. 選択が2つ：最後の選択の後に、両方の差分を場面の選択の順に足した締めを差し込む ---
@@ -166,11 +166,11 @@ func run(t: SceneTree) -> int:
 	_to_choice(p4)
 	p4._on_story_choice_pressed("message", "yes")
 	c.check("1つ目の後は次のCHOICEで止まる（締めはまだ無い）",
-		p4._is_in_story_choice() and str(p4.flow.runner.current()["choice_id"]) == "camera"
+		p4._is_in_story_choice() and str(p4.session.flow.runner.current()["choice_id"]) == "camera"
 			and _after(p4).is_empty(), str(_after(p4)))
 	p4._on_story_choice_pressed("camera", "no")
 	c.check("2つ目の後に締め：default → message:yes → camera:no（場面の選択の順）",
-		str(p4.flow.runner.current().get("text", "")) == "C1"
+		str(p4.session.flow.runner.current().get("text", "")) == "C1"
 			and _after(p4) == [["closing", "MY"], ["closing", "CN"]], str(_after(p4)))
 	c.check("両方の選択と事実が残る",
 		CustomerMemory.choices_today("thug") == { "message": "yes", "camera": "no" }
@@ -211,10 +211,10 @@ func run(t: SceneTree) -> int:
 	# --- 7. 現行の21場面（選択なし）は何も出ない ---
 	ScheduleData.clear_cache()
 	var pr = _setup(t)
-	var count_before: int = pr.flow.runner.events.size()
+	var count_before: int = pr.session.flow.runner.events.size()
 	_serve(pr, GOOD_PICKS)
 	c.check("実データ：CHOICEは出ず、イベント列も変わらない",
-		pr.flow.runner.events.size() == count_before and not pr._is_in_story_choice())
+		pr.session.flow.runner.events.size() == count_before and not pr._is_in_story_choice())
 	pr.free()
 
 	ScheduleData.clear_cache()

@@ -21,9 +21,9 @@ func _setup(t: SceneTree, day: int, money: int):
 
 ## CLOSE へ進み、語りを最後まで読む（runner が DONE になる）。
 func _to_close_done(panel) -> void:
-	panel.flow.force_phase(GameState.Phase.CLOSE)
+	panel.session.flow.force_phase(GameState.Phase.CLOSE)
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.DONE and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -66,7 +66,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 1. 積み立て行は CLOSE の語りを読み終えた後にだけ出る ---
 	var p1 = _setup(t, 2, 600)
-	p1.flow.force_phase(GameState.Phase.CLOSE)
+	p1.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("CLOSE の語りの途中（runner が未完了）は積み立て行を出さない",
 		_fund_buttons(p1).is_empty() and not p1._runner_label.text.contains("修繕基金"))
 	_to_close_done(p1)
@@ -79,8 +79,8 @@ func run(t: SceneTree) -> int:
 			and label.contains("今夜積んだ額: 0／30") and label.contains("今日積める上限: 30"), label)
 	c.check("上限（600−確保額）が1晩の上限（30）以上なので2つとも押せる", _fund_buttons(p1).all(func(b): return not b.disabled))
 	c.check("CLOSE の close_events（TEXT列）は変えていない（足していない）",
-		JSON.stringify(p1.flow.runner.events) == JSON.stringify(Day1Events.close_events()))
-	c.check("積まなくても [次のPhase] は押せる（ゲートは変えない）", not p1.flow.is_advance_blocked())
+		JSON.stringify(p1.session.flow.runner.events) == JSON.stringify(Day1Events.close_events()))
+	c.check("積まなくても [次のPhase] は押せる（ゲートは変えない）", not p1.session.flow.is_advance_blocked())
 
 	# --- 2. 押すと最初の未修繕の対象（看板）に積まれる。1晩の上限に届くとボタンは全部無効 ---
 	var rep_before: int = GameState.reputation
@@ -95,9 +95,9 @@ func run(t: SceneTree) -> int:
 		and p1._runner_label.text.contains("今日積める上限: 0"))
 	c.check("積んでも評判・在庫は変わらない（所持金と帳簿以外）", GameState.reputation == rep_before
 		and JSON.stringify(GameState.inventory) == inventory_before)
-	p1.flow.advance_phase()   # CLOSE → NEXT_DAY
+	p1.session.flow.advance_phase()   # CLOSE → NEXT_DAY
 	c.check("NEXT_DAY に進むと積み立て行と通知は消える", GameState.phase == GameState.Phase.NEXT_DAY
-		and _fund_buttons(p1).is_empty() and p1._fund_notice == "" and not p1._runner_label.text.contains("修繕基金"))
+		and _fund_buttons(p1).is_empty() and p1.session.fund_notice == "" and not p1._runner_label.text.contains("修繕基金"))
 
 	# --- 3. 安全上限が1晩の上限より小さい夜：額のボタンの有効・無効 ---
 	var p3 = _setup(t, 2, r14 + 20)   # 確保額+20−確保額＝20（< 30）
@@ -130,9 +130,9 @@ func run(t: SceneTree) -> int:
 	var p5 = _setup(t, 2, 600)
 	_to_close_done(p5)
 	_press(p5, 30)
-	p5.flow.advance_phase()   # CLOSE → NEXT_DAY
-	p5.flow.advance_phase()   # NEXT_DAY → WAKE（day_ending で前日の成績を作る）
-	var summary: String = p5._last_day_summary_text if p5._last_day_summary_text != "" else p5.flow.runner.events[0]["text"]
+	p5.session.flow.advance_phase()   # CLOSE → NEXT_DAY
+	p5.session.flow.advance_phase()   # NEXT_DAY → WAKE（day_ending で前日の成績を作る）
+	var summary: String = p5.session.last_day_summary_text if p5.session.last_day_summary_text != "" else p5.session.flow.runner.events[0]["text"]
 	c.check("翌朝サマリーに「屋台: 手書きの看板 30/150／…」と支出内訳の修繕基金30",
 		summary.contains("屋台: 手書きの看板 30/150／棚 0/200／雨よけ 0/200") and summary.contains("修繕基金30"), summary)
 	c.check("STATE VIEWER に fund の行（累計と修繕済み：なし）", p5._format_game_state().contains("fund(修繕基金): 累計30／修繕済み: なし"))
@@ -202,8 +202,8 @@ func run(t: SceneTree) -> int:
 				if RepairFund.can_contribute(RepairFund.first_open_target(), step):
 					_press(p9, step)
 					break
-		p9.flow.advance_phase()   # CLOSE → NEXT_DAY
-		p9.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
+		p9.session.flow.advance_phase()   # CLOSE → NEXT_DAY
+		p9.session.flow.advance_phase()   # NEXT_DAY → WAKE（運営費を払う）
 		c.check("所持金%dから積めるだけ積んでも、翌朝（Day3）に運営費が払えてゲームオーバーにならない（残り%d）" % [money, GameState.money],
 			GameState.phase == GameState.Phase.WAKE and GameState.day_count == 3 and GameState.money >= r14 - op)
 		p9.free()
@@ -214,13 +214,13 @@ func run(t: SceneTree) -> int:
 	c.check("最終日の安全上限は使える現金そのものだが、積めるのは1晩の上限30まで", p10._runner_label.text.contains("今日積める上限: 30"))
 	_press(p10, 30)
 	_press(p10, 10)
-	p10.flow.advance_phase()   # CLOSE → NEXT_DAY
-	p10.flow.advance_phase()   # NEXT_DAY → RESULT
+	p10.session.flow.advance_phase()   # CLOSE → NEXT_DAY
+	p10.session.flow.advance_phase()   # NEXT_DAY → RESULT
 	c.check("最終日の基金は結果画面へ：現金270＋支払済み修繕額30＝300（1晩の上限で一括払いはできない）",
 		GameState.phase == GameState.Phase.RESULT and GameState.money == 270 and RepairFund.paid() == 30
 			and Result.summarize(GameState.day_records, GameState.ledger, GameState.money)["cash_plus_repair"] == 300)
-	c.check("結果画面の1枚目に屋台の行", str(p10.flow.runner.events[0]["text"]).contains("屋台: 手書きの看板 30/150／"),
-		str(p10.flow.runner.events[0]["text"]))
+	c.check("結果画面の1枚目に屋台の行", str(p10.session.flow.runner.events[0]["text"]).contains("屋台: 手書きの看板 30/150／"),
+		str(p10.session.flow.runner.events[0]["text"]))
 	p10.free()
 
 	# --- 11. 積む先の選択（切り替えボタン。実行時のみ・保存しない） ---
@@ -247,8 +247,8 @@ func run(t: SceneTree) -> int:
 	p11._on_fund_target_selected("nothing")
 	c.check("存在しない対象も選べない", p11._fund_selected() == "shelf")
 	c.check("選択は保存の項目ではない（朝の保存に入らない）", not GameState.to_dict().has("fund_target") and MorningSave.VERSION == 6)
-	p11.flow.advance_phase()   # CLOSE → NEXT_DAY
-	c.check("フェーズが替わると選択は消える（既定に戻る）", p11._fund_target == "" and p11._fund_selected() == "sign")
+	p11.session.flow.advance_phase()   # CLOSE → NEXT_DAY
+	c.check("フェーズが替わると選択は消える（既定に戻る）", p11.session.fund_target == "" and p11._fund_selected() == "sign")
 	p11.free()
 	# 選んだ対象が修繕済みになったら、既定（最初の未修繕の対象）へ戻る
 	var p11b = _setup(t, 4, 700)

@@ -34,13 +34,13 @@ func _setup(t: SceneTree):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug", "granny"] }])
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -57,8 +57,8 @@ func _serve(panel, picks: Array) -> void:
 ## runnerの現在位置より後ろのイベントのうち、提供後の列（partを持つもの）の [part, text]。
 func _after_lines(panel) -> Array:
 	var out := []
-	var events: Array = panel.flow.runner.events
-	for i in range(panel.flow.runner.index + 1, events.size()):
+	var events: Array = panel.session.flow.runner.events
+	for i in range(panel.session.flow.runner.index + 1, events.size()):
 		if events[i].has("part"):
 			out.append([str(events[i]["part"]), str(events[i]["text"])])
 	return out
@@ -71,7 +71,7 @@ func _snapshot(panel) -> Dictionary:
 		"soup": GameState.soup.duplicate(true), "inventory": GameState.inventory.duplicate(true),
 		"batches": GameState.perishable_batches.duplicate(true), "dashi": GameState.dashi_units,
 		"served": GameState.served.duplicate(true), "ledger": GameState.ledger.size(),
-		"slot_index": panel._open.slot_index, "customer_index": panel._open.index,
+		"slot_index": panel.session.open.slot_index, "customer_index": panel.session.open.index,
 		"memory": GameState.customer_memory.duplicate(true), "plan": GameState.today_plan.duplicate(true),
 	}
 
@@ -86,16 +86,16 @@ func run(t: SceneTree) -> int:
 		ScheduleData.clear_cache()
 		ScheduleData._episode_cache["thug/thug_02"] = _scene({ "body": ["B1", "B2"], "closing": { "default": ["C1"] } })
 		var panel = _setup(t)
-		var before_events: int = panel.flow.runner.events.size()
+		var before_events: int = panel.session.flow.runner.events.size()
 		_serve(panel, GRADE_PICKS[grade])
-		c.check("%s：判定は期待どおり" % grade, str(panel._open.current_bowl.get("result", "")) == grade,
-			str(panel._open.current_bowl.get("result", "")))
+		c.check("%s：判定は期待どおり" % grade, str(panel.session.open.current_bowl.get("result", "")) == grade,
+			str(panel.session.open.current_bowl.get("result", "")))
 		c.check("%s：反応はREACTの表示（reactions[出来]）" % grade, panel._current_reaction_text() == "R:" + grade,
 			panel._current_reaction_text())
 		c.check("%s：REACTの後に 本文×2 → 締め×1 が差し込まれる（イベントは3つ増える）" % grade,
 			_after_lines(panel) == [["body", "B1"], ["body", "B2"], ["closing", "C1"]]
-				and panel.flow.runner.events.size() == before_events + 3, str(_after_lines(panel)))
-		var next_event = panel.flow.runner.events[panel.flow.runner.index + 1]
+				and panel.session.flow.runner.events.size() == before_events + 3, str(_after_lines(panel)))
+		var next_event = panel.session.flow.runner.events[panel.session.flow.runner.index + 1]
 		c.check("%s：差し込んだ行は効果の無いGREET（客・本文）" % grade,
 			str(next_event["type"]) == "GREET" and str(next_event["customer"]) == "thug")
 		panel.free()
@@ -103,10 +103,10 @@ func run(t: SceneTree) -> int:
 	# --- 2. 場面データにキーが無い（現行の21場面）なら、従来と同一（何も差さない） ---
 	ScheduleData.clear_cache()
 	var plain = _setup(t)
-	var plain_before: int = plain.flow.runner.events.size()
+	var plain_before: int = plain.session.flow.runner.events.size()
 	_serve(plain, GRADE_PICKS["GOOD"])
 	c.check("実データ：REACTの前後でイベント数が変わらない（何も差さない）",
-		plain.flow.runner.events.size() == plain_before and _after_lines(plain).is_empty())
+		plain.session.flow.runner.events.size() == plain_before and _after_lines(plain).is_empty())
 	c.check("実データ：反応は従来どおり（reactions[出来]）", plain._current_reaction_text() != "")
 	plain.free()
 
@@ -150,17 +150,17 @@ func run(t: SceneTree) -> int:
 	var reading = _setup(t)
 	_serve(reading, GRADE_PICKS["GOOD"])
 	var snap_start := _snapshot(reading)
-	var graded: String = str(reading._open.current_bowl.get("result", ""))
+	var graded: String = str(reading.session.open.current_bowl.get("result", ""))
 	var read_count := 0
-	while reading.flow.runner.index + 1 < reading.flow.runner.events.size() 			and reading.flow.runner.events[reading.flow.runner.index + 1].has("part") and read_count < 10:
+	while reading.session.flow.runner.index + 1 < reading.session.flow.runner.events.size() 			and reading.session.flow.runner.events[reading.session.flow.runner.index + 1].has("part") and read_count < 10:
 		reading._on_next_event_pressed()
 		read_count += 1
 		c.check("本文/締めの%d行目まで読んでも、状態（鍋・在庫・腐敗・所持金・評判・客の位置・来店記録）は不変" % read_count,
 			_snapshot(reading) == snap_start)
 	c.check("本文3行＋締め2行の5行を読んだ（客はまだ退店していない）",
-		read_count == 5 and str(reading._open.current_customer()) == "thug", str(read_count))
+		read_count == 5 and str(reading.session.open.current_customer()) == "thug", str(read_count))
 	c.check("評価は提供の瞬間に決まったまま（読んでも変わらない）",
-		str(reading._open.current_bowl.get("result", "")) == graded)
+		str(reading.session.open.current_bowl.get("result", "")) == graded)
 	reading.free()
 
 	# --- 6. customer_events・after_serve_events は、何度呼んでも状態が変わらない ---

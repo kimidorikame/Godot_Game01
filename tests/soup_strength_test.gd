@@ -21,7 +21,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary, soup_str
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": customers }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	# set_soup()自体はSTRENGTH_MIN(1)でクランプする（濃さ0はadd_water()経由でのみ到達する
@@ -36,7 +36,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary, soup_str
 
 func _drive_to_adjust(panel) -> void:
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 
@@ -106,7 +106,7 @@ func run(t: SceneTree) -> int:
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
 	GameState.today_plan["mob_instances"]["mob_strength_test"] = { "type": "dock_workers", "count": 4 }
-	panel3._open = OpenController.new([{ "name": "宵の口", "customers": ["mob_strength_test"] }])
+	panel3.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob_strength_test"] }])
 	GameState.add_inventory("nam_prik_pao", 10)
 	GameState.add_inventory("meat_ball", 10)
 	# set_soup()自体はSTRENGTH_MIN(1)でクランプする（濃さ0はadd_water()経由でのみ到達する
@@ -122,7 +122,7 @@ func run(t: SceneTree) -> int:
 		panel3._mob_achievable_servings(4) == 0,
 		"achievable=%s soup=%s mob_picks=%s is_mob=%s" % [
 			panel3._mob_achievable_servings(4), str(GameState.soup),
-			str(panel3._mob_picks), panel3._is_current_mob_order()])
+			str(panel3.session.mob_picks), panel3._is_current_mob_order()])
 
 	# --- 7. 明け方（最後の時間帯）に入った瞬間だけ濃さ+1。宵の口→夜半では+1しない ---
 	GameState.reset_for_new_game()
@@ -130,19 +130,19 @@ func run(t: SceneTree) -> int:
 	var panel4 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel4)
 	GameState.phase = GameState.Phase.OPEN
-	panel4._open = OpenController.new([
+	panel4.session.open = OpenController.new([
 		{ "name": "宵の口", "customers": ["dummy1"] },
 		{ "name": "夜半", "customers": ["dummy2"] },
 		{ "name": "明け方", "customers": ["dummy3"] },
 	])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel4.flow.set_runner([])   # 即DONE扱いにして退店条件を満たす
+	panel4.session.flow.set_runner([])   # 即DONE扱いにして退店条件を満たす
 	panel4._advance_open_queue_if_customer_done()   # 宵の口 -> 夜半
 	c.check("宵の口->夜半では濃さは変わらない", int(GameState.soup["strength"]) == 3, str(GameState.soup))
-	panel4.flow.set_runner([])
+	panel4.session.flow.set_runner([])
 	panel4._advance_open_queue_if_customer_done()   # 夜半 -> 明け方（最後の枠）
 	c.check("夜半->明け方（最後の枠）で濃さ+1", int(GameState.soup["strength"]) == 4, str(GameState.soup))
-	panel4.flow.set_runner([])
+	panel4.session.flow.set_runner([])
 	panel4._advance_open_queue_if_customer_done()   # 明け方をさばき終える（もう次の枠は無い）
 	c.check("全枠さばき終えた後は濃さが変わらない(2回目の+1は起きない)",
 		int(GameState.soup["strength"]) == 4, str(GameState.soup))

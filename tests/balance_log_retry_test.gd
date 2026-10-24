@@ -73,10 +73,10 @@ func run(t: SceneTree) -> int:
 		rows.size() == 3 and str(rows[2]["run_id"]) == run_b and int(rows[2]["attempt"]) == 1
 			and BalanceLog.latest_per_day(rows, run_a).size() == 1
 			and BalanceLog.latest_per_day(rows, run_b).size() == 1)
-	panel._pending_continue = GameState.morning_of(1).duplicate(true)
+	panel.session.pending_continue = GameState.morning_of(1).duplicate(true)
 	panel.retry_from_morning(1)   # attempt=2にしておく
 	c.check("（前提）attemptが2", BalanceLog.attempt == 2)
-	panel._pending_continue = GameState.morning_of(1).duplicate(true)
+	panel.session.pending_continue = GameState.morning_of(1).duplicate(true)
 	panel._on_continue_pressed()
 	c.check("[続きから]は別の周：run_idが新しくなりattemptは1に戻る",
 		BalanceLog.run_id != run_b and BalanceLog.attempt == 1, BalanceLog.run_id)

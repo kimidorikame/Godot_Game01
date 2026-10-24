@@ -26,7 +26,7 @@ func _start_open(panel) -> void:
 
 ## 次の客へ（_advance_open_queue_if_customer_done と同じく、進めてから読み込む）。
 func _next_customer(panel) -> void:
-	panel._open.advance_customer()
+	panel.session.open.advance_customer()
 	panel._load_current_customer()
 
 
@@ -59,80 +59,80 @@ func run(t: SceneTree) -> int:
 	# --- 1. Day6：営業の始め（宵の口の最初の客）の前に衝突が前置される ---
 	var panel = _wake_panel(t, 6)
 	_start_open(panel)
-	var first_customer: String = str(panel._open.current_customer())
-	var events1: Array = panel.flow.runner.events
+	var first_customer: String = str(panel.session.open.current_customer())
+	var events1: Array = panel.session.flow.runner.events
 	c.check("宵の口の最初の客の列の先頭に衝突のTEXT（part:common_event・効果の無いTEXT）",
 		_common_texts(events1) == [CLASH] and str(events1[0]["type"]) == "TEXT"
 			and str(events1[0]["part"]) == "common_event" and str(events1[0]["event_id"]) == "d6_clash")
 	c.check("その後ろは従来どおりの客の列（customer_events）",
 		_norm(events1.slice(1)) == _norm(Day1Events.customer_events(first_customer)))
-	c.check("再生済みに衝突が入る", panel._played_events == ["d6_clash"])
+	c.check("再生済みに衝突が入る", panel.session.played_events == ["d6_clash"])
 
 	# --- 2. 同じ客で _load_current_customer を何度呼んでも、二重に前置しない（同じ列を組み直す） ---
-	var snapshot1 = _norm(panel.flow.runner.events)
+	var snapshot1 = _norm(panel.session.flow.runner.events)
 	panel._load_current_customer()
 	panel._load_current_customer()
 	c.check("同じ客で3回呼んでも、列は同じ（衝突は1回だけ）",
-		_norm(panel.flow.runner.events) == snapshot1 and _common_texts(panel.flow.runner.events) == [CLASH])
-	c.check("再生済みの記録は1件のまま（二重に数えない）", panel._played_events == ["d6_clash"])
+		_norm(panel.session.flow.runner.events) == snapshot1 and _common_texts(panel.session.flow.runner.events) == [CLASH])
+	c.check("再生済みの記録は1件のまま（二重に数えない）", panel.session.played_events == ["d6_clash"])
 
 	# --- 3. 宵の口の2人目以降には前置されない。夜半の最初の客の前に火災が前置される ---
-	var in_slot0: int = panel._open.current_slot_customers().size()
+	var in_slot0: int = panel.session.open.current_slot_customers().size()
 	var guard := 0
-	while panel._open.slot_index == 0 and guard < 30:
+	while panel.session.open.slot_index == 0 and guard < 30:
 		guard += 1
 		_next_customer(panel)
-		if panel._open.slot_index == 0:
-			c.check("宵の口の%d人目：共通イベントは前置されない" % (panel._open.index + 1),
-				_common_texts(panel.flow.runner.events).is_empty())
-	c.check("（前提）宵の口の客を進み終えて夜半に入った", panel._open.slot_index == 1 and panel._open.index == 0 and in_slot0 >= 1)
+		if panel.session.open.slot_index == 0:
+			c.check("宵の口の%d人目：共通イベントは前置されない" % (panel.session.open.index + 1),
+				_common_texts(panel.session.flow.runner.events).is_empty())
+	c.check("（前提）宵の口の客を進み終えて夜半に入った", panel.session.open.slot_index == 1 and panel.session.open.index == 0 and in_slot0 >= 1)
 	c.check("夜半の最初の客の前に火災（2行・ひとつの出来事）が前置される",
-		_common_texts(panel.flow.runner.events) == [FIRE1, FIRE2], str(_common_texts(panel.flow.runner.events)))
-	c.check("再生済みは 衝突 → 火災 の順", panel._played_events == ["d6_clash", "d6_fire"])
-	var snapshot2 = _norm(panel.flow.runner.events)
+		_common_texts(panel.session.flow.runner.events) == [FIRE1, FIRE2], str(_common_texts(panel.session.flow.runner.events)))
+	c.check("再生済みは 衝突 → 火災 の順", panel.session.played_events == ["d6_clash", "d6_fire"])
+	var snapshot2 = _norm(panel.session.flow.runner.events)
 	panel._load_current_customer()
-	c.check("夜半の最初の客を組み直しても、火災は二重にならない", _norm(panel.flow.runner.events) == snapshot2
-		and panel._played_events == ["d6_clash", "d6_fire"])
+	c.check("夜半の最初の客を組み直しても、火災は二重にならない", _norm(panel.session.flow.runner.events) == snapshot2
+		and panel.session.played_events == ["d6_clash", "d6_fire"])
 	guard = 0
-	while panel._open.slot_index == 1 and guard < 30:
+	while panel.session.open.slot_index == 1 and guard < 30:
 		guard += 1
 		_next_customer(panel)
 	c.check("明け方：共通イベントは前置されない（Day6の分はもう再生済み）",
-		panel._open.slot_index == 2 and _common_texts(panel.flow.runner.events).is_empty())
+		panel.session.open.slot_index == 2 and _common_texts(panel.session.flow.runner.events).is_empty())
 
 	# --- 4. 全部届いた日のCLOSEは従来どおり（取り戻しなし） ---
-	var played_before: Array = panel._played_events.duplicate()
-	panel.flow.force_phase(GameState.Phase.CLOSE)
+	var played_before: Array = panel.session.played_events.duplicate()
+	panel.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("全部再生済みの日のCLOSEは従来の閉店の列と同一（二重に出ない）",
-		_norm(panel.flow.runner.events) == _norm(Day1Events.close_events()) and panel._played_events == played_before)
+		_norm(panel.session.flow.runner.events) == _norm(Day1Events.close_events()) and panel.session.played_events == played_before)
 	panel.free()
 
 	# --- 5. 早仕舞い・客が来ない日：CLOSEの先頭で、未再生の共通イベントを時系列で取り戻す ---
 	for case in [["通常の評判", 65], ["低い評判（モブが少ない）", -40]]:
 		var p5 = _wake_panel(t, 6, int(case[1]))
 		# 営業を一度も始めずに閉店（客0人＝早仕舞いの極端な例）
-		p5.flow.force_phase(GameState.Phase.CLOSE)
-		var ev5: Array = p5.flow.runner.events
+		p5.session.flow.force_phase(GameState.Phase.CLOSE)
+		var ev5: Array = p5.session.flow.runner.events
 		c.check("%s・客0人：CLOSEの先頭に 衝突 → 火災 が届く（必須情報#7）" % case[0],
 			_common_texts(ev5) == [CLASH, FIRE1, FIRE2] and str(ev5[0]["part"]) == "common_event",
 			str(_common_texts(ev5)))
 		c.check("%s：その後ろに閉店の語りが続く" % case[0],
 			_norm(ev5.slice(3)) == _norm(Day1Events.close_events()))
-		c.check("%s：再生済みに両方入る" % case[0], p5._played_events == ["d6_clash", "d6_fire"])
+		c.check("%s：再生済みに両方入る" % case[0], p5.session.played_events == ["d6_clash", "d6_fire"])
 		p5.free()
 	var p5b = _wake_panel(t, 6)
 	_start_open(p5b)   # 衝突は宵の口の始めで再生済み
-	p5b.flow.force_phase(GameState.Phase.CLOSE)
+	p5b.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("宵の口で早仕舞い：CLOSEで取り戻すのは火災だけ（衝突は二重にならない）",
-		_common_texts(p5b.flow.runner.events) == [FIRE1, FIRE2])
+		_common_texts(p5b.session.flow.runner.events) == [FIRE1, FIRE2])
 	p5b.free()
 	# 早仕舞いの理由・未提供版の退店の後ろに共通イベントが続く（順序：理由 → 未提供版 → 共通イベント → 閉店の語り）
 	var p5c = _wake_panel(t, 6)
-	p5c._closed_early_reason = "（今日はここで店じまいにする。）"
-	p5c._pending_close_lines = [{ "type": "GREET", "customer": "x", "text": "未提供の退店", "part": "reaction" }]
-	p5c.flow.force_phase(GameState.Phase.CLOSE)
+	p5c.session.closed_early_reason = "（今日はここで店じまいにする。）"
+	p5c.session.pending_close_lines = [{ "type": "GREET", "customer": "x", "text": "未提供の退店", "part": "reaction" }]
+	p5c.session.flow.force_phase(GameState.Phase.CLOSE)
 	var texts5c := []
-	for ev in p5c.flow.runner.events:
+	for ev in p5c.session.flow.runner.events:
 		texts5c.append(str(ev.get("text", "")))
 	c.check("順序：理由 → 未提供版の退店 → 共通イベント → 閉店の語り",
 		texts5c.slice(0, 5) == ["（今日はここで店じまいにする。）", "未提供の退店", CLASH, FIRE1, FIRE2]
@@ -147,7 +147,7 @@ func run(t: SceneTree) -> int:
 	var numbers_before := _numbers()
 	p6._set_runner_for_phase(GameState.Phase.OPEN)
 	c.check("衝突を前置しても数値は不変", _numbers() == numbers_before)
-	p6.flow.force_phase(GameState.Phase.CLOSE)
+	p6.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("CLOSEで火災を取り戻しても数値は不変（所持金・評判・在庫・鍋・DayPlan・帳簿）",
 		_numbers() == numbers_before)
 	p6.free()
@@ -156,24 +156,24 @@ func run(t: SceneTree) -> int:
 	for day in [1, 2, 3, 4, 5, 7]:
 		var p7 = _wake_panel(t, day)
 		_start_open(p7)
-		var customer7: String = str(p7._open.current_customer())
+		var customer7: String = str(p7.session.open.current_customer())
 		c.check("Day%d：最初の客の列は customer_events のまま（共通イベントなし）" % day,
-			_norm(p7.flow.runner.events) == _norm(Day1Events.customer_events(customer7)) and p7._played_events.is_empty())
-		p7.flow.force_phase(GameState.Phase.CLOSE)
-		c.check("Day%d：CLOSEは従来の閉店の列" % day, _norm(p7.flow.runner.events) == _norm(Day1Events.close_events()))
+			_norm(p7.session.flow.runner.events) == _norm(Day1Events.customer_events(customer7)) and p7.session.played_events.is_empty())
+		p7.session.flow.force_phase(GameState.Phase.CLOSE)
+		c.check("Day%d：CLOSEは従来の閉店の列" % day, _norm(p7.session.flow.runner.events) == _norm(Day1Events.close_events()))
 		p7.free()
 
 	# --- 8. 再挑戦（朝へ戻す）：再生済みがリセットされ、最初から再生し直す ---
 	var p8 = _wake_panel(t, 6)
 	_start_open(p8)
-	c.check("（前提）衝突を再生した", p8._played_events == ["d6_clash"])
+	c.check("（前提）衝突を再生した", p8.session.played_events == ["d6_clash"])
 	c.check("朝（Day6）へ戻せる", p8.retry_from_morning(6) and GameState.day_count == 6)
-	c.check("再挑戦：再生済みと前置の記録がリセットされる", p8._played_events.is_empty() and p8._slot_event_ids.is_empty())
+	c.check("再挑戦：再生済みと前置の記録がリセットされる", p8.session.played_events.is_empty() and p8.session.slot_event_ids.is_empty())
 	_start_open(p8)
-	c.check("再挑戦後の営業でも、衝突がもう一度前置される（1回だけ）", _common_texts(p8.flow.runner.events) == [CLASH]
-		and p8._played_events == ["d6_clash"])
+	c.check("再挑戦後の営業でも、衝突がもう一度前置される（1回だけ）", _common_texts(p8.session.flow.runner.events) == [CLASH]
+		and p8.session.played_events == ["d6_clash"])
 	p8._on_new_run_pressed()
-	c.check("新しい周：再生済みはリセット（Day1）", p8._played_events.is_empty() and GameState.day_count == 1)
+	c.check("新しい周：再生済みはリセット（Day1）", p8.session.played_events.is_empty() and GameState.day_count == 1)
 	p8.free()
 
 	# --- 9. ニュースタブ：過ぎた日の出来事は載り、今日の分は再生した分だけ載る ---
@@ -205,13 +205,13 @@ func run(t: SceneTree) -> int:
 	c.check("at:wake の共通イベントは朝のニュースの後に出る",
 		wake_texts[2 + news_count] == "朝の出来事" and wake_texts[3 + news_count].begins_with("共同水道"))
 	var p10 = _wake_panel(t, 2)
-	c.check("朝に出した共通イベントは再生済みになる", p10._played_events == ["w"])
+	c.check("朝に出した共通イベントは再生済みになる", p10.session.played_events == ["w"])
 	p10.free()
 	var p10b = _wake_panel(t, 3)
 	_start_open(p10b)
-	p10b.flow.force_phase(GameState.Phase.CLOSE)
+	p10b.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("at:close の共通イベントは閉店の語りの前（CLOSEの先頭）に出る",
-		_common_texts(p10b.flow.runner.events) == ["閉店後の出来事"] and str(p10b.flow.runner.events[0]["part"]) == "common_event")
+		_common_texts(p10b.session.flow.runner.events) == ["閉店後の出来事"] and str(p10b.session.flow.runner.events[0]["part"]) == "common_event")
 	p10b.free()
 	News.clear_cache()
 

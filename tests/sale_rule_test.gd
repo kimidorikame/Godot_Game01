@@ -12,13 +12,13 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	GameState.phase = GameState.Phase.OPEN
-	panel._open = OpenController.new([{ "name": "宵の口", "customers": customers }])
+	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel._load_current_customer()
 	var guard := 0
-	while panel.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
+	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
 		panel._on_next_event_pressed()
 	return panel
@@ -32,17 +32,17 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t, ["thug"], { "nam_prik_pao": 5, "meat_ball": 5 })
 	panel._refresh()
 	c.check("具材を何も選んでいない椀は[入力完了]が無効", panel._btn_complete_input.disabled)
-	var before_type: String = str(panel.flow.runner.current().get("type", ""))
+	var before_type: String = str(panel.session.flow.runner.current().get("type", ""))
 	panel._on_complete_input_pressed()
 	c.check("ハンドラを直接呼んでも進まない(二重防御)",
-		str(panel.flow.runner.current().get("type", "")) == before_type)
+		str(panel.session.flow.runner.current().get("type", "")) == before_type)
 
 	# --- 2. 味付けだけ(nam_prik_pao=HOT。具の軸を持たない)は不可 ---
 	panel._on_ingredient_selected("nam_prik_pao")
 	c.check("味付けのみの椀は[入力完了]が無効(具が無い)", panel._btn_complete_input.disabled)
 	panel._on_complete_input_pressed()
 	c.check("味付けのみでは進まない",
-		str(panel.flow.runner.current().get("type", "")) == before_type)
+		str(panel.session.flow.runner.current().get("type", "")) == before_type)
 
 	# --- 3. 廃棄して作り直し、具だけ(meat_ball=POWER。味の軸を持たない)も不可 ---
 	panel._on_discard_pressed()
@@ -54,7 +54,7 @@ func run(t: SceneTree) -> int:
 	c.check("味・具の両方が入れば[入力完了]が有効になる", not panel._btn_complete_input.disabled)
 	panel._on_complete_input_pressed()
 	c.check("両方入れれば進む(SERVEへ)",
-		str(panel.flow.runner.current().get("type", "")) == "SERVE")
+		str(panel.session.flow.runner.current().get("type", "")) == "SERVE")
 
 	# --- 5. モブ客：具のみ(味の軸を持たない)の椀は達成可能人数が0になる ---
 	panel = _setup(t, ["mob_sale_test"], { "meat_ball": 10 })
