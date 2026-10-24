@@ -181,7 +181,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "must_info": ["m"], "body_unserved": ["U1"] })
 	var p5 = _setup(t)
-	p5._on_customer_decline_pressed()
+	p5.session.decline_customer()
 	p5.session.next_event()
 	c.check("断った客：選択は出ない（未提供版の本文だけ）", _after(p5) == [["body", "U1"]], str(_after(p5)))
 	c.check("断った客：choices・factsは作らない", CustomerMemory.choices_today("thug").is_empty()

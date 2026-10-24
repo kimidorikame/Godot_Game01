@@ -46,7 +46,7 @@ func run(t: SceneTree) -> int:
 	for btn in _BUTTONS:
 		var before_money: int = GameState.money
 		var before_inv: int = int(GameState.inventory.get(btn["item"], 0))
-		panel._on_shop_item_selected(btn["shop"], btn["id"])
+		panel.session.buy_item(btn["shop"], btn["id"])
 		c.check("%s: 所持金が%dだけ減る" % [btn["id"], btn["price"]],
 			GameState.money == before_money - int(btn["price"]), "money=%d" % GameState.money)
 		c.check("%s: 在庫(%s)が%d個増える" % [btn["id"], btn["item"], btn["count"]],
@@ -62,8 +62,8 @@ func run(t: SceneTree) -> int:
 	# --- 2. モツ：パック購入→小口購入で別々の単価のバッチとして記録される
 	#    (「小口の海老20を消費した原価を18と数えない」§3原文と同じ理屈をモツで検証) ---
 	panel = _setup(t)
-	panel._on_shop_item_selected("meat_wholesale", "offal")          # パック: 3個・単価10
-	panel._on_shop_item_selected("meat_wholesale", "offal_single")   # 小口: 1個・単価12
+	panel.session.buy_item("meat_wholesale", "offal")          # パック: 3個・単価10
+	panel.session.buy_item("meat_wholesale", "offal_single")   # 小口: 1個・単価12
 	var offal_batches: Array = GameState.perishable_batches.get("offal", [])
 	c.check("モツ：パック購入+小口購入で2つの別バッチになる", offal_batches.size() == 2, str(offal_batches))
 	c.check("モツ：1つ目のバッチは単価10・3個",
@@ -74,15 +74,15 @@ func run(t: SceneTree) -> int:
 
 	# --- 3. 同日・同じ単価のパック購入を2回行うと1つのバッチに合算される(既存動作の回帰) ---
 	panel = _setup(t)
-	panel._on_shop_item_selected("meat_wholesale", "offal")
-	panel._on_shop_item_selected("meat_wholesale", "offal")
+	panel.session.buy_item("meat_wholesale", "offal")
+	panel.session.buy_item("meat_wholesale", "offal")
 	var merged_batches: Array = GameState.perishable_batches.get("offal", [])
 	c.check("モツ：同日・同単価のパック購入2回は1バッチに合算される",
 		merged_batches.size() == 1 and int(merged_batches[0]["count"]) == 6, str(merged_batches))
 
 	# --- 4. パック購入分を4日目まで放置して破棄すると、廃棄額は実際に払った額と一致する ---
 	panel = _setup(t)
-	panel._on_shop_item_selected("meat_wholesale", "offal")   # 3個・単価10 → 30円分
+	panel.session.buy_item("meat_wholesale", "offal")   # 3個・単価10 → 30円分
 	GameState.day_count = 4
 	var spoiled: Dictionary = GameState.discard_spoiled_inventory()
 	c.check("モツ(パック購入)の廃棄額は実際に払った30円",

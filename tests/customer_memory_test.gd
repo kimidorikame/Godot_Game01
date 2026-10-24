@@ -143,7 +143,7 @@ func run(t: SceneTree) -> int:
 	# --- 7. 断り：来店の記録は残り、servedは0のまま ---
 	var panel2 = _setup(t, ["granny"], { "herbal_sauce": 5, "offal": 5 })
 	_drive_to_adjust(panel2)
-	panel2._on_customer_decline_pressed()
+	panel2.session.decline_customer()
 	panel2.session.next_event()
 	var gv := CustomerMemory.last_visit("granny")
 	c.check("[客を断る]：来店の記録は残り、served=0・gradeは空",

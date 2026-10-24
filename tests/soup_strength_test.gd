@@ -90,8 +90,8 @@ func run(t: SceneTree) -> int:
 
 	# --- 5. 濃さ0から濃縮だしを入れて[戻る]すると、保留が解決して提供される ---
 	GameState.dashi_units = 1
-	panel2._on_pot_pressed()
-	panel2._on_add_dashi_pressed()
+	panel2.session.open_pot()
+	panel2.session.add_dashi()
 	c.check("だしを入れると濃さが回復する(0→2)", int(GameState.soup["strength"]) == 2)
 	panel2._on_pot_back_pressed()
 	c.check("濃さ回復後は保留が解決してservedが増える", GameState.served.size() == served_before + 1)
@@ -152,10 +152,10 @@ func run(t: SceneTree) -> int:
 	var panel5 = _setup(t)
 	GameState.money = 100
 	GameState.dashi_units = 0
-	panel5._on_shop_item_selected("meat_wholesale", "dashi")
+	panel5.session.buy_item("meat_wholesale", "dashi")
 	c.check("濃縮だし購入で所持金が16減る", GameState.money == 84, str(GameState.money))
 	c.check("濃縮だし購入でdashi_unitsが1増える", GameState.dashi_units == 1)
-	panel5._on_shop_item_selected("meat_wholesale", "dashi")
+	panel5.session.buy_item("meat_wholesale", "dashi")
 	c.check("濃縮だしは1周1回の制限が無く、何度でも買える", GameState.dashi_units == 2)
 	GameState.reset_for_new_day()
 	c.check("dashi_unitsはreset_for_new_dayでは変化しない(日をまたいで持ち越す)",
@@ -166,15 +166,15 @@ func run(t: SceneTree) -> int:
 	# --- 9. [戻る]の二重ロック：資源が無ければ塞がない（既存の水ロックと同じ設計をだしにも複製） ---
 	var panel6 = _setup_open(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5 }, 0)
 	GameState.dashi_units = 0
-	panel6._on_pot_pressed()   # 濃さ0で鍋モードに入る（_pot_dashi_addedがリセットされる）
-	c.check("濃さ0で鍋モードに入った直後は_pot_locked_until_dashiがtrue", panel6._pot_locked_until_dashi())
+	panel6.session.open_pot()   # 濃さ0で鍋モードに入る（_pot_dashi_addedがリセットされる）
+	c.check("濃さ0で鍋モードに入った直後は_pot_locked_until_dashiがtrue", panel6.session.pot_locked_until_dashi())
 	c.check("だしを持っていなければ、ロック中でも[戻る]は塞がれない(出口は必ずある)",
-		not (panel6._pot_locked_until_dashi() and GameState.can_add_dashi()))
+		not (panel6.session.pot_locked_until_dashi() and GameState.can_add_dashi()))
 	GameState.dashi_units = 1
 	c.check("だしを持っていれば、[戻る]はだしを入れるまで塞がれる",
-		panel6._pot_locked_until_dashi() and GameState.can_add_dashi())
-	panel6._on_add_dashi_pressed()
-	c.check("だしを入れるとロックが解ける", not panel6._pot_locked_until_dashi())
+		panel6.session.pot_locked_until_dashi() and GameState.can_add_dashi())
+	panel6.session.add_dashi()
+	c.check("だしを入れるとロックが解ける", not panel6.session.pot_locked_until_dashi())
 
 	# --- 10. 3-6 鍋の同時容量14（DESIGN.md 10.3.8）：水は残量12以下のときだけ足せる。
 	#    自動試遊レポートが指摘した「14杯・濃さ3・水2・だし1から水→だし→水で同時残量18」

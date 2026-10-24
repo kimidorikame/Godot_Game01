@@ -86,12 +86,12 @@ func run(t: SceneTree) -> int:
 	# --- 7. Day1の水道代は新しい値(50)。Day2以降は水道代を払わない ---
 	var panel5 = _setup(t, 300, 1)
 	var money_before5: int = GameState.money
-	panel5._visit_water_stall()
+	panel5.session.visit_water_stall()
 	c.check("Day1の水道代は50", GameState.money == money_before5 - 50, str(GameState.money))
 
 	var panel6 = _setup(t, 300, 2)
 	var money_before6: int = GameState.money
-	var visited6: bool = panel6._visit_water_stall()
+	var visited6: bool = panel6.session.visit_water_stall()
 	c.check("Day2は水道代を払わない(is_collection_dayでない)",
 		visited6 and GameState.money == money_before6, str(GameState.money))
 
@@ -117,7 +117,7 @@ func run(t: SceneTree) -> int:
 	c.check("非徴収日：使える現金は残金そのもの(300-75=225)", Ledger.usable_cash() == 225 and GameState.money == 225,
 		str(Ledger.usable_cash()))
 	var money_before8: int = GameState.money
-	panel8._on_market_exit_pressed()
+	panel8.session.exit_market()
 	c.check("非徴収日：市場を出ると確保が0になる", Ledger.pending_bills_today() == 0,
 		str(Ledger.pending_bills_today()))
 	c.check("非徴収日は水道代が発生しないので市場を出てもmoneyは動かない",
@@ -135,7 +135,7 @@ func run(t: SceneTree) -> int:
 		str(Ledger.pending_bills_today()))
 	c.check("徴収日：Day1の使える現金は85(300-75-140)", Ledger.usable_cash() == 85,
 		str(Ledger.usable_cash()))
-	panel9._on_market_exit_pressed()
+	panel9.session.exit_market()
 	c.check("徴収日：市場を出ると確保は場所代ぶんの90だけ残る",
 		Ledger.pending_bills_today() == 90, str(Ledger.pending_bills_today()))
 	GameState.mark_rent_paid()
@@ -166,7 +166,7 @@ func run(t: SceneTree) -> int:
 	c.check("基金の安全上限は同じ使える現金85を元にする（85−翌日の確保額、0未満は0）",
 		RepairFund.safe_limit() == maxi(85 - int(RepairFund.next_day_reserve()["total"]), 0),
 		str(RepairFund.safe_limit()))
-	panel10._on_market_exit_pressed()
+	panel10.session.exit_market()
 	c.check("市場を出た後は確保が90、使える現金が85のまま(水道代50を払い、その分の確保も外れる)",
 		panel10._format_game_state().contains("budget(残金/確保/使える): 175 / 90 / 85"),
 		panel10._format_game_state())

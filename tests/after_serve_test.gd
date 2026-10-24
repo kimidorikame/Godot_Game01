@@ -116,7 +116,7 @@ func run(t: SceneTree) -> int:
 	var declined = _setup(t)
 	var money_before_decline: int = GameState.money
 	var stock_before_decline: Dictionary = GameState.inventory.duplicate(true)
-	declined._on_customer_decline_pressed()
+	declined.session.decline_customer()
 	declined.session.next_event()
 	c.check("断る：REACTの反応は reactions.UNSERVED", declined.session.current_reaction_text() == "R:UNSERVED",
 		declined.session.current_reaction_text())
@@ -131,7 +131,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "body": ["B1"], "body_unserved": ["U1", "U2"],
 		"closing": { "default": ["C1"] }, "must_info": ["info_a"] })
 	var must = _setup(t)
-	must._on_customer_decline_pressed()
+	must.session.decline_customer()
 	must.session.next_event()
 	c.check("must_info：断っても未提供版の本文が差し込まれる（通常の本文・締めは出ない）",
 		_after_lines(must) == [["body", "U1"], ["body", "U2"]], str(_after_lines(must)))

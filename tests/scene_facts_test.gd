@@ -130,7 +130,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "sets_facts": { "met_today": true },
 		"must_info": ["m"], "body_unserved": ["U1"] })
 	var p3 = _setup(t)
-	p3._on_customer_decline_pressed()
+	p3.session.decline_customer()
 	p3.session.next_event()
 	var has_end := false
 	for ev in p3.session.flow.runner.events:
@@ -177,7 +177,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 	ScheduleData._episode_cache["thug/thug_02"] = _scene(request_scene)
 	var p4d = _setup(t)
-	p4d._on_customer_decline_pressed()
+	p4d.session.decline_customer()
 	p4d.session.next_event()
 	c.check("断った客：request_honored は入れない", not CustomerMemory.today_visit("thug").has("request_honored"))
 	p4d.free()

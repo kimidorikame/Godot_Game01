@@ -132,7 +132,7 @@ func run(t: SceneTree) -> int:
 	panel3.session.select_ingredient("nam_prik_pao")
 	panel3.session.select_ingredient("meat_ball", false)
 	panel3.session.complete_input()
-	panel3._on_group_serve_pressed(2, 2)
+	panel3.session.group_serve(2, 2)
 	panel3.session.next_event()
 	c.check("モブの判定はGOOD(要求2つ一致・好物なしなのでGREATにはならない)",
 		str(panel3.session.open.current_bowl.get("result", "")) == "GOOD",

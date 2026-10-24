@@ -30,8 +30,8 @@ func _drive_after_tier(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 50:
 		guard += 1
-		if panel._is_in_market():
-			panel._on_market_exit_pressed()
+		if panel.session.is_in_market():
+			panel.session.exit_market()
 		else:
 			panel.session.next_event()
 
@@ -56,9 +56,9 @@ func run(t: SceneTree) -> int:
 		var servings: int = tier_case[2]
 		var panel = _setup(t, 1000, 3)
 		_drive_to_waiting_input(panel)
-		c.check("%s: PREP_TIERで止まる" % tier_id, panel._is_in_prep_tier())
+		c.check("%s: PREP_TIERで止まる" % tier_id, panel.session.is_in_prep_tier())
 		var money_before: int = GameState.money
-		panel._on_prep_tier_selected(tier_id)
+		panel.session.choose_prep_tier(tier_id)
 		c.check("%s: 所持金が%dだけ減る" % [tier_id, price],
 			GameState.money == money_before - price, str(GameState.money))
 		_drive_after_tier(panel)
@@ -70,7 +70,7 @@ func run(t: SceneTree) -> int:
 	# --- 3. 端材屋フォールバック(所持金<80): PREP_TIERが出ず、支払い無し・8杯・濃さ1 ---
 	var panel2 = _setup(t, 50, 3)
 	c.check("所持金50(<80)ではPREP_TIERが出ない",
-		not panel2._is_in_prep_tier() and str(panel2.session.flow.runner.current().get("type", "")) == "TEXT")
+		not panel2.session.is_in_prep_tier() and str(panel2.session.flow.runner.current().get("type", "")) == "TEXT")
 	var money_before2: int = GameState.money
 	_drive_after_tier(panel2)
 	c.check("端材屋ルート: 支払い無し", GameState.money == money_before2, str(GameState.money))
@@ -82,7 +82,7 @@ func run(t: SceneTree) -> int:
 	_drive_to_waiting_input(panel3)
 	var before_money3: int = GameState.money
 	var before_index3: int = panel3.session.flow.runner.index
-	panel3._on_prep_tier_selected("large")
+	panel3.session.choose_prep_tier("large")
 	c.check("所持金不足の段階を選んでも所持金・進行が変わらない",
 		GameState.money == before_money3 and panel3.session.flow.runner.index == before_index3)
 
@@ -101,7 +101,7 @@ func run(t: SceneTree) -> int:
 	# small：従来どおり2回とも使え、残量12杯になる
 	var panel4 = _setup(t, 1000, 3)
 	_drive_to_waiting_input(panel4)
-	panel4._on_prep_tier_selected("small")
+	panel4.session.choose_prep_tier("small")
 	_drive_after_tier(panel4)
 	GameState.add_water()   # 濃さ3→1
 	c.check("small: 濃さ3スタートから連続で水は2回使えない(1回目後は濃さ1でブロック)",
@@ -115,7 +115,7 @@ func run(t: SceneTree) -> int:
 	# 濃さが回復していても使えない（3-6で新しく出た制約）
 	panel4 = _setup(t, 1000, 3)
 	_drive_to_waiting_input(panel4)
-	panel4._on_prep_tier_selected("medium")
+	panel4.session.choose_prep_tier("medium")
 	_drive_after_tier(panel4)
 	GameState.add_water()   # 濃さ3→1・残量11→13
 	c.check("medium: 1回目は容量内(11→13)で使え、濃さ1になる",
@@ -131,7 +131,7 @@ func run(t: SceneTree) -> int:
 	# large：最初から残量14が容量12を超えているため、1回目から水を足せない
 	panel4 = _setup(t, 1000, 3)
 	_drive_to_waiting_input(panel4)
-	panel4._on_prep_tier_selected("large")
+	panel4.session.choose_prep_tier("large")
 	_drive_after_tier(panel4)
 	c.check("large: 残量14は既に容量上限(12)を超えており、仕込み直後から水を足せない",
 		not GameState.can_add_water(), str(GameState.soup))

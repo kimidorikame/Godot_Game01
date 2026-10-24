@@ -60,7 +60,7 @@ func run(t: SceneTree) -> int:
 	c.check("（前提）鍋不足で水もだしも無く、ADJUST中に[閉店]できる", p1.session.can_close_now())
 	var money_before: int = GameState.money
 	var rep_before: int = GameState.reputation
-	p1._on_close_pressed()
+	p1.session.close_shop()
 	c.check("CLOSEへ進む", GameState.phase == GameState.Phase.CLOSE)
 	c.check("CLOSEの先頭：理由 → 反応(UNSERVED) → 未提供版の本文×2 → 閉店の語り",
 		_before_close_talk(p1) == [
@@ -92,7 +92,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "body": ["B1"], "closing": { "default": ["C1"] } })
 	var p3 = _setup(t)
-	p3._on_close_pressed()
+	p3.session.close_shop()
 	c.check("must_info が無ければ、未提供の退店は反応だけ",
 		_before_close_talk(p3) == [["TEXT", "", "（今日はここで店じまいにする。）"], ["GREET", "reaction", "R:UNSERVED"]],
 		str(_before_close_talk(p3)))
@@ -101,7 +101,7 @@ func run(t: SceneTree) -> int:
 	# --- 4. 現行の21場面（UNSERVEDも本文も無い）は、従来の閉店と同一（何も足さない） ---
 	ScheduleData.clear_cache()
 	var p4 = _setup(t)
-	p4._on_close_pressed()
+	p4.session.close_shop()
 	c.check("実データ：CLOSEの先頭は理由だけ（従来どおり）",
 		_before_close_talk(p4) == [["TEXT", "", "（今日はここで店じまいにする。）"]], str(_before_close_talk(p4)))
 	c.check("実データ：CLOSEのイベント数は 理由1＋閉店の語り（従来と同じ）",

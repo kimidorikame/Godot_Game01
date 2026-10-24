@@ -71,7 +71,7 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t, 1000)
 	_open_market(panel)
 	c.check("（前提）市場は入力待ちで、MARKETイベントが現在位置",
-		panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT and panel._is_in_market())
+		panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT and panel.session.is_in_market())
 
 	# --- 1. 店を選ぶ画面：行は分けない（調味料の行は空。店の一覧と[市場を出る]は具材の行） ---
 	panel._update_options_row()
@@ -85,7 +85,7 @@ func run(t: SceneTree) -> int:
 	for shop in EXPECT:
 		var want_seasoning: Array = EXPECT[shop][0]
 		var want_topping: Array = EXPECT[shop][1]
-		panel._on_market_stall_selected(shop)
+		panel.session.select_stall(shop)
 		panel._update_options_row()
 		var seasoning := _texts(panel._seasoning_row)
 		var options := _texts(panel._options_row)
@@ -96,17 +96,17 @@ func run(t: SceneTree) -> int:
 			_matches(topping_part, want_topping) and not options.is_empty()
 				and str(options[options.size() - 1]) == "市場に戻る",
 			"%s != %s" % [str(options), str(want_topping)])
-		var goods: Array = panel._shop_goods(shop)
+		var goods: Array = PlaySession.shop_goods(shop)
 		c.check("%s：商品の件数が2行の合計と一致する（ボタンの重複・欠落なし）" % shop,
 			goods.size() == seasoning.size() + topping_part.size(),
 			"%d != %d+%d" % [goods.size(), seasoning.size(), topping_part.size()])
-		panel._on_shop_exit_pressed()   # 店を出る（_market_shop=""・再描画）
+		panel.session.leave_shop()   # 店を出る（_market_shop=""・再描画）
 		panel._update_options_row()
 		c.check("%s：店を出ると調味料の行に商品が残らない" % shop,
 			_buttons(panel._seasoning_row).is_empty(), str(_texts(panel._seasoning_row)))
 
 	# --- 3. 乾物調味料の店：調味料4種とも調味料の行・きくらげは具材の行（念のため行の実体で） ---
-	panel._on_market_stall_selected("dry_goods")
+	panel.session.select_stall("dry_goods")
 	panel._update_options_row()
 	c.check("乾物調味料：調味料の行は4種", _buttons(panel._seasoning_row).size() == 4)
 	c.check("乾物調味料：具材の行はきくらげ＋[市場に戻る]", _buttons(panel._options_row).size() == 2)
@@ -126,7 +126,7 @@ func run(t: SceneTree) -> int:
 	# --- 5. 購入処理は変えていない（調味料の行のボタンでも従来どおり買える） ---
 	GameState.money = 100
 	var stock_before := int(GameState.inventory.get("pickled_lime", 0))
-	panel._on_shop_item_selected("dry_goods", "pickled_lime")
+	panel.session.buy_item("dry_goods", "pickled_lime")
 	c.check("塩漬けライムの購入：所持金-20・在庫+5",
 		GameState.money == 80 and int(GameState.inventory.get("pickled_lime", 0)) == stock_before + 5,
 		"money=%d stock=%d" % [GameState.money, int(GameState.inventory.get("pickled_lime", 0))])

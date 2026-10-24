@@ -69,7 +69,7 @@ func run(t: SceneTree) -> int:
 	var stock0: int = int(GameState.inventory.get("meat_ball", 0))
 	var soup0: int = int(GameState.soup["remaining_servings"])
 	var served_before: int = GameState.served.size()
-	panel._on_customer_decline_pressed()
+	panel.session.decline_customer()
 	panel.session.next_event()   # SERVE -> REACT
 	c.check("断ると具材は減らない", int(GameState.inventory.get("meat_ball", 0)) == stock0)
 	c.check("断ると鍋残量は減らない", int(GameState.soup["remaining_servings"]) == soup0)

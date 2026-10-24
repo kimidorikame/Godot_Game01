@@ -57,7 +57,7 @@ func run(t: SceneTree) -> int:
 	c.check("達成可能人数は3(具材律速)", panel.session.mob_achievable_servings(4) == 3)
 	var money0: int = GameState.money
 	var rep0: int = GameState.reputation
-	panel._on_group_serve_pressed(3, 4)
+	panel.session.group_serve(3, 4)
 	panel.session.next_event()   # SERVE -> REACT
 	c.check("肉団子は3個消費される(在庫0)", not GameState.inventory.has("meat_ball"))
 	c.check("鍋残量は3減る", int(GameState.soup["remaining_servings"]) == 999 - 3)
@@ -87,7 +87,7 @@ func run(t: SceneTree) -> int:
 	rep0 = GameState.reputation
 	var stock0: int = int(GameState.inventory.get("meat_ball", 0))
 	var soup0: int = int(GameState.soup["remaining_servings"])
-	panel._on_group_decline_pressed(4)
+	panel.session.group_decline(4)
 	panel.session.next_event()
 	c.check("断ると具材は減らない", int(GameState.inventory.get("meat_ball", 0)) == stock0)
 	c.check("断ると鍋残量は減らない", int(GameState.soup["remaining_servings"]) == soup0)
@@ -190,7 +190,7 @@ func run(t: SceneTree) -> int:
 	var btn_texts_1 := _button_texts(panel._options_row)
 	c.check("レシピ1では3択(提供/断る/挑戦する)が出る", btn_texts_1.size() == 3, str(btn_texts_1))
 	var served_before8: int = GameState.served.size()
-	panel._on_group_retry_pressed(3, 4)
+	panel.session.group_retry(3, 4)
 	panel.session.next_event()   # SERVE -> REACT（レシピ1確定・レシピ2のADJUSTを差し込む）
 	c.check("挑戦する選択直後はまだrecord_servedされない(レシピ2待ち)",
 		GameState.served.size() == served_before8)
@@ -208,7 +208,7 @@ func run(t: SceneTree) -> int:
 	var btn_texts_2 := _button_texts(panel._options_row)
 	c.check("レシピ2は2択のみ(挑戦するは出ない・最大2レシピ)",
 		btn_texts_2.size() == 2, str(btn_texts_2))
-	panel._on_group_serve_pressed(1, 1)
+	panel.session.group_serve(1, 1)
 	panel.session.next_event()   # SERVE -> REACT（レシピ2確定・ここでflush）
 	c.check("2レシピぶんが1件のrecord_servedにまとまる",
 		GameState.served.size() == served_before8 + 1)
@@ -231,7 +231,7 @@ func run(t: SceneTree) -> int:
 	panel.session.complete_input()
 	c.check("レシピ1: 達成可能人数は3(鍋残量3)", panel.session.mob_achievable_servings(4) == 3)
 	var served_before9: int = GameState.served.size()
-	panel._on_group_retry_pressed(3, 4)
+	panel.session.group_retry(3, 4)
 	panel.session.next_event()   # SERVE -> REACT
 	panel.session.next_event()   # REACT -> 新しいADJUST
 	c.check("鍋残量は使い切って0", int(GameState.soup["remaining_servings"]) == 0)
@@ -243,7 +243,7 @@ func run(t: SceneTree) -> int:
 	var btn_texts_9 := _button_texts(panel._options_row)
 	c.check("達成可能0のレシピ2は「断る」のみ(提供も挑戦するも出ない)",
 		btn_texts_9.size() == 1 and btn_texts_9[0] == "注文を断る", str(btn_texts_9))
-	panel._on_group_decline_pressed(1)
+	panel.session.group_decline(1)
 	panel.session.next_event()   # SERVE -> REACT（レシピ2は断り。ここでflush）
 	var rec9: Dictionary = GameState.served[GameState.served.size() - 1]
 	c.check("2レシピ合計でservings=3 / ordered_servings=4 / unserved_servings=1",

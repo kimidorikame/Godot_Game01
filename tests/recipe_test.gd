@@ -334,7 +334,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 	# モブ・断った客
 	var p9c = _setup(t, 9)
-	p9c._on_customer_decline_pressed()
+	p9c.session.decline_customer()
 	p9c.session.next_event()
 	c.check("断った客（判定なし）は保存できない", not p9c._can_save_recipe_now())
 	p9c.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob#0"] }])
