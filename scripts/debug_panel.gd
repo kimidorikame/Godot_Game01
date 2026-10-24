@@ -170,7 +170,12 @@ var _visit_tally: Dictionary:
 # ため、-1以外なら全モブ枠の人数だけを一律で上書きする。種類はそれでも枠ごとにばらつく）。
 # OPENに入る瞬間に読まれるので、変えるなら OPEN に入る前（WAKE・PREP中）に押すこと。
 # GameState には持たせない（本番の挙動・データには関係しない、この計器盤だけの検証用の上書き）。
-var _debug_mob_count := -1
+# UI準備Aの橋。テストを移したら削除（実体は session.debug_mob_count）。
+var _debug_mob_count: int:
+	get:
+		return session.debug_mob_count
+	set(value):
+		session.debug_mob_count = value
 
 # 前日の営業成績（翌朝のWAKE先頭で一度だけ見せる一言サマリー）。_game_over_reasonと
 # 同じ「一度だけ消費するテキスト」の形。_on_day_ending()（day_ending。NEXT_DAY→WAKEの
@@ -186,14 +191,29 @@ var _last_day_summary_text: String:
 # そのまま使うための一度きりの印（_set_runner_for_phase(WAKE)が読んで消費する。
 # _game_over_reasonと同じ「一度だけ」パターン。「今日のplanがあれば作らない」判定に
 # しないのは、同じ日にWAKEを繰り返し通る既存の経路・テストで引き直しが止まらないため）。
-var _plan_restored := false
+# UI準備Aの橋。テストを移したら削除（実体は session.plan_restored）。
+var _plan_restored: bool:
+	get:
+		return session.plan_restored
+	set(value):
+		session.plan_restored = value
 
 # F7 1枠セーブ（フェーズ4-1コミット②・DESIGN.md 10.6）。朝の保存ファイル（MorningSave）へ
 # 書いてよいか。起動時に有効なセーブがあれば、[続きから]を押すか最初の朝を抜けるまで
 # false（起動した瞬間のDay1の朝で上書きして、続きから選べなくなるのを防ぐ）。
-var _save_armed := true
+# UI準備Aの橋。テストを移したら削除（実体は session.save_armed）。
+var _save_armed: bool:
+	get:
+		return session.save_armed
+	set(value):
+		session.save_armed = value
 # 起動時に読めたセーブの封筒（[続きから]で戻す先）。無い・読めない・使用済みなら空。
-var _pending_continue: Dictionary = {}
+# UI準備Aの橋。テストを移したら削除（実体は session.pending_continue）。
+var _pending_continue: Dictionary:
+	get:
+		return session.pending_continue
+	set(value):
+		session.pending_continue = value
 
 # 今日はクズ野菜ベースか（所持金がベース代に満たないので端材屋へ回った日）。PREPに入る瞬間に
 # 1回だけ決めて、prep_events と計器盤の両方で使い回す（_debug_mob_count と同じ形）。
@@ -366,7 +386,12 @@ var _fund_target: String:
 		session.fund_target = value
 # 会話ログ（4-7②。TalkLog）：すでに記録した位置（日・フェーズ・時間帯・客のindex・イベントのindex・本文）。
 # _load_current_customer が同じ客で何度呼ばれても・再描画しても二重に記録しないための印。保存しない。
-var _logged_positions := {}
+# UI準備Aの橋。テストを移したら削除（実体は session.logged_positions）。
+var _logged_positions: Dictionary:
+	get:
+		return session.logged_positions
+	set(value):
+		session.logged_positions = value
 # 既読スキップ（4-7③。ReadState）：直近に新しく見えた行が、それまで未読だったか（スキップの停止条件）。
 # [既読スキップ]の仮ボタンは _ready でコードから足す（.tscn は変えない）。
 var _last_shown_unread := false
@@ -418,18 +443,14 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	# 1枠セーブ：最初の朝のWAKE処理より前に、起動時のセーブを読んでおく。
-	_pending_continue = MorningSave.read_file()
-	_save_armed = _pending_continue.is_empty()
-	_seed_initial_inventory()
-	_set_runner_for_phase(GameState.phase)
+	# 表示だけの状態（スマホの開閉・タブ）は、フェーズごとの列を組む直前に捨てる（PlaySession の合図を受ける）。
+	session.phase_entering.connect(_on_phase_entering)
+	# 起動時の準備（セーブの読み込み・初期在庫・最初のフェーズの列）は PlaySession が行う。
+	session.start()
 
 	# 以下は「どのボタン/シグナルが何を呼ぶか」の結線。処理内容は各ハンドラ側にある。
-	# 最終日の翌朝の巻き戻し後に、初期在庫を積み直す（reset → 積み直し → phase_changed の順）。
+	# （フェーズの遷移・runner の更新・新しい周の合図は PlaySession が受け、changed で知らせる）
 	session.changed.connect(_refresh)                  # 遊びの状態が変わった → 描き直す（UI準備A）
-	flow.game_restarted.connect(_seed_initial_inventory)
-	flow.phase_changed.connect(_on_phase_changed)      # フェーズが変わった → 表示を更新
-	flow.runner_updated.connect(_on_runner_updated)    # runner の再生位置が動いた → 表示を更新
 	# 日次ログ：NEXT_DAY→WAKEの折り返しで、日次リセットの前に一日分の集計を確定して出す
 	# （シグナルは同期発火なので、ここが完了してからFlowController側の日次リセットへ進む）。
 	# （日の終わり day_ending は PlaySession が自分で受ける。ここでは結線しない）
@@ -485,21 +506,15 @@ func _ready() -> void:
 	_refresh()
 
 
-## パネルが木から外れる（終了）とき、既読を書き出す（変更が無ければ書かない）。
-func _exit_tree() -> void:
-	ReadState.flush()
+## フェーズごとの列を組む直前：表示だけの状態を捨てる（スマホは鍋・市場と同じくフェーズをまたいで持ち越さない）。
+func _on_phase_entering(_phase: int) -> void:
+	_phone_mode = false
+	_phone_tab = "recipe"
 
 
-## Day1開始時の初期在庫を積む（DESIGN.md 7.7）。ゲーム開始時（_ready）と、最終日の翌朝の
-## 新規ゲームへの巻き戻し後（game_restarted）の両方から呼ぶ。
-## is_empty()でガード＝シーン再読み込み等で二度走っても二重に積まない。
-## 巻き戻しでは day_count が1に戻った後に呼ばれるので、購入日別のバッチも1日目で記録される。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.seed_initial_inventory() を直接使う）。
 func _seed_initial_inventory() -> void:
-	if not GameState.inventory.is_empty():
-		return
-	var starting: Dictionary = Day1Events.initial_inventory()
-	for id in starting:
-		GameState.add_inventory(id, int(starting[id]))
+	session.seed_initial_inventory()
 
 
 ## 結果画面の選択肢の表示・有効無効（RESULTとGAME_OVERのときだけ見せる）。
@@ -529,184 +544,9 @@ func _refresh_result_row() -> void:
 	_btn_end.disabled = true   # 押せない仮ボタン（フェーズ6）
 
 
-func _on_phase_changed(phase: int) -> void:
-	_set_runner_for_phase(phase)
-	_arm_save_after_first_morning(phase)
-	_refresh()
-
-
-## フェーズごとの Event 列を runner に差し込む。
-## STEP 3: WAKE / STEP 4: PREP / STEP 6: OPEN（客キュー）/ STEP 9: CLOSE。
-## NEXT_DAY は空のまま（日次処理は FlowController.advance_phase の折り返し側）。
-## 新フェーズを実装するときは、ここに elif を1本足して対応する events を返す。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.set_runner_for_phase() を直接使う）。
 func _set_runner_for_phase(phase: int) -> void:
-	# 途中閉店・ゲームオーバー（force_phase）でも、そこまでに提供した杯の評判と提供記録を
-	# 失わないよう、客キューを捨てる前に集計を反映する（空なら何もしない）。
-	_flush_visit_tally()
-	_open = null   # OPEN 以外では客キューを持たない
-	# 7.6: 鍋の選択待ち・鍋モードも OPEN 以外には持ち越さない（防御的リセット）。
-	_pending_shortage_ev = null
-	_pot_mode = false
-	_pot_water_added = false
-	_pot_dashi_added = false
-	_fund_notice = ""
-	_fund_target = ""
-	# 7.7: 市場の水場訪問フラグ・店の中にいるかも PREP に入るたびリセットする。
-	_market_visited_water = false
-	_market_shop = ""
-	# スマホも鍋・市場と同じくフェーズをまたいで持ち越さない（防御的リセット）。
-	_phone_mode = false
-	_phone_tab = "recipe"
-	if phase == GameState.Phase.WAKE:
-		TalkLog.clear()   # 会話ログは今日の分だけ（朝へ戻したら空から）
-		_logged_positions = {}
-		_played_events = []   # 共通イベントはその日ごと（朝へ戻したら最初から再生し直す）
-		_slot_event_ids = {}
-		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
-		# 初期化する（前日の day_ending 発火はもう終わっている＝直前のログには影響しない）。
-		# opening_moneyは日々の運営費を引く前の値（その日入ってきた素の所持金）にする。
-		_log_opening_money = GameState.money
-		_log_opening_reputation = GameState.reputation
-		_log_planned_cups = 0
-		_log_judged_planned_cups = 0
-		_log_water_used = 0
-		_log_dashi_used = 0
-		_log_closed_early = false
-		_log_quality_counts = { "GREAT": 0, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
-		_log_spoiled_items = {}
-		# F7 朝の保存（DESIGN.md 10.8.7）：今日のDayPlanを先に確定させてから、運営費を引く
-		# 前の状態を「朝の辞書」にする（運営費の支払いは乱数を引かないので、build()を
-		# 先に呼んでも抽選結果・乱数の消費順は従来と変わらない）。再挑戦・セーブ読み込みで
-		# 戻った朝（_plan_restored）は保存してあるDayPlanをそのまま使い、build()を呼ばない
-		# ＝抽選を引き直す手段にしない。
-		if _plan_restored:
-			_plan_restored = false
-		else:
-			DayPlanner.build(_debug_mob_count)
-		var morning := MorningSave.capture(_last_day_summary_text)
-		# 日々の運営費（場所代・水道代の再編＋日々の運営費）：WAKEに入った瞬間に必ず1回
-		# 直接支払う。wake_events()側にPAY Eventとして置かないのは、WAKEが
-		# _phase_can_skip=true（[次のPhase]でrunnerを消化せず進める）なので、Event列に
-		# 頼ると支払いを毎回スキップできてしまうため（_visit_water_stall()と同じ
-		# 「Eventを介さず直接コードで払う」方式に揃える）。
-		# 支払えずゲームオーバーになったら、force_phase(GAME_OVER)が既に
-		# _set_runner_for_phase(GAME_OVER)を呼んでrunnerを組んでいるので、ここで
-		# wake_events()のrunnerに上書きしないよう即returnする。
-		if not _pay_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
-			return
-		# 運営費が払えた朝だけ記録する（払えずゲームオーバーになった朝へ戻っても、同じ
-		# 不足で必ず詰むため。戻れる最後の朝＝GameState.latest_morning()は前日の朝になる）。
-		GameState.record_morning(morning)
-		# 1枠セーブ：記録と同じ朝の辞書を書く（運営費が払えた朝だけ。読み込んだ朝が
-		# 運営費で詰むことは無い）。
-		if _save_armed:
-			MorningSave.write_file(morning)
-		# F4 帳簿：今日まだ払っていない請求を「確保」として記帳する（旧GameState.
-		# set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で徴収日は場所代に加え水道代ぶんも
-		# 確保対象に含めた＝実際の支払いタイミングは変えていない。水道代は水場訪問時、場所代は
-		# 場所代の支払い時に払い、その瞬間にreleaseする。Ledger.pending_bills_today()がこの記帳から
-		# 確保額を計算し直す）。日々の運営費は上でもう払い済みなので確保しない（先に直す③：
-		# 払った金額をもう一度確保すると、使える現金が運営費ぶん二重に引かれていた）。
-		var reserve_amount := 0
-		if GameState.is_collection_day():
-			reserve_amount = GameState.RENT_PRICE + GameState.WATER_PRICE
-		if reserve_amount > 0:
-			Ledger.record("reserve", -reserve_amount)
-		# 予告（②）：今夜の客の並びは上のDayPlanner.build()で1回だけ確定させ、OPENでは
-		# （デバッグの一律上書き中を除き）これを使い回す。以前はOPENに入る瞬間まで客層も
-		# 人数も分からなかった＝プレイヤーが仕込み量を勘で決めるしかなかった詰みポイントの
-		# 一つだったため、スマホの「SNS」タブ（_format_tonight_memo）で見せられる
-		# ようにする。F2 DayPlan（DESIGN.md 10.8.2）：GameState.today_planへ確定させる
-		# のはDayPlanner.build()の役目（F7でbuild()の呼び出しは運営費の前へ移した）。
-		# 前日の成績（③）：day_ending（NEXT_DAY→WAKEの折り返し）で既に組み立て済みの
-		# 一言サマリーがあれば、今日の起床イベントの先頭に差し込む（読んだら消費する。
-		# _closed_early_reason/_game_over_reasonと同じ「一度だけ」パターン）。
-		var wake_ev := Day1Events.wake_events()
-		_mark_events_played(wake_ev)
-		if _last_day_summary_text != "":
-			wake_ev = [{ "type": "TEXT", "text": _last_day_summary_text }] + wake_ev
-			_last_day_summary_text = ""
-		flow.set_runner(wake_ev)
-	elif phase == GameState.Phase.PREP:
-		# 具材の腐敗: PREPに入る瞬間に1回だけ、腐りきった在庫（4日目以降）を消して、
-		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
-		# クズ野菜ベース: 所持金が一番安い仕込み（PREP_TIERS[0]）にも満たなければ、
-		# 3段階から選ばせず食肉仲卸ではなく端材屋へ回る（自動）。
-		_scraps_base = GameState.money < int(Day1Events.PREP_TIERS[0].get("price", 0))
-		var spoiled := GameState.discard_spoiled_inventory()
-		_log_spoiled_items = spoiled   # 日次ログ用に保持（廃棄額の概算に使う）
-		flow.set_runner(Day1Events.prep_events(spoiled, _scraps_base))
-	elif phase == GameState.Phase.OPEN:
-		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
-		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
-		# デバッグ用の一律上書き値（_debug_mob_count。-1=自動）をそのまま渡すだけでよい。
-		# 予告（②）：通常はWAKEで確定させたGameState.today_plan["slots"]をそのまま使う
-		# （客層・人数を開店直前に変えない＝SNSタブで見せた内容と実際の客入りを一致させる）。
-		# デバッグの一律上書き中（_debug_mob_count>=0）は、ボタンの「次にOPENに入る
-		# ときから効く」という既存の挙動を保つため、ここで引き直す（QAの便宜。
-		# SNSタブの表示が直前の内容と食い違う可能性があるのは元からデバッグ専用機能
-		# なので許容する）。today_plan["slots"]が空（テスト等でWAKEを経由せずOPENへ直接
-		# 遷移した場合の防御）のときも同様に引き直す＝WAKEを通らなくても従来どおり
-		# 動く（この保険はデバッグ上書きが無い自動抽選でも効くので、テストからの
-		# 直接呼び出しでcustomer_schedule()が空振りする心配は無い）。
-		if _debug_mob_count >= 0 or GameState.today_plan.get("slots", []).is_empty():
-			DayPlanner.build(_debug_mob_count)
-		_open = OpenController.new(GameState.today_plan.get("slots", []))
-		# 日次ログ：その日の計画杯数（提供できたか否かに関わらず）を、実際の接客より前に
-		# 先読みして合算する。customer_events()はGameState.day_countとJSONキャッシュを
-		# 読むだけの副作用なし関数なので、ここで呼んでも以後の本編の進行に影響しない。
-		# _log_judged_planned_cupsは同時に、judge:falseの杯（配達員の持ち帰り等）を除いた
-		# 分も積む（④評判の更新：当夜品質Qの分母。判定対象ではない杯をQから除外するため）。
-		_log_planned_cups = 0
-		_log_judged_planned_cups = 0
-		for slot in _open.schedule:
-			for customer_id in slot.get("customers", []):
-				for ev in Day1Events.customer_events(str(customer_id)):
-					if ev.get("type", "") == "REACT":
-						var ev_servings := int(ev.get("servings", 0))
-						_log_planned_cups += ev_servings
-						if bool(ev.get("judge", true)):
-							_log_judged_planned_cups += ev_servings
-		_load_current_customer()
-	elif phase == GameState.Phase.CLOSE:
-		# 7.6: 自動閉店（鍋が尽きた）で来たときだけ、理由テキストを先頭に差し込む。
-		# 読んだら消費する（次に通常経路でCLOSEへ来たときに残っていないように）。
-		var events := Day1Events.close_events()
-		# 営業中に届かなかった共通イベント（早仕舞いなど）を、閉店の語りの前に取り戻す
-		# （必須情報を客・営業の長さに依存させない）。時系列（データの並び順）で、再生済みは出さない。
-		var overdue := []
-		for item in News.pending_events(GameState.day_count, _played_events):
-			overdue.append_array(News.event_lines(item))
-		_mark_events_played(overdue)
-		events = overdue + events
-		# 提供できないまま退店した客の未提供版（理由テキストの次・共通イベントの前）。
-		events = _pending_close_lines + events
-		_pending_close_lines = []
-		if _closed_early_reason != "":
-			events = [{ "type": "TEXT", "text": _closed_early_reason }] + events
-			_closed_early_reason = ""
-		flow.set_runner(events)
-	elif phase == GameState.Phase.GAME_OVER:
-		# 最小実装：理由と「（ゲームオーバー）」を出すだけ。以後フェーズは進まない
-		# （FlowController.advance_phase が止める）。演出・タイトルへの導線・復帰は対象外。
-		flow.set_runner([
-			{ "type": "TEXT", "text": _game_over_reason },
-			{ "type": "TEXT", "text": "（ゲームオーバー）" },
-		])
-		_game_over_reason = ""
-	elif phase == GameState.Phase.RESULT:
-		ReadState.flush()   # 結果画面でも既読を書き出す
-		# 結果画面（4-2・DESIGN.md 10.6）：成績・目標・仮の物語欄の3ブロック。集計は
-		# GameState.day_records（周回の累計）と帳簿から導く（Result）。選択肢はResultRow。
-		var summary := Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
-		var goal_results := Result.judge_goals(summary, Rules.goals(), Rules.final_day())
-		flow.set_runner([
-			{ "type": "TEXT", "text": Result.format_report(summary) },
-			{ "type": "TEXT", "text": Result.format_goals(goal_results) },
-			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorite_ids()) },
-		])
-	else:
-		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
+	session.set_runner_for_phase(phase)
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session.load_current_customer() を直接使う）。
@@ -972,116 +812,39 @@ func _game_over(reason: String) -> void:
 	session.game_over(reason)
 
 
-## F7 同じ朝からの再挑戦（DESIGN.md 10.6・10.8.7）。戻れる最後の朝（GameState.latest_morning()）
-## へ状態を戻し、WAKEからやり直す。戻した朝の客・需要（DayPlan）は保存したものと同じで、
-## build()は呼ばない（抽選を引き直す手段にしない）。運営費が払えずゲームオーバーになった
-## ときは、その朝は記録されていないので前日の朝へ戻る。戻る先が無い／封筒が壊れていれば
-## 何もせず false を返す（呼び出し側が新規ゲーム等を決める）。
-## 4-2（結果画面）の再挑戦も、この関数を呼ぶ。dayを指定すると、その日の朝へ戻る
-## （「もう一度＝Day1の朝から」はday=1。戻した日より後の朝の記録は、from_dictが捨てる
-## ＝戻した直後に詰んでも、再挑戦が後ろの日の朝へ飛ばない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.retry_from_morning() を直接使う）。
 func retry_from_morning(day: int = -1) -> bool:
-	var morning := GameState.latest_morning() if day < 0 else GameState.morning_of(day)
-	if morning.is_empty() or not MorningSave.is_valid(morning):
-		return false
-	_restore_morning(morning)
-	BalanceLog.note_retry()   # 同じ周の次の挑戦（日次ログの行を区別する）
-	return true
+	return session.retry_from_morning(day)
 
 
-## 封筒の朝へ戻す共通処理（再挑戦・セーブ読み込み）。GameState側はfrom_dict、画面側は
-## 保存しない状態（接客の途中経過・一度きりの文）を捨て、前日成績の一言だけ戻す。
-func _restore_morning(morning: Dictionary) -> void:
-	_reset_transient_panel_state()
-	MorningSave.apply(morning)
-	_last_day_summary_text = str((morning["panel"] as Dictionary)["day_summary_text"])
-	_plan_restored = true
-	flow.force_phase(GameState.Phase.WAKE)
-
-
-## 画面側の保存しない状態を捨てる（再挑戦・セーブ読み込み・新しい周の共通処理）。
-## 戻す／初期化する前に、途中の客・集計を捨てる（_set_runner_for_phase冒頭の
-## _flush_visit_tally()が古い接客を今の状態へ書き込まないようにするため）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.reset_transient_state() を直接使う）。
 func _reset_transient_panel_state() -> void:
-	_visit_tally = {}
-	_reset_mob_group_state()
-	_pending_decline = false
-	_declined_now = false
-	_pending_close_lines = []
-	_played_events = []
-	_slot_event_ids = {}
-	_recipe_save_stage = ""
-	_fund_notice = ""
-	_fund_target = ""
-	_logged_positions = {}
-	TalkLog.clear()
-	_mob_original_ordered = -1
-	_mob_recipe_number = 1
-	_bowl_discard_count = 0
-	_closed_early_reason = ""
-	_game_over_reason = ""
-	_reask_text = ""
+	session.reset_transient_state()
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.retry() を直接使う）。
 func _on_retry_pressed() -> void:
-	retry_from_morning()
+	session.retry()
 
 
-## 結果画面：もう一度（Day1の朝から）。Day1の朝の記録（morning_snapshots[1]）へ戻す。
-## 累計（day_records）もDay1の朝の値（空）に戻る。Day1の客・需要は同じで、2日目以降は
-## 評判次第で抽選が変わる。[続きから]で始めた周はDay1の記録が無いので、RESULTでは押せない。
-## GAME_OVERでは押せて、Day1の記録が無いときは[新しい周]と同じ動作にする（出口を塞がない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.run_again() を直接使う）。
 func _on_run_again_pressed() -> void:
-	if GameState.phase == GameState.Phase.GAME_OVER and not GameState.morning_snapshots.has(1):
-		_on_new_run_pressed()
-		return
-	retry_from_morning(1)
+	session.run_again()
 
 
-## 結果画面：最後の朝（最終日の朝）からやり直す。累計は最終日の朝の値に戻る。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.last_morning() を直接使う）。
 func _on_last_morning_pressed() -> void:
-	retry_from_morning()
+	session.last_morning()
 
 
-## 結果画面：新しい周。reset_for_new_game()＋game_restartedの後、Day1のWAKEから始める
-## （従来の最終日の翌朝の挙動と同じ状態。朝の記録・累計もクリアされ、保存も新しい周の
-## Day1の朝で上書きされる）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.new_run() を直接使う）。
 func _on_new_run_pressed() -> void:
-	_reset_transient_panel_state()
-	GameState.reset_for_new_game()
-	_last_day_summary_text = ""
-	_plan_restored = false
-	flow.game_restarted.emit()
-	flow.force_phase(GameState.Phase.WAKE)
+	session.new_run()
 
 
-## 起動時に読めたセーブの朝へ戻る。いまの（起動直後の）ゲームの朝の記録は捨て、
-## 読み込んだ朝をGameState.morning_snapshotsへ入れる（読み込んだ朝で詰んだときの
-## 戻り先になる。retry_from_morning()がこの記録を使う）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.continue_game() を直接使う）。
 func _on_continue_pressed() -> void:
-	if _pending_continue.is_empty():
-		return
-	var morning := _pending_continue
-	_pending_continue = {}
-	_save_armed = true
-	GameState.morning_snapshots.clear()
-	GameState.record_morning(morning)
-	_restore_morning(morning)
-	BalanceLog.begin_run()   # 続きから読み込んだ周は別の周（日次ログのrun_idを新しくする）
-
-
-## 起動時にセーブがあったとき、最初の朝（WAKE）を抜けた時点で書き込みを有効にする
-## （[続きから]を押さずに新規ゲームを進めた＝上書きしてよい）。この時点で、いまの
-## 朝の記録を1枠セーブへ書く（この後の朝は、WAKEが通常どおり書く）。ゲームオーバーで
-## 最初の朝を抜けた場合は何も書かない（記録が無い）。
-func _arm_save_after_first_morning(phase: int) -> void:
-	if _save_armed or phase == GameState.Phase.WAKE or phase == GameState.Phase.GAME_OVER:
-		return
-	_save_armed = true
-	_pending_continue = {}
-	var morning := GameState.latest_morning()
-	if not morning.is_empty():
-		MorningSave.write_file(morning)
+	session.continue_game()
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session._auto_close_kitchen() を直接使う）。
@@ -1102,10 +865,6 @@ func _queue_unserved_exit() -> void:
 # UI準備Aの橋。テストを移したら削除（本番UIは session.reason_after_collecting_rent() を直接使う）。
 func _reason_after_collecting_rent(base_reason: String) -> String:
 	return session.reason_after_collecting_rent(base_reason)
-
-
-func _on_runner_updated() -> void:
-	_refresh()
 
 
 # UI準備Aの橋。テストを移したら削除（本番UIは session.on_day_ending() を直接使う）。

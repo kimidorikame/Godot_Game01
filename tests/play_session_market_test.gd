@@ -67,8 +67,8 @@ func run(t: SceneTree) -> int:
 		and not p2.session.prep_tier_paid())
 	c.check("買えない段階を選んでも changed は出さない（何も変わっていない）", counter["n"] == 0)
 	p2.session.choose_prep_tier("small")
-	c.check("小仕込みを選ぶ：所持金-80・鍋の素を買った・changed が1回", GameState.money == 20
-		and p2.session.prep_tier_paid() and counter["n"] == 1, str(counter["n"]))
+	c.check("小仕込みを選ぶ：所持金-80・鍋の素を買った・changed が出る（runner の差し替えでも出るので回数は問わない）", GameState.money == 20
+		and p2.session.prep_tier_paid() and counter["n"] >= 1, str(counter["n"]))
 	c.check("選んだあとは段階の選択ではなくなる（残りの列に差し替わる）", not p2.session.is_in_prep_tier())
 	var base: Dictionary = p2.session.today_base()
 	c.check("今日の鍋の素：買った・小仕込み・8杯・クズ野菜ではない",

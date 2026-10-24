@@ -33,8 +33,8 @@ func run(t: SceneTree) -> int:
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 30:
 		guard += 1
 		s.next_event()
-	c.check("next_event() で入力待ち（ADJUST）まで進み、操作ごとに changed が出る", s.flow.runner.status == EventRunner.Status.WAITING_INPUT
-		and count["n"] == guard, "%d／%d" % [count["n"], guard])
+	c.check("next_event() で入力待ち（ADJUST）まで進み、操作ごとに changed が出る（runner の更新でも出るので、操作の回数以上）",
+		s.flow.runner.status == EventRunner.Status.WAITING_INPUT and count["n"] >= guard, "%d／%d" % [count["n"], guard])
 	c.check("ADJUST：名前あり客のid・椀を作れる・まだ判定待ちではない",
 		s.adjust_customer_id() == "officer" and s.is_choosing_ingredients() and not s.is_awaiting_react())
 	var react: Dictionary = s.react_for_now()

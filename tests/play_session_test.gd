@@ -17,7 +17,7 @@ func run(t: SceneTree) -> int:
 	s.notify_changed()
 	c.check("notify_changed() で changed が1回出る", count["n"] == 1)
 	s.notify_changed()
-	c.check("もう一度呼べばもう一度出る（1回の操作につき1回出す約束）", count["n"] == 2)
+	c.check("もう一度呼べばもう一度出る（出るたびにUIは全体を描き直す）", count["n"] == 2)
 	s.free()
 
 	# --- 2. DebugPanelとの結線 ---
