@@ -26,11 +26,11 @@ func _setup(t: SceneTree):
 	GameState.phase = GameState.Phase.OPEN
 	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["thug"] }])
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 50:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 

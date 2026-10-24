@@ -99,7 +99,7 @@ func run(t: SceneTree) -> int:
 	#    (既存の_reason_after_collecting_rentの回帰確認) ---
 	var panel7 = _setup(t, 300, 1)
 	var money_before7: int = GameState.money
-	var close_reason: String = panel7._reason_after_collecting_rent("（今日はここで店じまい）")
+	var close_reason: String = panel7.session.reason_after_collecting_rent("（今日はここで店じまい）")
 	c.check("未払いのまま閉店すると場所代90が特別請求される",
 		GameState.money == money_before7 - 90, str(GameState.money))
 	c.check("特別請求後はrent_paid_todayがtrueになる", GameState.rent_paid_today)

@@ -43,7 +43,7 @@ func _setup(t: SceneTree, seed_value: int = 1, day: int = 1):
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	return panel
 
 
@@ -51,15 +51,15 @@ func _to_adjust(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 ## 椀を作って提供し、REACT の手前（SERVE）まで進める。判定の抽選を同じにするため直前に seed を固定する。
 func _serve(panel) -> void:
 	for id in GOOD_PICKS:
-		panel._on_ingredient_selected(id)
+		panel.session.select_ingredient(id)
 	seed(555)
-	panel._on_complete_input_pressed()
+	panel.session.complete_input()
 
 
 func _state(panel) -> String:
@@ -145,7 +145,7 @@ func run(t: SceneTree) -> int:
 	var kinds := []
 	var manual_steps := 0
 	while p3a.session.flow.runner.index < p3a.session.flow.runner.events.size() - 1:
-		p3a._on_next_event_pressed()
+		p3a.session.next_event()
 		manual_steps += 1
 	for ev in p3a.session.flow.runner.events:
 		kinds.append(str(ev["type"]))
@@ -163,7 +163,7 @@ func run(t: SceneTree) -> int:
 	_serve(p3b)
 	var manual_steps_b := 0
 	while p3b.session.flow.runner.index < p3b.session.flow.runner.events.size() - 1:
-		p3b._on_next_event_pressed()
+		p3b.session.next_event()
 		manual_steps_b += 1
 	var manual_state_b := _state(p3b)
 	p3b.free()
@@ -191,7 +191,7 @@ func run(t: SceneTree) -> int:
 	var p4 = _setup(t, 41)
 	for text in ["g2", "g4"]:
 		ReadState.mark(ReadState.line_key("talk", "チンピラ", "", text))
-	p4._load_current_customer()   # 先頭（g1）から組み直す
+	p4.session.load_current_customer()   # 先頭（g1）から組み直す
 	var steps_unread: int = p4._on_skip_read_pressed()
 	c.check("未読の行（g3）の手前の既読（g2）は飛ばし、未読の行で止まる（その行は見えている）",
 		steps_unread == 2 and str(p4.session.flow.runner.current()["text"]) == "g3", "%d / %s" % [steps_unread, str(p4.session.flow.runner.current())])
@@ -208,7 +208,7 @@ func run(t: SceneTree) -> int:
 	_to_adjust(p4b)
 	_serve(p4b)
 	while p4b.session.flow.runner.index < p4b.session.flow.runner.events.size() - 1:
-		p4b._on_next_event_pressed()   # 手で全部読む（既読にする）
+		p4b.session.next_event()   # 手で全部読む（既読にする）
 	p4b.free()
 	var reaction_key := ReadState.line_key("reaction", "チンピラ", "", "R:GOOD")
 	c.check("（前提）反応文も既読になった", ReadState.is_read(reaction_key))
@@ -218,7 +218,7 @@ func run(t: SceneTree) -> int:
 	_serve(p4c)
 	var steps_reaction: int = p4c._on_skip_read_pressed()
 	c.check("反応文が未読ならその行（REACT）で止まる（選ばれた反応文の本文で数える）",
-		steps_reaction == 1 and str(p4c.session.flow.runner.current()["type"]) == "REACT" and p4c._current_reaction_text() == "R:GOOD")
+		steps_reaction == 1 and str(p4c.session.flow.runner.current()["type"]) == "REACT" and p4c.session.current_reaction_text() == "R:GOOD")
 	p4c.free()
 
 	# 選択は決して飛ばさない
@@ -229,15 +229,15 @@ func run(t: SceneTree) -> int:
 	var pc = _setup(t, 31)
 	_to_adjust(pc)
 	_serve(pc)
-	while not pc._is_in_story_choice() and pc.session.flow.runner.index < pc.session.flow.runner.events.size() - 1:
-		pc._on_next_event_pressed()   # 手で CHOICE まで読む（本文までを既読にする）
+	while not pc.session.is_in_story_choice() and pc.session.flow.runner.index < pc.session.flow.runner.events.size() - 1:
+		pc.session.next_event()   # 手で CHOICE まで読む（本文までを既読にする）
 	pc.free()
 	var pc2 = _setup(t, 31)
 	_to_adjust(pc2)
 	_serve(pc2)
 	pc2._on_skip_read_pressed()
 	c.check("選択（CHOICE）の入力待ちで止まる。選択は記録されず、スキップは無効",
-		pc2._is_in_story_choice() and CustomerMemory.choices_today("thug").is_empty() and pc2._btn_skip_read.disabled
+		pc2.session.is_in_story_choice() and CustomerMemory.choices_today("thug").is_empty() and pc2._btn_skip_read.disabled
 			and pc2._on_skip_read_pressed() == 0 and CustomerMemory.choices_today("thug").is_empty())
 	pc2.free()
 	ScheduleData._episode_cache["thug/thug_01"] = _thug_scene()
@@ -248,7 +248,7 @@ func run(t: SceneTree) -> int:
 	_to_adjust(pg1)
 	_serve(pg1)
 	while pg1.session.flow.runner.index < pg1.session.flow.runner.events.size() - 1:
-		pg1._on_next_event_pressed()
+		pg1.session.next_event()
 	pg1.free()
 	var pg2 = _setup(t, 31)
 	_to_adjust(pg2)

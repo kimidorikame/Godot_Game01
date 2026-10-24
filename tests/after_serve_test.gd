@@ -38,20 +38,20 @@ func _setup(t: SceneTree):
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
 ## 椀を作って提供し、REACTを適用させる（REACTがcurrentになった状態で返す）。
 func _serve(panel, picks: Array) -> void:
 	for id in picks:
-		panel._on_ingredient_selected(id)
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()
+		panel.session.select_ingredient(id)
+	panel.session.complete_input()
+	panel.session.next_event()
 
 
 ## runnerの現在位置より後ろのイベントのうち、提供後の列（partを持つもの）の [part, text]。
@@ -90,8 +90,8 @@ func run(t: SceneTree) -> int:
 		_serve(panel, GRADE_PICKS[grade])
 		c.check("%s：判定は期待どおり" % grade, str(panel.session.open.current_bowl.get("result", "")) == grade,
 			str(panel.session.open.current_bowl.get("result", "")))
-		c.check("%s：反応はREACTの表示（reactions[出来]）" % grade, panel._current_reaction_text() == "R:" + grade,
-			panel._current_reaction_text())
+		c.check("%s：反応はREACTの表示（reactions[出来]）" % grade, panel.session.current_reaction_text() == "R:" + grade,
+			panel.session.current_reaction_text())
 		c.check("%s：REACTの後に 本文×2 → 締め×1 が差し込まれる（イベントは3つ増える）" % grade,
 			_after_lines(panel) == [["body", "B1"], ["body", "B2"], ["closing", "C1"]]
 				and panel.session.flow.runner.events.size() == before_events + 3, str(_after_lines(panel)))
@@ -107,7 +107,7 @@ func run(t: SceneTree) -> int:
 	_serve(plain, GRADE_PICKS["GOOD"])
 	c.check("実データ：REACTの前後でイベント数が変わらない（何も差さない）",
 		plain.session.flow.runner.events.size() == plain_before and _after_lines(plain).is_empty())
-	c.check("実データ：反応は従来どおり（reactions[出来]）", plain._current_reaction_text() != "")
+	c.check("実データ：反応は従来どおり（reactions[出来]）", plain.session.current_reaction_text() != "")
 	plain.free()
 
 	# --- 3. 断った客：反応は UNSERVED。must_info の無い場面は本文を出さない ---
@@ -117,9 +117,9 @@ func run(t: SceneTree) -> int:
 	var money_before_decline: int = GameState.money
 	var stock_before_decline: Dictionary = GameState.inventory.duplicate(true)
 	declined._on_customer_decline_pressed()
-	declined._on_next_event_pressed()
-	c.check("断る：REACTの反応は reactions.UNSERVED", declined._current_reaction_text() == "R:UNSERVED",
-		declined._current_reaction_text())
+	declined.session.next_event()
+	c.check("断る：REACTの反応は reactions.UNSERVED", declined.session.current_reaction_text() == "R:UNSERVED",
+		declined.session.current_reaction_text())
 	c.check("断る：must_info が無ければ、本文も締めも出さない", _after_lines(declined).is_empty())
 	c.check("断る：売上・在庫は動かず、来店記録は served=0",
 		GameState.money == money_before_decline and GameState.inventory == stock_before_decline
@@ -132,10 +132,10 @@ func run(t: SceneTree) -> int:
 		"closing": { "default": ["C1"] }, "must_info": ["info_a"] })
 	var must = _setup(t)
 	must._on_customer_decline_pressed()
-	must._on_next_event_pressed()
+	must.session.next_event()
 	c.check("must_info：断っても未提供版の本文が差し込まれる（通常の本文・締めは出ない）",
 		_after_lines(must) == [["body", "U1"], ["body", "U2"]], str(_after_lines(must)))
-	c.check("must_info：反応はUNSERVED", must._current_reaction_text() == "R:UNSERVED")
+	c.check("must_info：反応はUNSERVED", must.session.current_reaction_text() == "R:UNSERVED")
 	must.free()
 	# 提供したときは、must_infoがあっても通常の本文・締め
 	var must_served = _setup(t)
@@ -153,7 +153,7 @@ func run(t: SceneTree) -> int:
 	var graded: String = str(reading.session.open.current_bowl.get("result", ""))
 	var read_count := 0
 	while reading.session.flow.runner.index + 1 < reading.session.flow.runner.events.size() 			and reading.session.flow.runner.events[reading.session.flow.runner.index + 1].has("part") and read_count < 10:
-		reading._on_next_event_pressed()
+		reading.session.next_event()
 		read_count += 1
 		c.check("本文/締めの%d行目まで読んでも、状態（鍋・在庫・腐敗・所持金・評判・客の位置・来店記録）は不変" % read_count,
 			_snapshot(reading) == snap_start)

@@ -38,27 +38,27 @@ func _setup(t: SceneTree):
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
 func _serve(panel, picks: Array) -> void:
 	for id in picks:
-		panel._on_ingredient_selected(id)
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()
+		panel.session.select_ingredient(id)
+	panel.session.complete_input()
+	panel.session.next_event()
 
 
 ## 本文を読み進めて、最初の CHOICE（入力待ち）まで行く。
 func _to_choice(panel) -> void:
 	var guard := 0
-	while not panel._is_in_story_choice() and guard < 20:
+	while not panel.session.is_in_story_choice() and guard < 20:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 ## runnerの現在位置より後ろの [part, text]。
@@ -95,7 +95,7 @@ func run(t: SceneTree) -> int:
 		_after(panel) == [["body", "B1"], ["choice", "message"]], str(_after(panel)))
 	_to_choice(panel)
 	c.check("本文を読んだ後、CHOICEで入力待ちになる",
-		panel._is_in_story_choice() and panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
+		panel.session.is_in_story_choice() and panel.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
 	panel._refresh()
 	var labels := []
 	for child in panel._options_row.get_children():
@@ -104,18 +104,18 @@ func run(t: SceneTree) -> int:
 	c.check("仮ボタンは選択肢の数（預かる／本人に）", labels == ["預かる", "本人に"], str(labels))
 	c.check("[次のEvent]・[入力完了]は無効", panel._btn_next_event.disabled and panel._btn_complete_input.disabled)
 	var index_at_choice: int = panel.session.flow.runner.index
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()
+	panel.session.complete_input()
+	panel.session.next_event()
 	c.check("[入力完了]・[次のEvent]では選択を飛ばせない", panel.session.flow.runner.index == index_at_choice
 		and CustomerMemory.choices_today("thug").is_empty())
-	panel._on_story_choice_pressed("message", "zzz")
-	panel._on_story_choice_pressed("other", "yes")
+	panel.session.choose_story_option("message", "zzz")
+	panel.session.choose_story_option("other", "yes")
 	c.check("合わない選択・選択肢のidは何もしない", panel.session.flow.runner.index == index_at_choice
 		and CustomerMemory.choices_today("thug").is_empty())
 
 	# --- 2. 選ぶ：来店記録のchoicesと事実(facts)に残り、締めは default ＋ 差分。料金・評判・評価は不変 ---
 	var before := _snapshot(panel)
-	panel._on_story_choice_pressed("message", "yes")
+	panel.session.choose_story_option("message", "yes")
 	c.check("選んだ結果が来店記録 visits[今日].choices に残る",
 		CustomerMemory.choices_today("thug") == { "message": "yes" }
 			and CustomerMemory.today_visit("thug")["choices"] == { "message": "yes" })
@@ -132,7 +132,7 @@ func run(t: SceneTree) -> int:
 		if panel.session.flow.runner.index + 1 >= panel.session.flow.runner.events.size():
 			break
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	c.check("読み進めると 締め: C1 → Y の順", closing_lines == ["C1", "Y"], str(closing_lines))
 	c.check("選択の前後で料金・評判・評価・鍋・在庫・腐敗・時間帯・客の位置は不変", _snapshot(panel) == before)
 	c.check("選択でも判定の評価は変わらない（提供の瞬間に決まったまま）", str(panel.session.open.current_bowl.get("result", "")) == "GOOD")
@@ -142,7 +142,7 @@ func run(t: SceneTree) -> int:
 	var p2 = _setup(t)
 	_serve(p2, GOOD_PICKS)
 	_to_choice(p2)
-	p2._on_story_choice_pressed("message", "no")
+	p2.session.choose_story_option("message", "no")
 	c.check("もう一方：事実は false・差分は N", CustomerMemory.fact("thug", "holding_message") == false
 		and _after(p2).has(["closing", "N"]) and not _after(p2).has(["closing", "Y"]))
 	p2.free()
@@ -151,7 +151,7 @@ func run(t: SceneTree) -> int:
 	var p3 = _setup(t)
 	_serve(p3, GOOD_PICKS)
 	_to_choice(p3)
-	p3._on_story_choice_pressed("message", "yes")
+	p3.session.choose_story_option("message", "yes")
 	c.check("差分のキーが無ければ default だけ",
 		str(p3.session.flow.runner.current().get("text", "")) == "C1" and _after(p3).is_empty(), str(_after(p3)))
 	p3.free()
@@ -164,11 +164,11 @@ func run(t: SceneTree) -> int:
 	var p4 = _setup(t)
 	_serve(p4, GOOD_PICKS)
 	_to_choice(p4)
-	p4._on_story_choice_pressed("message", "yes")
+	p4.session.choose_story_option("message", "yes")
 	c.check("1つ目の後は次のCHOICEで止まる（締めはまだ無い）",
-		p4._is_in_story_choice() and str(p4.session.flow.runner.current()["choice_id"]) == "camera"
+		p4.session.is_in_story_choice() and str(p4.session.flow.runner.current()["choice_id"]) == "camera"
 			and _after(p4).is_empty(), str(_after(p4)))
-	p4._on_story_choice_pressed("camera", "no")
+	p4.session.choose_story_option("camera", "no")
 	c.check("2つ目の後に締め：default → message:yes → camera:no（場面の選択の順）",
 		str(p4.session.flow.runner.current().get("text", "")) == "C1"
 			and _after(p4) == [["closing", "MY"], ["closing", "CN"]], str(_after(p4)))
@@ -182,7 +182,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "must_info": ["m"], "body_unserved": ["U1"] })
 	var p5 = _setup(t)
 	p5._on_customer_decline_pressed()
-	p5._on_next_event_pressed()
+	p5.session.next_event()
 	c.check("断った客：選択は出ない（未提供版の本文だけ）", _after(p5) == [["body", "U1"]], str(_after(p5)))
 	c.check("断った客：choices・factsは作らない", CustomerMemory.choices_today("thug").is_empty()
 		and (GameState.customer_memory["thug"]["facts"] as Dictionary).is_empty())
@@ -214,7 +214,7 @@ func run(t: SceneTree) -> int:
 	var count_before: int = pr.session.flow.runner.events.size()
 	_serve(pr, GOOD_PICKS)
 	c.check("実データ：CHOICEは出ず、イベント列も変わらない",
-		pr.session.flow.runner.events.size() == count_before and not pr._is_in_story_choice())
+		pr.session.flow.runner.events.size() == count_before and not pr.session.is_in_story_choice())
 	pr.free()
 
 	ScheduleData.clear_cache()

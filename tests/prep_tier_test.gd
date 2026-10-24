@@ -21,7 +21,7 @@ func _drive_to_waiting_input(panel) -> void:
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT \
 			and panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 ## PREP_TIER選択後（または端材屋ルート）の残りをDONEまで進める。MARKETだけ
@@ -33,7 +33,7 @@ func _drive_after_tier(panel) -> void:
 		if panel._is_in_market():
 			panel._on_market_exit_pressed()
 		else:
-			panel._on_next_event_pressed()
+			panel.session.next_event()
 
 
 func run(t: SceneTree) -> int:

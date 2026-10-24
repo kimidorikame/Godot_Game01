@@ -25,7 +25,7 @@ func _to_close_done(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.DONE and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func _buttons(panel) -> Array:

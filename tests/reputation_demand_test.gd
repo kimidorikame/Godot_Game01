@@ -26,7 +26,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary):
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	return panel
 
 
@@ -34,7 +34,7 @@ func _drive_to_adjust(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func run(t: SceneTree) -> int:
@@ -91,10 +91,10 @@ func run(t: SceneTree) -> int:
 	var panel2 = _setup_open(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5 })
 	GameState.reputation = 30
 	_drive_to_adjust(panel2)
-	panel2._on_ingredient_selected("herbal_sauce")
-	panel2._on_ingredient_selected("broken_wrapper")
-	panel2._on_complete_input_pressed()
-	panel2._on_next_event_pressed()   # SERVE -> REACT
+	panel2.session.select_ingredient("herbal_sauce")
+	panel2.session.select_ingredient("broken_wrapper")
+	panel2.session.complete_input()
+	panel2.session.next_event()   # SERVE -> REACT
 	c.check("名前あり客を提供した直後も評判は朝の値のまま(閉店時に一括確定)",
 		GameState.reputation == 30, str(GameState.reputation))
 

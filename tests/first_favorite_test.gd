@@ -15,7 +15,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	return panel
 
 
@@ -23,7 +23,7 @@ func _drive_to_adjust(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func run(t: SceneTree) -> int:
@@ -35,11 +35,11 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5, "offal": 5 })
 	_drive_to_adjust(panel)
 	c.check("下準備: 老婆はまだ好物を知られていない", not GameState.knows_favorite("granny"))
-	panel._on_ingredient_selected("herbal_sauce")
-	panel._on_ingredient_selected("broken_wrapper")
-	panel._on_ingredient_selected("offal")
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()   # SERVE -> REACT
+	panel.session.select_ingredient("herbal_sauce")
+	panel.session.select_ingredient("broken_wrapper")
+	panel.session.select_ingredient("offal")
+	panel.session.complete_input()
+	panel.session.next_event()   # SERVE -> REACT
 	c.check("初回でも要求2つ一致+好物ありでGREATになる(F3: 判定には初回から好物を使う)",
 		str(panel.session.open.current_bowl.get("result", "")) == "GREAT",
 		str(panel.session.open.current_bowl.get("result", "")))
@@ -52,13 +52,13 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("herbal_sauce", 5)
 	GameState.add_inventory("broken_wrapper", 5)
 	GameState.add_inventory("offal", 5)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	_drive_to_adjust(panel)
-	panel._on_ingredient_selected("herbal_sauce")
-	panel._on_ingredient_selected("broken_wrapper")
-	panel._on_ingredient_selected("offal")
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()
+	panel.session.select_ingredient("herbal_sauce")
+	panel.session.select_ingredient("broken_wrapper")
+	panel.session.select_ingredient("offal")
+	panel.session.complete_input()
+	panel.session.next_event()
 	c.check("2回目：同じ構成でGREATになる",
 		str(panel.session.open.current_bowl.get("result", "")) == "GREAT",
 		str(panel.session.open.current_bowl.get("result", "")))
@@ -82,7 +82,7 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("offal", 5)
 	GameState.add_inventory("tofu", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel2._load_current_customer()
+	panel2.session.load_current_customer()
 	c.check("下準備: 配達員はまだ好物を知られていない", not GameState.knows_favorite("delivery_man"))
 	var guard := 0
 	# F3 SaleRule：3杯目(持ち帰り)もnam_prik_pao単体だと具が無く[入力完了]が無効になる
@@ -93,11 +93,11 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		if panel2.session.flow.runner.status == EventRunner.Status.WAITING_INPUT:
 			for id in picks[ai]:
-				panel2._on_ingredient_selected(id)
+				panel2.session.select_ingredient(id)
 			ai += 1
-			panel2._on_complete_input_pressed()
+			panel2.session.complete_input()
 		else:
-			panel2._on_next_event_pressed()
+			panel2.session.next_event()
 			var cur = panel2.session.flow.runner.current()
 			if ai == 1 and cur is Dictionary and cur.get("type", "") == "REACT":
 				# 1杯目のREACTが適用された直後（まだ2杯目のGREETより前）。
@@ -127,13 +127,13 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("nam_prik_pao", 5)
 	GameState.add_inventory("meat_ball", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel3._load_current_customer()
+	panel3.session.load_current_customer()
 	_drive_to_adjust(panel3)
-	panel3._on_ingredient_selected("nam_prik_pao")
-	panel3._on_ingredient_selected("meat_ball", false)
-	panel3._on_complete_input_pressed()
+	panel3.session.select_ingredient("nam_prik_pao")
+	panel3.session.select_ingredient("meat_ball", false)
+	panel3.session.complete_input()
 	panel3._on_group_serve_pressed(2, 2)
-	panel3._on_next_event_pressed()
+	panel3.session.next_event()
 	c.check("モブの判定はGOOD(要求2つ一致・好物なしなのでGREATにはならない)",
 		str(panel3.session.open.current_bowl.get("result", "")) == "GOOD",
 		str(panel3.session.open.current_bowl.get("result", "")))

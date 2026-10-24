@@ -46,18 +46,18 @@ func _start_open(panel) -> void:
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func _serve(panel, picks: Array) -> void:
 	for id in picks:
-		panel._on_ingredient_selected(id)
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()
+		panel.session.select_ingredient(id)
+	panel.session.complete_input()
+	panel.session.next_event()
 
 
 ## 現在の events のうち、次の type が来るまで1つずつ進める（CHOICE は押さない）。
@@ -67,7 +67,7 @@ func _advance_until(panel, type: String) -> void:
 			and str(panel.session.flow.runner.current().get("type", "")) != type \
 			and panel.session.flow.runner.status == EventRunner.Status.PLAYING:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func _facts(customer_id: String) -> Dictionary:
@@ -91,10 +91,10 @@ func run(t: SceneTree) -> int:
 	c.check("提供後の列は 本文 → 締め → SCENE_END（事実は列の最後に積む）",
 		kinds.slice(kinds.size() - 3) == ["GREET", "GREET", "SCENE_END"], str(kinds))
 	c.check("本文・締めを読んでいる間は、まだ事実を書かない", _facts("thug").is_empty())
-	panel._on_next_event_pressed()   # 本文
-	panel._on_next_event_pressed()   # 締め
+	panel.session.next_event()   # 本文
+	panel.session.next_event()   # 締め
 	c.check("締めを読んでも、まだ書かない（SCENE_ENDに進むまで）", _facts("thug").is_empty())
-	panel._on_next_event_pressed()   # SCENE_END
+	panel.session.next_event()   # SCENE_END
 	c.check("SCENE_ENDに来た時に facts へ書く", _facts("thug") == { "went_home_early": true }, str(_facts("thug")))
 	c.check("何度適用しても同じ値（冪等）", CustomerMemory.fact("thug", "went_home_early") == true)
 	panel.free()
@@ -117,10 +117,10 @@ func run(t: SceneTree) -> int:
 	var p2 = _setup(t)
 	_serve(p2, GOOD_PICKS)
 	_advance_until(p2, "CHOICE")
-	p2._on_story_choice_pressed("message", "yes")
+	p2.session.choose_story_option("message", "yes")
 	c.check("選択の直後：選択のsetは書かれ、sets_factsはまだ", _facts("thug") == { "holding_message": true }, str(_facts("thug")))
 	_advance_until(p2, "SCENE_END")
-	p2._on_next_event_pressed()
+	p2.session.next_event()
 	c.check("締めの後（SCENE_END）：sets_factsも書かれる（合わせて2個）",
 		_facts("thug") == { "holding_message": true, "met_today": true }, str(_facts("thug")))
 	p2.free()
@@ -131,7 +131,7 @@ func run(t: SceneTree) -> int:
 		"must_info": ["m"], "body_unserved": ["U1"] })
 	var p3 = _setup(t)
 	p3._on_customer_decline_pressed()
-	p3._on_next_event_pressed()
+	p3.session.next_event()
 	var has_end := false
 	for ev in p3.session.flow.runner.events:
 		has_end = has_end or str(ev["type"]) == "SCENE_END"
@@ -178,7 +178,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene(request_scene)
 	var p4d = _setup(t)
 	p4d._on_customer_decline_pressed()
-	p4d._on_next_event_pressed()
+	p4d.session.next_event()
 	c.check("断った客：request_honored は入れない", not CustomerMemory.today_visit("thug").has("request_honored"))
 	p4d.free()
 
@@ -190,9 +190,9 @@ func run(t: SceneTree) -> int:
 	var p5 = _setup(t)
 	_serve(p5, ["nam_prik_pao", "offal"])
 	_advance_until(p5, "CHOICE")
-	p5._on_story_choice_pressed("message", "yes")
+	p5.session.choose_story_option("message", "yes")
 	_advance_until(p5, "SCENE_END")
-	p5._on_next_event_pressed()
+	p5.session.next_event()
 	var memory_after := GameState.customer_memory.duplicate(true)
 	var visit_now: Dictionary = CustomerMemory.today_visit("thug")
 	c.check("（前提）来店記録に choices・request_honored・facts がある",
@@ -255,9 +255,9 @@ func run(t: SceneTree) -> int:
 	c.check("（前提）Day2の朝の記録がある", GameState.morning_snapshots.has(2))
 	_serve(p7, ["nam_prik_pao", "offal"])
 	_advance_until(p7, "CHOICE")
-	p7._on_story_choice_pressed("message", "yes")
+	p7.session.choose_story_option("message", "yes")
 	_advance_until(p7, "SCENE_END")
-	p7._on_next_event_pressed()
+	p7.session.next_event()
 	c.check("（前提）選択・事実・応えたかが残っている",
 		CustomerMemory.choices_today("thug") == { "message": "yes" } and _facts("thug").size() == 2)
 	c.check("朝へ戻せる", p7.retry_from_morning(2) and GameState.day_count == 2)
@@ -268,7 +268,7 @@ func run(t: SceneTree) -> int:
 	_start_open(p7)
 	_serve(p7, GOOD_PICKS)
 	_advance_until(p7, "CHOICE")
-	p7._on_story_choice_pressed("message", "no")
+	p7.session.choose_story_option("message", "no")
 	c.check("やり直し：別の選択がそのまま残る（前の選択は残らない）",
 		CustomerMemory.choices_today("thug") == { "message": "no" }
 			and CustomerMemory.fact("thug", "holding_message") == false

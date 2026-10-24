@@ -16,7 +16,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	return panel
 
 
@@ -24,7 +24,7 @@ func _drive_to_adjust(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func _norm(value) -> Variant:
@@ -124,14 +124,14 @@ func run(t: SceneTree) -> int:
 	c.check("来店した時点で記録がある（served=0・場面thug_01・枠は宵の口）",
 		int(tv.get("served", -1)) == 0 and str(tv.get("episode_id", "")) == "thug_01"
 			and str(tv.get("slot", "")) == "宵の口" and int(tv.get("day", 0)) == 1, str(tv))
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	c.check("同じ客をもう一度ロードしても来店は増えない", CustomerMemory.visits_of("thug").size() == 1)
 	_drive_to_adjust(panel)
 	c.check("提供前は好物を知らない", not GameState.knows_favorite("thug"))
-	panel._on_ingredient_selected("coconut_milk")
-	panel._on_ingredient_selected("tofu")
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()   # SERVE→REACT（提供が適用される）
+	panel.session.select_ingredient("coconut_milk")
+	panel.session.select_ingredient("tofu")
+	panel.session.complete_input()
+	panel.session.next_event()   # SERVE→REACT（提供が適用される）
 	tv = CustomerMemory.last_visit("thug")
 	c.check("提供で記録が更新される（served=1・入れた具材）",
 		int(tv["served"]) == 1 and tv["ingredients"] == [["coconut_milk", "tofu"]], str(tv))
@@ -144,7 +144,7 @@ func run(t: SceneTree) -> int:
 	var panel2 = _setup(t, ["granny"], { "herbal_sauce": 5, "offal": 5 })
 	_drive_to_adjust(panel2)
 	panel2._on_customer_decline_pressed()
-	panel2._on_next_event_pressed()
+	panel2.session.next_event()
 	var gv := CustomerMemory.last_visit("granny")
 	c.check("[客を断る]：来店の記録は残り、served=0・gradeは空",
 		CustomerMemory.visits_of("granny").size() == 1 and int(gv["served"]) == 0 and str(gv["grade"]) == "")
@@ -169,7 +169,7 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("offal", 5)
 	GameState.add_inventory("tofu", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel4._load_current_customer()
+	panel4.session.load_current_customer()
 	var picks := [["nam_prik_pao", "offal", "tofu"], ["nam_prik_pao", "tofu"], ["nam_prik_pao", "tofu"]]
 	var ai := 0
 	var guard := 0
@@ -178,11 +178,11 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		if panel4.session.flow.runner.status == EventRunner.Status.WAITING_INPUT:
 			for id in picks[ai]:
-				panel4._on_ingredient_selected(id)
+				panel4.session.select_ingredient(id)
 			ai += 1
-			panel4._on_complete_input_pressed()
+			panel4.session.complete_input()
 		else:
-			panel4._on_next_event_pressed()
+			panel4.session.next_event()
 			if GameState.memory_entry("delivery_man")["favorite_known"] == true and ai < 3:
 				known_during = true
 	var dv := CustomerMemory.last_visit("delivery_man")
@@ -198,7 +198,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 10. 評価なしの杯（judge:false）：servedに数え、grade（最悪値）には含めない ---
 	var panel5 = _setup(t, ["thug"], { "tofu": 5 })
-	panel5._serve_customer({ "customer": "thug", "sale": 45, "servings": 1, "judge": false,
+	panel5.session._serve_customer({ "customer": "thug", "sale": 45, "servings": 1, "judge": false,
 		"wanted_tags": [], "favorite": "", "aggregate": true })
 	var uv := CustomerMemory.last_visit("thug")
 	c.check("judge:falseの杯：served=1・grade空・gradesに空文字",

@@ -25,11 +25,11 @@ func _start_open(panel) -> void:
 	for id in STOCK:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func _texts() -> Array:
@@ -60,8 +60,8 @@ func run(t: SceneTree) -> int:
 	c.check("再描画を繰り返しても行は増えない", TalkLog.entries.size() == size_before)
 
 	# --- 2. 朝のニュース・DMは news として記録される ---
-	panel._on_next_event_pressed()       # 「スマホを見る。」（入力待ち）
-	panel._on_complete_input_pressed()
+	panel.session.next_event()       # 「スマホを見る。」（入力待ち）
+	panel.session.complete_input()
 	guard_loop(panel, 6)
 	var kinds := {}
 	for e in TalkLog.entries:
@@ -80,25 +80,25 @@ func run(t: SceneTree) -> int:
 		_count(greet_text) == 1 and TalkLog.entries.filter(func(e): return e["text"] == greet_text)[0]["kind"] == "talk"
 			and TalkLog.entries.filter(func(e): return e["text"] == greet_text)[0]["speaker"] == "チンピラ")
 	var size3 := TalkLog.entries.size()
-	p3._load_current_customer()
-	p3._load_current_customer()
+	p3.session.load_current_customer()
+	p3.session.load_current_customer()
 	p3._refresh()
 	c.check("同じ客で _load_current_customer を3回呼んでも、行は増えない（二重にならない）", TalkLog.entries.size() == size3 and _count(greet_text) == 1)
 	var guard3 := 0
 	while p3.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard3 < 100:
 		guard3 += 1
-		p3._on_next_event_pressed()   # 組み直した列を ADJUST まで読み直す（もう一度読んでも行は増えない）
+		p3.session.next_event()   # 組み直した列を ADJUST まで読み直す（もう一度読んでも行は増えない）
 	var adjust_text := "（味を調える）"
 	c.check("読み直しても、客の GREET と ADJUST の文は1回ずつ", _count(greet_text) == 1 and _count(adjust_text) == 1)
 
 	# --- 4. 提供：SERVE と反応が1回ずつ。反応は判定後の文。抽選は引かない ---
-	p3._on_ingredient_selected("coconut_milk")
-	p3._on_ingredient_selected("tofu")
-	p3._on_complete_input_pressed()
+	p3.session.select_ingredient("coconut_milk")
+	p3.session.select_ingredient("tofu")
+	p3.session.complete_input()
 	var serve_entries: Array = TalkLog.entries.filter(func(e): return e["kind"] == "serve")
 	c.check("SERVE の文が kind:serve で1回", serve_entries.size() == 1 and serve_entries[0]["text"] == "「はいよ、お待ち。」", str(TalkLog.entries))
-	p3._on_next_event_pressed()   # REACT
-	var reaction: String = p3._current_reaction_text()
+	p3.session.next_event()   # REACT
+	var reaction: String = p3.session.current_reaction_text()
 	var reaction_entries: Array = TalkLog.entries.filter(func(e): return e["kind"] == "reaction")
 	c.check("反応が kind:reaction・話し手＝客で、_current_reaction_text() の文のまま1回", reaction != ""
 		and reaction_entries.size() == 1 and reaction_entries[0]["text"] == reaction and reaction_entries[0]["speaker"] == "チンピラ")
@@ -112,7 +112,7 @@ func run(t: SceneTree) -> int:
 	var rng_expected := randi()
 	c.check("記録は乱数を引かない（再描画・記録を繰り返しても乱数列が進まない）", rng_after == rng_expected)
 	c.check("記録は状態（GameState・椀）を変えない・反応文も変わらない（reaction_variant は固定済み）",
-		JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl]) == before_state and p3._current_reaction_text() == reaction)
+		JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl]) == before_state and p3.session.current_reaction_text() == reaction)
 	c.check("反応は何度再描画しても1回のまま", TalkLog.entries.filter(func(e): return e["kind"] == "reaction").size() == 1)
 	p3.free()
 
@@ -123,13 +123,13 @@ func run(t: SceneTree) -> int:
 			{ "id": "no", "label": "本人に言ってくれ", "set": {} } ] } ], "closing": { "default": ["締め"] } }
 	var p5 = _setup(t, 2)
 	_start_open(p5)
-	p5._on_ingredient_selected("coconut_milk")
-	p5._on_ingredient_selected("tofu")
-	p5._on_complete_input_pressed()
-	p5._on_next_event_pressed()   # REACT
-	p5._on_next_event_pressed()   # 本文1
-	p5._on_next_event_pressed()   # CHOICE（入力待ち）
-	p5._on_story_choice_pressed("message", "no")
+	p5.session.select_ingredient("coconut_milk")
+	p5.session.select_ingredient("tofu")
+	p5.session.complete_input()
+	p5.session.next_event()   # REACT
+	p5.session.next_event()   # 本文1
+	p5.session.next_event()   # CHOICE（入力待ち）
+	p5.session.choose_story_option("message", "no")
 	var choice_entries: Array = TalkLog.entries.filter(func(e): return e["kind"] == "choice")
 	c.check("選んだ選択肢のラベルが kind:choice で1回（話し手なし）",
 		choice_entries.size() == 1 and choice_entries[0]["text"] == "本人に言ってくれ" and choice_entries[0]["speaker"] == "")
@@ -225,4 +225,4 @@ func run(t: SceneTree) -> int:
 ## ニュース・DMの行を読み進める（スマホの次の TEXT を n 回）。
 func guard_loop(panel, n: int) -> void:
 	for i in range(n):
-		panel._on_next_event_pressed()
+		panel.session.next_event()

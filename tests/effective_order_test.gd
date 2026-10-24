@@ -26,19 +26,19 @@ func _setup(t: SceneTree, inventory: Dictionary):
 	for id in inventory:
 		GameState.add_inventory(id, int(inventory[id]))
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
 func _serve(panel, picks: Array) -> Dictionary:
 	for id in picks:
-		panel._on_ingredient_selected(id)
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()   # SERVE→REACT（判定が適用される）
+		panel.session.select_ingredient(id)
+	panel.session.complete_input()
+	panel.session.next_event()   # SERVE→REACT（判定が適用される）
 	return panel.session.open.current_bowl
 
 

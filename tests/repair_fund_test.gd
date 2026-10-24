@@ -221,7 +221,7 @@ func run(t: SceneTree) -> int:
 		var g2 := 0
 		while panel.session.flow.runner.status != EventRunner.Status.DONE and g2 < 100:
 			g2 += 1
-			panel._on_next_event_pressed()
+			panel.session.next_event()
 		var need2: int = int(RepairFund.next_day_reserve()["total"])
 		var guard2 := 0
 		while guard2 < 100 and (RepairFund.contribute("sign", 30) or RepairFund.contribute("sign", 10)):

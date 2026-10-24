@@ -30,11 +30,11 @@ func _setup(t: SceneTree, soup_empty: bool = true):
 		GameState.add_inventory(id, 9)
 	GameState.dashi_units = 0
 	GameState.set_soup("bone_broth", ["meaty"], 0 if soup_empty else 999, 3, 0)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
@@ -57,7 +57,7 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "body": ["B1"], "body_unserved": ["U1", "U2"],
 		"closing": { "default": ["C1"] }, "must_info": ["info_a"] })
 	var p1 = _setup(t)
-	c.check("（前提）鍋不足で水もだしも無く、ADJUST中に[閉店]できる", p1._can_close_now())
+	c.check("（前提）鍋不足で水もだしも無く、ADJUST中に[閉店]できる", p1.session.can_close_now())
 	var money_before: int = GameState.money
 	var rep_before: int = GameState.reputation
 	p1._on_close_pressed()
@@ -80,7 +80,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 2. 自動閉店（鍋が尽きた）：同じ未提供版 ---
 	var p2 = _setup(t)
-	p2._auto_close_kitchen()
+	p2.session._auto_close_kitchen()
 	c.check("自動閉店：理由 → 反応 → 本文 の順",
 		_before_close_talk(p2) == [
 			["TEXT", "", "（鍋が尽きた。今日はもう終いだ。）"],
@@ -113,16 +113,16 @@ func run(t: SceneTree) -> int:
 	ScheduleData._episode_cache["thug/thug_02"] = _scene({ "must_info": ["m"], "body_unserved": ["U1"] })
 	var p5 = _setup(t, false)
 	CustomerMemory.record_serve("thug", "宵の口", "thug_02", 1, "GOOD", ["tofu"])
-	p5._queue_unserved_exit()
+	p5.session.queue_unserved_exit()
 	c.check("提供した客（served>0）は積まない", p5.session.pending_close_lines.is_empty())
 	GameState.customer_memory.erase("thug")
-	p5._queue_unserved_exit()
+	p5.session.queue_unserved_exit()
 	c.check("来店記録の無い客は積まない", p5.session.pending_close_lines.is_empty())
 	p5.free()
 
 	# --- 6. 再挑戦・新しい周で持ち越さない ---
 	var p6 = _setup(t)
-	p6._queue_unserved_exit()
+	p6.session.queue_unserved_exit()
 	c.check("（前提）積んだ", not p6.session.pending_close_lines.is_empty())
 	p6._reset_transient_panel_state()
 	c.check("画面側の一時状態のリセットで消える", p6.session.pending_close_lines.is_empty() and not p6.session.declined_now)

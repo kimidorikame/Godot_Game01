@@ -183,30 +183,30 @@ func run(t: SceneTree) -> int:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	var money_before: int = GameState.money
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
-	c.check("1杯目のADJUST：注文カードと[聞き直す]の対象外", panel._adjust_customer_id() == "")
-	panel._on_ingredient_selected("coconut_milk")
-	panel._on_ingredient_selected("tofu")
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()   # REACT（1杯目）
-	c.check("1杯目の反応は杯の reactions（GOOD）", panel._current_reaction_text() == "R1:GOOD", panel._current_reaction_text())
+		panel.session.next_event()
+	c.check("1杯目のADJUST：注文カードと[聞き直す]の対象外", panel.session.adjust_customer_id() == "")
+	panel.session.select_ingredient("coconut_milk")
+	panel.session.select_ingredient("tofu")
+	panel.session.complete_input()
+	panel.session.next_event()   # REACT（1杯目）
+	c.check("1杯目の反応は杯の reactions（GOOD）", panel.session.current_reaction_text() == "R1:GOOD", panel.session.current_reaction_text())
 	c.check("提供後の列（本文・選択）は差し込まれない（aggregate）", not str(panel.session.flow.runner.events).contains("\"part\""))
-	panel._on_next_event_pressed()   # 1杯目のあと
+	panel.session.next_event()   # 1杯目のあと
 	guard = 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 20:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	c.check("2杯目のADJUST：椀は新しくなり（new_bowl）、注文カードの対象外のまま",
-		(panel.session.open.current_bowl.get("additions", []) as Array).is_empty() and panel._adjust_customer_id() == "")
-	panel._on_ingredient_selected("nam_prik_pao")
-	panel._on_ingredient_selected("offal")
-	panel._on_complete_input_pressed()
-	panel._on_next_event_pressed()   # REACT（2杯目）
-	c.check("2杯目は反応なし（reactions 空）", panel._current_reaction_text() == "")
+		(panel.session.open.current_bowl.get("additions", []) as Array).is_empty() and panel.session.adjust_customer_id() == "")
+	panel.session.select_ingredient("nam_prik_pao")
+	panel.session.select_ingredient("offal")
+	panel.session.complete_input()
+	panel.session.next_event()   # REACT（2杯目）
+	c.check("2杯目は反応なし（reactions 空）", panel.session.current_reaction_text() == "")
 	c.check("2杯の売上がその場で入る（aggregate）", GameState.money == money_before + 2 * GameState.PRICE_PER_SERVING)
 	c.check("来店記録に2杯ぶんの提供（served=2）", int(CustomerMemory.last_visit("thug")["served"]) == 2
 		and (CustomerMemory.last_visit("thug")["grades"] as Array).size() == 2)
@@ -259,13 +259,13 @@ func run(t: SceneTree) -> int:
 	GameState.phase = GameState.Phase.OPEN
 	legacy_panel.session.open = OpenController.new([{ "name": "宵の口", "customers": ["delivery_man"] }])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	legacy_panel._load_current_customer()
+	legacy_panel.session.load_current_customer()
 	guard = 0
 	while legacy_panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		legacy_panel._on_next_event_pressed()
+		legacy_panel.session.next_event()
 	c.check("Day1の配達員のADJUST：注文カードと[聞き直す]の対象外（_adjust_customer_id）",
-		str(legacy_panel.session.flow.runner.current()["type"]) == "ADJUST" and legacy_panel._adjust_customer_id() == "")
+		str(legacy_panel.session.flow.runner.current()["type"]) == "ADJUST" and legacy_panel.session.adjust_customer_id() == "")
 	legacy_panel.free()
 
 	ScheduleData.clear_cache()

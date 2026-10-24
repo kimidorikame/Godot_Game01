@@ -27,7 +27,7 @@ func _start_open(panel) -> void:
 ## 次の客へ（_advance_open_queue_if_customer_done と同じく、進めてから読み込む）。
 func _next_customer(panel) -> void:
 	panel.session.open.advance_customer()
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 
 
 func _norm(value) -> Variant:
@@ -70,8 +70,8 @@ func run(t: SceneTree) -> int:
 
 	# --- 2. 同じ客で _load_current_customer を何度呼んでも、二重に前置しない（同じ列を組み直す） ---
 	var snapshot1 = _norm(panel.session.flow.runner.events)
-	panel._load_current_customer()
-	panel._load_current_customer()
+	panel.session.load_current_customer()
+	panel.session.load_current_customer()
 	c.check("同じ客で3回呼んでも、列は同じ（衝突は1回だけ）",
 		_norm(panel.session.flow.runner.events) == snapshot1 and _common_texts(panel.session.flow.runner.events) == [CLASH])
 	c.check("再生済みの記録は1件のまま（二重に数えない）", panel.session.played_events == ["d6_clash"])
@@ -90,7 +90,7 @@ func run(t: SceneTree) -> int:
 		_common_texts(panel.session.flow.runner.events) == [FIRE1, FIRE2], str(_common_texts(panel.session.flow.runner.events)))
 	c.check("再生済みは 衝突 → 火災 の順", panel.session.played_events == ["d6_clash", "d6_fire"])
 	var snapshot2 = _norm(panel.session.flow.runner.events)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	c.check("夜半の最初の客を組み直しても、火災は二重にならない", _norm(panel.session.flow.runner.events) == snapshot2
 		and panel.session.played_events == ["d6_clash", "d6_fire"])
 	guard = 0

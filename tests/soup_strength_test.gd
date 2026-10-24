@@ -30,7 +30,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary, soup_str
 	GameState.set_soup("bone_broth", ["meaty"], 999, maxi(soup_strength, 1), 2)
 	if soup_strength <= 0:
 		GameState.soup["strength"] = soup_strength
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	return panel
 
 
@@ -38,7 +38,7 @@ func _drive_to_adjust(panel) -> void:
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 
 
 func run(t: SceneTree) -> int:
@@ -76,17 +76,17 @@ func run(t: SceneTree) -> int:
 	var panel2 = _setup_open(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5 }, 3)
 	_drive_to_adjust(panel2)
 	GameState.soup["strength"] = 0
-	c.check("濃さ0のADJUST中は_is_strength_zero_in_adjustがtrue", panel2._is_strength_zero_in_adjust())
-	c.check("濃さ0・だし無しでは_can_close_nowが有効(ADJUST中から)", panel2._can_close_now())
-	panel2._on_ingredient_selected("herbal_sauce")
-	panel2._on_ingredient_selected("broken_wrapper")
-	panel2._on_complete_input_pressed()   # ADJUST -> SERVE
+	c.check("濃さ0のADJUST中は_is_strength_zero_in_adjustがtrue", panel2.session.is_strength_zero_in_adjust())
+	c.check("濃さ0・だし無しでは_can_close_nowが有効(ADJUST中から)", panel2.session.can_close_now())
+	panel2.session.select_ingredient("herbal_sauce")
+	panel2.session.select_ingredient("broken_wrapper")
+	panel2.session.complete_input()   # ADJUST -> SERVE
 	var served_before: int = GameState.served.size()
-	panel2._on_next_event_pressed()   # SERVE -> REACT（濃さ0の保留フォールバックが働く）
+	panel2.session.next_event()   # SERVE -> REACT（濃さ0の保留フォールバックが働く）
 	c.check("濃さ0では判定が成立せずservedが増えない(保留に落ちる)",
 		GameState.served.size() == served_before)
 	c.check("濃さ0で保留に落ちた後も_can_close_nowが有効(_pending_shortage_ev経由)",
-		panel2._can_close_now())
+		panel2.session.can_close_now())
 
 	# --- 5. 濃さ0から濃縮だしを入れて[戻る]すると、保留が解決して提供される ---
 	GameState.dashi_units = 1
@@ -114,15 +114,15 @@ func run(t: SceneTree) -> int:
 	# 直接0を作りたいので、生成後にDictionaryへ直接書き込む。
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	GameState.soup["strength"] = 0
-	panel3._load_current_customer()
+	panel3.session.load_current_customer()
 	_drive_to_adjust(panel3)
-	panel3._on_ingredient_selected("nam_prik_pao")
-	panel3._on_ingredient_selected("meat_ball", false)
+	panel3.session.select_ingredient("nam_prik_pao")
+	panel3.session.select_ingredient("meat_ball", false)
 	c.check("濃さ0のモブは達成可能人数が0になる(具材・残量は十分でも)",
-		panel3._mob_achievable_servings(4) == 0,
+		panel3.session.mob_achievable_servings(4) == 0,
 		"achievable=%s soup=%s mob_picks=%s is_mob=%s" % [
-			panel3._mob_achievable_servings(4), str(GameState.soup),
-			str(panel3.session.mob_picks), panel3._is_current_mob_order()])
+			panel3.session.mob_achievable_servings(4), str(GameState.soup),
+			str(panel3.session.mob_picks), panel3.session.is_current_mob_order()])
 
 	# --- 7. 明け方（最後の時間帯）に入った瞬間だけ濃さ+1。宵の口→夜半では+1しない ---
 	GameState.reset_for_new_game()
@@ -137,13 +137,13 @@ func run(t: SceneTree) -> int:
 	])
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	panel4.session.flow.set_runner([])   # 即DONE扱いにして退店条件を満たす
-	panel4._advance_open_queue_if_customer_done()   # 宵の口 -> 夜半
+	panel4.session.advance_open_queue_if_customer_done()   # 宵の口 -> 夜半
 	c.check("宵の口->夜半では濃さは変わらない", int(GameState.soup["strength"]) == 3, str(GameState.soup))
 	panel4.session.flow.set_runner([])
-	panel4._advance_open_queue_if_customer_done()   # 夜半 -> 明け方（最後の枠）
+	panel4.session.advance_open_queue_if_customer_done()   # 夜半 -> 明け方（最後の枠）
 	c.check("夜半->明け方（最後の枠）で濃さ+1", int(GameState.soup["strength"]) == 4, str(GameState.soup))
 	panel4.session.flow.set_runner([])
-	panel4._advance_open_queue_if_customer_done()   # 明け方をさばき終える（もう次の枠は無い）
+	panel4.session.advance_open_queue_if_customer_done()   # 明け方をさばき終える（もう次の枠は無い）
 	c.check("全枠さばき終えた後は濃さが変わらない(2回目の+1は起きない)",
 		int(GameState.soup["strength"]) == 4, str(GameState.soup))
 

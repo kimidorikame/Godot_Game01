@@ -38,11 +38,11 @@ func _setup(t: SceneTree, seed_value: int = 1, visits: Array = []):
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
 	if not visits.is_empty():
 		_memory_with(visits)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
@@ -191,11 +191,11 @@ func run(t: SceneTree) -> int:
 		var ids: Array = case[1]
 		var manual = _setup(t, 77, old_visits)
 		for id in ids:
-			manual._on_ingredient_selected(id)
+			manual.session.select_ingredient(id)
 		var manual_bowl := _json(manual.session.open.current_bowl)
 		seed(555)
-		manual._on_complete_input_pressed()
-		manual._on_next_event_pressed()
+		manual.session.complete_input()
+		manual.session.next_event()
 		var manual_state := _json(GameState.to_dict())
 		var manual_extra := _json([GameState.served, GameState.ledger, manual.session.open.current_bowl])
 		manual.free()
@@ -208,8 +208,8 @@ func run(t: SceneTree) -> int:
 		c.check("%s：適用後の椀（additions・鮮度の印）が手で押した場合と同一" % case[0], _json(by_recipe.session.open.current_bowl) == manual_bowl,
 			_json(by_recipe.session.open.current_bowl))
 		seed(555)
-		by_recipe._on_complete_input_pressed()
-		by_recipe._on_next_event_pressed()
+		by_recipe.session.complete_input()
+		by_recipe.session.next_event()
 		var recipe_state_dict := GameState.to_dict()
 		recipe_state_dict["saved_recipes"] = []   # 保存レシピそのものはこの比較の対象外（手の側に無い）
 		var manual_dict = JSON.parse_string(manual_state)
@@ -236,11 +236,11 @@ func run(t: SceneTree) -> int:
 			"保存A（%s）" % RecipeBook.ingredient_text(["coconut_milk", "tofu"])]
 			and not str(labels).contains("GOOD") and not str(labels).contains("前回") and not str(labels).contains("合う"),
 		str(labels))
-	p8._on_ingredient_selected("offal")
+	p8.session.select_ingredient("offal")
 	p8._on_recipe_apply_pressed(["coconut_milk", "tofu"])
 	c.check("椀が空でないと適用されない（途中の椀には使えない）", p8.session.open.current_bowl["additions"] == ["offal"])
 	c.check("椀が空でない間はボタンも出ない", _row_buttons(p8).is_empty())
-	p8._on_discard_pressed()
+	p8.session.discard_bowl()
 	p8._refresh()
 	c.check("[廃棄する]で空にすると、また出る", not _row_buttons(p8).is_empty())
 	# 在庫不足：tofu を0に
@@ -267,9 +267,9 @@ func run(t: SceneTree) -> int:
 	# ADJUST 以外では出ない・効かない
 	p8.free()
 	var p8b = _setup(t, 5, old_visits)
-	p8b._on_ingredient_selected("coconut_milk")
-	p8b._on_ingredient_selected("tofu")
-	p8b._on_complete_input_pressed()
+	p8b.session.select_ingredient("coconut_milk")
+	p8b.session.select_ingredient("tofu")
+	p8b.session.complete_input()
 	var money_serving: int = GameState.money
 	p8b._on_recipe_apply_pressed(["coconut_milk", "tofu"])
 	c.check("SERVE／REACT の最中（ADJUSTでない）には適用できない", p8b.session.open.current_bowl["additions"] == ["coconut_milk", "tofu"]
@@ -279,10 +279,10 @@ func run(t: SceneTree) -> int:
 	# --- 9. 保存ボタン：提供後〜その客の最後の行まで。段階（保存 → 枠 → 名前）。モブ・断りは対象外 ---
 	var p9 = _setup(t, 9)
 	c.check("ADJUST中は保存ボタンを出さない（まだ提供前）", not p9._can_save_recipe_now())
-	p9._on_ingredient_selected("coconut_milk")
-	p9._on_ingredient_selected("tofu")
-	p9._on_complete_input_pressed()
-	p9._on_next_event_pressed()   # REACT（thug_02 の最後のイベント）
+	p9.session.select_ingredient("coconut_milk")
+	p9.session.select_ingredient("tofu")
+	p9.session.complete_input()
+	p9.session.next_event()   # REACT（thug_02 の最後のイベント）
 	var last_event: bool = p9.session.flow.runner.index == p9.session.flow.runner.events.size() - 1
 	c.check("提供後（その客の最後の行でも）保存できる", p9._can_save_recipe_now() and last_event)
 	p9._refresh()
@@ -313,21 +313,21 @@ func run(t: SceneTree) -> int:
 		"cups": [ { "reactions": { "GOOD": ["R1"], "OK": ["R1"], "GREAT": ["R1"], "BAD": ["R1"] }, "after_talk": ["1杯目のあと", "もう1行"] },
 			{ "tags": ["HOT", "POWER"], "reactions": {}, "after_talk": ["退店"] } ] }
 	var p9b = _setup(t, 9)
-	p9b._on_ingredient_selected("coconut_milk")
-	p9b._on_ingredient_selected("tofu")
-	p9b._on_complete_input_pressed()
-	p9b._on_next_event_pressed()   # 1杯目のREACT
+	p9b.session.select_ingredient("coconut_milk")
+	p9b.session.select_ingredient("tofu")
+	p9b.session.complete_input()
+	p9b.session.next_event()   # 1杯目のREACT
 	c.check("複数杯：1杯目の提供後に保存できる", p9b._can_save_recipe_now())
-	p9b._on_next_event_pressed()   # 1杯目のあと
-	p9b._on_next_event_pressed()   # もう1行（1杯目の最後の会話）
+	p9b.session.next_event()   # 1杯目のあと
+	p9b.session.next_event()   # もう1行（1杯目の最後の会話）
 	c.check("複数杯：その杯の最後の会話の行まで保存できる", p9b._can_save_recipe_now())
-	p9b._on_next_event_pressed()   # 2杯目のADJUST（new_bowl）
+	p9b.session.next_event()   # 2杯目のADJUST（new_bowl）
 	c.check("次の杯のADJUSTに入ると、保存の対象は消える（椀が新しくなる）", not p9b._can_save_recipe_now() and p9b.session.recipe_save_stage == "")
-	p9b._on_ingredient_selected("nam_prik_pao")
-	p9b._on_ingredient_selected("offal")
-	p9b._on_complete_input_pressed()
-	p9b._on_next_event_pressed()   # 2杯目のREACT（反応なし）
-	p9b._on_next_event_pressed()   # 退店（その客の最後の行）
+	p9b.session.select_ingredient("nam_prik_pao")
+	p9b.session.select_ingredient("offal")
+	p9b.session.complete_input()
+	p9b.session.next_event()   # 2杯目のREACT（反応なし）
+	p9b.session.next_event()   # 退店（その客の最後の行）
 	c.check("複数杯：その客の最後の行まで保存できる", p9b._can_save_recipe_now()
 		and p9b.session.flow.runner.index == p9b.session.flow.runner.events.size() - 1)
 	p9b.free()
@@ -335,7 +335,7 @@ func run(t: SceneTree) -> int:
 	# モブ・断った客
 	var p9c = _setup(t, 9)
 	p9c._on_customer_decline_pressed()
-	p9c._on_next_event_pressed()
+	p9c.session.next_event()
 	c.check("断った客（判定なし）は保存できない", not p9c._can_save_recipe_now())
 	p9c.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob#0"] }])
 	p9c.session.open.current_bowl["result"] = "GOOD"
@@ -359,9 +359,9 @@ func run(t: SceneTree) -> int:
 		var presses := 0
 		pr._on_recipe_apply_pressed(GameState.saved_recipes[0]["ingredients"])
 		presses += 1
-		pr._on_complete_input_pressed()
+		pr.session.complete_input()
 		presses += 1
-		pr._on_next_event_pressed()   # REACT（提供の確認。操作回数には数えない：手の側も同じ）
+		pr.session.next_event()   # REACT（提供の確認。操作回数には数えない：手の側も同じ）
 		c.check("%s：レシピ経路は %d 回の操作で提供まで進む" % [case[0], presses],
 			presses == recipe_presses and str(pr.session.open.current_bowl.get("result", "")) != "" and pr.session.open.current_bowl["additions"] == ids)
 		pr.free()

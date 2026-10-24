@@ -74,11 +74,11 @@ func _panel(t: SceneTree, customer: String, mob: bool = false):
 	for id in ["nam_prik_pao", "offal", "coconut_milk", "tofu"]:
 		GameState.add_inventory(id, 9)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	var guard := 0
 	while panel.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel._on_next_event_pressed()
+		panel.session.next_event()
 	return panel
 
 
@@ -202,7 +202,7 @@ func run(t: SceneTree) -> int:
 	c.check("名前あり客以外（モブ・未知）はカードなし",
 		panel._format_order_card("mob#0") == "" and panel._format_order_card("nobody") == "")
 	c.check("ADJUST中のチンピラ：計器盤にカードが出る",
-		panel._adjust_customer_id() == "thug" and panel._format_open().contains("── 注文カード ──")
+		panel.session.adjust_customer_id() == "thug" and panel._format_open().contains("── 注文カード ──")
 			and panel._format_open().contains("いつもの：MELLOW/GENTLE ／ 今日：HOT/POWER（持ち帰り）"))
 
 	# --- 6. [聞き直す]：ボタン・再表示・何も変えない ---
@@ -215,7 +215,7 @@ func run(t: SceneTree) -> int:
 	var visits_before = _norm(GameState.customer_memory)
 	var reask_texts := []
 	for i in range(3):
-		panel._on_reask_pressed()
+		panel.session.reask()
 		reask_texts.append(panel._reask_text)
 	c.check("再表示はカードと客の頼みの台詞（order.reask）",
 		reask_texts[0].contains("いつもの：MELLOW/GENTLE ／ 今日：HOT/POWER（持ち帰り）")
@@ -228,20 +228,20 @@ func run(t: SceneTree) -> int:
 			and panel.session.visit_tally.is_empty())
 	c.check("聞き直しても料金・評判は下がらない（所持金・評判が同じ）",
 		GameState.money == money and GameState.reputation == int(snapshot["reputation"]))
-	panel._load_current_customer()
+	panel.session.load_current_customer()
 	c.check("次の客（再ロード）で聞き直しの表示は消える", panel._reask_text == "")
 
 	var panel_o = _panel(t, "officer")
-	panel_o._on_reask_pressed()
+	panel_o.session.reask()
 	c.check("order.reaskが無い場面は、客のgreetを再表示する",
 		panel_o._reask_text.contains("F:officer_01") and panel_o._reask_text.contains("いつもの：SOUR/BITE"))
 
 	# --- 7. モブ・配達員の3杯専用列には出さない ---
 	var panel_m = _panel(t, "mob#9", true)
 	c.check("モブには注文カード・[聞き直す]を出さない",
-		panel_m._adjust_customer_id() == "" and not panel_m._format_open().contains("── 注文カード ──")
+		panel_m.session.adjust_customer_id() == "" and not panel_m._format_open().contains("── 注文カード ──")
 			and not _button_texts(panel_m._options_row).has("聞き直す"))
-	panel_m._on_reask_pressed()
+	panel_m.session.reask()
 	c.check("モブで聞き直しを呼んでも何も起きない", panel_m._reask_text == "")
 	_real()
 	GameState.reset_for_new_game()
@@ -253,15 +253,15 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("nam_prik_pao", 5)
 	GameState.add_inventory("tofu", 5)
 	GameState.set_soup("bone_broth", ["meaty"], 999, 3, 2)
-	panel_d._load_current_customer()
+	panel_d.session.load_current_customer()
 	var guard := 0
 	while panel_d.session.flow.runner.status != EventRunner.Status.WAITING_INPUT and guard < 100:
 		guard += 1
-		panel_d._on_next_event_pressed()
+		panel_d.session.next_event()
 	c.check("配達員のDay1の3杯専用列には、注文カード・[聞き直す]を出さない（動かさない列）",
-		panel_d._adjust_customer_id() == "" and not panel_d._format_open().contains("── 注文カード ──")
+		panel_d.session.adjust_customer_id() == "" and not panel_d._format_open().contains("── 注文カード ──")
 			and not _button_texts(panel_d._options_row).has("聞き直す"))
-	panel_d._on_reask_pressed()
+	panel_d.session.reask()
 	c.check("3杯列で聞き直しを呼んでも何も起きない", panel_d._reask_text == "")
 
 	_real()
