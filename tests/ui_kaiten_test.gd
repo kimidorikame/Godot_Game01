@@ -151,9 +151,9 @@ func run(t: SceneTree) -> int:
 	c.check("提供できる椀になったら、提供を押せる", not (top.get_node("%ServeButton") as Button).disabled)
 	GameState.soup["strength"] = GameState.STRENGTH_MIN
 	s.notify_changed()
-	c.check("濃さ1：減点の予告に「濃さ1・傷んだ豆腐」、続けて強調色で「鍋タブでだし +2」",
-		top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。　鍋タブでだし +2"
-			and top.get_node("%Penalty").text.ends_with("[color=#e8a33d]鍋タブでだし +2[/color]"), top.get_node("%Penalty").text)
+	c.check("濃さ1：減点の予告に「濃さ1・傷んだ豆腐」。椀を作っている最中は鍋を触れない（今の挙動）ので、手当ては出さず理由だけ",
+		not s.can_touch_pot() and top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。",
+		top.get_node("%Penalty").text)
 	c.check("トッピング中に鍋の手当てが要る（濃さ1）ので、鍋タブに「●」", pane.get_node("%PotDot").visible)
 	c.check("鍋の小表示：「鍋 残999杯 / 濃さ1」", top.get_node("%PotMini").text == "鍋 残999杯 / 濃さ1")
 
@@ -192,6 +192,28 @@ func run(t: SceneTree) -> int:
 	_press(menu.get_child(0))
 	c.check("名前を押す → 保存レシピに入る", GameState.saved_recipes.size() == 1 and str(GameState.saved_recipes[0]["name"]) == picked_name
 		and not top.get_node("%RecipeMenu").visible)
+	# 減点の予告の手当て：今すぐ足せるときだけ（依頼書 §3.2）。判定のあと（鍋を触れる）で、理由のコードを与えて確かめる
+	var extreme_min := { "blockers": [], "penalties": [{ "code": "STRENGTH_EXTREME", "value": GameState.STRENGTH_MIN }] }
+	var extreme_max := { "blockers": [], "penalties": [{ "code": "STRENGTH_EXTREME", "value": GameState.STRENGTH_MAX }] }
+	GameState.soup["strength"] = GameState.STRENGTH_MIN
+	GameState.dashi_units = 1
+	c.check("濃さ最小・だしを今すぐ足せる（can_touch_pot・can_add_dashi）→ 強調色で「鍋タブでだし +2」",
+		s.can_touch_pot() and GameState.can_add_dashi()
+			and top.penalty_bbcode(s.bowl_view(), extreme_min).ends_with("　[color=#e8a33d]鍋タブでだし +2[/color]"),
+		top.penalty_bbcode(s.bowl_view(), extreme_min))
+	GameState.dashi_units = 0
+	c.check("濃さ最小・だしが無い → 理由だけ", not GameState.can_add_dashi()
+		and top.penalty_bbcode(s.bowl_view(), extreme_min).ends_with("1段階下がります。[/color]"), top.penalty_bbcode(s.bowl_view(), extreme_min))
+	GameState.soup["strength"] = GameState.STRENGTH_MAX
+	GameState.soup["remaining_servings"] = 5
+	c.check("濃さ最大・水を今すぐ足せる（can_touch_pot・can_add_water）→ 強調色で「鍋タブで水」",
+		s.can_touch_pot() and GameState.can_add_water()
+			and top.penalty_bbcode(s.bowl_view(), extreme_max).ends_with("　[color=#e8a33d]鍋タブで水[/color]"),
+		top.penalty_bbcode(s.bowl_view(), extreme_max))
+	GameState.soup["remaining_servings"] = 999
+	c.check("濃さ最大・水を足せない（残りが多い）→ 理由だけ", not GameState.can_add_water()
+		and top.penalty_bbcode(s.bowl_view(), extreme_max).ends_with("1段階下がります。[/color]"), top.penalty_bbcode(s.bowl_view(), extreme_max))
+	GameState.soup["strength"] = 3
 	guard = 0
 	while s.can_next_event() and not s.flow.is_runner_done() and guard < 30:
 		guard += 1

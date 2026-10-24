@@ -135,6 +135,8 @@ func _refresh_bowl(bowl: Dictionary) -> void:
 
 
 ## 減点の予告（寸法表 §5-3）：理由をつないで1行。濃さが理由なら続けて鍋タブでの手当て（強調色）。
+## 手当ては今すぐ足せるときだけ出す（依頼書 §3.2）：濃さが最小なら「鍋タブでだし +2」（can_touch_pot と can_add_dashi）、
+## 最大なら「鍋タブで水」（can_touch_pot と can_add_water）。足せないときは理由だけ。
 ## 提供できない理由があるときは、それを注意色で出す。減点が無いときは薄い色で「いまのところ減点なし」。
 func _refresh_penalty(bowl: Dictionary) -> void:
 	_penalty.text = penalty_bbcode(bowl, session.sale_hint())
@@ -146,6 +148,9 @@ func penalty_bbcode(bowl: Dictionary, hint: Dictionary) -> String:
 		return ""
 	var warn := "#" + get_theme_color(&"warn", &"UiPalette").to_html(false)
 	var accent := "#" + get_theme_color(&"accent", &"UiPalette").to_html(false)
+	var pot := session.pot_view()
+	var can_dashi: bool = session.can_touch_pot() and bool(pot.get("can_add_dashi", false))
+	var can_water: bool = session.can_touch_pot() and bool(pot.get("can_add_water", false))
 	var blockers: Array = hint["blockers"]
 	var text := ""
 	var tip := ""
@@ -154,9 +159,9 @@ func penalty_bbcode(bowl: Dictionary, hint: Dictionary) -> String:
 		for code in blockers:
 			parts.append(str(BLOCKER_TEXT.get(str(code), str(code))))
 		text = "[color=%s]このままでは提供できません: %s[/color]" % [warn, "・".join(parts)]
-		if blockers.has("STRENGTH_ZERO"):
+		if blockers.has("STRENGTH_ZERO") and can_dashi:
 			tip = "鍋タブでだし +2"
-		elif blockers.has("SHORT_SERVINGS"):
+		elif blockers.has("SHORT_SERVINGS") and can_water:
 			tip = "鍋タブで水 +2杯"
 	else:
 		var reasons: Array = []
@@ -164,7 +169,10 @@ func penalty_bbcode(bowl: Dictionary, hint: Dictionary) -> String:
 			match str(penalty["code"]):
 				"STRENGTH_EXTREME":
 					reasons.append("濃さ%d" % int(penalty["value"]))
-					tip = "鍋タブでだし +2" if int(penalty["value"]) <= GameState.STRENGTH_MIN else "鍋タブで水 −2"
+					if int(penalty["value"]) <= GameState.STRENGTH_MIN:
+						tip = "鍋タブでだし +2" if can_dashi else ""
+					else:
+						tip = "鍋タブで水" if can_water else ""
 				"SPOILED":
 					reasons.append_array(_spoiled_names(bowl))
 		if reasons.is_empty():
