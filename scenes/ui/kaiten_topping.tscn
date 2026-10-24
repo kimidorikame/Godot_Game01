@@ -1,0 +1,426 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/kaiten_topping.gd" id="1_xtlri"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ingredient_button.tscn" id="2_pk7ms"]
+[ext_resource type="Script" path="res://scripts/ui/ingredient_button.gd" id="3_tb0ai"]
+
+[node name="KaitenTopping" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 420.0
+offset_bottom = 672.0
+mouse_filter = 2
+script = ExtResource("1_xtlri")
+
+[node name="UsualRow" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 319.0
+offset_bottom = 90.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="UsualRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_right = 78.0
+offset_bottom = 28.0
+theme_type_variation = &"LabelCaption"
+text = "いつもの"
+vertical_alignment = 1
+
+[node name="UsualTags" type="Label" parent="UsualRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_right = 296.0
+offset_bottom = 28.0
+theme_type_variation = &"LabelOrder"
+vertical_alignment = 1
+
+[node name="TodayRow" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 96.0
+offset_right = 319.0
+offset_bottom = 124.0
+mouse_filter = 2
+theme_type_variation = &"PanelToday"
+
+[node name="Caption" type="Label" parent="TodayRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_right = 78.0
+offset_bottom = 28.0
+theme_type_variation = &"LabelCaptionAccent"
+text = "今日"
+vertical_alignment = 1
+
+[node name="TodayTags" type="Label" parent="TodayRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_right = 296.0
+offset_bottom = 28.0
+theme_type_variation = &"LabelOrder"
+vertical_alignment = 1
+
+[node name="ReaskButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 329.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 124.0
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "聞き直す"
+
+[node name="BowlCaption" type="Label" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 132.0
+offset_right = 404.0
+offset_bottom = 151.0
+theme_type_variation = &"LabelSub"
+text = "いまの椀(3枠)"
+vertical_alignment = 1
+
+[node name="Slots" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 155.0
+offset_right = 403.0
+offset_bottom = 203.0
+mouse_filter = 2
+
+[node name="Slot1" type="Panel" parent="Slots"]
+layout_mode = 0
+offset_right = 125.0
+offset_bottom = 48.0
+mouse_filter = 2
+theme_type_variation = &"PanelSlotEmpty"
+
+[node name="Label" type="Label" parent="Slots/Slot1"]
+layout_mode = 0
+offset_right = 125.0
+offset_bottom = 48.0
+theme_type_variation = &"LabelSlot"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot2" type="Panel" parent="Slots"]
+layout_mode = 0
+offset_left = 131.0
+offset_right = 256.0
+offset_bottom = 48.0
+mouse_filter = 2
+theme_type_variation = &"PanelSlotEmpty"
+
+[node name="Label" type="Label" parent="Slots/Slot2"]
+layout_mode = 0
+offset_right = 125.0
+offset_bottom = 48.0
+theme_type_variation = &"LabelSlot"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Slot3" type="Panel" parent="Slots"]
+layout_mode = 0
+offset_left = 262.0
+offset_right = 387.0
+offset_bottom = 48.0
+mouse_filter = 2
+theme_type_variation = &"PanelSlotEmpty"
+
+[node name="Label" type="Label" parent="Slots/Slot3"]
+layout_mode = 0
+offset_right = 125.0
+offset_bottom = 48.0
+theme_type_variation = &"LabelSlot"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Penalty" type="RichTextLabel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 206.0
+offset_right = 404.0
+offset_bottom = 236.0
+mouse_filter = 2
+theme_type_variation = &"RichPenalty"
+bbcode_enabled = true
+scroll_active = false
+autowrap_mode = 1
+
+[node name="Tabs" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 236.0
+offset_right = 404.0
+offset_bottom = 266.0
+theme_override_constants/separation = 6
+
+[node name="Grid" type="GridContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 272.0
+offset_right = 406.0
+offset_bottom = 410.0
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 4
+
+[node name="Item1" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item2" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item3" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item4" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item5" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item6" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item7" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item8" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item9" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item10" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item11" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="Item12" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
+custom_minimum_size = Vector2(93, 42)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("3_tb0ai")
+
+[node name="BowlArt" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 418.0
+offset_right = 404.0
+offset_bottom = 537.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Placeholder" type="Label" parent="BowlArt"]
+layout_mode = 0
+offset_right = 388.0
+offset_bottom = 119.0
+theme_type_variation = &"LabelDim"
+text = "椀（仮）"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GroupBox" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 16.0
+offset_top = 418.0
+offset_right = 404.0
+offset_bottom = 537.0
+mouse_filter = 2
+theme_type_variation = &"PanelToday"
+
+[node name="GroupText" type="Label" parent="GroupBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 6.0
+offset_right = 376.0
+offset_bottom = 54.0
+theme_type_variation = &"LabelBody"
+autowrap_mode = 1
+
+[node name="Buttons" type="HBoxContainer" parent="GroupBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 66.0
+offset_right = 376.0
+offset_bottom = 108.0
+theme_override_constants/separation = 6
+
+[node name="GroupServe" type="Button" parent="GroupBox/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "提供"
+clip_text = true
+
+[node name="GroupRetry" type="Button" parent="GroupBox/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "残りに挑戦"
+clip_text = true
+
+[node name="GroupDecline" type="Button" parent="GroupBox/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "注文を断る"
+clip_text = true
+
+[node name="RecipeMenu" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 16.0
+offset_top = 418.0
+offset_right = 404.0
+offset_bottom = 537.0
+mouse_filter = 2
+theme_type_variation = &"PanelToday"
+
+[node name="RecipeCaption" type="Label" parent="RecipeMenu"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 376.0
+offset_bottom = 24.0
+theme_type_variation = &"LabelCaption"
+vertical_alignment = 1
+
+[node name="RecipeButtons" type="GridContainer" parent="RecipeMenu"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 26.0
+offset_right = 376.0
+offset_bottom = 112.0
+theme_override_constants/h_separation = 5
+theme_override_constants/v_separation = 5
+columns = 3
+
+[node name="PotMini" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 546.0
+offset_right = 404.0
+offset_bottom = 566.0
+theme_type_variation = &"LabelSub"
+text = "鍋 残0杯 / 濃さ0"
+vertical_alignment = 1
+
+[node name="ServeButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 571.0
+offset_right = 404.0
+offset_bottom = 616.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "提供"
+
+[node name="UsualButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 622.0
+offset_right = 109.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "いつもの"
+
+[node name="SaveButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 115.0
+offset_top = 622.0
+offset_right = 208.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "保存"
+
+[node name="DiscardButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 214.0
+offset_top = 622.0
+offset_right = 307.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "廃棄"
+
+[node name="DeclineButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 313.0
+offset_top = 622.0
+offset_right = 406.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSmall"
+text = "断る"

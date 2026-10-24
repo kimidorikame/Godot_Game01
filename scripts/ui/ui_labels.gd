@@ -19,6 +19,19 @@ static func shop_name(shop_id: String, fallback: String = "") -> String:
 	return str((_data().get("shops", {}) as Dictionary).get(shop_id, fallback))
 
 
+## 品目の短縮名（開店の操作エリアの具材ボタン・椀の枠・減点の予告だけで使う）。表に無ければ本名。
+static func short_name(item_id: String) -> String:
+	var names: Dictionary = _data().get("short_names", {})
+	return str(names.get(item_id, Ingredients.name_for(item_id)))
+
+
+## 品目の並び（開店の具材の一覧。品目の定義順＝短縮名の表の並び）。表に無い品目は後ろ。
+static func item_order(item_id: String) -> int:
+	var keys: Array = (_data().get("short_names", {}) as Dictionary).keys()
+	var i := keys.find(item_id)
+	return i if i >= 0 else keys.size()
+
+
 ## 店の扱う品（商品のラベルを「・」でつなぐ。小口の重複は除く）。
 static func shop_wares(shop_id: String) -> String:
 	var names: Array = []

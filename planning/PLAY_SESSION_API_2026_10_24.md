@@ -109,7 +109,7 @@ session.record_visible_event()
 | `is_shortage_pending()` | bool（鍋が尽きて「続ける／閉店」の選択待ちの客がいる） |
 | `pot_view()` | `{exists, remaining, capacity, strength, strength_min, strength_max, can_add_water, water_doses_left, can_add_dashi, dashi_units, can_touch, pot_open, shortage_pending, locked_until_water, locked_until_dashi}`（鍋が無ければ `{exists:false}`） |
 | `order_card_view()` | `{customer, base[タグ], today[タグ], label}`。名前あり客のADJUST中のみ |
-| `bowl_view()` | `{customer, additions[品目id], max_additions, used_spoiled, result, discard_count, tags, addition_tags}` |
+| `bowl_view()` | `{customer, additions[品目id], additions_damaged[additions と同じ並びで傷んだ側か], max_additions, used_spoiled, result, discard_count, tags, addition_tags}` |
 | `ingredient_options()` | `[{id, label, damaged, kind("seasoning"/"topping"), tags, fresh, damaged_stock, count, can_pick}]`（ADJUST中のみ） |
 | `sale_hint()` | `{blockers[コード: NO_FLAVOR/NO_TOPPING/STRENGTH_ZERO/SHORT_SERVINGS], penalties[{code:"STRENGTH_EXTREME", value}/{code:"SPOILED"}]}` |
 | `current_servings()` / `react_for_now()` / `adjust_customer_id()` | 今の注文の杯数／今のREACT Event／聞き直し対象の客id |
@@ -153,7 +153,7 @@ session.record_visible_event()
 | 項目 | 読むもの |
 |---|---|
 | 注文カード（いつもの／今日） | `order_card_view()` |
-| 椀の中身 | `bowl_view()`（品目id。傷んだ側の印は **取れない**＝§7） |
+| 椀の中身 | `bowl_view()`（品目idと、品目ごとの傷んだ側の印 `additions_damaged`。UI準備B③で追加。表示だけ） |
 | 提供できない理由・減点の理由（コード） | `sale_hint()` |
 | 選べる品目（id・調味料か具か・タグ・新鮮／傷んだ在庫） | `ingredient_options()` |
 | 提供・廃棄・断る・聞き直す・いつもの・保存が押せるか | `can_complete_input()`・`can_discard()`・`can_decline()`・`can_reask()`・`recipe_adjust_buttons()`・`recipe_save_view()` |
@@ -209,7 +209,6 @@ session.record_visible_event()
 
 | 項目 | 状況 | 予定 |
 |---|---|---|
-| 椀の品目ごとの「傷んだ側か」の印 | `bowl_view()` は椀全体の `used_spoiled` だけ（品目ごとの印は `OpenController` が持たない。モブの団体だけ `mob_picks` が持つ） | B か C |
 | ゲームオーバーの種類と額 | 理由の文字列だけ（`pay_or_game_over(amount, category)` の引数としてしか通らず、保持しない） | B か C |
 | 足りなかった杯数の内訳（素材・鍋・断った） | `tonight_result()` は未提供の合計だけ | C |
 | 客足（評判の横の言葉） | 無い | C |

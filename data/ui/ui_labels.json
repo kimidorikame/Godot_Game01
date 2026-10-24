@@ -1,5 +1,5 @@
 {
-	"_comment": "本番UIの表示だけの名前（ゲームの判定には使わない）。店名は SCREENS_UI_LAYOUT §4。短縮名（開店の操作エリア用）は UI準備B③で足す。",
+	"_comment": "本番UIの表示だけの名前（ゲームの判定には使わない）。店名は SCREENS_UI_LAYOUT §4。短縮名は KAITEN_UI_LAYOUT §6（開店の操作エリアだけで使う。並びは品目の定義順＝Ingredients）。",
 	"shops": {
 		"meat_wholesale": "張記肉類加工",
 		"produce": "永順青果",
@@ -7,5 +7,24 @@
 		"tofu_noodles": "福生豆腐麺房",
 		"seafood": "海隆鮮貨",
 		"scraps": "半端市「拾味」"
+	},
+	"short_names": {
+		"nam_prik_pao": "ナムプリ",
+		"coconut_milk": "ココナッツ",
+		"pickled_lime": "塩ライム",
+		"bitter_melon": "苦瓜",
+		"herbal_sauce": "薬膳だれ",
+		"offal": "モツ",
+		"meat_ball": "肉団子",
+		"tofu": "豆腐",
+		"broken_wrapper": "餃子皮",
+		"winter_melon": "冬瓜",
+		"cartilage": "軟骨",
+		"tendon_meat": "すじ肉",
+		"dried_wood_ear": "きくらげ",
+		"rice_noodle": "米麺",
+		"shrimp": "海老",
+		"clam": "貝",
+		"fish_maw": "浮き袋"
 	}
 }

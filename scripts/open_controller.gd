@@ -101,7 +101,9 @@ func _skip_finished_slots() -> void:
 func _new_bowl(customer_id: Variant) -> Dictionary:
 	if customer_id == null:
 		return {}
-	return { "customer_id": customer_id, "additions": [] }
+	# additions_damaged：additions と同じ並びで、その品目を傷んだ側から入れたか（表示だけ。UI準備B：椀の枠の「豆腐(傷)」）。
+	# 判定・在庫・保存には使わない（判定は used_spoiled を見る）。
+	return { "customer_id": customer_id, "additions": [], "additions_damaged": [] }
 
 
 ## 現在の椀に具材 id を1つ足す。ADJUST の選択肢を受けた側（DebugPanel）から呼ぶ。
@@ -120,6 +122,7 @@ func add_to_bowl(ingredient_id: String, spoiled: bool = false) -> bool:
 	if current_bowl.additions.size() >= MAX_ADDITIONS:
 		return false
 	current_bowl.additions.append(ingredient_id)
+	(current_bowl.get_or_add("additions_damaged", []) as Array).append(spoiled)
 	if spoiled:
 		current_bowl["used_spoiled"] = true
 	return true

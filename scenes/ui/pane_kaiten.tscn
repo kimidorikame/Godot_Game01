@@ -1,0 +1,82 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_kaiten.gd" id="1_16cwv"]
+[ext_resource type="PackedScene" path="res://scenes/ui/kaiten_pot.tscn" id="2_0yfcf"]
+[ext_resource type="Script" path="res://scripts/ui/kaiten_pot.gd" id="3_636w8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/kaiten_topping.tscn" id="4_nr2lg"]
+[ext_resource type="Script" path="res://scripts/ui/kaiten_topping.gd" id="5_p2chi"]
+
+[node name="PaneKaiten" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_16cwv")
+
+[node name="PotTab" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 210.0
+offset_bottom = 48.0
+focus_mode = 0
+theme_type_variation = &"ButtonTabOn"
+text = "鍋"
+
+[node name="ToppingTab" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 210.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 48.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+text = "トッピング"
+
+[node name="PotDot" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 122.0
+offset_top = 2.0
+offset_right = 146.0
+offset_bottom = 48.0
+theme_type_variation = &"LabelWarnSmall"
+text = "●"
+vertical_alignment = 1
+
+[node name="Underline" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 2.0
+offset_top = 45.0
+offset_right = 210.0
+offset_bottom = 48.0
+mouse_filter = 2
+color = Color(0.909804, 0.639216, 0.239216, 1)
+
+[node name="TabLine" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 48.0
+offset_right = 418.0
+offset_bottom = 49.0
+mouse_filter = 2
+color = Color(0.239216, 0.282353, 0.352941, 1)
+
+[node name="Pot" type="Control" parent="." instance=ExtResource("2_0yfcf")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_right = 420.0
+offset_bottom = 672.0
+mouse_filter = 2
+script = ExtResource("3_636w8")
+
+[node name="Topping" type="Control" parent="." instance=ExtResource("4_nr2lg")]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 0
+offset_right = 420.0
+offset_bottom = 672.0
+mouse_filter = 2
+script = ExtResource("5_p2chi")

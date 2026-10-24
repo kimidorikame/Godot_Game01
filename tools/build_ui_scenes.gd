@@ -18,6 +18,11 @@ const PANE_MORNING_PATH := "res://scenes/ui/pane_morning.tscn"
 const PANE_MARKET_PATH := "res://scenes/ui/pane_market.tscn"
 const PANE_BUY_MEAT_PATH := "res://scenes/ui/pane_buy_meat.tscn"
 const PANE_BUY_SHOP_PATH := "res://scenes/ui/pane_buy_shop.tscn"
+const INGREDIENT_BUTTON_PATH := "res://scenes/ui/ingredient_button.tscn"
+const KAITEN_POT_PATH := "res://scenes/ui/kaiten_pot.tscn"
+const KAITEN_TOPPING_PATH := "res://scenes/ui/kaiten_topping.tscn"
+const PANE_KAITEN_PATH := "res://scenes/ui/pane_kaiten.tscn"
+const TNUM := 1953396077   # OpenType の機能 "tnum"（数字の幅をそろえる）のタグ
 const FONT_PATH := "res://assets/fonts/NotoSansJP[wght].ttf"   # Noto Sans JP（OFL。assets/fonts/OFL.txt）
 const WGHT := 2003265652   # OpenType の軸 "wght"（太さ）のタグ
 
@@ -41,6 +46,11 @@ func _initialize() -> void:
 	_build(PANE_MARKET_PATH, _make_pane_market, built, skipped)
 	_build(PANE_BUY_MEAT_PATH, _make_pane_buy_meat, built, skipped)
 	_build(PANE_BUY_SHOP_PATH, _make_pane_buy_shop, built, skipped)
+	# 開店の操作エリア（UI準備B③）
+	_build(INGREDIENT_BUTTON_PATH, _make_ingredient_button, built, skipped)
+	_build(KAITEN_POT_PATH, _make_kaiten_pot, built, skipped)
+	_build(KAITEN_TOPPING_PATH, _make_kaiten_topping, built, skipped)
+	_build(PANE_KAITEN_PATH, _make_pane_kaiten, built, skipped)
 	_build(GAME_ROOT_PATH, _make_game_root, built, skipped)
 	print("作った: %s" % ", ".join(built))
 	print("読み飛ばした（既にある）: %s" % ", ".join(skipped))
@@ -126,6 +136,29 @@ func _make_theme() -> Theme:
 	tag_box.content_margin_top = 0
 	tag_box.content_margin_bottom = 0
 	t.set_stylebox("normal", "LabelTag", tag_box)
+	# 開店の操作エリア（UI準備B③）
+	_label_variation(t, "LabelPriceWarn", UiPalette.WARN, 18)
+	_label_variation(t, "LabelSubAccent", UiPalette.ACCENT, 13)
+	_label_variation(t, "LabelSlot", UiPalette.TEXT, 14)
+	_label_variation(t, "LabelSlotWarn", UiPalette.WARN, 14)
+	_label_variation(t, "LabelOrder", UiPalette.TEXT, 14)
+	_label_variation(t, "LabelIngName", UiPalette.TEXT, 12)
+	_label_variation(t, "LabelIngCount", UiPalette.DIM, 13)
+	_label_variation(t, "LabelPotName", UiPalette.TEXT, 20)
+	_label_variation(t, "LabelPotCount", UiPalette.DIM, 14)
+	t.set_type_variation("RichPenalty", "RichTextLabel")   # 減点の予告（12px・2行まで）
+	t.set_color("default_color", "RichPenalty", UiPalette.DIM)
+	t.set_font_size("normal_font_size", "RichPenalty", 12)
+	t.set_constant("line_separation", "RichPenalty", -2)
+	# 数字の幅をそろえる（OpenType の tnum）。所持金・評判・価格・杯数などの数字の型に使う。
+	# 同梱の Noto Sans JP は tnum を持たないが、数字は初めから同じ幅（UI準備B③で計測）。
+	var numeric := FontVariation.new()
+	numeric.base_font = regular.base_font
+	numeric.variation_opentype = { WGHT: 400 }
+	numeric.opentype_features = { TNUM: 1 }
+	for numeric_type in ["LabelMoney", "LabelValue", "LabelValueAccent", "LabelBig", "LabelServings", "LabelPrice",
+			"LabelPriceWarn", "LabelPotCount", "LabelIngCount"]:
+		t.set_font("font", numeric_type, numeric)
 	for bold_type in ["LabelDay", "LabelName", "ButtonPrimary", "LabelHeading"]:
 		t.set_font("font", bold_type, bold)
 
@@ -137,6 +170,20 @@ func _make_theme() -> Theme:
 	_button_style(t, "ButtonSmall", UiPalette.BUTTON, UiPalette.TEXT, 14)
 	_button_style(t, "ButtonRow", UiPalette.BG2, UiPalette.TEXT, 16)    # 店の行（中の文字はラベル）
 	_button_style(t, "ButtonCard", UiPalette.BG2, UiPalette.TEXT, 16)   # 鍋の素の段階（中の文字はラベル）
+	_button_style(t, "ButtonCategory", UiPalette.BG2, UiPalette.DIM, 14)      # 分類タブ
+	_button_style(t, "ButtonCategoryOn", UiPalette.BG2, UiPalette.TEXT, 14)   # 分類タブ（開いている）
+	t.set_stylebox("normal", "ButtonCategoryOn", _flat(UiPalette.BUTTON, UiPalette.ACCENT, 1))
+	_button_style(t, "ButtonIngredient", UiPalette.BUTTON, UiPalette.TEXT, 12)   # 具材ボタン（中の文字はラベル）
+	_button_style(t, "ButtonDamaged", UiPalette.BG2, UiPalette.WARN, 11)         # 具材ボタンの右端「傷N」
+	for state in ["normal", "hover", "pressed"]:
+		t.set_stylebox(state, "ButtonDamaged", _flat(UiPalette.BG2 if state != "hover" else UiPalette.BUTTON, UiPalette.WARN, 1, 3))
+	_button_style(t, "ButtonPot", UiPalette.BUTTON, UiPalette.TEXT, 16)   # だし・水（中の文字はラベル）
+	# 鍋／トッピングのタブ：枠なし。選ばれている方は下線（シーンの Underline）と明るい文字
+	for tab_type in ["ButtonTab", "ButtonTabOn"]:
+		_button_style(t, tab_type, Color(0, 0, 0, 0), UiPalette.DIM if tab_type == "ButtonTab" else UiPalette.TEXT, 18)
+		t.set_stylebox("normal", tab_type, _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 0))
+		t.set_stylebox("hover", tab_type, _flat(UiPalette.BG2, Color(0, 0, 0, 0), 0, 0))
+		t.set_stylebox("pressed", tab_type, _flat(UiPalette.BG2, Color(0, 0, 0, 0), 0, 0))
 
 	t.set_stylebox("panel", "Panel", _flat(UiPalette.FRAME, UiPalette.LINE, 1))
 	_panel_variation(t, "PanelDark", _flat(Color(UiPalette.BG2, 0.92), UiPalette.LINE, 1))
@@ -151,6 +198,10 @@ func _make_theme() -> Theme:
 	_panel_variation(t, "PanelBox", _flat(UiPalette.BG2, UiPalette.LINE, 1))
 	_panel_variation(t, "PanelBand", _flat(UiPalette.BG2, Color(0, 0, 0, 0), 0, 0))
 	_panel_variation(t, "PanelBought", _flat(Color(0, 0, 0, 0), UiPalette.ACCENT, 2))
+	_panel_variation(t, "PanelSlot", _flat(UiPalette.BG2, UiPalette.LINE, 1))
+	_panel_variation(t, "PanelSlotDamaged", _flat(UiPalette.BG2, UiPalette.WARN, 2))
+	_panel_variation(t, "PanelSlotEmpty", _flat(Color(0, 0, 0, 0), Color(UiPalette.LINE, 0.6), 1))
+	_panel_variation(t, "PanelToday", _flat(UiPalette.BG2, UiPalette.ACCENT, 1))
 	return t
 
 
@@ -559,6 +610,185 @@ func _make_pane_buy_shop() -> PackedScene:
 	bought_list.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_button(root, "BackButton", "店選びへ戻る", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
 	return _pack(root)
+# --- 開店の操作エリア（UI準備B③）---
+
+## 具材ボタン（93×42）：本体（短縮名・「×在庫数」）と、右端の「傷N」（28×40）。寸法表 KAITEN_UI_LAYOUT §4。
+func _make_ingredient_button() -> PackedScene:
+	var root := Control.new()
+	root.name = "IngredientButton"
+	root.set_script(load("res://scripts/ui/ingredient_button.gd"))
+	root.layout_mode = 3
+	root.size = Vector2(93, 42)
+	root.custom_minimum_size = Vector2(93, 42)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var main := _button(root, "MainButton", "", "ButtonIngredient", Rect2(0, 0, 93, 42), root)
+	var name_label := _label(main, "Name", "名前", Rect2(5, 2, 58, 38), root, "LabelIngName")
+	name_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	name_label.max_lines_visible = 2
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_label(main, "Count", "×0", Rect2(5, 22, 58, 18), root, "LabelIngCount", false, HORIZONTAL_ALIGNMENT_RIGHT)
+	var damaged := _button(root, "DamagedButton", "傷\n0", "ButtonDamaged", Rect2(64, 1, 28, 40), root)
+	damaged.visible = false
+	return _pack(root)
+
+
+## 鍋の状態。寸法表 KAITEN_UI_LAYOUT §3。
+func _make_kaiten_pot() -> PackedScene:
+	var root := Control.new()
+	root.name = "KaitenPot"
+	root.set_script(load("res://scripts/ui/kaiten_pot.gd"))
+	root.layout_mode = 3
+	root.size = Vector2(420, 672)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label(root, "RemainCaption", "残り杯数", Rect2(16, 62, 160, 27), root, "LabelShop")
+	_label(root, "RemainValue", "0杯", Rect2(176, 62, 180, 27), root, "LabelPrice", true, HORIZONTAL_ALIGNMENT_RIGHT)
+	_label(root, "RemainMax", "/0", Rect2(358, 62, 46, 27), root, "LabelSub", true)
+	var bar := ColorRect.new()
+	bar.color = UiPalette.LINE
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, bar, "Bar", Rect2(16, 93, 388, 14), root)
+	var fill := ColorRect.new()
+	fill.color = UiPalette.ACCENT
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, fill, "BarFill", Rect2(16, 93, 388, 14), root, true)
+	_label(root, "StrengthCaption", "濃さ", Rect2(16, 124, 160, 27), root, "LabelShop")
+	_label(root, "StrengthValue", "3", Rect2(224, 124, 180, 27), root, "LabelPrice", true, HORIZONTAL_ALIGNMENT_RIGHT)
+	var scale := Control.new()
+	scale.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, scale, "Scale", Rect2(16, 154, 194, 14), root, true)
+	for i in range(5):
+		var cell := ColorRect.new()
+		cell.color = UiPalette.LINE
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_node(scale, cell, "Cell%d" % (i + 1), Rect2(i * 40, 0, 34, 14), root)
+	var note := _label(root, "StrengthNote", "濃さ1は評価が1段階下がります", Rect2(16, 172, 388, 19), root, "LabelWarnSmall", true)
+	note.visible = false
+	# だし（左）・水（右）。右寄せ。上から名前・残り・効果（寸法表 §3）
+	var dashi := _button(root, "DashiButton", "", "ButtonPot", Rect2(224, 203, 86, 96), root, true)
+	_label(dashi, "Name", "だし", Rect2(0, 8, 86, 28), root, "LabelPotName", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(dashi, "Count", "残り0", Rect2(0, 38, 86, 20), root, "LabelPotCount", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(dashi, "Effect", "濃さ +2", Rect2(0, 60, 86, 18), root, "LabelSub", false, HORIZONTAL_ALIGNMENT_CENTER)
+	var water := _button(root, "WaterButton", "", "ButtonPot", Rect2(318, 203, 86, 96), root, true)
+	_label(water, "Name", "水", Rect2(0, 8, 86, 28), root, "LabelPotName", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(water, "Count", "残り0", Rect2(0, 38, 86, 20), root, "LabelPotCount", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(water, "Effect", "濃さ −2", Rect2(0, 58, 86, 18), root, "LabelSub", false, HORIZONTAL_ALIGNMENT_CENTER)
+	_label(water, "Effect2", "+2杯", Rect2(0, 75, 86, 18), root, "LabelSub", false, HORIZONTAL_ALIGNMENT_CENTER)
+	var art := _panel(root, "PotArt", "PanelBox", Rect2(16, 310, 388, 346), root)
+	_label(art, "Placeholder", "鍋（仮）", Rect2(0, 0, 388, 346), root, "LabelDim", false, HORIZONTAL_ALIGNMENT_CENTER)
+	# 鍋が尽きた保留（または椀の途中で鍋が足りず足せるものも無い）：鍋の絵に重ねる
+	var shortage := _panel(root, "ShortageBox", "PanelSlotDamaged", Rect2(16, 420, 388, 176), root, true)
+	shortage.visible = false
+	var text := _label(shortage, "ShortageText", "", Rect2(14, 10, 360, 58), root, "LabelBody", true)
+	text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_button(shortage, "ResumeButton", "営業を続ける", "ButtonPrimary", Rect2(14, 74, 360, 44), root, true)
+	_button(shortage, "CloseButton", "閉店", "ButtonSecondary", Rect2(14, 126, 360, 40), root, true)
+	var close_night := _button(root, "CloseNightButton", "閉店する", "ButtonPrimary", Rect2(16, 610, 388, 46), root, true)
+	close_night.visible = false
+	return _pack(root)
+
+
+## トッピングの状態。寸法表 KAITEN_UI_LAYOUT §4。
+func _make_kaiten_topping() -> PackedScene:
+	var root := Control.new()
+	root.name = "KaitenTopping"
+	root.set_script(load("res://scripts/ui/kaiten_topping.gd"))
+	root.layout_mode = 3
+	root.size = Vector2(420, 672)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 注文カード（いつもの／今日。「今日」は枠と色で強調）と[聞き直す]
+	var usual := _panel(root, "UsualRow", "PanelBox", Rect2(16, 62, 303, 28), root, true)
+	_label(usual, "Caption", "いつもの", Rect2(8, 0, 70, 28), root, "LabelCaption")
+	_label(usual, "UsualTags", "", Rect2(78, 0, 218, 28), root, "LabelOrder", true)
+	var today := _panel(root, "TodayRow", "PanelToday", Rect2(16, 96, 303, 28), root, true)
+	_label(today, "Caption", "今日", Rect2(8, 0, 70, 28), root, "LabelCaptionAccent")
+	_label(today, "TodayTags", "", Rect2(78, 0, 218, 28), root, "LabelOrder", true)
+	_button(root, "ReaskButton", "聞き直す", "ButtonSmall", Rect2(329, 62, 75, 62), root, true)
+	# いまの椀（3枠。押せない）
+	_label(root, "BowlCaption", "いまの椀(3枠)", Rect2(16, 132, 388, 19), root, "LabelSub")
+	var slots := Control.new()
+	slots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, slots, "Slots", Rect2(16, 155, 387, 48), root, true)
+	for i in range(3):
+		var slot := _panel(slots, "Slot%d" % (i + 1), "PanelSlotEmpty", Rect2(i * 131, 0, 125, 48), root)
+		_label(slot, "Label", "", Rect2(0, 0, 125, 48), root, "LabelSlot", false, HORIZONTAL_ALIGNMENT_CENTER)
+	# 減点の予告（理由をつないで1行。濃さが理由なら続けて鍋タブでの手当てを強調色で。入りきらなければ2行）
+	var penalty := RichTextLabel.new()
+	penalty.bbcode_enabled = true
+	penalty.scroll_active = false
+	penalty.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	penalty.theme_type_variation = "RichPenalty"
+	penalty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, penalty, "Penalty", Rect2(16, 206, 388, 30), root, true)
+	# 分類タブ（具材が先、調味料が後）と具材の一覧（4列×3行）
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	_node(root, tabs, "Tabs", Rect2(16, 236, 388, 30), root, true)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	_node(root, grid, "Grid", Rect2(16, 272, 390, 138), root, true)
+	for i in range(12):
+		_instance(grid, INGREDIENT_BUTTON_PATH, "Item%d" % (i + 1), Rect2(), root)
+	# 大きい椀の絵（仮）。「いつもの」「保存」の中身・モブの団体の確認は、ここに重ねて出す（plan Q14）
+	var art := _panel(root, "BowlArt", "PanelBox", Rect2(16, 418, 388, 119), root)
+	_label(art, "Placeholder", "椀（仮）", Rect2(0, 0, 388, 119), root, "LabelDim", false, HORIZONTAL_ALIGNMENT_CENTER)
+	var group := _panel(root, "GroupBox", "PanelToday", Rect2(16, 418, 388, 119), root, true)
+	group.visible = false
+	var group_text := _label(group, "GroupText", "", Rect2(12, 6, 364, 48), root, "LabelBody", true)
+	group_text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	group_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	var group_buttons := HBoxContainer.new()
+	group_buttons.add_theme_constant_override("separation", 6)
+	_node(group, group_buttons, "Buttons", Rect2(12, 66, 364, 42), root)
+	for spec in [["GroupServe", "提供"], ["GroupRetry", "残りに挑戦"], ["GroupDecline", "注文を断る"]]:
+		var b := _button(group_buttons, spec[0], spec[1], "ButtonSmall", Rect2(0, 0, 0, 42), root, true)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
+	var menu := _panel(root, "RecipeMenu", "PanelToday", Rect2(16, 418, 388, 119), root, true)
+	menu.visible = false
+	_label(menu, "RecipeCaption", "", Rect2(12, 4, 364, 20), root, "LabelCaption", true)
+	var menu_buttons := GridContainer.new()
+	menu_buttons.columns = 3
+	menu_buttons.add_theme_constant_override("h_separation", 5)
+	menu_buttons.add_theme_constant_override("v_separation", 5)
+	_node(menu, menu_buttons, "RecipeButtons", Rect2(12, 26, 364, 86), root, true)
+	# 鍋の小表示・提供・下の4つ
+	_label(root, "PotMini", "鍋 残0杯 / 濃さ0", Rect2(16, 546, 388, 20), root, "LabelSub", true)
+	_button(root, "ServeButton", "提供", "ButtonPrimary", Rect2(16, 571, 388, 45), root, true)
+	var bottoms := [["UsualButton", "いつもの"], ["SaveButton", "保存"], ["DiscardButton", "廃棄"], ["DeclineButton", "断る"]]
+	for i in range(bottoms.size()):
+		_button(root, bottoms[i][0], bottoms[i][1], "ButtonSmall", Rect2(16 + i * 99, 622, 93, 34), root, true)
+	return _pack(root)
+
+
+## 開店の操作エリア：鍋／トッピングのタブと、その中身。寸法表 KAITEN_UI_LAYOUT §2。
+func _make_pane_kaiten() -> PackedScene:
+	var root := Panel.new()
+	root.name = "PaneKaiten"
+	root.set_script(load("res://scripts/ui/pane_kaiten.gd"))
+	root.layout_mode = 3
+	root.size = Vector2(420, 672)
+	_button(root, "PotTab", "鍋", "ButtonTabOn", Rect2(2, 2, 208, 46), root, true)
+	_button(root, "ToppingTab", "トッピング", "ButtonTab", Rect2(210, 2, 208, 46), root, true)
+	var dot := _label(root, "PotDot", "●", Rect2(122, 2, 24, 46), root, "LabelWarnSmall", true)
+	dot.visible = false
+	var underline := ColorRect.new()
+	underline.color = UiPalette.ACCENT
+	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, underline, "Underline", Rect2(2, 45, 208, 3), root, true)
+	var line := ColorRect.new()
+	line.color = UiPalette.LINE
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, line, "TabLine", Rect2(2, 48, 416, 1), root)
+	_instance(root, KAITEN_POT_PATH, "Pot", Rect2(0, 0, 420, 672), root, true)
+	var topping := _instance(root, KAITEN_TOPPING_PATH, "Topping", Rect2(0, 0, 420, 672), root, true)
+	topping.visible = false
+	return _pack(root)
+
+
 # --- ルート ---
 
 func _make_game_root() -> PackedScene:
@@ -585,7 +815,7 @@ func _make_game_root() -> PackedScene:
 	_node(root, right, "RightPane", Rect2(836, 24, 420, 672), root, true)
 	# 右の枠の画面は同じ位置に重ね、ルートがいまの1つだけを出す
 	for pane in [["PaneMorning", PANE_MORNING_PATH], ["PaneMarket", PANE_MARKET_PATH], ["PaneBuyMeat", PANE_BUY_MEAT_PATH],
-			["PaneBuyShop", PANE_BUY_SHOP_PATH]]:
+			["PaneBuyShop", PANE_BUY_SHOP_PATH], ["PaneKaiten", PANE_KAITEN_PATH]]:
 		var inst := _instance(right, pane[1], pane[0], Rect2(0, 0, 420, 672), root, true)
 		inst.visible = false
 

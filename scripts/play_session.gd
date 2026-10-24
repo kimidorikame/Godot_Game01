@@ -2481,14 +2481,16 @@ func order_card_view() -> Dictionary:
 		"label": str(card["label"]) }
 
 
-## 椀の中身：{ customer, additions[品目id], max_additions, used_spoiled（傷んだ具材を使ったか。品目ごとの印はまだ無い）,
-##   result（判定。判定前は ""）, discard_count（この客での廃棄回数）, tags（最終タグ）, addition_tags }
+## 椀の中身：{ customer, additions[品目id], additions_damaged[additions と同じ並びで、傷んだ側から入れたか],
+##   max_additions, used_spoiled（傷んだ具材を使ったか）, result（判定。判定前は ""）, discard_count（この客での廃棄回数）,
+##   tags（最終タグ）, addition_tags }
 ## 接客中でなければ空。
 func bowl_view() -> Dictionary:
 	if open == null or not open.current_bowl.has("customer_id"):
 		return {}
 	var bowl: Dictionary = open.current_bowl
 	return { "customer": str(bowl["customer_id"]), "additions": (bowl.get("additions", []) as Array).duplicate(),
+		"additions_damaged": (bowl.get("additions_damaged", []) as Array).duplicate(),
 		"max_additions": OpenController.MAX_ADDITIONS, "used_spoiled": bool(bowl.get("used_spoiled", false)),
 		"result": str(bowl.get("result", "")), "discard_count": bowl_discard_count,
 		"tags": open.bowl_final_tags(), "addition_tags": open.bowl_addition_tags() }

@@ -12,13 +12,14 @@ class_name UiGameRoot
 @onready var pane_market: UiPaneMarket = %PaneMarket
 @onready var pane_buy_meat: UiPaneBuyMeat = %PaneBuyMeat
 @onready var pane_buy_shop: UiPaneBuyShop = %PaneBuyShop
+@onready var pane_kaiten: UiPaneKaiten = %PaneKaiten
 
 ## 市場の「この店で買ったもの」のUIだけの集計（plan Q10）。仕込みに入るたびに捨てる。
 var tally := UiShopTally.new()
 
 
 func _panes() -> Array:
-	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop]
+	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten]
 
 
 func _ready() -> void:
@@ -63,6 +64,8 @@ func _right_pane() -> Control:
 					return pane_market if session.today_base()["scraps"] else pane_buy_meat
 				_:
 					return pane_market   # 市場を出たあと（仕込みの全面はUI準備B④）
+		GameState.Phase.OPEN:
+			return pane_kaiten
 	return null
 
 
@@ -83,6 +86,7 @@ func _market_stage() -> String:
 
 func _on_phase_entering(phase: int) -> void:
 	left.reset_ui_state()
+	pane_kaiten.reset_ui_state()
 	if phase == GameState.Phase.PREP:
 		tally.clear()
 
