@@ -1,0 +1,41 @@
+[gd_scene format=3]
+
+[node name="PaneHeader" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 416.0
+offset_bottom = 49.0
+mouse_filter = 2
+
+[node name="Band" type="Panel" parent="."]
+layout_mode = 0
+offset_right = 416.0
+offset_bottom = 46.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 0
+offset_left = 12.0
+offset_right = 262.0
+offset_bottom = 46.0
+theme_type_variation = &"LabelHeading"
+text = "画面名"
+vertical_alignment = 1
+
+[node name="Sub" type="Label" parent="."]
+layout_mode = 0
+offset_left = 262.0
+offset_right = 404.0
+offset_bottom = 46.0
+theme_type_variation = &"LabelSub"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Line" type="ColorRect" parent="."]
+layout_mode = 0
+offset_top = 46.0
+offset_right = 416.0
+offset_bottom = 49.0
+mouse_filter = 2
+color = Color(0.909804, 0.639216, 0.239216, 1)

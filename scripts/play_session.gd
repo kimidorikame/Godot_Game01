@@ -1936,7 +1936,9 @@ func set_runner_for_phase(phase: int) -> void:
 		var wake_ev := Day1Events.wake_events()
 		mark_events_played(wake_ev)
 		if last_day_summary_text != "":
-			wake_ev = [{ "type": "TEXT", "text": last_day_summary_text }] + wake_ev
+			# part:"day_summary"：本番UIは会話枠に1行だけ出し、中身は右の枠（昨夜の成績）に構造で出す（UI準備B Q11）。
+			# 会話ログ・既読の正本はこの文のまま。
+			wake_ev = [{ "type": "TEXT", "text": last_day_summary_text, "part": "day_summary" }] + wake_ev
 			last_day_summary_text = ""
 		flow.set_runner(wake_ev)
 	elif phase == GameState.Phase.PREP:

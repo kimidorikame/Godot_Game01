@@ -1,0 +1,87 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_buy_shop.gd" id="1_yxagi"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_l52g6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/budget_row.tscn" id="3_3vswk"]
+[ext_resource type="Script" path="res://scripts/ui/goods_list.gd" id="4_fnsst"]
+
+[node name="PaneBuyShop" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_yxagi")
+
+[node name="Header" type="Control" parent="." instance=ExtResource("2_l52g6")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 51.0
+mouse_filter = 2
+
+[node name="Budget" type="Control" parent="." instance=ExtResource("3_3vswk")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 117.0
+mouse_filter = 2
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 127.0
+offset_right = 404.0
+offset_bottom = 606.0
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Goods" type="VBoxContainer" parent="Scroll/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+script = ExtResource("4_fnsst")
+
+[node name="BoughtBox" type="Panel" parent="Scroll/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(388, 67)
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="Scroll/Content/BoughtBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 212.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "この店で買った"
+vertical_alignment = 1
+
+[node name="BoughtList" type="Label" parent="Scroll/Content/BoughtBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 24.0
+offset_right = 376.0
+offset_bottom = 62.0
+theme_type_variation = &"LabelWarnSmall"
+autowrap_mode = 3
+
+[node name="BackButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 616.0
+offset_right = 404.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "店選びへ戻る"

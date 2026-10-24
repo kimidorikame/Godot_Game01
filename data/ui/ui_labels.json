@@ -1,0 +1,11 @@
+{
+	"_comment": "本番UIの表示だけの名前（ゲームの判定には使わない）。店名は SCREENS_UI_LAYOUT §4。短縮名（開店の操作エリア用）は UI準備B③で足す。",
+	"shops": {
+		"meat_wholesale": "張記肉類加工",
+		"produce": "永順青果",
+		"dry_goods": "南興乾貨行",
+		"tofu_noodles": "福生豆腐麺房",
+		"seafood": "海隆鮮貨",
+		"scraps": "半端市「拾味」"
+	}
+}

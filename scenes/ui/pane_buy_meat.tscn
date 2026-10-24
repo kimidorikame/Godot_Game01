@@ -1,0 +1,110 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_buy_meat.gd" id="1_lggq2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_hnpxm"]
+[ext_resource type="PackedScene" path="res://scenes/ui/budget_row.tscn" id="3_sg1dw"]
+[ext_resource type="PackedScene" path="res://scenes/ui/tier_card.tscn" id="4_oypq2"]
+[ext_resource type="Script" path="res://scripts/ui/tier_card.gd" id="5_2ed0d"]
+[ext_resource type="Script" path="res://scripts/ui/goods_list.gd" id="6_5nh5w"]
+
+[node name="PaneBuyMeat" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_lggq2")
+
+[node name="Header" type="Control" parent="." instance=ExtResource("2_hnpxm")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 51.0
+mouse_filter = 2
+
+[node name="Budget" type="Control" parent="." instance=ExtResource("3_sg1dw")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 117.0
+mouse_filter = 2
+
+[node name="TiersCaption" type="Label" parent="."]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 127.0
+offset_right = 404.0
+offset_bottom = 149.0
+theme_type_variation = &"LabelCaption"
+text = "鍋の素"
+vertical_alignment = 1
+
+[node name="Tiers" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 155.0
+offset_right = 404.0
+offset_bottom = 274.0
+theme_override_constants/separation = 8
+
+[node name="Tier1" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
+custom_minimum_size = Vector2(124, 119)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"ButtonCard"
+script = ExtResource("5_2ed0d")
+
+[node name="Tier2" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
+custom_minimum_size = Vector2(124, 119)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"ButtonCard"
+script = ExtResource("5_2ed0d")
+
+[node name="Tier3" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
+custom_minimum_size = Vector2(124, 119)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"ButtonCard"
+script = ExtResource("5_2ed0d")
+
+[node name="GoodsScroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 313.0
+offset_right = 404.0
+offset_bottom = 582.0
+horizontal_scroll_mode = 0
+
+[node name="Goods" type="VBoxContainer" parent="GoodsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+script = ExtResource("6_5nh5w")
+
+[node name="WarnNote" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 590.0
+offset_right = 404.0
+offset_bottom = 612.0
+theme_type_variation = &"LabelWarnSmall"
+text = "鍋の素を買うまで、ほかの店へは行けない"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BackButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 616.0
+offset_right = 404.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "店選びへ"

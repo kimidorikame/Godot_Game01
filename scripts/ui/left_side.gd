@@ -167,6 +167,7 @@ func _refresh_choices() -> void:
 		button.theme_type_variation = &"ButtonChoice"
 		button.text = str(option["label"])
 		button.custom_minimum_size = Vector2(400, 52)
+		button.focus_mode = Control.FOCUS_NONE   # Space・Enter は会話を進めるのに使う（ボタンに取られない）
 		button.pressed.connect(session.choose_story_option.bind(str(data["choice_id"]), str(option["id"])))
 		_choices.add_child(button)
 

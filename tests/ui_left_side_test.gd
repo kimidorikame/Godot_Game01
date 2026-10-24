@@ -3,7 +3,7 @@ extends RefCounted
 ## 対象：UiPalette／resources/ui_theme.tres の色と型の変種、scenes/game_root.tscn と scenes/ui/left_side.tscn の
 ## 寸法（寸法表 KAITEN_UI_LAYOUT §1・4px以内）、PlaySession につないだときの表示（Day・時間帯／画面名・名前の札・
 ## 会話枠のページ送り・選択肢）、会話の分割 paginate（30字×3行）。
-## 文字の幅が要る検査（枠に収まるか）はヘッドレスでは測れない（TextServer がダミー）ので、スクリーンショットの
+## 文字の幅が要る検査（枠に収まるか）はヘッドレスでは確かに測れない（4.4.1 は TextServer がダミー）ので、スクリーンショットの
 ## 実行（tools/ui_screens_B.gd）側で見る。ここは位置・大きさ・文の中身を見る。
 
 const TOL := 4.0
@@ -45,6 +45,15 @@ func run(t: SceneTree) -> int:
 	c.check("LabelWarn の文字色は注意色、ButtonPrimary の文字色は強調の上の文字",
 		theme.get_color("font_color", "LabelWarn").is_equal_approx(UiPalette.WARN)
 			and theme.get_color("font_color", "ButtonPrimary").is_equal_approx(UiPalette.ON_ACCENT))
+	var base_font: Font = theme.default_font.base_font if theme.default_font is FontVariation else null
+	c.check("Theme の既定のフォントは同梱の Noto Sans JP（太さ400）、Day・名前・主ボタンは太さ700",
+		base_font != null and base_font.resource_path == "res://assets/fonts/NotoSansJP[wght].ttf"
+			and (theme.default_font as FontVariation).variation_opentype.values() == [400]
+			and theme.get_font("font", "LabelDay") is FontVariation
+			and (theme.get_font("font", "LabelDay") as FontVariation).variation_opentype.values() == [700]
+			and theme.get_font("font", "LabelName") == theme.get_font("font", "LabelDay")
+			and theme.get_font("font", "ButtonPrimary") == theme.get_font("font", "LabelDay"))
+	c.check("フォントのライセンス文書（OFL.txt）を同梱している", FileAccess.file_exists("res://assets/fonts/OFL.txt"))
 	c.check("Day の文字は34px・所持金は28px・会話は24px",
 		theme.get_font_size("font_size", "LabelDay") == 34 and theme.get_font_size("font_size", "LabelMoney") == 28
 			and theme.get_font_size("font_size", "LabelDialogue") == 24)
@@ -80,11 +89,15 @@ func run(t: SceneTree) -> int:
 		c.check("%s の位置と大きさ（寸法表どおり・4px以内）" % node_name, _near(left.get_node("%" + node_name).get_global_rect(), checks[node_name]),
 			str(left.get_node("%" + node_name).get_global_rect()))
 	# Day の文字（34px）は、本物のフォントでは高さ48の箱の中心が寸法表の箱（36,23 95×34）の中心 (83.5,40) になる位置。
-	# ヘッドレスは文字の高さがダミーで大きく出るので、箱の始点と幅を見る（中心はスクリーンショットで見る）。
+	# ヘッドレスの文字の高さは版で違う（4.4.1 はダミーで大きく出る）ので、箱の始点と幅を見る（中心はスクリーンショットで見る）。
 	c.check("Day の文字：始点 (36,16)・幅95・時間帯ゲージ：(145,26) 116×28",
 		left.get_node("%DayLabel").get_global_position().is_equal_approx(Vector2(36, 16)) and left.get_node("%DayLabel").size.x == 95.0
 			and _near(left.get_node("%TimeGauge").get_global_rect(), Rect2(145, 26, 116, 28)),
 		str(left.get_node("%DayLabel").get_global_rect(), left.get_node("%TimeGauge").get_global_rect()))
+	# 既読スキップ（寸法表に無い。plan Q4：会話枠の右下、「▼」の左）。高さは文字で決まるので始点と幅を見る
+	c.check("既読スキップは会話枠の右下 (604,664)・幅100（「▼」の左）",
+		left.get_node("%SkipButton").get_global_position().is_equal_approx(Vector2(604, 664)) and left.get_node("%SkipButton").size.x == 100.0
+			and left.get_node("%SkipButton").get_global_rect().end.x <= left.get_node("%PageMark").get_global_rect().end.x - 60.0)
 	c.check("会話の文字：(50,558) 720×116", _near(left.get_node("%DialogueText").get_global_rect(), Rect2(50, 558, 720, 116)),
 		str(left.get_node("%DialogueText").get_global_rect()))
 	# 並べ替えは次のフレームに起きるので、ここでは手で走らせる
@@ -93,8 +106,10 @@ func run(t: SceneTree) -> int:
 	var rep_rect: Rect2 = left.get_node("%ReputationLabel").get_global_rect()
 	c.check("所持金・評判の右端が x=796 にそろう（評判が右端、所持金はその左）",
 		absf(rep_rect.end.x - 796.0) <= TOL and money_rect.end.x <= rep_rect.position.x, str(money_rect, rep_rect))
+	# 帯の中での所持金の上端は、文字の高さ（ヘッドレスの測り方は版で違う）で数px動くので、範囲で見る
 	c.check("所持金・評判の帯は y=20 から（28px の文字の高さを見込んで、中心は寸法表の帯 y=26〜55 と同じ）",
-		absf(money_rect.position.y - 20.0) <= 0.5 and absf(left.get_node("%MoneyRep").get_global_position().y - 20.0) <= 0.5, str(money_rect))
+		money_rect.position.y >= 19.5 and money_rect.position.y <= 24.0
+			and absf(left.get_node("%MoneyRep").get_global_position().y - 20.0) <= 0.5, str(money_rect))
 
 	# --- 4. PlaySession につないだ表示 ---
 	var s: PlaySession = root.session

@@ -1,0 +1,323 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_morning.gd" id="1_ad487"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_qv0oh"]
+
+[node name="PaneMorning" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_ad487")
+
+[node name="Header" type="Control" parent="." instance=ExtResource("2_qv0oh")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 51.0
+mouse_filter = 2
+
+[node name="RecordBoxes" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_right = 420.0
+offset_bottom = 600.0
+mouse_filter = 2
+
+[node name="SalesBox" type="Panel" parent="RecordBoxes"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 133.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="RecordBoxes/SalesBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 132.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "売上"
+vertical_alignment = 1
+
+[node name="SalesValue" type="Label" parent="RecordBoxes/SalesBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 22.0
+offset_right = 192.0
+offset_bottom = 64.0
+theme_type_variation = &"LabelBig"
+text = "¥0"
+vertical_alignment = 1
+
+[node name="ServedLabel" type="Label" parent="RecordBoxes/SalesBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 190.0
+offset_top = 22.0
+offset_right = 376.0
+offset_bottom = 64.0
+theme_type_variation = &"LabelBody"
+text = "提供 0杯 / 注文0杯"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="GradesBox" type="Panel" parent="RecordBoxes"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 143.0
+offset_right = 404.0
+offset_bottom = 239.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="RecordBoxes/GradesBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 132.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "出来"
+vertical_alignment = 1
+
+[node name="Grades" type="Control" parent="RecordBoxes/GradesBox"]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 12.0
+offset_top = 30.0
+offset_right = 378.0
+offset_bottom = 84.0
+mouse_filter = 2
+
+[node name="GREAT" type="Panel" parent="RecordBoxes/GradesBox/Grades"]
+layout_mode = 0
+offset_right = 87.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="Name" type="Label" parent="RecordBoxes/GradesBox/Grades/GREAT"]
+layout_mode = 0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 20.0
+theme_type_variation = &"LabelCaptionAccent"
+text = "GREAT"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Count" type="Label" parent="RecordBoxes/GradesBox/Grades/GREAT"]
+layout_mode = 0
+offset_top = 20.0
+offset_right = 87.0
+offset_bottom = 52.0
+theme_type_variation = &"LabelValueAccent"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GOOD" type="Panel" parent="RecordBoxes/GradesBox/Grades"]
+layout_mode = 0
+offset_left = 93.0
+offset_right = 180.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="Name" type="Label" parent="RecordBoxes/GradesBox/Grades/GOOD"]
+layout_mode = 0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 20.0
+theme_type_variation = &"LabelCaption"
+text = "GOOD"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Count" type="Label" parent="RecordBoxes/GradesBox/Grades/GOOD"]
+layout_mode = 0
+offset_top = 20.0
+offset_right = 87.0
+offset_bottom = 52.0
+theme_type_variation = &"LabelValue"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="OK" type="Panel" parent="RecordBoxes/GradesBox/Grades"]
+layout_mode = 0
+offset_left = 186.0
+offset_right = 273.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="Name" type="Label" parent="RecordBoxes/GradesBox/Grades/OK"]
+layout_mode = 0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 20.0
+theme_type_variation = &"LabelCaption"
+text = "OK"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Count" type="Label" parent="RecordBoxes/GradesBox/Grades/OK"]
+layout_mode = 0
+offset_top = 20.0
+offset_right = 87.0
+offset_bottom = 52.0
+theme_type_variation = &"LabelValue"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BAD" type="Panel" parent="RecordBoxes/GradesBox/Grades"]
+layout_mode = 0
+offset_left = 279.0
+offset_right = 366.0
+offset_bottom = 54.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="Name" type="Label" parent="RecordBoxes/GradesBox/Grades/BAD"]
+layout_mode = 0
+offset_top = 2.0
+offset_right = 87.0
+offset_bottom = 20.0
+theme_type_variation = &"LabelCaption"
+text = "BAD"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Count" type="Label" parent="RecordBoxes/GradesBox/Grades/BAD"]
+layout_mode = 0
+offset_top = 20.0
+offset_right = 87.0
+offset_bottom = 52.0
+theme_type_variation = &"LabelValue"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ShortBox" type="Panel" parent="RecordBoxes"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 249.0
+offset_right = 404.0
+offset_bottom = 344.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="RecordBoxes/ShortBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 212.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "足りなかった・廃棄"
+vertical_alignment = 1
+
+[node name="ShortLabel" type="Label" parent="RecordBoxes/ShortBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 26.0
+offset_right = 376.0
+offset_bottom = 54.0
+theme_type_variation = &"LabelWarnBody"
+text = "足りなかった 0杯"
+vertical_alignment = 1
+
+[node name="SpoilLabel" type="Label" parent="RecordBoxes/ShortBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 56.0
+offset_right = 376.0
+offset_bottom = 88.0
+theme_type_variation = &"LabelBody"
+text = "廃棄 なし"
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="MoneyBox" type="Panel" parent="RecordBoxes"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 354.0
+offset_right = 404.0
+offset_bottom = 477.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="RecordBoxes/MoneyBox"]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 212.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "今朝のお金"
+vertical_alignment = 1
+
+[node name="ReputationLabel" type="Label" parent="RecordBoxes/MoneyBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 26.0
+offset_right = 376.0
+offset_bottom = 54.0
+theme_type_variation = &"LabelBody"
+text = "評判 0 → 0"
+vertical_alignment = 1
+
+[node name="CostLabel" type="Label" parent="RecordBoxes/MoneyBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 56.0
+offset_right = 376.0
+offset_bottom = 84.0
+theme_type_variation = &"LabelWarnBody"
+text = "今朝の運営費 −¥0"
+vertical_alignment = 1
+
+[node name="UsableLabel" type="Label" parent="RecordBoxes/MoneyBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 86.0
+offset_right = 376.0
+offset_bottom = 114.0
+theme_type_variation = &"LabelAccentBody"
+text = "使える現金 ¥0"
+vertical_alignment = 1
+
+[node name="NoRecord" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 102.0
+theme_type_variation = &"LabelDim"
+text = "初日。昨夜の成績はまだ無い。"
+vertical_alignment = 1
+
+[node name="PrimaryButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 610.0
+offset_right = 404.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "スマホを見る"

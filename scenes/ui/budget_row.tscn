@@ -1,0 +1,94 @@
+[gd_scene format=3]
+
+[node name="BudgetRow" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 388.0
+offset_bottom = 55.0
+mouse_filter = 2
+
+[node name="Money" type="Panel" parent="."]
+layout_mode = 0
+offset_right = 125.0
+offset_bottom = 55.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="Money"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 3.0
+offset_right = 115.0
+offset_bottom = 21.0
+theme_type_variation = &"LabelCaption"
+text = "残金"
+vertical_alignment = 1
+
+[node name="Value" type="Label" parent="Money"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 21.0
+offset_right = 115.0
+offset_bottom = 51.0
+theme_type_variation = &"LabelValue"
+text = "¥0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Reserved" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 131.5
+offset_right = 256.5
+offset_bottom = 55.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="Reserved"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 3.0
+offset_right = 115.0
+offset_bottom = 21.0
+theme_type_variation = &"LabelCaption"
+text = "確保"
+vertical_alignment = 1
+
+[node name="Value" type="Label" parent="Reserved"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 21.0
+offset_right = 115.0
+offset_bottom = 51.0
+theme_type_variation = &"LabelValue"
+text = "¥0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Usable" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 263.0
+offset_right = 388.0
+offset_bottom = 55.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="Usable"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 3.0
+offset_right = 115.0
+offset_bottom = 21.0
+theme_type_variation = &"LabelCaption"
+text = "使える"
+vertical_alignment = 1
+
+[node name="Value" type="Label" parent="Usable"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 21.0
+offset_right = 115.0
+offset_bottom = 51.0
+theme_type_variation = &"LabelValueAccent"
+text = "¥0"
+horizontal_alignment = 2
+vertical_alignment = 1
