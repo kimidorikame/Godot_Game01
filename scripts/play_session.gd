@@ -24,6 +24,8 @@ signal phase_entering(phase: int)
 # GameState.settle_reputation() へ渡す1回だけの処理（杯ごとの即時加算はしない）。
 const REPUTATION_SCORE := { "GREAT": 100, "GOOD": 75, "OK": 35, "BAD": 0 }
 
+const SKIP_READ_LIMIT := 200   # 暴走防止：1回のスキップで進めるイベント数の上限
+
 ## フェーズの一方向遷移と、フェーズ内の Event 再生（runner）を持つ。
 var flow: FlowController = null
 
@@ -872,10 +874,8 @@ func is_awaiting_react() -> bool:
 	return cur is Dictionary and cur.get("type", "") == "SERVE"
 
 
-## いま PREP_TIER（仕込み3段階の選択）が現在の Event か。is_in_market() と同じ形。
-## [次のEvent]/[入力完了] を無効化する判定に使う（抜ける経路を段階選択ボタンだけにする。
-## 選ばずに素通りされると、その先のADD_ITEM/SET_SOUPが無いまま仕込みが成立しなくなる）。
 ## いま店主の距離感の選択（CHOICE。システム整理C2）の入力待ちか。
+## [次のEvent]/[入力完了] を無効化する判定に使う（選択は選択肢のボタンで答える）。
 func is_in_story_choice() -> bool:
 	var r: EventRunner = flow.runner
 	if r == null:
@@ -2149,3 +2149,395 @@ func continue_game() -> void:
 	GameState.record_morning(morning)
 	restore_morning(morning)
 	BalanceLog.begin_run()   # 続きから読み込んだ周は別の周（日次ログのrun_idを新しくする）
+
+# --- 状態（UI準備A③e）---
+
+# 既読スキップ（4-7③。ReadState）：直近に新しく見えた行が、それまで未読だったか（スキップの停止条件）。
+# [既読スキップ]の仮ボタンは _ready でコードから足す（.tscn は変えない）。
+var last_shown_unread := false
+
+var recipe_save_slot := -1
+
+
+# --- スマホ・レシピ・会話ログ・既読スキップ（UI準備A⑥） ---
+
+## いま見えているイベントを、まだ記録していなければ会話ログへ1行足す。_refresh の末尾から呼ぶ＝
+## どの操作（ハンドラ直呼びを含む）でも、新しく current になった行（index 0 を含む）が漏れない。
+## 同じ位置・同じ本文は1回だけ（logged_positions）。REACT は判定後に決まる反応文が空でなくなってから、
+## current_reaction_text() が読む（reaction_variant は判定時に固定済みの値で、ここでは抽選しない）。
+func record_visible_event() -> void:
+	if flow.runner == null:
+		return
+	var ev = flow.runner.current()
+	if not (ev is Dictionary):
+		return
+	var kind := "narration"
+	var speaker := ""
+	var text := str(ev.get("text", ""))
+	match str(ev.get("type", "")):
+		"GREET":
+			kind = "talk"
+			speaker = log_speaker(str(ev.get("customer", "")))
+		"SERVE":
+			kind = "serve"
+		"REACT":
+			kind = "reaction"
+			speaker = log_speaker(str(ev.get("customer", "")))
+			text = current_reaction_text()
+		"TEXT":
+			if str(ev.get("part", "")) == "news":
+				kind = "news"
+	if text == "":
+		last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
+		return
+	var slot_index := -1
+	var customer_index := -1
+	if open != null:
+		slot_index = open.slot_index
+		customer_index = open.index
+	var key := "%d|%d|%d|%d|%d|%s" % [GameState.day_count, GameState.phase, slot_index, customer_index,
+		flow.runner.index, text]
+	if logged_positions.has(key):
+		return
+	logged_positions[key] = true
+	TalkLog.add(GameState.day_count, kind, speaker, text)
+	# 既読（ReadState）：見えた行を既読にする。それまで未読だったかをスキップの停止条件として覚える。
+	var read_key := ReadState.line_key(kind, speaker, str(ev.get("part", "")), text)
+	last_shown_unread = not ReadState.is_read(read_key)
+	ReadState.mark(read_key)
+
+
+## スキップの1歩を進められるか：[次のEvent]が押せて、再生中（入力待ちでない）で、その客・そのフェーズの
+## 最後のイベントではない（客やフェーズの切り替わりをまたぐ前で止まる）。
+func can_skip_step() -> bool:
+	if flow.runner == null or not can_next_event() or flow.runner.status != EventRunner.Status.PLAYING:
+		return false
+	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.RESULT:
+		return false
+	return flow.runner.index < flow.runner.events.size() - 1
+
+
+## [既読スキップ]：[次のEvent]を、止まる条件に達するまで繰り返す。**効果の適用は [次のEvent] と同一の
+## 経路**（next_event）を1イベントにつき1回だけ通す＝会計・来店記録・事実・評判は1回だけ
+## 適用される（別の経路は作らない）。止まる条件：入力待ち（ADJUST・CHOICE・MARKET・PREP_TIER・WAIT_INPUT
+## など。選択は決して飛ばさない）／直前に見えた行が未読（その行で止まる）／客・フェーズの切り替わり／
+## 鍋不足の保留など[次のEvent]が押せない状態／SKIP_READ_LIMIT 回。進めたイベント数を返す。
+func skip_read() -> int:
+	var steps := 0
+	var start_runner = flow.runner
+	var start_phase: int = GameState.phase
+	while steps < SKIP_READ_LIMIT and can_skip_step():
+		next_event()
+		record_visible_event()   # 見えた行の記録（画面の描き直しに頼らない。同じ行は1回だけ）
+		steps += 1
+		if last_shown_unread or flow.runner != start_runner or GameState.phase != start_phase:
+			break
+	return steps
+
+
+## ログの話し手（表示名。モブは種類の名前）。
+func log_speaker(customer_id: String) -> String:
+	if customer_id == "":
+		return ""
+	if Day1Events.is_mob_customer(customer_id):
+		var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
+		return Day1Events.mob_display_name(str(inst.get("type", "")))
+	return ScheduleData.customer_display_name(customer_id)
+
+
+## ADJUST 中の名前あり客（モブの団体注文は対象外）の客id。それ以外は空文字。
+func recipe_adjust_customer() -> String:
+	if open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN \
+			or flow.runner.status != EventRunner.Status.WAITING_INPUT or pot_open \
+			or pending_group_choice or pending_shortage_ev != null:
+		return ""
+	var cur = flow.runner.current()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST":
+		return ""
+	var customer_id := str(cur.get("customer", ""))
+	if not CustomerMemory.is_recordable(customer_id) or is_current_mob_order():
+		return ""
+	return customer_id
+
+
+## レシピ／「いつもの」のボタン。**具材ボタンを順に押したのと同じ処理**（select_ingredient）で
+## 1つずつ椀に足す＝在庫・鮮度の確認と消費は省略しない。全部出せると確かめてから適用する
+## （途中で止まって一部だけ入る状態を作らない）。傷んだ側は自動では使わない。椀が空のときだけ。
+func apply_recipe(ingredients: Array) -> void:
+	var customer_id := recipe_adjust_customer()
+	if customer_id == "" or not (open.current_bowl.get("additions", []) as Array).is_empty():
+		return
+	if not RecipeBook.can_apply(ingredients, current_servings()):
+		return
+	for id in ingredients:
+		select_ingredient(str(id), false)
+
+
+## 今、今作った椀をレシピに保存できるか：OPEN で、名前あり客の判定済みの椀（提供後。複数杯の各杯を含む）
+## が残っていて、追加が1つ以上ある間。**その客の最後の行まで**押せる（次の杯の椀・次の客で消える）。
+func can_save_recipe() -> bool:
+	if open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN:
+		return false
+	var customer = open.current_customer()
+	if customer == null or not CustomerMemory.is_recordable(str(customer)):
+		return false
+	var bowl: Dictionary = open.current_bowl
+	return str(bowl.get("result", "")) != "" and not (bowl.get("additions", []) as Array).is_empty()
+
+
+func start_recipe_save() -> void:
+	if can_save_recipe():
+		recipe_save_stage = "slot"
+	changed.emit()
+
+
+func select_recipe_slot(slot: int) -> void:
+	if can_save_recipe() and slot >= 0 and slot < RecipeBook.slot_count() and slot <= GameState.saved_recipes.size():
+		recipe_save_slot = slot
+		recipe_save_stage = "name"
+	changed.emit()
+
+
+func select_recipe_name(recipe_name: String) -> void:
+	if can_save_recipe() and recipe_save_stage == "name":
+		RecipeBook.save(recipe_save_slot, recipe_name, open.current_bowl["additions"])
+	recipe_save_stage = ""
+	changed.emit()
+
+
+func cancel_recipe_save() -> void:
+	recipe_save_stage = ""
+	changed.emit()
+
+
+# --- スマホ・レシピ・会話ログの問い（UI準備A⑥。R3：スマホ／開店のレシピ） ---
+
+## ADJUST 中の「いつもの」（その客の直近の料理）と保存レシピのボタンの中身（椀が空のときだけ。前回の評価は持たない）。
+## [{ kind:"usual"|"saved", name, ingredients（品目id）, missing（足りない品目id＝新鮮な在庫のみ）, can_apply }]
+## ボタンを押すときは apply_recipe(ingredients)。名前の付け方（「いつもの（…）」）はUI側で決める。
+func recipe_adjust_buttons() -> Array:
+	var out: Array = []
+	var customer_id := recipe_adjust_customer()
+	if customer_id == "" or not (open.current_bowl.get("additions", []) as Array).is_empty():
+		return out
+	var servings := current_servings()
+	var usual := RecipeBook.usual_for(customer_id)
+	if not usual.is_empty():
+		out.append({ "kind": "usual", "name": "いつもの", "ingredients": usual.duplicate(),
+			"missing": RecipeBook.shortage(usual, servings), "can_apply": RecipeBook.can_apply(usual, servings) })
+	for recipe in GameState.saved_recipes:
+		out.append({ "kind": "saved", "name": str(recipe["name"]), "ingredients": (recipe["ingredients"] as Array).duplicate(),
+			"missing": RecipeBook.shortage(recipe["ingredients"], servings),
+			"can_apply": RecipeBook.can_apply(recipe["ingredients"], servings) })
+	return out
+
+
+## 提供後の「レシピを保存」の中身。{ can_save, stage（""＝ボタン待ち／"slot"＝枠を選ぶ／"name"＝名前を選ぶ）,
+##   ingredients（保存する椀の具材）, slots[{index, name（空きなら ""）, selectable}], names[名前の候補] }
+## can_save が false のときは can_save だけ。段階は start_recipe_save → select_recipe_slot → select_recipe_name
+## （やめるは cancel_recipe_save）。
+func recipe_save_view() -> Dictionary:
+	if not can_save_recipe():
+		return { "can_save": false }
+	var slots: Array = []
+	for i in range(RecipeBook.slot_count()):
+		slots.append({ "index": i, "name": (str(GameState.saved_recipes[i]["name"]) if i < GameState.saved_recipes.size() else ""),
+			"selectable": i <= GameState.saved_recipes.size() })
+	var names: Array = []
+	for item in RecipeBook.names_ordered(open.bowl_addition_tags()):
+		names.append(str(item["name"]))
+	return { "can_save": true, "stage": recipe_save_stage, "ingredients": (open.current_bowl["additions"] as Array).duplicate(),
+		"slots": slots, "names": names }
+
+
+## スマホのレシピタブ：保存レシピ（枠ごと）と、客ごとの「いつもの」。
+## { slots[{index, name, tags, ingredients}（空き枠は name が ""・tags と ingredients は空）], usual[{customer, ingredients}] }
+func phone_recipes() -> Dictionary:
+	var slots: Array = []
+	for i in range(RecipeBook.slot_count()):
+		if i < GameState.saved_recipes.size():
+			var recipe: Dictionary = GameState.saved_recipes[i]
+			slots.append({ "index": i, "name": str(recipe["name"]), "tags": RecipeBook.tags_of(recipe["ingredients"]),
+				"ingredients": (recipe["ingredients"] as Array).duplicate() })
+		else:
+			slots.append({ "index": i, "name": "", "tags": [], "ingredients": [] })
+	var usual: Array = []
+	for customer_id in GameState.customer_memory:
+		var ingredients := RecipeBook.usual_for(str(customer_id))
+		if not ingredients.is_empty():
+			usual.append({ "customer": str(customer_id), "ingredients": ingredients.duplicate() })
+	return { "slots": slots, "usual": usual }
+
+
+## スマホのニュースタブ：今日と、その周で既に過ぎた日の分だけ（未来の日は見せない）。新しい日が上。
+## [{ day, is_today, news[{headline, body[], provisional}], dm[{from, text, provisional}], events[{lines[], provisional}] }]
+## 過ぎた日の共通イベントは出来事として載せ、今日の分は再生済み（played_events）のものだけ。中身が空の日は出さない。
+func phone_news() -> Array:
+	var out: Array = []
+	var today := GameState.day_count
+	for day in range(today, 0, -1):
+		var entry := News.day_entry(day)
+		var section := { "day": day, "is_today": day == today, "news": [], "dm": [], "events": [] }
+		for item in entry["news"]:
+			section["news"].append({ "headline": str(item.get("headline", "")),
+				"body": (item.get("body", []) as Array).duplicate() if item.get("body") is Array else [],
+				"provisional": bool(item.get("provisional", false)) })
+		for item in entry["dm"]:
+			section["dm"].append({ "from": str(item.get("from", "")), "text": str(item.get("text", "")),
+				"provisional": bool(item.get("provisional", false)) })
+		for item in entry["events"]:
+			if day < today or played_events.has(str(item.get("id", ""))):
+				if item.get("lines") is Array:
+					section["events"].append({ "lines": (item["lines"] as Array).duplicate(),
+						"provisional": bool(item.get("provisional", false)) })
+		if not (section["news"].is_empty() and section["dm"].is_empty() and section["events"].is_empty()):
+			out.append(section)
+	return out
+
+
+## スマホのログタブ：今日の会話ログ（上から古い順）。[{ day, kind, speaker, text }]。実行時の記録のみ（保存しない）。
+func talk_log_entries() -> Array:
+	return TalkLog.entries.duplicate(true)
+
+
+
+# --- 画面の共通・開店の鍋とトッピング・朝の問い（UI準備A⑥。R3の残り。読むだけ） ---
+
+## 画面の上部・共通：{ day, phase（GameState.Phase の値）, phase_name, slot_name（時間帯の名前。開店中のみ）,
+##   slot_index／customer_index（開店中のみ。それ以外は -1）, money, reputation }
+func day_info() -> Dictionary:
+	var slot_name := ""
+	var slot_index := -1
+	var customer_index := -1
+	if open != null:
+		slot_index = open.slot_index
+		customer_index = open.index
+		slot_name = open.current_slot_name()
+	return { "day": GameState.day_count, "phase": GameState.phase, "phase_name": str(GameState.Phase.keys()[GameState.phase]),
+		"slot_name": slot_name, "slot_index": slot_index, "customer_index": customer_index,
+		"money": GameState.money, "reputation": GameState.reputation }
+
+
+## いま表示すべき文：{ type（Event の種類）, speaker（話し手の客id。地の文・店主は ""）, text, part（"news" など） }。
+## REACT は判定後に決まる反応文（判定前は空）。runner が無い・Event が無いときは空。
+func current_line() -> Dictionary:
+	var ev = _current_event()
+	if not (ev is Dictionary):
+		return {}
+	var type := str(ev.get("type", ""))
+	var speaker := ""
+	var text := str(ev.get("text", ""))
+	if type == "GREET" or type == "REACT":
+		speaker = str(ev.get("customer", ""))
+	if type == "REACT":
+		text = current_reaction_text()
+	return { "type": type, "speaker": speaker, "text": text, "part": str(ev.get("part", "")) }
+
+
+## 入力待ち（WAITING_INPUT）か。
+func is_waiting_input() -> bool:
+	return flow.runner != null and flow.runner.status == EventRunner.Status.WAITING_INPUT
+
+
+## 店主の距離感の選択（CHOICE）の選択肢：{ choice_id, options[{id, label}] }。選択中でなければ空。
+## 選ぶときは choose_story_option(choice_id, option_id)。
+func current_choices() -> Dictionary:
+	var cur = _current_event()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "CHOICE":
+		return {}
+	var options: Array = []
+	for option in cur.get("options", []):
+		options.append({ "id": str(option.get("id", "")), "label": str(option.get("label", "")) })
+	return { "choice_id": str(cur.get("choice_id", "")), "options": options }
+
+
+## 開店の鍋：{ exists, remaining（残り杯数）, capacity（鍋の上限）, strength（濃さ）, strength_min, strength_max,
+##   can_add_water, water_doses_left（今夜あと何回水を足せるか）, can_add_dashi, dashi_units（だしの残り数）,
+##   can_touch（鍋を触れるか）, pot_open, shortage_pending, locked_until_water, locked_until_dashi }
+## 鍋がまだ無い（仕込み前）ときは exists だけ false。
+func pot_view() -> Dictionary:
+	if GameState.soup == null:
+		return { "exists": false }
+	return { "exists": true, "remaining": int(GameState.soup.get("remaining_servings", 0)), "capacity": Rules.pot_capacity(),
+		"strength": int(GameState.soup.get("strength", 3)), "strength_min": GameState.STRENGTH_MIN, "strength_max": GameState.STRENGTH_MAX,
+		"can_add_water": GameState.can_add_water(), "water_doses_left": int(GameState.soup.get("water_doses", 0)),
+		"can_add_dashi": GameState.can_add_dashi(), "dashi_units": GameState.dashi_units,
+		"can_touch": can_touch_pot(), "pot_open": pot_open, "shortage_pending": is_shortage_pending(),
+		"locked_until_water": pot_locked_until_water(), "locked_until_dashi": pot_locked_until_dashi() }
+
+
+## 注文カード（その客の『いつもの』と『今日の頼み』）：{ customer, base[タグ], today[タグ], label }。
+## 名前あり客の ADJUST 中（聞き直しの対象の客）だけ。それ以外は空。
+func order_card_view() -> Dictionary:
+	var customer_id := adjust_customer_id()
+	if customer_id == "":
+		return {}
+	var card := Day1Events.order_card(customer_id)
+	if card.is_empty():
+		return {}
+	return { "customer": customer_id, "base": (card["base"] as Array).duplicate(), "today": (card["today"] as Array).duplicate(),
+		"label": str(card["label"]) }
+
+
+## 椀の中身：{ customer, additions[品目id], max_additions, used_spoiled（傷んだ具材を使ったか。品目ごとの印はまだ無い）,
+##   result（判定。判定前は ""）, discard_count（この客での廃棄回数）, tags（最終タグ）, addition_tags }
+## 接客中でなければ空。
+func bowl_view() -> Dictionary:
+	if open == null or not open.current_bowl.has("customer_id"):
+		return {}
+	var bowl: Dictionary = open.current_bowl
+	return { "customer": str(bowl["customer_id"]), "additions": (bowl.get("additions", []) as Array).duplicate(),
+		"max_additions": OpenController.MAX_ADDITIONS, "used_spoiled": bool(bowl.get("used_spoiled", false)),
+		"result": str(bowl.get("result", "")), "discard_count": bowl_discard_count,
+		"tags": open.bowl_final_tags(), "addition_tags": open.bowl_addition_tags() }
+
+
+## 選べる品目の一覧（ADJUST 中）：[{ id, label, damaged（この選択肢は傷んだ側か）, kind（"seasoning"／"topping"）,
+##   tags, fresh（新鮮の在庫）, damaged_stock（傷んだ在庫）, count（この選択肢の側の在庫）, can_pick }]
+## can_pick は在庫があり、椀が上限（3つ）に達していないとき。押すときは select_ingredient(id, damaged)。
+## ADJUST で入力待ちでなければ空。
+func ingredient_options() -> Array:
+	var out: Array = []
+	var cur = _current_event()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST" or not is_waiting_input() or not cur.has("options"):
+		return out
+	var at_cap := false
+	if open != null:
+		at_cap = (open.current_bowl.get("additions", []) as Array).size() >= OpenController.MAX_ADDITIONS
+	for option in cur["options"]:
+		var id := str(option.get("id", ""))
+		var damaged := bool(option.get("damaged", false))
+		var own: int = GameState.damaged_count(id) if damaged else GameState.fresh_count(id)
+		out.append({ "id": id, "label": str(option.get("label", id)), "damaged": damaged,
+			"kind": "topping" if Ingredients.is_topping(id) else "seasoning", "tags": Ingredients.tags_for(id),
+			"fresh": GameState.fresh_count(id), "damaged_stock": GameState.damaged_count(id), "count": own,
+			"can_pick": not at_cap and own >= 1 })
+	return out
+
+
+## 今朝払った運営費（朝のWAKEで払った分。帳簿の "daily_cost" の今日の合計）。
+func morning_cost() -> int:
+	return int(Ledger.spend_by_category_today().get("daily_cost", 0))
+
+
+## 結果画面・ゲームオーバーの出口：{ available（RESULT か GAME_OVER か）, can_retry（同じ朝から＝直近の朝。GAME_OVER で記録があるとき）,
+##   can_last_morning（直近の朝からやり直せる＝記録がある）, can_run_again（Day1の朝から。RESULT は Day1 の記録があるとき、
+##   GAME_OVER は常に）, run_again_is_new_run（GAME_OVER で Day1 の記録が無い＝押すと新しい周と同じ動作）, can_new_run, can_continue（起動時に
+##   読めたセーブがある＝[続きから]）}。押すときは retry／last_morning／run_again／new_run／continue_game。
+## スマホを開いている間の無効化など、表示だけの状態は含めない。
+func exits() -> Dictionary:
+	var in_result := GameState.phase == GameState.Phase.RESULT
+	var in_over := GameState.phase == GameState.Phase.GAME_OVER
+	var has_day1 := GameState.morning_snapshots.has(1)
+	var has_any := not GameState.morning_snapshots.is_empty()
+	return { "available": in_result or in_over, "can_retry": in_over and has_any,
+		"can_last_morning": (in_result or in_over) and has_any, "can_run_again": in_over or (in_result and has_day1),
+		"run_again_is_new_run": in_over and not has_day1, "can_new_run": in_result or in_over,
+		"can_continue": not pending_continue.is_empty() }
+
+
+## 結果画面の中身：{ summary（Result.summarize＝成績の集計）, goals（Result.judge_goals＝目標の判定。完走・標準・挑戦・料理・常連の順）}。
+## 文面（Result.format_*）はUI側で決める。周回の累計（day_records）と帳簿から導く。
+func result_view() -> Dictionary:
+	var summary := Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
+	return { "summary": summary, "goals": Result.judge_goals(summary, Rules.goals(), Rules.final_day()) }

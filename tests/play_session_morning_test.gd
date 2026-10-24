@@ -66,7 +66,15 @@ func run(t: SceneTree) -> int:
 	p.game_over("テスト")
 	c.check("ゲームオーバー：GAME_OVER・[Day1の朝から]の記録が無ければ新しい周と同じ動作（run_again）",
 		GameState.phase == GameState.Phase.GAME_OVER)
+	var ex: Dictionary = p.exits()
+	c.check("exits()（GAME_OVER・朝の記録あり）：同じ朝から・直近の朝・Day1の朝から・新しい周が選べる。Day1の朝からは新しい周ではない",
+		ex["available"] and ex["can_retry"] and ex["can_last_morning"] and ex["can_run_again"] and not ex["run_again_is_new_run"]
+			and ex["can_new_run"], str(ex))
 	GameState.morning_snapshots.clear()
+	ex = p.exits()
+	c.check("exits()（GAME_OVER・朝の記録が空）：直近の朝は選べず、Day1の朝からは『新しい周と同じ』になる",
+		not ex["can_retry"] and not ex["can_last_morning"] and ex["can_run_again"] and ex["run_again_is_new_run"]
+			and ex["can_new_run"], str(ex))
 	p.run_again()
 	c.check("run_again()：記録が空でも新しい周のDay1のWAKEへ", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
 		and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST)
@@ -88,6 +96,17 @@ func run(t: SceneTree) -> int:
 			and GameState.morning_snapshots.size() == 1 and GameState.morning_snapshots.has(1))
 	c.check("橋 _save_armed／_pending_continue は session の状態を指す",
 		panel._save_armed == p.save_armed and panel._pending_continue == p.pending_continue)
+	ex = p.exits()
+	c.check("exits()：結果でもゲームオーバーでもない通常の朝は available が false", not ex["available"])
+	GameState.phase = GameState.Phase.RESULT
+	ex = p.exits()
+	c.check("exits()（RESULT・Day1の記録あり）：Day1の朝から・直近の朝・新しい周が選べる（同じ朝からの仮ボタンは GAME_OVER のみ）",
+		ex["available"] and ex["can_run_again"] and ex["can_last_morning"] and ex["can_new_run"] and not ex["can_retry"])
+	GameState.morning_snapshots.erase(1)
+	c.check("exits()（RESULT・Day1の記録が無い）：Day1の朝からは選べない", not p.exits()["can_run_again"])
+	var rv: Dictionary = p.result_view()
+	c.check("result_view()：成績の集計と、目標の判定（完走・標準・挑戦・料理・常連の5つ）",
+		rv["summary"].has("cash") and rv["goals"].size() == 5 and rv["goals"][0]["id"] == "complete", str(rv["goals"].size()))
 	panel.free()
 	GameState.reset_for_new_game()
 	return c.finish()

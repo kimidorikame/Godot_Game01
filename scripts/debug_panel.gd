@@ -7,6 +7,9 @@ extends PanelContainer
 ## （本番UIと同じ処理を使うため）。PlaySession はこのシーンの子ノードとして持つ（autoload にはしない）。
 ## このパネルは「表示と結線」だけの役に寄せていく。
 
+# UI準備Aの橋。テストを移したら削除（実体は PlaySession.SKIP_READ_LIMIT）。
+const SKIP_READ_LIMIT := PlaySession.SKIP_READ_LIMIT
+
 # UI準備A：遊びの進行を持つ共有部品。_init() で作る（_ready より前から使えるように）。
 var session: PlaySession = null
 
@@ -394,10 +397,19 @@ var _logged_positions: Dictionary:
 		session.logged_positions = value
 # 既読スキップ（4-7③。ReadState）：直近に新しく見えた行が、それまで未読だったか（スキップの停止条件）。
 # [既読スキップ]の仮ボタンは _ready でコードから足す（.tscn は変えない）。
-var _last_shown_unread := false
+# UI準備Aの橋。テストを移したら削除（実体は session.last_shown_unread）。
+var _last_shown_unread: bool:
+	get:
+		return session.last_shown_unread
+	set(value):
+		session.last_shown_unread = value
 var _btn_skip_read: Button
-const SKIP_READ_LIMIT := 200   # 暴走防止：1回のスキップで進めるイベント数の上限
-var _recipe_save_slot := -1
+# UI準備Aの橋。テストを移したら削除（実体は session.recipe_save_slot）。
+var _recipe_save_slot: int:
+	get:
+		return session.recipe_save_slot
+	set(value):
+		session.recipe_save_slot = value
 var _recipe_row: HBoxContainer
 
 # 聞き直し（4-4b-2。DESIGN.md 10.5.2）の再表示テキスト。画面側だけの一時表示で、GameState・
@@ -1213,106 +1225,34 @@ func _format_fund() -> String:
 
 ## --- 会話ログ（4-7②。TalkLog。状態を読むだけで、ゲームの数値・乱数には触れない） ---
 
-## いま見えているイベントを、まだ記録していなければ会話ログへ1行足す。_refresh の末尾から呼ぶ＝
-## どの操作（ハンドラ直呼びを含む）でも、新しく current になった行（index 0 を含む）が漏れない。
-## 同じ位置・同じ本文は1回だけ（_logged_positions）。REACT は判定後に決まる反応文が空でなくなってから、
-## _current_reaction_text() が読む（reaction_variant は判定時に固定済みの値で、ここでは抽選しない）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.record_visible_event() を直接使う）。
 func _record_visible_event() -> void:
-	if flow.runner == null:
-		return
-	var ev = flow.runner.current()
-	if not (ev is Dictionary):
-		return
-	var kind := "narration"
-	var speaker := ""
-	var text := str(ev.get("text", ""))
-	match str(ev.get("type", "")):
-		"GREET":
-			kind = "talk"
-			speaker = _log_speaker(str(ev.get("customer", "")))
-		"SERVE":
-			kind = "serve"
-		"REACT":
-			kind = "reaction"
-			speaker = _log_speaker(str(ev.get("customer", "")))
-			text = _current_reaction_text()
-		"TEXT":
-			if str(ev.get("part", "")) == "news":
-				kind = "news"
-	if text == "":
-		_last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
-		return
-	var slot_index := -1
-	var customer_index := -1
-	if _open != null:
-		slot_index = _open.slot_index
-		customer_index = _open.index
-	var key := "%d|%d|%d|%d|%d|%s" % [GameState.day_count, GameState.phase, slot_index, customer_index,
-		flow.runner.index, text]
-	if _logged_positions.has(key):
-		return
-	_logged_positions[key] = true
-	TalkLog.add(GameState.day_count, kind, speaker, text)
-	# 既読（ReadState）：見えた行を既読にする。それまで未読だったかをスキップの停止条件として覚える。
-	var read_key := ReadState.line_key(kind, speaker, str(ev.get("part", "")), text)
-	_last_shown_unread = not ReadState.is_read(read_key)
-	ReadState.mark(read_key)
+	session.record_visible_event()
 
 
 ## --- 既読スキップ（4-7③。ReadState。仮UI） ---
 
-## スキップの1歩を進められるか：[次のEvent]が押せて、再生中（入力待ちでない）で、その客・そのフェーズの
-## 最後のイベントではない（客やフェーズの切り替わりをまたぐ前で止まる）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.can_skip_step() を直接使う）。
+# スマホを開いている間は[次のEvent]が押せない（表示の状態）ので、ここで足す。
 func _can_skip_step() -> bool:
-	if flow.runner == null or _btn_next_event.disabled or flow.runner.status != EventRunner.Status.PLAYING:
-		return false
-	if GameState.phase == GameState.Phase.GAME_OVER or GameState.phase == GameState.Phase.RESULT:
-		return false
-	return flow.runner.index < flow.runner.events.size() - 1
+	return not _phone_mode and session.can_skip_step()
 
 
-## [既読スキップ]：[次のEvent]を、止まる条件に達するまで繰り返す。**効果の適用は [次のEvent] と同一の
-## 経路**（_on_next_event_pressed）を1イベントにつき1回だけ通す＝会計・来店記録・事実・評判は1回だけ
-## 適用される（別の経路は作らない）。止まる条件：入力待ち（ADJUST・CHOICE・MARKET・PREP_TIER・WAIT_INPUT
-## など。選択は決して飛ばさない）／直前に見えた行が未読（その行で止まる）／客・フェーズの切り替わり／
-## 鍋不足の保留など[次のEvent]が押せない状態／SKIP_READ_LIMIT 回。進めたイベント数を返す。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.skip_read() を直接使う）。
 func _on_skip_read_pressed() -> int:
-	var steps := 0
-	var start_runner = flow.runner
-	var start_phase: int = GameState.phase
-	while steps < SKIP_READ_LIMIT and _can_skip_step():
-		_on_next_event_pressed()
-		steps += 1
-		if _last_shown_unread or flow.runner != start_runner or GameState.phase != start_phase:
-			break
-	return steps
-
-
-## ログの話し手（表示名。モブは種類の名前）。
-func _log_speaker(customer_id: String) -> String:
-	if customer_id == "":
-		return ""
-	if Day1Events.is_mob_customer(customer_id):
-		var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
-		return Day1Events.mob_display_name(str(inst.get("type", "")))
-	return ScheduleData.customer_display_name(customer_id)
+	if _phone_mode:
+		return 0
+	return session.skip_read()
 
 
 ## --- レシピ保存と「いつもの」（4-7①。DESIGN.md 10.4。仮UI。本番UIはフェーズ6） ---
 
-## ADJUST 中の名前あり客（モブの団体注文は対象外）の客id。それ以外は空文字。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.recipe_adjust_customer() を直接使う）。
+# スマホを開いている間は出さない（表示の状態）ので、ここで足す。
 func _recipe_adjust_customer() -> String:
-	if _open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN \
-			or flow.runner.status != EventRunner.Status.WAITING_INPUT or _phone_mode or _pot_mode \
-			or _pending_group_choice or _pending_shortage_ev != null:
+	if _phone_mode:
 		return ""
-	var cur = flow.runner.current()
-	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST":
-		return ""
-	var customer_id := str(cur.get("customer", ""))
-	if not CustomerMemory.is_recordable(customer_id) or _is_current_mob_order():
-		return ""
-	return customer_id
+	return session.recipe_adjust_customer()
 
 
 ## ADJUST 中のボタン：「いつもの」（その客の直近の料理）と保存レシピ。椀が空のときだけ出す。
@@ -1343,29 +1283,16 @@ func _add_recipe_button(label: String, ingredients: Array, servings: int) -> voi
 		_on_recipe_apply_pressed.bind(ingredients.duplicate()), _recipe_row)
 
 
-## レシピ／「いつもの」のボタン。**具材ボタンを順に押したのと同じ処理**（_on_ingredient_selected）で
-## 1つずつ椀に足す＝在庫・鮮度の確認と消費は省略しない。全部出せると確かめてから適用する
-## （途中で止まって一部だけ入る状態を作らない）。傷んだ側は自動では使わない。椀が空のときだけ。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.apply_recipe() を直接使う）。
 func _on_recipe_apply_pressed(ingredients: Array) -> void:
-	var customer_id := _recipe_adjust_customer()
-	if customer_id == "" or not (_open.current_bowl.get("additions", []) as Array).is_empty():
+	if _phone_mode:
 		return
-	if not RecipeBook.can_apply(ingredients, _current_servings()):
-		return
-	for id in ingredients:
-		_on_ingredient_selected(str(id), false)
+	session.apply_recipe(ingredients)
 
 
-## 今、今作った椀をレシピに保存できるか：OPEN で、名前あり客の判定済みの椀（提供後。複数杯の各杯を含む）
-## が残っていて、追加が1つ以上ある間。**その客の最後の行まで**押せる（次の杯の椀・次の客で消える）。
+# UI準備Aの橋。テストを移したら削除（本番UIは session.can_save_recipe() を直接使う）。
 func _can_save_recipe_now() -> bool:
-	if _open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN or _phone_mode:
-		return false
-	var customer = _open.current_customer()
-	if customer == null or not CustomerMemory.is_recordable(str(customer)):
-		return false
-	var bowl: Dictionary = _open.current_bowl
-	return str(bowl.get("result", "")) != "" and not (bowl.get("additions", []) as Array).is_empty()
+	return not _phone_mode and session.can_save_recipe()
 
 
 ## 提供後の保存ボタン（段階：[レシピを保存] → 枠 → 名前）。名前は10.4.1の候補（椀のタグを含むものを先頭）。
@@ -1392,29 +1319,34 @@ func _add_recipe_save_buttons() -> void:
 				_on_recipe_save_pressed, _recipe_row)
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.start_recipe_save() を直接使う）。
 func _on_recipe_save_pressed() -> void:
-	if _can_save_recipe_now():
-		_recipe_save_stage = "slot"
-	_refresh()
+	if _phone_mode:
+		_refresh()
+		return
+	session.start_recipe_save()
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.select_recipe_slot() を直接使う）。
 func _on_recipe_slot_selected(slot: int) -> void:
-	if _can_save_recipe_now() and slot >= 0 and slot < RecipeBook.slot_count() and slot <= GameState.saved_recipes.size():
-		_recipe_save_slot = slot
-		_recipe_save_stage = "name"
-	_refresh()
+	if _phone_mode:
+		_refresh()
+		return
+	session.select_recipe_slot(slot)
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.select_recipe_name() を直接使う）。
 func _on_recipe_name_selected(recipe_name: String) -> void:
-	if _can_save_recipe_now() and _recipe_save_stage == "name":
-		RecipeBook.save(_recipe_save_slot, recipe_name, _open.current_bowl["additions"])
-	_recipe_save_stage = ""
-	_refresh()
+	if _phone_mode:
+		session.recipe_save_stage = ""
+		_refresh()
+		return
+	session.select_recipe_name(recipe_name)
 
 
+# UI準備Aの橋。テストを移したら削除（本番UIは session.cancel_recipe_save() を直接使う）。
 func _on_recipe_save_cancel_pressed() -> void:
-	_recipe_save_stage = ""
-	_refresh()
+	session.cancel_recipe_save()
 
 
 ## スマホのレシピタブ：保存レシピ（枠ごとの名前・タグ・具材）と、客ごとの「いつもの」。
