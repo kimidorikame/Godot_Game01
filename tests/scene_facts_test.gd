@@ -260,7 +260,7 @@ func run(t: SceneTree) -> int:
 	p7.session.next_event()
 	c.check("（前提）選択・事実・応えたかが残っている",
 		CustomerMemory.choices_today("thug") == { "message": "yes" } and _facts("thug").size() == 2)
-	c.check("朝へ戻せる", p7.retry_from_morning(2) and GameState.day_count == 2)
+	c.check("朝へ戻せる", p7.session.retry_from_morning(2) and GameState.day_count == 2)
 	c.check("再挑戦で、選択・事実・応えたか・来店記録が朝の状態へ戻る（その客の記録は無い）",
 		not GameState.customer_memory.has("thug") or (CustomerMemory.visits_of("thug").is_empty()
 			and _facts("thug").is_empty()))

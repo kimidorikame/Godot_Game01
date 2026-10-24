@@ -21,7 +21,7 @@ func _wake_panel(t: SceneTree, day: int, reputation: int = 65):
 
 func _start_open(panel) -> void:
 	GameState.phase = GameState.Phase.OPEN
-	panel._set_runner_for_phase(GameState.Phase.OPEN)
+	panel.session.set_runner_for_phase(GameState.Phase.OPEN)
 
 
 ## 次の客へ（_advance_open_queue_if_customer_done と同じく、進めてから読み込む）。
@@ -145,7 +145,7 @@ func run(t: SceneTree) -> int:
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
 	GameState.phase = GameState.Phase.OPEN
 	var numbers_before := _numbers()
-	p6._set_runner_for_phase(GameState.Phase.OPEN)
+	p6.session.set_runner_for_phase(GameState.Phase.OPEN)
 	c.check("衝突を前置しても数値は不変", _numbers() == numbers_before)
 	p6.session.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("CLOSEで火災を取り戻しても数値は不変（所持金・評判・在庫・鍋・DayPlan・帳簿）",
@@ -167,12 +167,12 @@ func run(t: SceneTree) -> int:
 	var p8 = _wake_panel(t, 6)
 	_start_open(p8)
 	c.check("（前提）衝突を再生した", p8.session.played_events == ["d6_clash"])
-	c.check("朝（Day6）へ戻せる", p8.retry_from_morning(6) and GameState.day_count == 6)
+	c.check("朝（Day6）へ戻せる", p8.session.retry_from_morning(6) and GameState.day_count == 6)
 	c.check("再挑戦：再生済みと前置の記録がリセットされる", p8.session.played_events.is_empty() and p8.session.slot_event_ids.is_empty())
 	_start_open(p8)
 	c.check("再挑戦後の営業でも、衝突がもう一度前置される（1回だけ）", _common_texts(p8.session.flow.runner.events) == [CLASH]
 		and p8.session.played_events == ["d6_clash"])
-	p8._on_new_run_pressed()
+	p8.session.new_run()
 	c.check("新しい周：再生済みはリセット（Day1）", p8.session.played_events.is_empty() and GameState.day_count == 1)
 	p8.free()
 

@@ -95,12 +95,12 @@ func run(t: SceneTree) -> int:
 	var p5 = _wake_panel(t, 3)
 	var first_events = _norm(p5.session.flow.runner.events)
 	GameState.day_count = 5   # 先へ進んだことにして、朝へ戻す
-	c.check("朝（Day3）へ戻せる", p5.retry_from_morning(3) and GameState.day_count == 3)
+	c.check("朝（Day3）へ戻せる", p5.session.retry_from_morning(3) and GameState.day_count == 3)
 	c.check("再挑戦：同じ朝のWAKEのイベント列が同一（ニュースも同じ）", _norm(p5.session.flow.runner.events) == first_events)
 	p5.session.pending_continue = GameState.morning_of(3)
-	p5._on_continue_pressed()
+	p5.session.continue_game()
 	c.check("続きから読み込んだ朝も同じ表示", _norm(p5.session.flow.runner.events) == first_events)
-	p5._on_new_run_pressed()
+	p5.session.new_run()
 	c.check("新しい周：Day1の朝のニュース（ストの見出し）",
 		GameState.day_count == 1 and _texts(p5.session.flow.runner.events).has("ニュース：第八码頭で夜間荷役がストに入った"))
 	p5.free()
@@ -122,7 +122,7 @@ func run(t: SceneTree) -> int:
 	c.check("DMはニュースと別の行（DM（…）：）", tab.contains("DM（市場の顔なじみ）：") and tab.contains("【仮】"))
 	# 再挑戦で戻した朝より後の日は見えない
 	GameState.day_count = 6
-	p6.retry_from_morning(2)
+	p6.session.retry_from_morning(2)
 	p6._phone_tab = "news"
 	var back_tab: String = p6._format_phone()
 	c.check("Day2の朝へ戻すと、Day3以降の分は見えない（Day1・Day2だけ）",

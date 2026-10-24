@@ -64,22 +64,22 @@ func run(t: SceneTree) -> int:
 	c.check("判定対象0杯ならQ=0とみなし、評判はround(50*0.7)=35になる",
 		GameState.reputation == 35, str(GameState.reputation))
 	c.check("_quality_scoreは分母0のとき例外を出さず0.0を返す",
-		panel._quality_score({}, 0) == 0.0)
+		panel.session.quality_score({}, 0) == 0.0)
 
 	# --- 3. judge:falseの杯("" キー)はQの分子・分母どちらにも影響しない ---
 	panel = _setup(t)
 	var with_unjudged := { "GREAT": 2, "GOOD": 0, "OK": 0, "BAD": 0, "": 100 }
 	var without_unjudged := { "GREAT": 2, "GOOD": 0, "OK": 0, "BAD": 0, "": 0 }
 	c.check("空文字キー(judge:false)はQの計算から除外される",
-		panel._quality_score(with_unjudged, 2) == panel._quality_score(without_unjudged, 2))
+		panel.session.quality_score(with_unjudged, 2) == panel.session.quality_score(without_unjudged, 2))
 
 	# --- 4. 3-5（DESIGN.md 10.3.7）：配達員3杯目(持ち帰り)もjudge:falseを外して
 	#        通常の注文にしたため、Day1のjudged_planned_cupsはplanned_cups(9)と
 	#        一致する(判定対象外の杯が無くなった) ---
 	panel = _setup(t)
-	panel._seed_initial_inventory()
+	panel.session.seed_initial_inventory()
 	GameState.phase = GameState.Phase.OPEN
-	panel._set_runner_for_phase(GameState.Phase.OPEN)
+	panel.session.set_runner_for_phase(GameState.Phase.OPEN)
 	c.check("Day1のjudged_planned_cupsは9", panel.session.log_judged_planned_cups == 9,
 		str(panel.session.log_judged_planned_cups))
 	c.check("planned_cupsとjudged_planned_cupsの差は0(判定対象外の杯が無い)",

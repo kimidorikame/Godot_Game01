@@ -106,7 +106,7 @@ func run(t: SceneTree) -> int:
 	var before_state := JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl])
 	for i in range(20):
 		p3._refresh()
-		p3._record_visible_event()
+		p3.session.record_visible_event()
 	var rng_after := randi()
 	seed(4242)
 	var rng_expected := randi()
@@ -142,7 +142,7 @@ func run(t: SceneTree) -> int:
 	_start_open(p6)
 	c.check("（前提）営業中でログが溜まっている", TalkLog.entries.size() >= 3, str(TalkLog.entries.size()))
 	var lines_first_day := TalkLog.entries.size()
-	c.check("朝（Day2）へ戻すとログは空から（朝の最初の行だけ）", p6.retry_from_morning(2) and TalkLog.entries.size() <= 3
+	c.check("朝（Day2）へ戻すとログは空から（朝の最初の行だけ）", p6.session.retry_from_morning(2) and TalkLog.entries.size() <= 3
 		and _texts()[0] == "……目が覚めた。まだ薄暗い店の奥。" and lines_first_day > TalkLog.entries.size())
 	p6.session.flow.force_phase(GameState.Phase.WAKE)
 	c.check("WAKE に入るたびに今日の分としてクリアされる", _texts()[0] == "……目が覚めた。まだ薄暗い店の奥。" and TalkLog.entries.size() <= 3)

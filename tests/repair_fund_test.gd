@@ -330,7 +330,7 @@ func run(t: SceneTree) -> int:
 	GameState.phase = GameState.Phase.CLOSE
 	RepairFund.contribute("sign", 30)
 	c.check("（前提）Day2の朝の記録があり、CLOSEで積んだ", GameState.morning_snapshots.has(2) and RepairFund.paid() == 30)
-	c.check("同じ日（Day2）の朝へ戻すと、その日に積んだ分は消える（累計0・看板0）", panel8.retry_from_morning(2)
+	c.check("同じ日（Day2）の朝へ戻すと、その日に積んだ分は消える（累計0・看板0）", panel8.session.retry_from_morning(2)
 		and RepairFund.paid() == 0 and RepairFund.target_paid("sign") == 0 and GameState.day_count == 2)
 	panel8.free()
 

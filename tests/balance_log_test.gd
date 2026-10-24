@@ -52,9 +52,9 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 1
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
-	panel._seed_initial_inventory()
+	panel.session.seed_initial_inventory()
 	GameState.phase = GameState.Phase.OPEN
-	panel._set_runner_for_phase(GameState.Phase.OPEN)
+	panel.session.set_runner_for_phase(GameState.Phase.OPEN)
 	# 3-5（DESIGN.md 10.3.3）：配達員3(1+1+1) + 宵の口港湾労働者2(day_overrides.mobs固定)
 	# + チンピラ1 + 夜半安宿受付2(day_overrides.mobs固定) + 老婆1 = 9
 	c.check("Day1のplanned_cupsは9", panel.session.log_planned_cups == 9, str(panel.session.log_planned_cups))
@@ -129,7 +129,7 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 1
 	var panel2 = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel2)
-	panel2._on_day_ending()
+	panel2.session.on_day_ending()
 	var rows := BalanceLog.read_all()
 	var parsed = rows.back() if not rows.is_empty() else null
 	c.check("balance_log.jsonlの最終行がパースできる", parsed is Dictionary, str(rows))

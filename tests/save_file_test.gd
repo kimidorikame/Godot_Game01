@@ -213,7 +213,7 @@ func run(t: SceneTree) -> int:
 	# 運営費が払えない朝（Day2）：ゲームオーバー。ファイルはDay1のまま・消えない
 	GameState.money = 50
 	GameState.day_count = 2
-	panel._set_runner_for_phase(GameState.Phase.WAKE)
+	panel.session.set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("運営費が払えないとゲームオーバー", GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("払えなかった朝はセーブへ書かない（Day1のまま・消えない）",
 		int(MorningSave.read_file().get("day", -1)) == 1)
@@ -225,7 +225,7 @@ func run(t: SceneTree) -> int:
 	c.check("セーブがある起動では最初のWAKEでも上書きしない",
 		int(MorningSave.read_file()["state"]["money"]) == 321 and int(MorningSave.read_file()["day"]) == 4)
 	c.check("[続きから]が押せる", not panel2._btn_continue.disabled)
-	panel2._on_continue_pressed()
+	panel2.session.continue_game()
 	c.check("続きから：日・評判・在庫が保存した朝のもの",
 		GameState.day_count == 4 and GameState.reputation == 47
 			and int(GameState.inventory.get("tofu", 0)) == 3 and GameState.dashi_units == 2)
@@ -245,9 +245,9 @@ func run(t: SceneTree) -> int:
 	# 読み込み直後の朝で詰んだとき：読み込んだ朝へ戻れる
 	GameState.money = 5
 	GameState.inventory["probe"] = 1
-	panel2._game_over("テスト用ゲームオーバー")
+	panel2.session.game_over("テスト用ゲームオーバー")
 	c.check("読み込み直後でも[同じ朝からやり直す]が押せる", not panel2._btn_retry.disabled)
-	c.check("読み込んだ朝へ再挑戦できる", panel2.retry_from_morning() and GameState.day_count == 4)
+	c.check("読み込んだ朝へ再挑戦できる", panel2.session.retry_from_morning() and GameState.day_count == 4)
 	c.check("再挑戦した朝は読み込んだ朝のDayPlan・所持金・在庫",
 		GameState.today_plan["slots"] == saved["state"]["today_plan"]["slots"]
 			and GameState.money == 321 - GameState.DAILY_OPERATING_COST
@@ -275,7 +275,7 @@ func run(t: SceneTree) -> int:
 	# --- 7. ゲームオーバーではセーブを消さない（最後の朝が残る＝次回の続きからが再挑戦になる） ---
 	var panel5 = _setup(t, 600, 1)
 	GameState.money = 10
-	panel5._game_over("テスト")
+	panel5.session.game_over("テスト")
 	c.check("ゲームオーバー後もセーブは残る", MorningSave.has_file() and not MorningSave.read_file().is_empty())
 
 	GameState.reset_for_new_game()

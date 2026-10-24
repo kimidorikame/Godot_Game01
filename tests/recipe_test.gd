@@ -143,7 +143,7 @@ func run(t: SceneTree) -> int:
 	c.check("（前提）Day2の朝の記録がある。その朝に保存レシピは無い", GameState.morning_snapshots.has(2) and GameState.saved_recipes.is_empty())
 	RecipeBook.save(0, "朝のあと", ["tofu", "offal"])
 	c.check("朝のあとに保存した", GameState.saved_recipes.size() == 1)
-	c.check("朝へ戻すと、その保存は消える", p4.retry_from_morning(2) and GameState.saved_recipes.is_empty())
+	c.check("朝へ戻すと、その保存は消える", p4.session.retry_from_morning(2) and GameState.saved_recipes.is_empty())
 	p4.free()
 
 	# --- 5. 「いつもの」の引き当て ---
@@ -295,7 +295,7 @@ func run(t: SceneTree) -> int:
 	p9._on_recipe_slot_selected(0)
 	var name_labels := _labels(_row_buttons(p9))
 	c.check("段階：名前（候補6つ＋やめる。椀のタグを含む候補が先頭）", name_labels.size() == 7 and name_labels[6] == "やめる")
-	p9._on_recipe_save_cancel_pressed()
+	p9.session.cancel_recipe_save()
 	c.check("やめると何も保存せず最初の段階へ", GameState.saved_recipes.is_empty() and p9.session.recipe_save_stage == "")
 	p9._on_recipe_save_pressed()
 	p9._on_recipe_slot_selected(0)

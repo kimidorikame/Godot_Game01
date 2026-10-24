@@ -143,15 +143,15 @@ func run(t: SceneTree) -> int:
 		"water_used": 1, "dashi_used": 0, "closed_early": false,
 		"spend_by_category": { "daily_cost": 65, "prep": 80 } }
 	var p5b = _setup(t, 2, 600)
-	var with_feature: String = p5b._format_day_summary(entry)
+	var with_feature: String = p5b.session.format_day_summary(entry)
 	Rules._cache.erase("repair_fund")
-	var without_feature: String = p5b._format_day_summary(entry)
+	var without_feature: String = p5b.session.format_day_summary(entry)
 	Rules._cache["repair_fund"] = fund_config
 	c.check("基金を積まなかった日のサマリーは、基金の機能が無い場合と1文字も変わらない",
 		with_feature == without_feature and not with_feature.contains("屋台") and not with_feature.contains("修繕基金"))
 	c.check("積まない間（累計0）は STATE VIEWER に fund の行を出さない", not p5b._format_game_state().contains("fund("))
 	c.check("支出内訳の表示名：fund は修繕基金（末尾）",
-		p5b._format_spend_by_category({ "daily_cost": 65, "fund": 30 }) == "支出内訳: 運営費65／修繕基金30")
+		p5b.session._format_spend_by_category({ "daily_cost": 65, "fund": 30 }) == "支出内訳: 運営費65／修繕基金30")
 	p5b.free()
 
 	# --- 6. 結果画面 1枚目：累計が1以上のときだけ各対象の進捗の行。累計0は従来と同一 ---
@@ -238,17 +238,17 @@ func run(t: SceneTree) -> int:
 	selectors[1].pressed.emit()   # 棚を選ぶ
 	c.check("棚を選ぶと「▶」が移り、状態の文の積む先も棚になる",
 		_buttons(p11).filter(func(b): return b.text == "積む先：▶棚 0/200").size() == 1 and p11._runner_label.text.contains("積む先: 棚")
-			and p11._fund_selected() == "shelf")
+			and p11.session.fund_selected() == "shelf")
 	_press(p11, 30)
 	c.check("選んだ対象（棚）に積まれ、帳簿の ref は shelf・看板は0のまま", RepairFund.target_paid("shelf") == 30
 		and RepairFund.target_paid("sign") == 0 and GameState.ledger.filter(func(e): return e["category"] == "fund" and e["ref"] == "shelf").size() == 1)
 	p11._on_fund_target_selected("owner")
-	c.check("未解放の名義は選べない（選択は変わらない）", p11._fund_selected() == "shelf")
+	c.check("未解放の名義は選べない（選択は変わらない）", p11.session.fund_selected() == "shelf")
 	p11._on_fund_target_selected("nothing")
-	c.check("存在しない対象も選べない", p11._fund_selected() == "shelf")
+	c.check("存在しない対象も選べない", p11.session.fund_selected() == "shelf")
 	c.check("選択は保存の項目ではない（朝の保存に入らない）", not GameState.to_dict().has("fund_target") and MorningSave.VERSION == 6)
 	p11.session.flow.advance_phase()   # CLOSE → NEXT_DAY
-	c.check("フェーズが替わると選択は消える（既定に戻る）", p11.session.fund_target == "" and p11._fund_selected() == "sign")
+	c.check("フェーズが替わると選択は消える（既定に戻る）", p11.session.fund_target == "" and p11.session.fund_selected() == "sign")
 	p11.free()
 	# 選んだ対象が修繕済みになったら、既定（最初の未修繕の対象）へ戻る
 	var p11b = _setup(t, 4, 700)
@@ -258,11 +258,11 @@ func run(t: SceneTree) -> int:
 	p11b._on_fund_target_selected("awning")
 	_press(p11b, 30)
 	c.check("雨よけを150/200まで積んでも修繕済みでなければ、選択は雨よけのまま", RepairFund.target_paid("awning") == 150
-		and p11b._fund_selected() == "awning")
+		and p11b.session.fund_selected() == "awning")
 	_add_fund(3, 50, "awning")
 	p11b._refresh()
 	c.check("選んだ対象が修繕済みになると、選択は最初の未修繕の対象（看板）に戻り、修繕済みの対象は選べない",
-		RepairFund.is_repaired("awning") and p11b._fund_selected() == "sign"
+		RepairFund.is_repaired("awning") and p11b.session.fund_selected() == "sign"
 			and _buttons(p11b).filter(func(b): return b.text == "積む先：雨よけ 200/200 修繕済み")[0].disabled)
 	p11b.free()
 	# 最終日は翌日が無いので「明日の仕入れ分」の行は出ない

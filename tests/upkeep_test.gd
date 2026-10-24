@@ -52,7 +52,7 @@ func run(t: SceneTree) -> int:
 	var panel3 = _setup(t, 140, 1)
 	c.check("WAKE後の所持金は140-75=65", GameState.money == 65, str(GameState.money))
 	GameState.phase = GameState.Phase.PREP
-	panel3._set_runner_for_phase(GameState.Phase.PREP)
+	panel3.session.set_runner_for_phase(GameState.Phase.PREP)
 	c.check("運営費差し引き後(65<80)なので端材屋ルートになる", panel3.session.scraps_base)
 
 	# --- 5. 運営費未満ならWAKEでゲームオーバー。理由テキストは水道代・場所代と同じ形式 ---
@@ -65,7 +65,7 @@ func run(t: SceneTree) -> int:
 	var panel4 = _setup(t, 300, 1)
 	GameState.money = 50
 	GameState.day_count = 2
-	panel4._set_runner_for_phase(GameState.Phase.WAKE)
+	panel4.session.set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("運営費(75)未満ならゲームオーバーになる", GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("支払えなかったので所持金は変化しない", GameState.money == 50)
 	var reason: String = str(panel4.session.flow.runner.current().get("text", ""))

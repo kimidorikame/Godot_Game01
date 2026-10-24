@@ -33,16 +33,16 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 1
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
-	panel._on_day_ending()
+	panel.session.on_day_ending()
 	c.check("Day1を終えるとログは1行・attempt=1・run_id入り",
 		BalanceLog.read_all().size() == 1 and int(BalanceLog.read_all()[0]["attempt"]) == 1
 			and str(BalanceLog.read_all()[0]["run_id"]) == run_a)
 	c.check("（前提）累計day_recordsは1件", GameState.day_records.size() == 1)
 
-	c.check("朝（Day1）から再挑戦できる", panel.retry_from_morning(1) and GameState.day_count == 1)
+	c.check("朝（Day1）から再挑戦できる", panel.session.retry_from_morning(1) and GameState.day_count == 1)
 	c.check("再挑戦で累計は朝の値（空）に戻る＝ファイルと違って二重にならない", GameState.day_records.is_empty())
 	c.check("再挑戦でattemptが進み、run_idは同じ", BalanceLog.attempt == 2 and BalanceLog.run_id == run_a)
-	panel._on_day_ending()
+	panel.session.on_day_ending()
 	var rows := BalanceLog.read_all()
 	c.check("同じ日をやり直すと、同じdayの行がattempt違いで2行（行は消えない）",
 		rows.size() == 2 and int(rows[0]["day"]) == 1 and int(rows[1]["day"]) == 1
@@ -58,26 +58,26 @@ func run(t: SceneTree) -> int:
 		latest.size() == 1 and int(latest[0]["attempt"]) == 2, str(latest))
 
 	# --- 3. 結果画面からの再挑戦（Day1の朝へ・最後の朝へ）も同じ周の次の挑戦になる ---
-	panel._on_run_again_pressed()
+	panel.session.run_again()
 	c.check("[もう一度]も同じ周の次の挑戦（attempt=3）", BalanceLog.attempt == 3 and BalanceLog.run_id == run_a)
 	c.check("戻れない再挑戦（記録の無い日）はattemptを進めない",
-		not panel.retry_from_morning(9) and BalanceLog.attempt == 3)
+		not panel.session.retry_from_morning(9) and BalanceLog.attempt == 3)
 
 	# --- 4. 新しい周・続きから：run_idが新しくなり、attemptは1に戻る ---
-	panel._on_new_run_pressed()
+	panel.session.new_run()
 	var run_b := BalanceLog.run_id
 	c.check("[新しい周]でrun_idが新しくなりattemptは1", run_b != run_a and BalanceLog.attempt == 1)
-	panel._on_day_ending()
+	panel.session.on_day_ending()
 	rows = BalanceLog.read_all()
 	c.check("新しい周の行は別のrun_idで、前の周の行と混ざらない",
 		rows.size() == 3 and str(rows[2]["run_id"]) == run_b and int(rows[2]["attempt"]) == 1
 			and BalanceLog.latest_per_day(rows, run_a).size() == 1
 			and BalanceLog.latest_per_day(rows, run_b).size() == 1)
 	panel.session.pending_continue = GameState.morning_of(1).duplicate(true)
-	panel.retry_from_morning(1)   # attempt=2にしておく
+	panel.session.retry_from_morning(1)   # attempt=2にしておく
 	c.check("（前提）attemptが2", BalanceLog.attempt == 2)
 	panel.session.pending_continue = GameState.morning_of(1).duplicate(true)
-	panel._on_continue_pressed()
+	panel.session.continue_game()
 	c.check("[続きから]は別の周：run_idが新しくなりattemptは1に戻る",
 		BalanceLog.run_id != run_b and BalanceLog.attempt == 1, BalanceLog.run_id)
 

@@ -298,8 +298,8 @@ func run(t: SceneTree) -> int:
 	c.check("（前提）朝より後に老婆の来店・好物の開示が入った",
 		GameState.known_favorite_ids() == ["thug", "granny"] and CustomerMemory.visits_of("granny").size() == 1)
 	GameState.money = 0
-	panel6._game_over("テスト用ゲームオーバー")
-	c.check("再挑戦できる", panel6.retry_from_morning())
+	panel6.session.game_over("テスト用ゲームオーバー")
+	c.check("再挑戦できる", panel6.session.retry_from_morning())
 	c.check("戻した朝より後の来店記録を持ち越さない（老婆の来店・記録が無い）",
 		not GameState.customer_memory.has("granny") or CustomerMemory.visits_of("granny").is_empty())
 	c.check("戻した朝より後の好物の開示を持ち越さない（知ったのはチンピラだけ）",

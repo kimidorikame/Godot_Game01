@@ -124,7 +124,7 @@ func run(t: SceneTree) -> int:
 	var p6 = _setup(t)
 	p6.session.queue_unserved_exit()
 	c.check("（前提）積んだ", not p6.session.pending_close_lines.is_empty())
-	p6._reset_transient_panel_state()
+	p6.session.reset_transient_state()
 	c.check("画面側の一時状態のリセットで消える", p6.session.pending_close_lines.is_empty() and not p6.session.declined_now)
 	p6.free()
 

@@ -29,7 +29,7 @@ func _play_to_result(panel, start_day: int) -> void:
 		if d > start_day:
 			GameState.day_count = d
 			GameState.money = 1000 + d
-			panel._set_runner_for_phase(GameState.Phase.WAKE)
+			panel.session.set_runner_for_phase(GameState.Phase.WAKE)
 		if d < GameState.FINAL_DAY:
 			GameState.record_day({ "day": d, "served_cups": d, "planned_cups": d,
 				"judged_planned_cups": d, "quality_counts": { "GOOD": d },
@@ -107,7 +107,7 @@ func run(t: SceneTree) -> int:
 	c.check("GAME_OVER用の[同じ朝からやり直す]はRESULTでは押せない", panel._btn_retry.disabled)
 
 	# --- 4. もう一度（Day1の朝から）：Day1の朝・累計も戻る。直後に詰んでもDay1へ戻る ---
-	panel._on_run_again_pressed()
+	panel.session.run_again()
 	c.check("もう一度：Day1のWAKE", GameState.day_count == 1 and GameState.phase == GameState.Phase.WAKE)
 	c.check("もう一度：所持金はDay1の朝の値（600）から運営費後",
 		GameState.money == 600 - daily, str(GameState.money))
@@ -119,9 +119,9 @@ func run(t: SceneTree) -> int:
 			and GameState.today_plan["mob_instances"] == day1_env["state"]["today_plan"]["mob_instances"])
 	c.check("もう一度：選択肢の行は隠れる", not panel._result_row.visible)
 	GameState.money = 0
-	panel._game_over("テスト用ゲームオーバー")
+	panel.session.game_over("テスト用ゲームオーバー")
 	c.check("もう一度の直後に詰んでも、再挑戦はDay1の朝へ戻る（最後の朝へ飛ばない）",
-		panel.retry_from_morning() and GameState.day_count == 1
+		panel.session.retry_from_morning() and GameState.day_count == 1
 			and GameState.money == 600 - daily
 			and _keys(GameState.morning_snapshots) == [1])
 
@@ -129,7 +129,7 @@ func run(t: SceneTree) -> int:
 	_play_to_result(panel, 1)
 	c.check("（前提）やり直した周も最終日のRESULTへ入る",
 		GameState.phase == GameState.Phase.RESULT and GameState.day_records.size() == 7)
-	panel._on_run_again_pressed()
+	panel.session.run_again()
 	c.check("2回目のもう一度：Day1・同じ所持金・累計空・記録はDay1だけ",
 		GameState.day_count == 1 and GameState.money == 600 - daily
 			and GameState.day_records.is_empty() and _keys(GameState.morning_snapshots) == [1])
@@ -139,7 +139,7 @@ func run(t: SceneTree) -> int:
 	# --- 6. 最後の朝からやり直す → その後にもう一度 ---
 	_play_to_result(panel, 1)
 	var day7_env: Dictionary = GameState.morning_of(7)
-	panel._on_last_morning_pressed()
+	panel.session.last_morning()
 	c.check("最後の朝：最終日のWAKE・所持金は最終日の朝の値(1007)から運営費後",
 		GameState.day_count == 7 and GameState.phase == GameState.Phase.WAKE
 			and GameState.money == 1007 - daily, str(GameState.money))
@@ -152,30 +152,30 @@ func run(t: SceneTree) -> int:
 	_play_to_result(panel, 7)
 	c.check("（前提）最後の朝からやり直して最終日を終えるとまたRESULT（7日分・二重に数えない）",
 		GameState.phase == GameState.Phase.RESULT and GameState.day_records.size() == 7)
-	panel._on_run_again_pressed()
+	panel.session.run_again()
 	c.check("最後の朝の後のもう一度：Day1・累計空・記録はDay1だけ",
 		GameState.day_count == 1 and GameState.money == 600 - daily
 			and GameState.day_records.is_empty() and _keys(GameState.morning_snapshots) == [1])
 
 	# --- 7. retry_from_morning(day)：指定した日より後の朝の記録を捨てる ---
 	_play_to_result(panel, 1)
-	var ok3: bool = panel.retry_from_morning(3)
+	var ok3: bool = panel.session.retry_from_morning(3)
 	c.check("retry_from_morning(3)でDay3の朝へ戻れる", ok3 and GameState.day_count == 3)
 	c.check("Day3へ戻すと、Day4〜7の朝の記録は捨てられる（1〜3だけ）",
 		_keys(GameState.morning_snapshots) == [1, 2, 3], str(_keys(GameState.morning_snapshots)))
 	c.check("Day3の朝の累計は2日分", GameState.day_records.size() == 2)
 	GameState.money = 0
-	panel._game_over("テスト用ゲームオーバー")
+	panel.session.game_over("テスト用ゲームオーバー")
 	c.check("Day3へ戻した直後に詰んでも、再挑戦はDay3の朝（Day7へ飛ばない）",
-		panel.retry_from_morning() and GameState.day_count == 3)
+		panel.session.retry_from_morning() and GameState.day_count == 3)
 	c.check("存在しない日（9）を指定すると何もしない",
-		not panel.retry_from_morning(9) and GameState.day_count == 3)
+		not panel.session.retry_from_morning(9) and GameState.day_count == 3)
 
 	# --- 8. 新しい周：全て初期化。その後の再挑戦も新しい周の朝へ戻る ---
 	_play_to_result(panel, 3)
 	var restarted_before: int = fired["restarted"]
 	GameState.reputation = 77
-	panel._on_new_run_pressed()
+	panel.session.new_run()
 	c.check("新しい周：Day1のWAKE・所持金は初期現金から運営費後・評判は初期値",
 		GameState.day_count == 1 and GameState.phase == GameState.Phase.WAKE
 			and GameState.money == GameState.INITIAL_MONEY - daily
@@ -189,9 +189,9 @@ func run(t: SceneTree) -> int:
 		str(GameState.ledger))
 	c.check("新しい周：game_restartedが1回発火する", fired["restarted"] == restarted_before + 1)
 	GameState.money = 0
-	panel._game_over("テスト用ゲームオーバー")
+	panel.session.game_over("テスト用ゲームオーバー")
 	c.check("新しい周の後の再挑戦は、新しい周のDay1の朝へ戻る（前の周のDay7ではない）",
-		panel.retry_from_morning() and GameState.day_count == 1
+		panel.session.retry_from_morning() and GameState.day_count == 1
 			and GameState.money == GameState.INITIAL_MONEY - daily
 			and GameState.day_records.is_empty() and _keys(GameState.morning_snapshots) == [1])
 
@@ -206,7 +206,7 @@ func run(t: SceneTree) -> int:
 	c.check("[最後の朝][新しい周]は押せる", not panel._btn_last_morning.disabled
 		and not panel._btn_new_run.disabled)
 	var day_before: int = GameState.day_count
-	c.check("Day1を指定しても何もしない", not panel.retry_from_morning(1) and GameState.day_count == day_before)
+	c.check("Day1を指定しても何もしない", not panel.session.retry_from_morning(1) and GameState.day_count == day_before)
 
 	# --- 10. RESULT以外では選択肢の行は隠れている ---
 	var panel2 = _setup(t, 600, 1)
@@ -217,14 +217,14 @@ func run(t: SceneTree) -> int:
 	var over_fired := { "restarted": 0 }
 	over.session.flow.game_restarted.connect(func(): over_fired["restarted"] += 1)
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
+	over.session.game_over("テスト用ゲームオーバー")
 	c.check("GAME_OVERでは選択肢の行が見える", over._result_row.visible)
 	c.check("GAME_OVER（Day1の記録あり）：[直近の朝][Day1の朝から][新しい周]と仮の[同じ朝から]が押せる",
 		not over._btn_last_morning.disabled and not over._btn_run_again.disabled
 			and not over._btn_new_run.disabled and not over._btn_retry.disabled and over._btn_end.disabled)
 	c.check("GAME_OVER：Day1の記録があるとき[Day1の朝から]の文面は通常のもの",
 		over._btn_run_again.text.contains("Day1の客・需要のみ同じ"), over._btn_run_again.text)
-	over._on_run_again_pressed()
+	over.session.run_again()
 	c.check("GAME_OVER→Day1の朝から：Day1のWAKE・運営費後の現金・GAME_OVERの理由は消える",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
 			and GameState.money == GameState.INITIAL_MONEY - daily and over.session.game_over_reason == "",
@@ -237,20 +237,20 @@ func run(t: SceneTree) -> int:
 	GameState.money = 700
 	GameState.record_morning(MorningSave.capture("昨日の一言"))
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
+	over.session.game_over("テスト用ゲームオーバー")
 	c.check("GAME_OVER（Day1の記録なし）：[Day1の朝から]も押せる（出口を塞がない）",
 		not over._btn_run_again.disabled and not over._btn_last_morning.disabled
 			and not over._btn_new_run.disabled)
 	c.check("GAME_OVER（Day1の記録なし）：新しい周と同じ動作だと文面で分かる",
 		over._btn_run_again.text.contains("新しい周と同じ") and over._btn_run_again.tooltip_text != "",
 		over._btn_run_again.text)
-	over._on_last_morning_pressed()
+	over.session.last_morning()
 	c.check("GAME_OVER→直近の朝：Day2の朝へ戻る", GameState.phase == GameState.Phase.WAKE
 		and GameState.day_count == 2)
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
+	over.session.game_over("テスト用ゲームオーバー")
 	var restarts_before: int = over_fired["restarted"]
-	over._on_run_again_pressed()
+	over.session.run_again()
 	c.check("Day1の記録なしの[Day1の朝から]は新しい周になる（Day1・初期値・累計空・朝の記録は新Day1だけ）",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
 			and GameState.money == GameState.INITIAL_MONEY - daily
@@ -261,25 +261,25 @@ func run(t: SceneTree) -> int:
 	# 朝の記録がまったく無い：[直近の朝]は押せないが、Day1の朝から・新しい周は押せる
 	GameState.morning_snapshots.clear()
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
+	over.session.game_over("テスト用ゲームオーバー")
 	c.check("GAME_OVER（記録が空）：[直近の朝][同じ朝から]は押せず、[Day1の朝から][新しい周]は押せる",
 		over._btn_last_morning.disabled and over._btn_retry.disabled
 			and not over._btn_run_again.disabled and not over._btn_new_run.disabled)
-	over._on_run_again_pressed()
+	over.session.run_again()
 	c.check("GAME_OVER（記録が空）→Day1の朝から：新しい周のDay1のWAKE",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
 			and _keys(GameState.morning_snapshots) == [1])
 	GameState.morning_snapshots.clear()
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
-	over._on_new_run_pressed()
+	over.session.game_over("テスト用ゲームオーバー")
+	over.session.new_run()
 	c.check("GAME_OVER（記録が空）→新しい周：新しい周のDay1のWAKE",
 		GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
 			and _keys(GameState.morning_snapshots) == [1])
 
 	# スマホ中は押せない
 	GameState.money = 0
-	over._game_over("テスト用ゲームオーバー")
+	over.session.game_over("テスト用ゲームオーバー")
 	over._phone_mode = true
 	over._refresh()
 	c.check("GAME_OVER中でもスマホ画面を開いている間は出口を押せない",

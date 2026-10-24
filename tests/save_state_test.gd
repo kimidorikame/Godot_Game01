@@ -186,7 +186,7 @@ func run(t: SceneTree) -> int:
 	# 運営費が払えない朝（Day2）：ゲームオーバーになり、その朝は記録されない。DayPlanは残る
 	GameState.money = 50
 	GameState.day_count = 2
-	panel._set_runner_for_phase(GameState.Phase.WAKE)
+	panel.session.set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("運営費が払えないWAKEはゲームオーバーになる", GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("払えなかった朝は記録されない（Day1の朝だけが残る）",
 		GameState.morning_snapshots.size() == 1 and GameState.morning_snapshots.has(1))
@@ -199,7 +199,7 @@ func run(t: SceneTree) -> int:
 	c.check("ゲームオーバーでは仮ボタンが押せる",
 		not panel._btn_retry.disabled, "disabled=%s" % str(panel._btn_retry.disabled))
 	var before_plan: Dictionary = (rec["state"]["today_plan"] as Dictionary).duplicate(true)
-	var ok: bool = panel.retry_from_morning()
+	var ok: bool = panel.session.retry_from_morning()
 	c.check("retry_from_morningはtrueを返す", ok)
 	c.check("戻った先の日・フェーズはDay1のWAKE",
 		GameState.day_count == 1 and GameState.phase == GameState.Phase.WAKE)
@@ -221,15 +221,15 @@ func run(t: SceneTree) -> int:
 	# --- 7. build()を再実行しない：封筒のslotsを目印に書き換え、戻した後も残っていること ---
 	var panel2 = _setup(t, 300, 3)
 	GameState.reputation = 50
-	panel2._set_runner_for_phase(GameState.Phase.WAKE)   # 評判を変えたのでもう一度Day3の朝を記録
+	panel2.session.set_runner_for_phase(GameState.Phase.WAKE)   # 評判を変えたのでもう一度Day3の朝を記録
 	var day3: Dictionary = GameState.morning_snapshots[3]
 	day3["state"]["today_plan"]["slots"][0]["name"] = "SENTINEL"
 	var customers_before := _customers(day3["state"]["today_plan"])
 	GameState.money = 0
 	GameState.inventory["probe"] = 1
 	GameState.today_plan["slots"] = []
-	panel2._game_over("テスト用ゲームオーバー")
-	var ok2: bool = panel2.retry_from_morning()
+	panel2.session.game_over("テスト用ゲームオーバー")
+	var ok2: bool = panel2.session.retry_from_morning()
 	c.check("Day3の朝へ戻れる", ok2 and GameState.day_count == 3)
 	c.check("DayPlanner.build()は再実行されない（目印が残る）",
 		str(GameState.today_plan["slots"][0]["name"]) == "SENTINEL")
@@ -244,24 +244,24 @@ func run(t: SceneTree) -> int:
 	GameState.money = 10
 	GameState.inventory["probe"] = 5
 	Ledger.record("market", -30)
-	panel3._game_over("所持金が足りない。")
+	panel3.session.game_over("所持金が足りない。")
 	for round in [1, 2]:
-		c.check("ゲームオーバー（%d回目）からDay1の朝へ戻れる" % round, panel3.retry_from_morning())
+		c.check("ゲームオーバー（%d回目）からDay1の朝へ戻れる" % round, panel3.session.retry_from_morning())
 		c.check("%d回目：所持金が朝の値＋運営費後に戻る" % round,
 			GameState.money == morning_money - GameState.DAILY_OPERATING_COST, str(GameState.money))
 		c.check("%d回目：日中の変更（在庫・market記帳）が消えている" % round,
 			not GameState.inventory.has("probe") and _count("market") == 0)
 		GameState.money = 10
-		panel3._game_over("所持金が足りない。")
+		panel3.session.game_over("所持金が足りない。")
 
 	# --- 9. 前日成績の一言も、戻った朝の先頭に再表示される ---
 	var panel4 = _setup(t, 600, 2)
 	panel4.session.last_day_summary_text = "昨日の成績の一言"
-	panel4._set_runner_for_phase(GameState.Phase.WAKE)
+	panel4.session.set_runner_for_phase(GameState.Phase.WAKE)
 	c.check("朝の先頭に前日の一言が出る",
 		str(panel4.session.flow.runner.current().get("text", "")) == "昨日の成績の一言")
-	panel4._game_over("テスト")
-	panel4.retry_from_morning()
+	panel4.session.game_over("テスト")
+	panel4.session.retry_from_morning()
 	c.check("戻った朝の先頭にも前日の一言が出る",
 		str(panel4.session.flow.runner.current().get("text", "")) == "昨日の成績の一言")
 	c.check("一言は一度だけ消費される（保存した封筒には残る）",
@@ -272,22 +272,22 @@ func run(t: SceneTree) -> int:
 	var panel5 = _setup(t, 600, 1)
 	GameState.morning_snapshots.clear()
 	GameState.money = 123
-	c.check("朝の記録が無ければretry_from_morningはfalse", not panel5.retry_from_morning())
+	c.check("朝の記録が無ければretry_from_morningはfalse", not panel5.session.retry_from_morning())
 	c.check("戻る先が無ければ状態は変わらない", GameState.money == 123)
 	GameState.morning_snapshots[1] = { "version": 99 }
-	c.check("壊れた封筒ならretry_from_morningはfalse", not panel5.retry_from_morning())
+	c.check("壊れた封筒ならretry_from_morningはfalse", not panel5.session.retry_from_morning())
 	c.check("壊れた封筒では状態は変わらない", GameState.money == 123)
 
 	# --- 10b. 4-2：再挑戦で1日の記録（day_records）が二重に数えられない ---
 	var panel7 = _setup(t, 600, 1)
 	c.check("朝のday_recordsは空（Day1の朝）", GameState.day_records.is_empty())
-	panel7._on_day_ending()   # Day1の終わりの記録
+	panel7.session.on_day_ending()   # Day1の終わりの記録
 	c.check("Day1の終わりに1件入る", GameState.day_records.size() == 1)
 	GameState.money = 5
-	panel7._game_over("テスト")
-	panel7.retry_from_morning()   # Day1の朝へ戻る（記録は朝の値＝空）
+	panel7.session.game_over("テスト")
+	panel7.session.retry_from_morning()   # Day1の朝へ戻る（記録は朝の値＝空）
 	c.check("Day1の朝へ戻ると、Day1の記録は戻る（空）", GameState.day_records.is_empty())
-	panel7._on_day_ending()
+	panel7.session.on_day_ending()
 	c.check("やり直してもう一度終わらせても1件のまま（二重に数えない）",
 		GameState.day_records.size() == 1 and int(GameState.day_records[0]["day"]) == 1)
 

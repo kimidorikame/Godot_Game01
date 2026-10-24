@@ -11,7 +11,7 @@ func _setup(t: SceneTree, money: int, day: int = 3):
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)   # _ready()が自動でinitial_inventory()を積む
 	GameState.phase = GameState.Phase.PREP
-	panel._set_runner_for_phase(GameState.Phase.PREP)
+	panel.session.set_runner_for_phase(GameState.Phase.PREP)
 	return panel
 
 

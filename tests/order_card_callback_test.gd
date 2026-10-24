@@ -148,8 +148,8 @@ func run(t: SceneTree) -> int:
 	c.check("今日の来店（BAD）があっても、前回は前日のGOODを読む（良の2行）",
 		_greets(Day1Events.customer_events("officer"))[0] == "良1")
 	GameState.money = 0
-	panel_r._game_over("テスト用ゲームオーバー")
-	c.check("再挑戦できる", panel_r.retry_from_morning())
+	panel_r.session.game_over("テスト用ゲームオーバー")
+	c.check("再挑戦できる", panel_r.session.retry_from_morning())
 	c.check("再挑戦で今日の来店が消え、前回は前日のGOODのまま",
 		CustomerMemory.visits_of("officer").size() == 1
 			and int(CustomerMemory.previous_visit("officer")["day"]) == 1
