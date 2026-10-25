@@ -62,6 +62,11 @@ var policy_label := ""   # 結果に出す名前（下限版は *_lower）
 var lower_only := false
 var info_mode := "forecast"
 var improvise := false   # "visible_improvise" のとき：欠けた軸（味・具）をほかの在庫で補う
+## "levels"（情報量の実験。UI準備D）：補う版を土台に、仕入れの必要数のうち「前もって知っている割合」を変える（下の levels_need）。
+var levels_on := false
+var level_p_reg := 1.0      # 常連（名前あり客）のタグを前もって知っている割合（0〜1）
+var level_p_mob := 1.0      # モブのタグを前もって知っている割合
+var level_forecast_target := false   # 見込み杯数（仕込みの大きさ）も予報の値にする（確認用）
 ## v3（visible）の「自分が受けた注文」の記録：夜ごとの { tags: { タグ: 杯数 }, cups }。ADJUSTで見た注文（注文カード）から数える。
 var seen_nights: Array = []
 var night_tags: Dictionary = {}
@@ -106,13 +111,21 @@ func run(t: SceneTree) -> void:
 	if only.has("all"):
 		only = []
 	info_mode = str(args[6]) if args.size() > 6 else "forecast"
-	if not ["forecast", "visible", "visible_improvise"].has(info_mode):
+	if not ["forecast", "visible", "visible_improvise", "levels"].has(info_mode):
 		push_error("unknown info: " + info_mode)
 		return
 	var info_label := info_mode
 	improvise = info_mode == "visible_improvise"
 	if improvise:
 		info_mode = "visible"
+	levels_on = info_mode == "levels"
+	if levels_on:
+		# 情報量の実験：補う版（visible_improvise）が土台。引数 [7]＝常連の割合（%）、[8]＝モブの割合（%）、[9]＝"forecast_target" なら見込み杯数も予報
+		improvise = true
+		info_mode = "visible"
+		level_p_reg = float(args[7]) / 100.0 if args.size() > 7 else 1.0
+		level_p_mob = float(args[8]) / 100.0 if args.size() > 8 else 1.0
+		level_forecast_target = args.size() > 9 and str(args[9]) == "forecast_target"
 	reach_name = str(args[4]) if args.size() > 4 else "default"
 	if reach_name == "reach_true":
 		tier_reach = TIER_REACH_TRUE
@@ -146,6 +159,8 @@ func run(t: SceneTree) -> void:
 		"policies": policies, "runs": results, "info_mode": info_label }
 	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
 	output["reach"] = reach_name
+	if levels_on:
+		output["info_levels"] = { "p_regular": level_p_reg, "p_mob": level_p_mob, "forecast_target": level_forecast_target }
 	output["tier_log"] = tier_log
 	output["water_stop_log"] = water_stop_log
 	output["unserved_log"] = unserved_log
@@ -425,6 +440,8 @@ func choose_tier() -> String:
 
 
 func target_cups() -> int:
+	if levels_on and level_forecast_target:
+		return int(Forecast.total()["high"])
 	if info_mode == "visible":
 		return visible_target()
 	return int(Forecast.total()["high"])
@@ -474,6 +491,56 @@ func visible_need(target: int) -> Dictionary:
 	for tag in tag_cups:
 		need[tag] = ceili(float(target) * float(tag_cups[tag]) / float(total))
 	return need
+
+
+## 情報量の実験（UI準備D）：仕入れの必要数を、v2（旧予報の上限案のタグ別必要数）とv3（前の晩までに受けた注文のタグの割合）の混ぜ合わせにする。
+## 旧予報の必要数の1単位ごと（タグ×番号。常連の分とモブの分）に、確率 p（常連は level_p_reg、モブは level_p_mob）で「前もって知っている」とする。
+## 知っている単位はそのまま数え、知らない分はv3の見積りの同じ割合で置き換える：
+##   need[tag] = 知っている単位の数 ＋ ceil(v3の見積り[tag] × 知らない単位の数 ÷ 旧予報の必要数[tag])
+## 旧予報の必要数が0のタグ（v3の見積りには出る）は、知らない割合（1−p。常連・モブの単位数で重みづけ）だけ見積りを残す。
+## p＝0 → v3の補う版と同じ、p＝1 → 旧予報の必要数そのもの。単位ごとの当たりは専用の決まった値（シード・日・グループ・タグ・番号のハッシュ）で、
+## ゲーム本体の乱数（seed()）には触れず、同じ周・同じ日なら p を上げるほど「知っている」が増える一方になる（単調）。
+func levels_need(target: int) -> Dictionary:
+	var full: Dictionary = (Forecast.cases().back() as Dictionary)["required"]
+	var regular: Dictionary = Forecast.required_estimated(0)   # 名前あり客の分（モブの割り振りを足す前）
+	var estimate: Dictionary = visible_need(target)
+	var total_units := 0
+	var regular_units := 0
+	for tag in full:
+		total_units += int(full[tag])
+		regular_units += mini(int(regular.get(tag, 0)), int(full[tag]))
+	var mob_units := total_units - regular_units
+	var p_all := (level_p_reg * regular_units + level_p_mob * mob_units) / float(maxi(total_units, 1))
+	var tags := {}
+	for tag in full:
+		tags[tag] = true
+	for tag in estimate:
+		tags[tag] = true
+	var need := {}
+	for tag in tags:
+		var total_t := int(full.get(tag, 0))
+		if total_t <= 0:
+			var rest := ceili(float(estimate.get(tag, 0)) * (1.0 - p_all))
+			if rest > 0:
+				need[tag] = rest
+			continue
+		var regular_t := mini(int(regular.get(tag, 0)), total_t)
+		var known := 0
+		for k in range(regular_t):
+			if info_draw("reg", str(tag), k) < level_p_reg:
+				known += 1
+		for k in range(total_t - regular_t):
+			if info_draw("mob", str(tag), k) < level_p_mob:
+				known += 1
+		need[tag] = known + ceili(float(estimate.get(tag, 0)) * float(total_t - known) / float(total_t))
+	return need
+
+
+## 0以上1未満の決まった値（情報量の実験の「知っているか」の当たり）。乱数の状態を持たない。
+func info_draw(group: String, tag: String, k: int) -> float:
+	var h: int = ("%d|%d|%s|%s|%d" % [cur_seed, GameState.day_count, group, tag, k]).hash()
+	h = (h ^ (h >> 15)) & 0xFFFFFF
+	return float(h) / 16777216.0
 
 
 ## --- 修繕基金の方針（4-9③） ---
@@ -622,6 +689,8 @@ func shop() -> void:
 		while GameState.dashi_units < 2 and cash() >= 16:
 			buy("meat_wholesale", "dashi")
 	var need: Dictionary = visible_need(target_cups()) if info_mode == "visible" else (Forecast.cases().back() as Dictionary)["required"]
+	if levels_on:
+		need = levels_need(target_cups())
 	if policy == "cheap_valid":
 		var cups := target_cups()
 		need = { "SOUR": cups, "FILLING": cups }
