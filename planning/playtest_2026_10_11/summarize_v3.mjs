@@ -3,6 +3,8 @@
 // 入力：playthrough_results_regulars_v2.json（予報あり・運営費75・reach_true・13方針×30）
 //       playthrough_results_regulars_v3.json（予報なし＝visible・13方針＋下限版2×30）
 //       playthrough_results_regulars_v3_improvise.json（参考：visible_improvise）
+//       playthrough_results_regulars_v2_fg_unserved.json（v2の基本GOOD 30シードだけを新しいハーネス〔info=forecast〕で流し直したもの。
+//         v2のjsonに無い「足りなかった杯数の内訳」を出すためで、5.のv2側の内訳にだけ使う）
 import fs from 'node:fs';
 const dir = new URL('./', import.meta.url);
 const load = n => JSON.parse(fs.readFileSync(new URL(n, dir), 'utf8'));
@@ -10,6 +12,7 @@ const goals = JSON.parse(fs.readFileSync(new URL('../../data/campaigns/week7.jso
 const v2 = load('playthrough_results_regulars_v2.json');
 const v3 = load('playthrough_results_regulars_v3.json');
 const v3i = load('playthrough_results_regulars_v3_improvise.json');
+const v2u = load('playthrough_results_regulars_v2_fg_unserved.json');
 const NAMES = { forecast_good: '基本GOOD', forecast_favorites: '既知好物', always_small: '小仕込み固定',
   always_large: '大仕込み固定', cheap_valid: '安い完成料理だけ', bare_broth: '空の椀', forecast_mistakes: 'Day3・5に取り違え',
   favorite_oracle: '初回から好物（oracle）', no_split: '団体を分割しない', strength_neglect: '濃さ・鮮度のミス',
@@ -156,4 +159,103 @@ judge(v3i, 'improvise');
 w('### 4.3 v2との比較（方針ごと）');
 w('');
 compare(v2, v3i, BASE13, 'v2', 'improvise');
+
+// --- 5. 補う版と v2 の差（基本GOOD）の分解（既存の出力だけから。新しい長い試遊は流さない） ---
+function breakdown(res, p, unservedRes) {
+  const rs = runsOf(res, p);
+  const n = rs.length;
+  const sumDay = (r, f) => r.rows.reduce((s, d) => s + f(d), 0);
+  const m = f => mean(rs.map(r => sumDay(r, f)));
+  const spendKeys = ['market', 'prep', 'dashi', 'water', 'daily_cost', 'rent', 'kit'];
+  const spend = {};
+  for (const k of spendKeys) spend[k] = m(d => d.spend[k] ?? 0);
+  const ul = (unservedRes.unserved_log || []).filter(u => u.policy === p);
+  const us = k => ul.reduce((s, u) => s + (u[k] ?? 0), 0) / Math.max(n, 1);
+  const g = k => m(d => d.grades[k] ?? 0);
+  const sales = m(d => d.sales), served = m(d => d.served);
+  const total = spendKeys.reduce((s, k) => s + spend[k], 0);
+  const cash = mean(rs.map(r => r.cash));
+  return {
+    n, cash, sales, spend, spendTotal: total, start: cash - sales + total,
+    spoiled: m(d => d.spoiled_value ?? 0), demand: m(d => d.demand), served, unserved: m(d => d.unserved),
+    uIng: us('ingredients'), uPot: us('pot'), uDecl: us('declined'), uNot: us('not_arrived'), hasU: ul.length > 0,
+    price: sales / Math.max(served, 1), great: g('GREAT'), good: g('GOOD'), ok: g('OK'), bad: g('BAD'),
+    goodRate: mean(rs.map(r => (r.result_summary?.good_plus_cups ?? goodPlus(r)) / Math.max(r.result_summary?.judged_cups ?? sumDay(r, d => d.judged_demand), 1))),
+    perDay: [0, 1, 2, 3, 4, 5, 6].map(i => ({ rep: mean(rs.map(r => r.rows[i]?.open_rep ?? 0)), demand: mean(rs.map(r => r.rows[i]?.demand ?? 0)),
+      served: mean(rs.map(r => r.rows[i]?.served ?? 0)), sales: mean(rs.map(r => r.rows[i]?.sales ?? 0)) })),
+    repEnd: mean(rs.map(r => r.rep)),
+  };
+}
+{
+  const a = breakdown(v2, 'forecast_good', v2u), b = breakdown(v3i, 'forecast_good', v3i);
+  const sg = x => (x >= 0 ? '+' : '') + f0(x);
+  const sg1 = x => (x >= 0 ? '+' : '') + f1(x);
+  w('## 5. 補う版と v2 の差（基本GOOD・約−320）の分解');
+  w('');
+  w('既存の出力（`playthrough_results_regulars_v2.json`・`..._v3_improvise.json`）の各夜の記録から、30シードの1周あたり平均を出したものです。');
+  w('v2側の「足りなかった杯数」の内訳だけ、v2のjsonに理由別の記録（`unserved_log`）が無いため、基本GOODの30シードだけを新しいハーネス（`info=forecast`）で流し直した');
+  w('`playthrough_results_regulars_v2_fg_unserved.json` から出しています（v2の基本GOOD 30周と、全周の全記録が一致することを確認済み）。**原因の断定はしません**（事実の分解です）。');
+  w('');
+  w('### 5.1 お金の動き（1周あたり。初期の現金は両方 ' + f0(a.start) + '）');
+  w('');
+  w('| 項目 | v2（予報） | 補う版 | 差（補う版−v2） |');
+  w('|---|---:|---:|---:|');
+  const row = (name, x, y) => w(`| ${name} | ${f0(x)} | ${f0(y)} | ${sg(y - x)} |`);
+  row('売上', a.sales, b.sales);
+  row('費用：仕入れ（市場）', a.spend.market, b.spend.market);
+  row('費用：仕込み（鍋の大きさ）', a.spend.prep, b.spend.prep);
+  row('費用：だし', a.spend.dashi, b.spend.dashi);
+  row('費用：水', a.spend.water, b.spend.water);
+  row('費用：運営費（毎日）', a.spend.daily_cost, b.spend.daily_cost);
+  row('費用：家賃', a.spend.rent, b.spend.rent);
+  row('費用：初日のキット', a.spend.kit, b.spend.kit);
+  row('費用の合計', a.spendTotal, b.spendTotal);
+  row('最終現金', a.cash, b.cash);
+  w('');
+  w(`- 内数：廃棄した在庫の原価（傷んで捨てた分。仕入れの費用に含まれる）は ${f0(a.spoiled)} → ${f0(b.spoiled)}（${sg(b.spoiled - a.spoiled)}）。`);
+  w(`- 差 ${sg(b.cash - a.cash)} ＝ 売上 ${sg(b.sales - a.sales)} ＋ 費用の減り ${sg(a.spendTotal - b.spendTotal)}。`);
+  w('');
+  w('### 5.2 杯数（1周あたり）');
+  w('');
+  w('| 項目 | v2（予報） | 補う版 | 差（補う版−v2） |');
+  w('|---|---:|---:|---:|');
+  const row1 = (name, x, y) => w(`| ${name} | ${f1(x)} | ${f1(y)} | ${sg1(y - x)} |`);
+  row1('来た杯数（需要の合計）', a.demand, b.demand);
+  row1('出した杯数', a.served, b.served);
+  row1('足りなかった杯数（合計）', a.unserved, b.unserved);
+  if (a.hasU && b.hasU) {
+    row1('　うち素材が足りない', a.uIng, b.uIng);
+    row1('　うち鍋が足りない', a.uPot, b.uPot);
+    row1('　うち断った', a.uDecl, b.uDecl);
+    row1('　うち来られなかった客（閉店のあと）', a.uNot, b.uNot);
+  }
+  w(`| 1杯あたりの売上 | ${f1(a.price)} | ${f1(b.price)} | ${sg1(b.price - a.price)} |`);
+  row1('GREATの杯数', a.great, b.great);
+  row1('GOODの杯数', a.good, b.good);
+  row1('OKの杯数', a.ok, b.ok);
+  row1('BADの杯数', a.bad, b.bad);
+  w(`| GOOD以上率 | ${pct(a.goodRate)} | ${pct(b.goodRate)} | ${(100 * (b.goodRate - a.goodRate)).toFixed(1)}pt |`);
+  w('');
+  w(`- 出した杯数の差 ${sg1(b.served - a.served)}杯 × 1杯あたり約${f0(a.price)} ＝ 売上の差 約${sg(b.sales - a.sales)}。**足りなかった杯数の合計は ${f1(a.unserved)} と ${f1(b.unserved)} で、ほぼ同じ**です（差の主因ではありません）。`);
+  w('');
+  w('### 5.3 日ごとの推移（1周あたりの平均）');
+  w('');
+  w('| 日 | 朝の評判 v2 | 朝の評判 補う版 | 来た杯数 v2 | 来た杯数 補う版 | 出した杯数 v2 | 出した杯数 補う版 | 売上 v2 | 売上 補う版 |');
+  w('|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
+  for (let i = 0; i < 7; i++) {
+    const x = a.perDay[i], y = b.perDay[i];
+    w(`| ${i + 1} | ${f1(x.rep)} | ${f1(y.rep)} | ${f1(x.demand)} | ${f1(y.demand)} | ${f1(x.served)} | ${f1(y.served)} | ${f0(x.sales)} | ${f0(y.sales)} |`);
+  }
+  w(`| 最終の評判 | ${f1(a.repEnd)} | ${f1(b.repEnd)} | | | | | | |`);
+  w('');
+  w('### 5.4 事実のまとめ（原因の断定はしない）');
+  w('');
+  w(`- 差 ${sg(b.cash - a.cash)} のうち、売上の減りが ${sg(b.sales - a.sales)}、費用の減り（仕入れ ${sg(a.spend.market - b.spend.market)}・仕込み ${sg(a.spend.prep - b.spend.prep)}・だし ${sg(a.spend.dashi - b.spend.dashi)}）が ${sg(a.spendTotal - b.spendTotal)} です。`);
+  w(`- 売上の減りは、1杯あたりの売上が同じ（${f1(a.price)}）なので、そのまま出した杯数の減り（${sg1(b.served - a.served)}杯）です。足りなかった杯数は同じ（${f1(a.unserved)}／${f1(b.unserved)}）で、減ったのは「来た杯数」（${sg1(b.demand - a.demand)}杯）です。`);
+  w(`- 来た杯数の差は3日目から開きます（評判が v2 は ${f1(a.perDay[2].rep)}→${f1(a.perDay[6].rep)}、補う版は ${f1(b.perDay[2].rep)}→${f1(b.perDay[6].rep)} と、伸び方が違う）。1・2日目はほぼ同じです。`);
+  w(`- 等級の内訳は、v2が全杯GOOD（${f1(a.good)}杯）、補う版がGOOD ${f1(b.good)}・OK ${f1(b.ok)}・BAD ${f1(b.bad)}杯です。評判の伸びの差は、この等級の差に対応しています（評判の式は閉店時の当夜品質で決まる。CURRENT_SPEC.md「評判」）。`);
+  w('- 費用が減っているのは、客が少ない分、仕込み（鍋の大きさ）と仕入れが小さくなったためと読めます（費用の減りは売上の減りの半分弱）。');
+  w('- **旧予報にあったタグ別の必要数が無くなった影響が大きいと見られる（要確認）**：v2は予報でタグ別の必要数を知って仕入れ、全杯GOODでした。補う版は、必要数の見込みが外れた夜に足りない軸をほかの在庫で補うので、椀は成立しても等級がOK・BADになる杯が出ている、という見立てです。ただし、椀ごと・夜ごとの記録（どの杯が補った椀か）は今回の出力に無く、この見立ては**確かめていません**。');
+  w('');
+}
 console.log(out.join('\n'));
