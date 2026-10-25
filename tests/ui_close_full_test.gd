@@ -46,6 +46,18 @@ func _root(t: SceneTree, day: int = 2) -> UiGameRoot:
 	return root
 
 
+## 閉店の語りを読み、所持金を20にしてから「次の日へ」を押す（翌朝の運営費が払えずゲームオーバーになる）。
+func _to_next_morning_broke(root: UiGameRoot) -> void:
+	var s := root.session
+	s.flow.force_phase(GameState.Phase.CLOSE)
+	var guard := 0
+	while not s.flow.is_runner_done() and guard < 20:
+		guard += 1
+		root.left.advance()
+	GameState.money = 20
+	_press(root.pane_close.get_node("%NextButton"))
+
+
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
@@ -167,11 +179,11 @@ func run(t: SceneTree) -> int:
 	root.queue_free()
 
 	# --- 5. ゲームオーバー（全面）と、種類と額 ---
-	root = _root(t, 3)
+	# 実際の流れ：Day2の閉店から翌朝（Day3）へ進み、朝の運営費が払えない。払えなかった朝は記録されない。
+	root = _root(t, 2)
 	s = root.session
 	c.check("ゲームオーバー前は game_over_info は空（available=false）", not bool(s.game_over_info()["available"]))
-	GameState.money = 20
-	s.flow.force_phase(GameState.Phase.WAKE)   # 朝の運営費が払えない
+	_to_next_morning_broke(root)
 	var info := s.game_over_info()
 	c.check("game_over_info：運営費・必要額・そのときの所持金・日・フェーズ（朝）",
 		bool(info["available"]) and str(info["kind"]) == "daily_cost" and int(info["amount"]) == GameState.DAILY_OPERATING_COST
@@ -182,14 +194,46 @@ func run(t: SceneTree) -> int:
 		and not root.left.visible)
 	c.check("枠 (320,234) 640×251", _near(over.get_node("%Frame").get_global_rect(), Rect2(320, 234, 640, 251)))
 	c.check("何日目のどこで何が払えなかったかと所持金", over.get_node("%Detail").text
-		== "Day 3 の朝に、運営費 ¥%d が払えなかった。\n所持金 ¥20" % GameState.DAILY_OPERATING_COST, over.get_node("%Detail").text)
+		== "Day 3 の朝に、運営費 ¥%d が払えなかった。
+所持金 ¥20" % GameState.DAILY_OPERATING_COST, over.get_node("%Detail").text)
+	c.check("払えなかったDay3の朝は記録されず、戻れる最後の朝はDay2", not GameState.morning_snapshots.has(3)
+		and GameState.morning_snapshots.has(2))
 	var retry: Button = over.get_node("%RetryButton")
-	c.check("「Day 3 の朝からやり直す」(409,419)・「終わる」(648,419)、1つ幅223、「終わる」は押せない",
-		retry.text == "Day 3 の朝からやり直す" and _at(retry, Vector2(409, 419), 223)
+	c.check("「Day 2 の朝からやり直す」（retry で戻る先の日）(409,419)・「終わる」(648,419)、1つ幅223、「終わる」は押せない",
+		retry.text == "Day 2 の朝からやり直す" and not retry.disabled and _at(retry, Vector2(409, 419), 223)
 			and _at(over.get_node("%QuitButton"), Vector2(648, 419), 223) and (over.get_node("%QuitButton") as Button).disabled,
 		retry.text)
 	_press(retry)
-	c.check("「やり直す」→ retry：Day3の朝へ戻り、ゲームオーバーの中身は消える", GameState.phase == GameState.Phase.WAKE
-		and GameState.day_count == 3 and not over.visible and not bool(s.game_over_info()["available"]))
+	c.check("「やり直す」→ retry：表示どおりDay2の朝へ戻り、ゲームオーバーの中身は消える", GameState.phase == GameState.Phase.WAKE
+		and GameState.day_count == 2 and not over.visible and not bool(s.game_over_info()["available"]))
+	root.queue_free()
+
+	# 戻る先がDay1の朝だけ：Day1の閉店から翌朝（Day2）へ進み、運営費が払えない
+	root = _root(t, 1)
+	s = root.session
+	_to_next_morning_broke(root)
+	over = root.full_gameover
+	retry = over.get_node("%RetryButton")
+	c.check("Day1の朝の記録だけ：「Day 1 の朝からやり直す」", GameState.phase == GameState.Phase.GAME_OVER
+		and GameState.morning_snapshots.keys() == [1] and retry.text == "Day 1 の朝からやり直す" and not retry.disabled, retry.text)
+	_press(retry)
+	c.check("→ retry でDay1の朝へ戻る", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1)
+	root.queue_free()
+
+	# 朝の記録が1つも無い：やり直しは Day1 の朝から（記録が無いので新しい周と同じ動作）
+	root = _root(t, 2)
+	s = root.session
+	GameState.morning_snapshots.clear()
+	GameState.money = 20
+	s.flow.force_phase(GameState.Phase.WAKE)
+	over = root.full_gameover
+	retry = over.get_node("%RetryButton")
+	var exits := s.exits()
+	c.check("朝の記録が無い：同じ朝からは戻れず（can_retry=false）、「Day 1 の朝からやり直す」は押せる（run_again＝新しい周と同じ）",
+		GameState.phase == GameState.Phase.GAME_OVER and not bool(exits["can_retry"]) and bool(exits["run_again_is_new_run"])
+			and retry.text == "Day 1 の朝からやり直す" and not retry.disabled, retry.text)
+	_press(retry)
+	c.check("→ run_again（新しい周）でDay1の朝から", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+		and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST)
 	root.queue_free()
 	return c.finish()

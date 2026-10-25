@@ -41,7 +41,9 @@ func refresh() -> void:
 	_quit.disabled = true   # タイトル画面はフェーズ6
 
 
-## 「やり直す」で戻る朝の日：戻れる最後の朝。記録が無ければ1（Day1の朝から）。
+## 「やり直す」で戻る朝の日：retry() が戻る先＝戻れる最後の朝（GameState.latest_morning と同じ日）。
+## 運営費が払えなかった朝は記録されないので、朝に詰んだときは前日の朝になる（Day3の朝に払えない→2）。
+## 朝の記録が1つも無ければ1（run_again＝Day1の朝から。記録が無いので新しい周と同じ動作）。
 func retry_day() -> int:
 	if bool(session.exits()["can_retry"]):
 		return int(GameState.morning_snapshots.keys().max())
