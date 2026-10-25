@@ -13,6 +13,7 @@ signal wait_input_clicked()
 const CHARS_PER_LINE := 30    # 会話枠：1行30字（全角。半角は0.5字）
 const LINES_PER_PAGE := 3     # ×3行。入りきらない文は枠内でページ送り
 const SLOT_SHORT := { "宵の口": "宵", "夜半": "夜半", "明け方": "明" }
+const SILENT_TYPES := ["ADD_ITEM"]   # 画面に出す文が無いEvent（会話枠が空になる）。会話を進めるときに続けて進める
 const SUMMARY_LINE := "昨夜の成績を確かめた。"   # part:"day_summary" の行は、会話枠にはこの1行だけを出す（中身は右の枠）
 
 var session: PlaySession = null
@@ -129,6 +130,8 @@ func refresh() -> void:
 	_show_page()
 	_refresh_choices()
 	_skip_button.disabled = not session.can_skip_step()
+	# 既読スキップは会話枠の右下に重なる。押せないあいだはクリックを受けず、下の会話枠に通す（押せない枠が会話のクリックを塞がない）
+	_skip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE if _skip_button.disabled else Control.MOUSE_FILTER_STOP
 
 
 ## 開店中、いま客がそこにいるか（立ち絵の枠を出す）。語りの行でも、客が店にいる間は枠を残す。
@@ -204,6 +207,21 @@ func advance() -> void:
 		wait_input_clicked.emit()
 		return
 	if session.can_next_event():
+		session.next_event()
+		_skip_silent_events()
+
+
+## 画面に出す文が無い、進行だけのEvent（初日セットの受け取り＝ADD_ITEM）か。会話枠が空のまま何度もクリックさせない。
+func _is_silent(line: Dictionary) -> bool:
+	return SILENT_TYPES.has(str(line.get("type", ""))) and str(line.get("text", "")) == ""
+
+
+## 会話を進めたあと、現在のEventが画面に出す文の無いものなら、続けて進める（Eventは1つずつ順に反映される。
+## 進める条件はクリックと同じ can_next_event）。出す文のあるEventか、選択・入力待ちで止まる。
+func _skip_silent_events() -> void:
+	var guard := 0
+	while guard < 64 and session.can_next_event() and _is_silent(session.current_line()):
+		guard += 1
 		session.next_event()
 
 

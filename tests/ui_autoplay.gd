@@ -26,11 +26,22 @@ static func press(button: BaseButton) -> bool:
 	return true
 
 
+## 本物のマウスの左クリック（移動→押す→離す）を、コントロールの中心の座標でビューポートへ送る。
+## 当たり判定を通るので、上に重なった部品がクリックを塞いでいれば進まない（gui_input を直接呼ぶ方法では気づけない）。
 static func click(control: Control) -> void:
-	var ev := InputEventMouseButton.new()
-	ev.button_index = MOUSE_BUTTON_LEFT
-	ev.pressed = true
-	control.gui_input.emit(ev)
+	var viewport := control.get_viewport()
+	var pos := control.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = pos
+	motion.global_position = pos
+	viewport.push_input(motion, true)
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.pressed = pressed
+		ev.position = pos
+		ev.global_position = pos
+		viewport.push_input(ev, true)
 
 
 func _talk() -> String:

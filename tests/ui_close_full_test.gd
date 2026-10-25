@@ -31,11 +31,9 @@ func _press(button: BaseButton) -> bool:
 	return true
 
 
+## 本物のマウスの左クリック（当たり判定を通る。台本 tests/ui_autoplay.gd の click と同じ）。
 func _click(control: Control) -> void:
-	var ev := InputEventMouseButton.new()
-	ev.button_index = MOUSE_BUTTON_LEFT
-	ev.pressed = true
-	control.gui_input.emit(ev)
+	load("res://tests/ui_autoplay.gd").click(control)
 
 
 func _root(t: SceneTree, day: int = 2) -> UiGameRoot:
