@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/pane_buy_meat.gd" id="1_lggq2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_hnpxm"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/tier_card.tscn" id="4_oypq2"]
 [ext_resource type="Script" path="res://scripts/ui/tier_card.gd" id="5_2ed0d"]
 [ext_resource type="Script" path="res://scripts/ui/goods_list.gd" id="6_5nh5w"]
+[ext_resource type="PackedScene" path="res://scenes/ui/cart_box.tscn" id="9_cartbx"]
 
 [node name="PaneBuyMeat" type="Panel"]
 offset_right = 420.0
@@ -74,9 +75,9 @@ script = ExtResource("5_2ed0d")
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 313.0
+offset_top = 282.0
 offset_right = 404.0
-offset_bottom = 582.0
+offset_bottom = 400.0
 horizontal_scroll_mode = 0
 
 [node name="Goods" type="VBoxContainer" parent="GoodsScroll"]
@@ -86,13 +87,55 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 6
 script = ExtResource("6_5nh5w")
 
+[node name="CartBox" type="Panel" parent="." instance=ExtResource("9_cartbx")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 406.0
+offset_right = 404.0
+offset_bottom = 492.0
+
+[node name="ReasonLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 496.0
+offset_right = 404.0
+offset_bottom = 530.0
+mouse_filter = 2
+theme_type_variation = &"LabelWarnSmall"
+autowrap_mode = 3
+vertical_alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 534.0
+offset_right = 206.0
+offset_bottom = 574.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "購入確定"
+
+[node name="ExitBuyButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 214.0
+offset_top = 534.0
+offset_right = 404.0
+offset_bottom = 574.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "購入して店を出る"
+
 [node name="WarnNote" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 590.0
+offset_top = 580.0
 offset_right = 404.0
-offset_bottom = 612.0
+offset_bottom = 610.0
 theme_type_variation = &"LabelWarnSmall"
 text = "鍋の素を買うまで、ほかの店へは行けない"
 horizontal_alignment = 1

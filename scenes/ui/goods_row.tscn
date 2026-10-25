@@ -43,9 +43,9 @@ vertical_alignment = 1
 
 [node name="Price" type="Label" parent="."]
 layout_mode = 0
-offset_left = 220.0
+offset_left = 190.0
 offset_top = 10.0
-offset_right = 308.0
+offset_right = 262.0
 offset_bottom = 50.0
 theme_type_variation = &"LabelPrice"
 text = "¥0"
@@ -54,10 +54,10 @@ vertical_alignment = 1
 
 [node name="BuyButton" type="Button" parent="."]
 layout_mode = 0
-offset_left = 316.0
+offset_left = 268.0
 offset_top = 10.0
 offset_right = 380.0
 offset_bottom = 50.0
 focus_mode = 0
 theme_type_variation = &"ButtonSmall"
-text = "買う"
+text = "かごに入れる"

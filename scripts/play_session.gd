@@ -145,7 +145,7 @@ func shop_view(shop: String) -> Array:
 				kind = "seasoning"
 		out.append({ "id": id, "item": item, "label": str(good.get("label", id)), "price": price,
 			"count": count, "unit_price": (int(price / count) if count > 0 else price),
-			"fresh": fresh, "damaged": damaged, "affordable": GameState.money >= price, "kind": kind })
+			"fresh": fresh, "damaged": damaged, "affordable": price <= purchase_limit(), "kind": kind })
 	return out
 
 
@@ -160,7 +160,7 @@ func prep_tiers() -> Array:
 	for tier in tiers:
 		var price := int(tier.get("price", 0))
 		out.append({ "id": str(tier.get("id", "")), "label": str(tier.get("label", "")),
-			"servings": int(tier.get("servings", 0)), "price": price, "affordable": GameState.money >= price })
+			"servings": int(tier.get("servings", 0)), "price": price, "affordable": price <= purchase_limit() })
 	return out
 
 
@@ -223,12 +223,13 @@ func buy_item(shop: String, id: String) -> void:
 	for good in shop_goods(shop):
 		if str(good.get("id", "")) == id:
 			var price: int = int(good.get("price", 0))
+			if purchase_block_reason(price) != "":
+				break   # 使える現金（残金−支払い予定）を超える購入は受けない
 			if id == "dashi":
-				if GameState.money >= price:
-					GameState.apply_money(-price)
-					GameState.buy_dashi()
-					Ledger.record("dashi", -price, "dashi", 1, price)
-			elif GameState.money >= price:
+				GameState.apply_money(-price)
+				GameState.buy_dashi()
+				Ledger.record("dashi", -price, "dashi", 1, price)
+			else:
 				var item = good.get("item", id)
 				var count: int = int(good.get("count", 1))
 				var unit_price: int = int(price / count) if count > 0 else price
@@ -239,13 +240,27 @@ func buy_item(shop: String, id: String) -> void:
 	changed.emit()
 
 
-## 仕込みの段階を選ぶ（支払って、残りの仕込みの列をその場で組み直す）。所持金が足りなければ何もしない。
+## 買える額の上限：使える現金（残金−支払い予定）。買い物（市場の商品・鍋の素）はこれを超えて買えない。
+func purchase_limit() -> int:
+	return Ledger.usable_cash()
+
+
+## 価格 price の購入を受けられない理由（買えるなら ""）。pending は、画面のかごの合計など、すでに取り置いた額。
+## 使える現金（残金−支払い予定）で判断する＝確保した請求（場所代・水道代・運営費）に手を付けて買えない。
+func purchase_block_reason(price: int, pending: int = 0) -> String:
+	var limit := purchase_limit() - pending
+	if price <= limit:
+		return ""
+	return "使える現金（残金−支払い予定）は ¥%d。¥%d は買えない" % [maxi(limit, 0), price]
+
+
+## 仕込みの段階を選ぶ（支払って、残りの仕込みの列をその場で組み直す）。使える現金（残金−支払い予定）が足りなければ何もしない。
 ## 差し替え後の列の先頭は効果の無いTEXT（EventRunner の仕様で先頭は適用されない）。
 func choose_prep_tier(tier_id: String) -> void:
 	var tier := Day1Events.prep_tier_by_id(tier_id)
 	var price: int = int(tier.get("price", 0))
-	if GameState.money < price:
-		return
+	if purchase_block_reason(price) != "":
+		return   # 使える現金（残金−支払い予定）を超える購入は受けない
 	GameState.apply_money(-price)
 	Ledger.record("prep", -price, tier_id, 0, price)
 	flow.set_runner(Day1Events.prep_after_tier_events(tier, false))

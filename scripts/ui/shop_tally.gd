@@ -28,9 +28,9 @@ func spent(shop: String) -> int:
 	return total
 
 
-## 店で商品を買う。買えるとき（buy_item と同じ条件：所持金が価格以上）だけ、先に記録してから買う
+## 店で商品を買う。買えるとき（buy_item と同じ条件：使える現金＝残金−支払い予定が価格以上）だけ、先に記録してから買う
 ## （buy_item が出す changed で描き直すときに、もう記録に入っているように）。
 func buy(session: PlaySession, shop: String, good: Dictionary) -> void:
-	if GameState.money >= int(good["price"]):
+	if session.purchase_block_reason(int(good["price"])) == "":
 		record(shop, str(good["label"]), int(good["price"]))
 	session.buy_item(shop, str(good["id"]))

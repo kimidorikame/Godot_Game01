@@ -79,8 +79,10 @@ func step() -> String:
 	if root.pane_buy_meat.visible:
 		var tiers: Control = root.pane_buy_meat.get_node("%Tiers")
 		for i in [tier_index, 2, 1, 0]:
-			if i < tiers.get_child_count() and press(tiers.get_child(i)):
-				return "鍋の素（%d）" % i
+			if i < tiers.get_child_count() and press(tiers.get_child(i)):   # 選ぶ（まだ買わない）→「購入確定」で買う
+				if press(root.pane_buy_meat.get_node("%ConfirmButton")):
+					return "鍋の素（%d）" % i
+				press(tiers.get_child(i))   # 買えない（使える現金を超える）なら選びを戻して次の段階へ
 		if press(root.pane_buy_meat.get_node("%BackButton")):
 			return "店を出る（張記）"
 		return _talk()
@@ -110,13 +112,14 @@ func step() -> String:
 	return _talk()
 
 
-## 店の中：商品の1行目の「買う」を SHOP_PLAN の回数だけ押してから、店を出る。
+## 店の中：商品の1行目の「かごに入れる」を SHOP_PLAN の回数だけ押し、「購入確定」で買ってから、店を出る。
 func _buy_in(pane: Control, stall_index: int) -> String:
 	var goods: Control = pane.get_node("%Goods")
-	if _bought_here < int(SHOP_PLAN.get(stall_index, 0)) and goods.get_child_count() > 0 \
-			and press(goods.get_child(0).get_node("BuyButton")):
+	if _bought_here < int(SHOP_PLAN.get(stall_index, 0)) and goods.get_child_count() > 0 			and press(goods.get_child(0).get_node("BuyButton")):
 		_bought_here += 1
-		return "買う"
+		return "かごに入れる"
+	if press(pane.get_node("%ConfirmButton")):
+		return "購入確定"
 	press(pane.get_node("%BackButton"))
 	return "店を出る"
 

@@ -25,6 +25,8 @@ class_name UiGameRoot
 
 ## 市場の「この店で買ったもの」のUIだけの集計（plan Q10）。仕込みに入るたびに捨てる。
 var tally := UiShopTally.new()
+## 市場の「かご」と選んだ鍋の素（UI準備D・D-2。UIだけの状態で保存しない）。仕込みに入るたびに捨てる。
+var cart := UiShopCart.new()
 ## 右の枠と入れ替えて出しているもの（""／"phone"）。表示だけの状態で、区切り（phase_entering）で捨てる。
 var overlay := ""
 
@@ -44,6 +46,8 @@ func _ready() -> void:
 	pane_market.tally = tally
 	pane_buy_meat.tally = tally
 	pane_buy_shop.tally = tally
+	pane_buy_meat.cart = cart
+	pane_buy_shop.cart = cart
 	pane_buy_meat.advance_requested.connect(left.advance)
 	full_prep.advance_requested.connect(left.advance)
 	left.phone_requested.connect(_on_phone_icon)
@@ -135,6 +139,7 @@ func _on_phase_entering(phase: int) -> void:
 		# Day1の朝（前日が無い）は、右の枠を出さずにスマホから始める（ニュース）
 		overlay = "phone"
 		pane_phone.tab = "news"
+	cart.clear_all()
 	if phase == GameState.Phase.PREP:
 		tally.clear()
 

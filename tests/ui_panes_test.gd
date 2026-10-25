@@ -138,7 +138,7 @@ func run(t: SceneTree) -> int:
 		_near(tiers.get_child(0).get_global_rect(), Rect2(852, 179, 124, 119)) and _near(tiers.get_child(1).get_global_rect(), Rect2(984, 179, 124, 119)),
 		str(tiers.get_child(0).get_global_rect(), tiers.get_child(1).get_global_rect()))
 	c.check("予算の3つ：(852,86) 388×55", _near(meat.get_node("%Budget").get_global_rect(), Rect2(852, 86, 388, 55)))
-	c.check("商品の行の枠：(852,337) 388×269（5品は縦に送る）", _near(meat.get_node("%GoodsScroll").get_global_rect(), Rect2(852, 337, 388, 269)))
+	c.check("商品の行の枠：(852,306) 388×118（かごの枠のぶん低くした。5品は縦に送る）", _near(meat.get_node("%GoodsScroll").get_global_rect(), Rect2(852, 306, 388, 118)), str(meat.get_node("%GoodsScroll").get_global_rect()))
 	var back: Button = meat.get_node("%BackButton")
 	c.check("「店を出る」（張記。旧「店選びへ」）：(852,640)・幅388、鍋の素を買うまで押せない・注意の一文が出る",
 		_at(back, Vector2(852, 640), 388) and back.disabled and meat.get_node("%WarnNote").visible)
@@ -149,11 +149,22 @@ func run(t: SceneTree) -> int:
 		root.left.advance()
 	c.check("段階の選択（PREP_TIER）で、買える段階を押せる", s.is_in_prep_tier() and not (tiers.get_child(0) as Button).disabled)
 	var money_before := GameState.money
-	_press(tiers.get_child(0))
 	var small_price := int(s.prep_tiers()[0]["price"])
-	c.check("小を押す → choose_prep_tier（支払い・買った印・注意の一文が消える）",
+	var confirm: Button = meat.get_node("%ConfirmButton")
+	c.check("段階を選ぶ前は「購入確定」を押せない", confirm.disabled and meat.get_node("%Budget/Usable/Value").text == "¥%d" % int(s.budget()["usable"]))
+	_press(tiers.get_child(0))
+	c.check("小を押す → 選択中（まだ買わない）：所持金は変わらず、「使える」から価格を引いて見せる・「購入確定」が押せる",
+		GameState.money == money_before and tiers.get_child(0).get_node("Note").text == "選択中" and tiers.get_child(0).get_node("BoughtFrame").visible
+			and meat.get_node("%Budget/Usable/Value").text == "¥%d" % (int(s.budget()["usable"]) - small_price) and not confirm.disabled
+			and confirm.text == "購入確定（¥%d）" % small_price and s.is_in_prep_tier())
+	_press(tiers.get_child(1))
+	c.check("別の段階を押すと選び直せる（選択は1つ）", tiers.get_child(1).get_node("Note").text == "選択中" and tiers.get_child(0).get_node("Note").text != "選択中"
+		and GameState.money == money_before)
+	_press(tiers.get_child(0))
+	_press(confirm)
+	c.check("「購入確定」→ choose_prep_tier（支払い・買った印・注意の一文が消える）",
 		GameState.money == money_before - small_price and tiers.get_child(0).get_node("BoughtFrame").visible
-			and tiers.get_child(0).get_node("Note").text == "買った" and not meat.get_node("%WarnNote").visible)
+			and tiers.get_child(0).get_node("Note").text == "買った" and not meat.get_node("%WarnNote").visible and not s.is_in_prep_tier())
 	c.check("買ったあとは、ほかの段階は押せない", (tiers.get_child(1) as Button).disabled)
 	c.check("Day2 からは追加購入の行が出る", meat.get_node("%GoodsScroll").visible and meat.get_node("%Goods").get_child_count() == s.shop_view("meat_wholesale").size())
 	guard = 0
@@ -196,9 +207,16 @@ func run(t: SceneTree) -> int:
 		and row0.get_node("Detail").text.begins_with("%d個 / 単価%d / 在庫" % [int(first["count"]), int(first["unit_price"])]))
 	c.check("まだ買っていない店では「この店で買った」を出さない", not shop.get_node("%BoughtBox").visible)
 	money_before = GameState.money
+	var stock_before := GameState.fresh_count(str(first["item"]))
 	_press(row0.get_node("BuyButton"))
-	c.check("「買う」→ buy_item：所持金が価格だけ減り、在庫が増える",
-		GameState.money == money_before - int(first["price"]) and GameState.fresh_count(str(first["item"])) >= int(first["count"]))
+	c.check("「かごに入れる」では買わない：所持金・在庫は変わらず、かごに入る・「使える」はかごの分を引いた額",
+		GameState.money == money_before and GameState.fresh_count(str(first["item"])) == stock_before and root.cart.count("produce") == 1
+			and shop.get_node("%Budget/Usable/Value").text == "¥%d" % (int(s.budget()["usable"]) - int(first["price"]))
+			and shop.get_node("%CartBox/CartTotal").text == "合計 ¥%d" % int(first["price"]))
+	_press(shop.get_node("%ConfirmButton"))
+	c.check("「購入確定」→ buy_item：所持金が価格だけ減り、在庫が増える（かごは空になる・店に残る）",
+		GameState.money == money_before - int(first["price"]) and GameState.fresh_count(str(first["item"])) >= int(first["count"])
+			and root.cart.count("produce") == 0 and s.market_shop == "produce")
 	c.check("「この店で買った」に品名と額が出る（UIだけの集計）", shop.get_node("%BoughtBox").visible
 		and shop.get_node("%BoughtList").text == "%s ¥%d" % [str(first["label"]), int(first["price"])], shop.get_node("%BoughtList").text)
 	_press(shop.get_node("%BackButton"))
@@ -211,7 +229,7 @@ func run(t: SceneTree) -> int:
 	c.check("市場から張記に入ると、食肉仲卸の画面（鍋の素は買った状態）", _visible_pane(root) == meat and s.market_shop == "meat_wholesale"
 		and tiers.get_child(0).get_node("BoughtFrame").visible)
 	var meat_goods: UiGoodsList = meat.get_node("%Goods")
-	c.check("鍋の素を買ったあとは、追加購入の「買う」を押せる（買えるもの）",
+	c.check("鍋の素を買ったあとは、追加購入の「かごに入れる」を押せる（買えるもの）",
 		(meat_goods.get_child(0).get_node("BuyButton") as Button).disabled == (not bool(s.shop_view("meat_wholesale")[0]["affordable"])))
 	_press(back)
 	c.check("市場の中の張記では「店を出る」= leave_shop", s.market_shop == "" and _visible_pane(root) == market)

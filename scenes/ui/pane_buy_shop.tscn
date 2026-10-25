@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/pane_buy_shop.gd" id="1_yxagi"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_l52g6"]
 [ext_resource type="PackedScene" path="res://scenes/ui/budget_row.tscn" id="3_3vswk"]
 [ext_resource type="Script" path="res://scripts/ui/goods_list.gd" id="4_fnsst"]
+[ext_resource type="PackedScene" path="res://scenes/ui/cart_box.tscn" id="5_cartbx"]
 
 [node name="PaneBuyShop" type="Panel"]
 offset_right = 420.0
@@ -34,7 +35,7 @@ layout_mode = 0
 offset_left = 16.0
 offset_top = 127.0
 offset_right = 404.0
-offset_bottom = 606.0
+offset_bottom = 392.0
 horizontal_scroll_mode = 0
 
 [node name="Content" type="VBoxContainer" parent="Scroll"]
@@ -74,6 +75,48 @@ offset_right = 376.0
 offset_bottom = 62.0
 theme_type_variation = &"LabelWarnSmall"
 autowrap_mode = 3
+
+[node name="CartBox" type="Panel" parent="." instance=ExtResource("5_cartbx")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 400.0
+offset_right = 404.0
+offset_bottom = 486.0
+
+[node name="ReasonLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 492.0
+offset_right = 404.0
+offset_bottom = 528.0
+mouse_filter = 2
+theme_type_variation = &"LabelWarnSmall"
+autowrap_mode = 3
+vertical_alignment = 1
+
+[node name="ConfirmButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 534.0
+offset_right = 206.0
+offset_bottom = 574.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "購入確定"
+
+[node name="ExitBuyButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 214.0
+offset_top = 534.0
+offset_right = 404.0
+offset_bottom = 574.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "購入して店を出る"
 
 [node name="BackButton" type="Button" parent="."]
 unique_name_in_owner = true

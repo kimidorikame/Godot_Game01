@@ -4,7 +4,7 @@ class_name UiGoodsRow
 ## 1行目：品名・タグ（枠つき）・「腐る」。2行目：「3個 / 単価8 / 在庫4(新鮮3・傷1)」。右に価格と「買う」。
 ## 中身は shop_view() の1件。押せるかは呼び出し側が決める（買えない＝所持金不足は品名と価格を薄くする）。
 
-signal buy_pressed()
+signal buy_pressed()   # 「かごに入れる」が押された
 
 @onready var _name: Label = $Tags/Name
 @onready var _tags: HBoxContainer = $Tags

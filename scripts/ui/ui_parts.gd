@@ -24,8 +24,22 @@ static func unserved_text(total: int, display: Dictionary) -> String:
 	return text if parts.is_empty() else "%s（%s）" % [text, "・".join(parts)]
 
 
-## 予算の3つ（残金／確保／使える）。session.budget() の値を入れる。
-static func set_budget(row: Control, budget: Dictionary) -> void:
+## 予算の3つ（残金／確保＝支払い予定／使える）。session.budget() の値を入れる。pending は、かごなど取り置いている額
+## （「使える」から引いて見せる。残金・確保はそのまま。UI準備D）。
+static func set_budget(row: Control, budget: Dictionary, pending: int = 0) -> void:
 	(row.get_node("Money/Value") as Label).text = "¥%d" % int(budget["money"])
 	(row.get_node("Reserved/Value") as Label).text = "¥%d" % int(budget["reserved"])
-	(row.get_node("Usable/Value") as Label).text = "¥%d" % int(budget["usable"])
+	(row.get_node("Usable/Value") as Label).text = "¥%d" % (int(budget["usable"]) - pending)
+
+
+## 使える現金を超えて、かごに入れられない商品があるときの理由の一文（無ければ ""）。remaining はかごの分を引いた「使える」、
+## reserved は支払い予定（確保）。商品は shop_view() の形（price を持つ）。
+static func limit_reason(goods: Array, remaining: int, reserved: int) -> String:
+	var blocked := false
+	for good in goods:
+		if int(good["price"]) > remaining:
+			blocked = true
+	if not blocked:
+		return ""
+	var note := "（支払い予定 ¥%d を除く）" % reserved if reserved > 0 else ""
+	return "使える現金は残り ¥%d%s。これを超える商品は、かごに入れられません" % [maxi(remaining, 0), note]
