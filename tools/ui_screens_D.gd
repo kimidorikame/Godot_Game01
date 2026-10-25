@@ -30,6 +30,10 @@ func _initialize() -> void:
 	play = load("res://tests/ui_autoplay.gd").new(ui)
 	var s = ui.session
 
+	# Day1 の最初の客（配達員の3杯の1杯目）：「いつもの」「今日」の欄が出る（D-5）
+	var top1 = ui.pane_kaiten.topping
+	_until(func(): return gs.phase == gs.Phase.OPEN and top1.visible and top1.is_adjusting())
+	await _shot("11_card_day1_first", "開店のトッピング（Day1の最初の客＝配達員。「いつもの」「今日」の欄は最初の客から出る。注文を言う行を出した時点で入っている）")
 	# Day1 をUIだけで遊び、Day2 の朝（昨夜の成績）
 	_until(func(): return gs.day_count == 2 and gs.phase == gs.Phase.WAKE and ui.pane_morning.visible)
 	await _shot("01_morning", "朝（Day2。主ボタンは「市場へ」だけ。朝の語りを読み終えるまで押せない。スマホのボタンの●はDMとニュースの未読の合計）")
@@ -76,9 +80,18 @@ func _initialize() -> void:
 	await _shot("08_prep_dots", "仕込み（全面。クリックなしで約0.7秒ごとに点が1つずつ点く。2つ目まで点いた途中）")
 	play.click(ui.full_prep)
 	await _shot("09_prep_done", "仕込み（全面。クリックですぐ全部点く。全部ついたら「開店する」）")
-	# 開店：椀を作っている最中。入れた具材には「✓」。もう一度押すと取り消せる（D-3）
+	# 開店：最初の客の「注文を言う前」と「言った後」（D-5。前回への一言の行を、撮るために1行足した仮の状態）
 	play.press(ui.full_prep.get_node("%OpenButton"))
 	var top = ui.pane_kaiten.topping
+	_until(func(): return gs.phase == gs.Phase.OPEN and s.flow.runner != null and s.open != null and s.open.has_more())
+	var first_customer := str(s.open.current_customer())
+	s.flow.runner.events.insert(0, { "type": "GREET", "customer": first_customer, "text": "（前回への一言・仮）" })
+	ui.pane_kaiten._on_tab_pressed("topping")
+	s.notify_changed()
+	await _shot("12_card_before_hint", "開店のトッピング（客が来て、まだ注文を言う前。「いつもの」「今日」は「？」を薄く出す。前回への一言の行を足した仮の状態）")
+	ui.left.advance()
+	ui.pane_kaiten._on_tab_pressed("topping")
+	await _shot("13_card_after_hint", "開店のトッピング（注文を言う行を出した時点で、欄が埋まる。提供のあとではない）")
 	_until(func(): return gs.phase == gs.Phase.OPEN and top.visible and top.is_adjusting())
 	var grid = top.get_node("%Grid")
 	for item in grid.get_children():

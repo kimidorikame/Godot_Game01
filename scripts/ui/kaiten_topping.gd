@@ -107,14 +107,22 @@ func refresh() -> void:
 	_refresh_overlay(group, recipes, save_view)
 
 
+## 「いつもの」「今日」の欄は常に出す（空白の隙間を作らない）。まだ分からないうちは「？」を薄い色で出し、会話で注文を言う行を出した時点で
+## 中身が入る（order_card_view の usual_known・today_known）。[聞き直す]は、聞き直せる会話があるとき（名前あり客・1杯の場面のADJUST中）だけ出す。
 func _refresh_order_card() -> void:
 	var card := session.order_card_view()
-	_usual_row.visible = not card.is_empty()
-	_today_row.visible = not card.is_empty()
-	if not card.is_empty():
-		_usual_tags.text = "・".join(card["base"])
+	_usual_row.visible = true
+	_today_row.visible = true
+	var usual_known := bool(card.get("usual_known", false))
+	var today_known := bool(card.get("today_known", false))
+	_usual_tags.text = "・".join(card["base"]) if usual_known and not (card["base"] as Array).is_empty() else "？"
+	if today_known:
 		_today_tags.text = "・".join(card["today"]) if not (card["today"] as Array).is_empty() else "いつもどおり"
-	_reask.visible = not card.is_empty()
+	else:
+		_today_tags.text = "？"
+	_usual_tags.modulate = Color(1, 1, 1, 1.0) if _usual_tags.text != "？" else Color(1, 1, 1, 0.4)
+	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
+	_reask.visible = session.can_reask()
 	_reask.disabled = not session.can_reask()
 
 

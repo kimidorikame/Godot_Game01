@@ -2797,17 +2797,61 @@ func pot_view() -> Dictionary:
 		"locked_until_water": pot_locked_until_water(), "locked_until_dashi": pot_locked_until_dashi() }
 
 
-## 注文カード（その客の『いつもの』と『今日の頼み』）：{ customer, base[タグ], today[タグ], label }。
-## 名前あり客の ADJUST 中（聞き直しの対象の客）だけ。それ以外は空。
+## 注文カード（その客の『いつもの』と『今日の頼み』）。開店中は常に出す（客がいなければ空）。表示だけで、判定・乱数・保存には触れない。
+## { customer, base[タグ]（いつもの）, today[タグ]（今日の頼み。無い＝いつもどおりは空）, label,
+##   usual_known（「いつもの」が分かっているか）, today_known（今日の頼みが分かっているか）, can_reask }
+## 分かる時点（UI準備D・D-5）：客が注文を言う会話の最後の行（その杯の ADJUST の直前の GREET。無ければ ADJUST）を表示した時点。
+##   ・「今日」：その行を出した時点で、頼み（無ければ「いつもどおり」）が分かる。提供のあとではない。
+##   ・「いつもの」：同じ時点で分かる。名前あり客は、前の日に来たことがあれば（今日より前の来店記録がある）最初から分かっている
+##     ＝次に同じ客が来たときは埋まった状態で出る。保存する状態は増やさない（来店記録から読む）。好物を知った状態（favorite_known）は使わない。
+##   ・それより前（前回への一言など）と、客がいないあいだは、分かっていない（画面は「？」）。
+## 複数杯の場面（配達員の3杯）は杯ごと（持ち帰りの頼みは、2杯目のあとの会話の最後の行で分かる）。モブの団体も同じ形（いつもの＝モブの注文のタグ。今日はいつもどおり）。
 func order_card_view() -> Dictionary:
-	var customer_id := adjust_customer_id()
-	if customer_id == "":
+	if open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN or not open.has_more():
 		return {}
-	var card := Day1Events.order_card(customer_id)
-	if card.is_empty():
+	var current_customer = open.current_customer()
+	if current_customer == null or str(current_customer) == "":
 		return {}
-	return { "customer": customer_id, "base": (card["base"] as Array).duplicate(), "today": (card["today"] as Array).duplicate(),
-		"label": str(card["label"]) }
+	var customer_id := str(current_customer)
+	var events: Array = flow.runner.events
+	var index: int = flow.runner.index
+	var current = flow.runner.current()
+	var current_type := str(current.get("type", "")) if current is Dictionary else ""
+	# いま見ている杯の ADJUST：注文を言う行・ADJUST・提供・反応のあいだは、直前の（今の杯の）ADJUST。それ以外（会話の行）は次の ADJUST。
+	var adjust_index := -1
+	if current_type == "ADJUST" or current_type == "SERVE" or current_type == "REACT":
+		for i in range(mini(index, events.size() - 1), -1, -1):
+			if events[i] is Dictionary and str(events[i].get("type", "")) == "ADJUST":
+				adjust_index = i
+				break
+	else:
+		for i in range(index, events.size()):
+			if events[i] is Dictionary and str(events[i].get("type", "")) == "ADJUST":
+				adjust_index = i
+				break
+	var card := { "customer": customer_id, "base": [], "today": [], "label": "", "usual_known": false, "today_known": false,
+		"can_reask": can_reask() }
+	if adjust_index < 0:
+		return card
+	var effective: Array = []
+	for i in range(adjust_index + 1, events.size()):
+		if events[i] is Dictionary and str(events[i].get("type", "")) == "REACT":
+			effective = (events[i].get("wanted_tags", []) as Array).duplicate()
+			break
+	var is_mob := Day1Events.is_mob_customer(customer_id)
+	var profile := {} if is_mob else ScheduleData.customer_profile(customer_id)   # モブのインスタンスidにはプロフィールが無い
+	var named := not profile.is_empty() and not bool(profile.get("is_mob", false))
+	var base: Array = (profile.get("wanted_tags", []) as Array).duplicate() if named else effective.duplicate()
+	card["base"] = base
+	card["today"] = effective.duplicate() if named and effective != base else []
+	if named and not Day1Events.is_multi_cup_scene(customer_id, Day1Events.episode_id_of(customer_id)):
+		card["label"] = str(Day1Events.order_card(customer_id).get("label", ""))
+	var order_line := adjust_index
+	if adjust_index > 0 and events[adjust_index - 1] is Dictionary and str(events[adjust_index - 1].get("type", "")) == "GREET":
+		order_line = adjust_index - 1
+	card["today_known"] = index >= order_line
+	card["usual_known"] = bool(card["today_known"]) or (named and not CustomerMemory.previous_visit(customer_id).is_empty())
+	return card
 
 
 ## 椀の中身：{ customer, additions[品目id], additions_damaged[additions と同じ並びで、傷んだ側から入れたか],

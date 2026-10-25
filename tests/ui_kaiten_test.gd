@@ -285,8 +285,10 @@ func run(t: SceneTree) -> int:
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 40:
 		guard += 1
 		root.left.advance()
-	c.check("モブ：注文カード・聞き直す・断るは出さない（断るは団体の確認で）", not top.get_node("%UsualRow").visible
-		and not top.get_node("%ReaskButton").visible and (top.get_node("%DeclineButton") as Button).disabled)
+	c.check("モブ：いつもの・今日の欄は出す（団体の注文のタグ・いつもどおり）。聞き直す・断るは出さない（断るは団体の確認で）",
+		top.get_node("%UsualRow").visible and top.get_node("%TodayRow").visible and top.get_node("%UsualTags").text == "HOT・POWER"
+			and top.get_node("%TodayTags").text == "いつもどおり"
+			and not top.get_node("%ReaskButton").visible and (top.get_node("%DeclineButton") as Button).disabled)
 	grid = top.get_node("%Grid")
 	_press(grid.get_child(0).get_node("MainButton"))   # 肉団子（具材の1つ目）
 	_press(top.get_node("%Tabs").get_child(1))
