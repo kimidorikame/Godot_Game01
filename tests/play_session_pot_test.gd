@@ -36,8 +36,17 @@ func run(t: SceneTree) -> int:
 	# --- 1. 押せるかの問い（名前あり客のADJUST・濃さ3・鍋は十分） ---
 	var p1 = _setup_open(t, ["granny"], { "herbal_sauce": 5, "broken_wrapper": 5 })
 	var s: PlaySession = p1.session
-	c.check("ADJUST（鍋が足りて濃さも普通）：鍋は触れず・次のEventへは進め・廃棄できる・客を断れる",
-		not s.can_touch_pot() and s.can_next_event() and s.can_discard() and s.can_decline())
+	c.check("ADJUST（鍋が足りて濃さも普通）：足せるものが無い（水は残量13以上で不可・だしは無い）ので鍋は触れない。次のEventへは進め・廃棄できる・客を断れる",
+		not GameState.can_add_water() and not GameState.can_add_dashi() and not s.can_touch_pot()
+			and s.can_next_event() and s.can_discard() and s.can_decline())
+	# UI準備C④（DESIGN.md 7.6）：椀を作っている最中も、足せるものがあれば、足りているときも鍋を触れる
+	GameState.dashi_units = 1
+	c.check("C-5：ADJUST中（鍋は足りて濃さも普通）でも、だしを足せるなら鍋を触れる", GameState.can_add_dashi() and s.is_choosing_ingredients()
+		and not s.is_short_now() and not s.is_strength_zero() and s.can_touch_pot())
+	GameState.dashi_units = 0
+	GameState.soup["remaining_servings"] = 9
+	c.check("C-5：ADJUST中（残り9杯）に、水を足せるなら鍋を触れる", GameState.can_add_water() and s.can_touch_pot())
+	GameState.soup["remaining_servings"] = 999
 	c.check("聞き直せるかは、聞き直し対象の客か（adjust_customer_id）と同じ", s.can_reask() == (s.adjust_customer_id() != ""))
 	c.check("椀が空のうちは入力完了できない（具・味が欠けている）", not s.can_complete_input())
 	s.select_ingredient("herbal_sauce")

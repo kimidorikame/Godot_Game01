@@ -152,9 +152,16 @@ func run(t: SceneTree) -> int:
 	c.check("提供できる椀になったら、提供を押せる", not (top.get_node("%ServeButton") as Button).disabled)
 	GameState.soup["strength"] = GameState.STRENGTH_MIN
 	s.notify_changed()
-	c.check("濃さ1：減点の予告に「濃さ1・傷んだ豆腐」。椀を作っている最中は鍋を触れない（今の挙動）ので、手当ては出さず理由だけ",
-		not s.can_touch_pot() and top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。",
-		top.get_node("%Penalty").text)
+	c.check("濃さ1・だしが無い：減点の予告に「濃さ1・傷んだ豆腐」。手当てできるもの（だし）が無いので、手当ては出さず理由だけ",
+		not GameState.can_add_dashi() and not s.can_touch_pot()
+			and top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。", top.get_node("%Penalty").text)
+	# UI準備C④：椀を作っている最中（ADJUST）でも、だしを足せるなら鍋を触れ、予告に「鍋タブでだし +2」が出る
+	GameState.dashi_units = 1
+	s.notify_changed()
+	c.check("C-5：ADJUST中・濃さ1・だしあり：減点の予告に、強調色で「鍋タブでだし +2」が出る",
+		s.is_choosing_ingredients() and s.can_touch_pot()
+			and top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。　鍋タブでだし +2"
+			and top.get_node("%Penalty").text.ends_with("[color=#e8a33d]鍋タブでだし +2[/color]"), top.get_node("%Penalty").text)
 	c.check("トッピング中に鍋の手当てが要る（濃さ1）ので、鍋タブに「●」", pane.get_node("%PotDot").visible)
 	c.check("鍋の小表示：「鍋 残999杯 / 濃さ1」", top.get_node("%PotMini").text == "鍋 残999杯 / 濃さ1")
 
@@ -167,11 +174,18 @@ func run(t: SceneTree) -> int:
 		_near(pot.get_node("%DashiButton").get_global_rect(), Rect2(1060, 227, 86, 96))
 			and _near(pot.get_node("%WaterButton").get_global_rect(), Rect2(1154, 227, 86, 96))
 			and _near(pot.get_node("PotArt").get_global_rect(), Rect2(852, 334, 388, 346)))
-	c.check("椀を作っている最中（鍋は足りている）は、だし・水を押せない（今の挙動のまま）",
-		(pot.get_node("%DashiButton") as Button).disabled and (pot.get_node("%WaterButton") as Button).disabled)
+	c.check("C-5：椀を作っている最中でも、鍋タブでだしを押せる（残りがあるとき）。水は残量13以上なので押せない",
+		not (pot.get_node("%DashiButton") as Button).disabled and (pot.get_node("%WaterButton") as Button).disabled)
+	var bowl_before: Array = s.bowl_view()["additions"].duplicate()
+	_press(pot.get_node("%DashiButton"))
+	c.check("だしを押す → add_dashi：椀の途中で濃さが 1→3 に上がり、椀の中身はそのまま",
+		int(GameState.soup["strength"]) == 3 and s.bowl_view()["additions"] == bowl_before and not s.is_awaiting_react())
+
 	c.check("鍋タブを見ている間は「●」を出さない", not pane.get_node("%PotDot").visible)
 	_press(pane.get_node("%ToppingTab"))
 	c.check("トッピングタブで戻れる", top.visible and not pot.visible)
+	c.check("濃さが直ったので、減点の予告から濃さの理由と手当ては消える（傷んだ豆腐だけ）",
+		top.get_node("%Penalty").get_parsed_text() == "減点の予告: 傷んだ豆腐で1段階下がります。", top.get_node("%Penalty").text)
 	GameState.soup["strength"] = 3
 	_press(top.get_node("%ServeButton"))
 	c.check("提供 → complete_input：判定へ進み、自動で鍋タブ", not top.is_adjusting() and pot.visible)

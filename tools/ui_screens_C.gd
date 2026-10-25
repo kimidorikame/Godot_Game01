@@ -88,7 +88,16 @@ func _initialize() -> void:
 	var tabs: HBoxContainer = top.get_node("%Tabs")
 	play.press(tabs.get_child(tabs.get_child_count() - 1))
 	play.press(top.get_node("%Grid").get_child(0).get_node("MainButton"))
-	await _shot("07_kaiten_topping", "開店のトッピング（傷んだ在庫あり・減点の予告あり）")
+	# 撮るための状態：濃さ1・だし2個（ADJUST中でも鍋を触れる。減点の予告に「鍋タブでだし +2」が出る）
+	gs.soup["strength"] = 1
+	gs.dashi_units = 2
+	s.notify_changed()
+	await _shot("07_kaiten_topping", "開店のトッピング（傷んだ在庫あり・減点の予告あり。濃さ1・だしありの仮の状態なので「鍋タブでだし +2」も出る）")
+	# ADJUST中に鍋タブでだしを足せる状態（UI準備C④）：だしが押せる。押すと椀の途中で濃さが直る
+	ui.pane_kaiten._on_tab_pressed("pot")
+	await _shot("20_pot_adjust", "開店の鍋タブ（ADJUST中。だしを足せる状態。椀を作っている最中でも触れる）")
+	play.press(ui.pane_kaiten.pot.get_node("%DashiButton"))
+	ui.pane_kaiten._on_tab_pressed("topping")
 	# モブの団体の確認（今夜のモブで。来なければ次の日以降で撮る）
 	_until(func(): return top.visible and top.get_node("%GroupBox").visible)
 	await _shot("09_mob_group", "モブの団体の確認")

@@ -1633,10 +1633,11 @@ func decline_customer() -> void:
 # どれも「ゲームの状態として押せるか」だけを返す。スマホを開いている間の無効化など、表示だけの状態は
 # UI側で足す（DebugPanelは `or _phone_mode` を足している）。
 
-## 鍋を触れるか（鍋モードに入れるか）。鍋が無い・もう鍋モード中・ADJUSTで椀を作っている最中（残量不足か
-## 濃さ0でなければ）・判定待ち（SERVE）・ゲームオーバー・足せるものが無い、のときは false。
-## 残量不足を埋められるのは水（だし経由を含む）、濃さ0を埋められるのはだしだけで、独立に見る。
-## ※開店中に鍋を触れる条件を変える（ADJUST中も触れる）のはCで行う。ここは今の挙動のまま。
+## 鍋を触れるか（鍋モードに入れるか）。鍋が無い・もう鍋モード中・判定待ち（SERVE）・ゲームオーバー・足せるものが無い、
+## のときは false。残量不足を埋められるのは水（だし経由を含む）、濃さ0を埋められるのはだしだけで、独立に見る。
+## UI準備C④（DESIGN.md 7.6）：椀を作っている最中（ADJUST）も、足りているときを含めて鍋を触れる（以前は、残量不足か濃さ0の
+## ときだけだった）。濃さは判定の瞬間（REACT）に読むので、椀を作る途中に手当てしても判定は正しい。SERVE中（椀を確定して
+## から判定まで）は、判定の前に濃さを変えられないよう、今までどおり触れない。
 func can_touch_pot() -> bool:
 	var servings_short := is_servings_short_context()
 	var strength_zero := is_strength_zero()
@@ -1648,7 +1649,6 @@ func can_touch_pot() -> bool:
 	else:
 		nothing_to_add = not GameState.can_add_water() and not GameState.can_add_dashi()
 	return not (GameState.soup == null or pot_open \
-			or (is_choosing_ingredients() and not is_short_now() and not strength_zero) \
 			or is_awaiting_react() \
 			or GameState.phase == GameState.Phase.GAME_OVER or nothing_to_add)
 

@@ -48,10 +48,10 @@ func run(t: SceneTree) -> int:
 	c.check("開店の共通：時間帯の名前と位置が出る", info["phase_name"] == "OPEN" and info["slot_name"] == "宵の口"
 		and info["slot_index"] == 0 and info["customer_index"] == 0, str(info))
 	var pot: Dictionary = s.pot_view()
-	c.check("開店の鍋：残り12・上限14・濃さ3・水は足せる（残り2回）・だし1・まだ椀を作っている最中なので触れない",
+	c.check("開店の鍋：残り12・上限14・濃さ3・水は足せる（残り2回）・だし1・椀を作っている最中でも足せるものがあるので触れる（UI準備C④）",
 		pot["exists"] and pot["remaining"] == 12 and pot["capacity"] == 14 and pot["strength"] == 3
 			and pot["can_add_water"] and pot["water_doses_left"] == 2 and pot["can_add_dashi"] and pot["dashi_units"] == 1
-			and not pot["can_touch"] and not pot["pot_open"] and not pot["shortage_pending"]
+			and pot["can_touch"] and not pot["pot_open"] and not pot["shortage_pending"]
 			and not pot["locked_until_water"] and not pot["locked_until_dashi"], str(pot))
 	var card: Dictionary = s.order_card_view()
 	c.check("注文カード：客・いつものタグ・今日のタグ・ラベル（文は作らない）", card.get("customer", "") == "officer"
