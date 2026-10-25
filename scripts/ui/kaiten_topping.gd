@@ -206,11 +206,13 @@ func _refresh_items(can_pick: bool) -> void:
 		for option in options:
 			var id := str(option["id"])
 			var entry: Dictionary = by_id.get(id, { "id": id, "kind": str(option["kind"]), "fresh": int(option["fresh"]),
-				"damaged": int(option["damaged_stock"]), "main": false, "dmg": false })
+				"damaged": int(option["damaged_stock"]), "main": false, "dmg": false, "in_bowl": bool(option["in_bowl"]) })
+			# 椀に入っている具材は、もう一度押すと取り消せる（在庫が0になっていても押せる）
+			var pressable: bool = can_pick and (bool(option["can_pick"]) or bool(option["in_bowl"]))
 			if bool(option["damaged"]):
-				entry["dmg"] = can_pick and bool(option["can_pick"])
+				entry["dmg"] = pressable
 			else:
-				entry["main"] = can_pick and bool(option["can_pick"])
+				entry["main"] = pressable
 			by_id[id] = entry
 	else:
 		for id in GameState.inventory:
@@ -247,7 +249,8 @@ func _refresh_items(can_pick: bool) -> void:
 		button.visible = i < shown.size()
 		if i < shown.size():
 			var item: Dictionary = shown[i]
-			button.show_item(str(item["id"]), int(item["fresh"]), int(item["damaged"]), bool(item["main"]), bool(item["dmg"]))
+			button.show_item(str(item["id"]), int(item["fresh"]), int(item["damaged"]), bool(item["main"]), bool(item["dmg"]),
+				bool(item.get("in_bowl", false)))
 
 
 func _refresh_tab_buttons(tabs: Array, current: int) -> void:
@@ -364,7 +367,7 @@ func _on_tab_pressed(index: int) -> void:
 
 func _on_item_pressed(index: int, damaged: bool) -> void:
 	if index < _items.size():
-		session.select_ingredient(str(_items[index]["id"]), damaged)
+		session.toggle_ingredient(str(_items[index]["id"]), damaged)   # 椀に無ければ入れ、あれば取り消す
 
 
 func _on_serve_pressed() -> void:

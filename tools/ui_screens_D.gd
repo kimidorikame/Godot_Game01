@@ -76,6 +76,16 @@ func _initialize() -> void:
 	await _shot("08_prep_dots", "仕込み（全面。クリックなしで約0.7秒ごとに点が1つずつ点く。2つ目まで点いた途中）")
 	play.click(ui.full_prep)
 	await _shot("09_prep_done", "仕込み（全面。クリックですぐ全部点く。全部ついたら「開店する」）")
+	# 開店：椀を作っている最中。入れた具材には「✓」。もう一度押すと取り消せる（D-3）
+	play.press(ui.full_prep.get_node("%OpenButton"))
+	var top = ui.pane_kaiten.topping
+	_until(func(): return gs.phase == gs.Phase.OPEN and top.visible and top.is_adjusting())
+	var grid = top.get_node("%Grid")
+	for item in grid.get_children():
+		if item.visible and not item.get_node("MainButton").disabled:
+			play.press(item.get_node("MainButton"))
+			break
+	await _shot("10_topping_in_bowl", "開店のトッピング（具材を1つ入れたところ：入れた具材のボタンに「✓」。もう一度押すと椀から外れて在庫が戻る）")
 	_write_overflow()
 	print("UI_SCREENS_DONE %d" % shots.size())
 	quit()

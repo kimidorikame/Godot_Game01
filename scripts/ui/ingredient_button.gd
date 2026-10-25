@@ -18,8 +18,9 @@ func _ready() -> void:
 	_damaged.pressed.connect(func(): damaged_pressed.emit())
 
 
-func show_item(item_id: String, fresh: int, damaged: int, main_enabled: bool, damaged_enabled: bool) -> void:
-	_name.text = UiLabels.short_name(item_id)
+## in_bowl：椀に入っている（名前の頭に「✓」。もう一度押すと取り消す。UI準備D・D-3）。
+func show_item(item_id: String, fresh: int, damaged: int, main_enabled: bool, damaged_enabled: bool, in_bowl: bool = false) -> void:
+	_name.text = ("✓" if in_bowl else "") + UiLabels.short_name(item_id)
 	_count.text = "×%d" % fresh
 	_main.disabled = not main_enabled
 	_damaged.visible = damaged > 0

@@ -826,10 +826,57 @@ func select_ingredient(ingredient_id: String, damaged: bool = false) -> void:
 		mob_picks.append({ "id": ingredient_id, "damaged": damaged })
 	else:
 		var servings := current_servings()
-		if damaged:
-			GameState.remove_inventory_damaged(ingredient_id, servings)
-		else:
-			GameState.remove_inventory_fresh(ingredient_id, servings)
+		_sync_bowl_takes()
+		bowl_takes.append(GameState.take_inventory(ingredient_id, servings, damaged))
+	changed.emit()
+
+
+## 椀の具材ごとに、在庫から引いた中身（束・個数）。追加の取り消しで同じ束へ戻すための記録（表示用の状態で保存しない）。
+## additions と同じ並び。椀が替わったら（current_bowl が別の辞書になったら）捨てる。団体客（モブ）は在庫をまだ引かないので持たない。
+var bowl_takes: Array = []
+var _takes_bowl: Variant = null
+
+
+func _sync_bowl_takes() -> void:
+	if open == null:
+		return
+	if not is_same(_takes_bowl, open.current_bowl):
+		_takes_bowl = open.current_bowl
+		bowl_takes = []
+
+
+## 椀の具材ボタン：椀に無ければ入れる（select_ingredient）、すでに入っていれば取り消す（椀から外し、在庫を戻す。UI準備D・D-3）。
+## 傷んだ側・新鮮な側のどちらのボタンでも、同じ品目が椀にあれば取り消す＝同じ具材を2個は入れられない。
+func toggle_ingredient(ingredient_id: String, damaged: bool = false) -> void:
+	if open == null:
+		return
+	var index := (open.current_bowl.get("additions", []) as Array).rfind(ingredient_id)
+	if index >= 0:
+		cancel_ingredient(index)
+	else:
+		select_ingredient(ingredient_id, damaged)
+
+
+## 椀の index 番目の具材を取り消す（椀を作っている最中だけ）。引いた在庫を元の束へ戻す。団体客は確定まで在庫を引かないので、選びの記録だけ外す。
+func cancel_ingredient(index: int) -> void:
+	if open == null or not is_choosing_ingredients():
+		return
+	var additions: Array = open.current_bowl.get("additions", [])
+	if index < 0 or index >= additions.size():
+		return
+	var ingredient_id := str(additions[index])
+	if is_current_mob_order():
+		for i in range(mob_picks.size() - 1, -1, -1):
+			if str(mob_picks[i]["id"]) == ingredient_id:
+				mob_picks.remove_at(i)
+				break
+	else:
+		_sync_bowl_takes()
+		if bowl_takes.size() != additions.size():
+			return   # 引いた中身を覚えていない具材（通常は無い）は取り消さない
+		GameState.restore_inventory(ingredient_id, bowl_takes[index])
+		bowl_takes.remove_at(index)
+	open.remove_from_bowl(index)
 	changed.emit()
 
 
@@ -2736,7 +2783,8 @@ func bowl_view() -> Dictionary:
 
 ## 選べる品目の一覧（ADJUST 中）：[{ id, label, damaged（この選択肢は傷んだ側か）, kind（"seasoning"／"topping"）,
 ##   tags, fresh（新鮮の在庫）, damaged_stock（傷んだ在庫）, count（この選択肢の側の在庫）, can_pick }]
-## can_pick は在庫があり、椀が上限（3つ）に達していないとき。押すときは select_ingredient(id, damaged)。
+## can_pick は在庫があり、椀が上限（3つ）に達しておらず、まだ椀に入っていないとき。in_bowl は椀に入っている（もう一度押すと取り消せる）。
+## 押すときは toggle_ingredient(id, damaged)（椀に無ければ入れ、あれば取り消す。select_ingredient は入れるだけ）。
 ## ADJUST で入力待ちでなければ空。
 func ingredient_options() -> Array:
 	var out: Array = []
@@ -2750,10 +2798,11 @@ func ingredient_options() -> Array:
 		var id := str(option.get("id", ""))
 		var damaged := bool(option.get("damaged", false))
 		var own: int = GameState.damaged_count(id) if damaged else GameState.fresh_count(id)
+		var in_bowl := open != null and (open.current_bowl.get("additions", []) as Array).has(id)
 		out.append({ "id": id, "label": str(option.get("label", id)), "damaged": damaged,
 			"kind": "topping" if Ingredients.is_topping(id) else "seasoning", "tags": Ingredients.tags_for(id),
 			"fresh": GameState.fresh_count(id), "damaged_stock": GameState.damaged_count(id), "count": own,
-			"can_pick": not at_cap and own >= 1 })
+			"can_pick": not at_cap and own >= 1 and not in_bowl, "in_bowl": in_bowl })
 	return out
 
 

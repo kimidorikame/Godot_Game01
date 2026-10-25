@@ -128,6 +128,23 @@ func add_to_bowl(ingredient_id: String, spoiled: bool = false) -> bool:
 	return true
 
 
+## 椀から index 番目の具材を外す（追加の取り消し。UI準備D・D-3）。additions_damaged も同じ位置を外し、
+## used_spoiled は残りの具材から作り直す（傷んだ具材を外せば、傷みの減点も消える）。外せたら true。
+func remove_from_bowl(index: int) -> bool:
+	var additions: Array = current_bowl.get("additions", [])
+	if index < 0 or index >= additions.size():
+		return false
+	additions.remove_at(index)
+	var flags: Array = current_bowl.get_or_add("additions_damaged", [])
+	if index < flags.size():
+		flags.remove_at(index)
+	if flags.has(true):
+		current_bowl["used_spoiled"] = true
+	else:
+		current_bowl.erase("used_spoiled")
+	return true
+
+
 ## 椀を作り直す（[廃棄する]の後、同じ客へ再挑戦するため）。additionsを空にした
 ## 新しい椀に差し替えるだけ＝_new_bowl()をそのまま使う。judge_bowlの結果（result等）も
 ## 新しい椀には無いので、自動的に「判定前」の状態へ戻る。鍋の消費・記録は受け側

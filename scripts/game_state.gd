@@ -486,10 +486,15 @@ func remove_inventory_damaged(item, count: int = 1) -> void:
 
 ## バッチを指定の優先順で count 個引き、inventory と整合させる。腐らない品目は素の減算。
 ## 引きすぎた分は黙って捨てる（remove_inventory と同じ安全設計。負の在庫は持たない）。
-func _take_from_batches(item, count: int, damaged_first: bool) -> void:
+## 引いた中身を返す（椀の追加の取り消しで、同じ束へ戻すため）：[{ day, unit_price, count }]。腐らない品目は day=-1。
+func _take_from_batches(item, count: int, damaged_first: bool) -> Array:
+	var taken: Array = []
 	if not Ingredients.is_perishable(str(item)):
+		var have := int(inventory.get(item, 0))
 		remove_inventory(item, count)
-		return
+		if mini(have, count) > 0:
+			taken.append({ "day": -1, "unit_price": 0, "count": mini(have, count) })
+		return taken
 	var batches: Array = perishable_batches.get(item, [])
 	var left := count
 	for pass_damaged in [damaged_first, not damaged_first]:
@@ -500,12 +505,44 @@ func _take_from_batches(item, count: int, damaged_first: bool) -> void:
 				i += 1
 				continue
 			var take := mini(int(batch["count"]), left)
+			taken.append({ "day": int(batch["day"]), "unit_price": int(batch.get("unit_price", 0)), "count": take })
 			batch["count"] = int(batch["count"]) - take
 			left -= take
 			if int(batch["count"]) <= 0:
 				batches.remove_at(i)
 			else:
 				i += 1
+	_sync_batches(item, batches)
+	return taken
+
+
+## 在庫から引く（remove_inventory_fresh / _damaged と同じ）が、引いた中身を返す。
+## damaged が true なら傷んだ側から、false なら傷んでいない側（古い順）から。
+func take_inventory(item, count: int, damaged: bool) -> Array:
+	return _take_from_batches(item, count, damaged)
+
+
+## take_inventory が返した中身を、元の束（日・単価）へ戻す。同じ日・単価の束があれば足し、無ければ日の順（古い順）の位置に入れる。
+func restore_inventory(item, taken: Array) -> void:
+	if not Ingredients.is_perishable(str(item)):
+		for piece in taken:
+			inventory[item] = int(inventory.get(item, 0)) + int(piece["count"])
+		return
+	var batches: Array = perishable_batches.get(item, [])
+	for piece in taken:
+		var merged := false
+		for batch in batches:
+			if int(batch["day"]) == int(piece["day"]) and int(batch.get("unit_price", 0)) == int(piece["unit_price"]):
+				batch["count"] = int(batch["count"]) + int(piece["count"])
+				merged = true
+				break
+		if not merged:
+			var at := batches.size()
+			for i in range(batches.size()):
+				if int(batches[i]["day"]) > int(piece["day"]):
+					at = i
+					break
+			batches.insert(at, { "day": int(piece["day"]), "count": int(piece["count"]), "unit_price": int(piece["unit_price"]) })
 	_sync_batches(item, batches)
 
 
