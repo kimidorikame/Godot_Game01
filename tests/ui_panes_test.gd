@@ -141,7 +141,7 @@ func run(t: SceneTree) -> int:
 	c.check("予算の3つ：(852,86) 388×55", _near(meat.get_node("%Budget").get_global_rect(), Rect2(852, 86, 388, 55)))
 	c.check("商品の行の枠：(852,337) 388×269（5品は縦に送る）", _near(meat.get_node("%GoodsScroll").get_global_rect(), Rect2(852, 337, 388, 269)))
 	var back: Button = meat.get_node("%BackButton")
-	c.check("「店選びへ」：(852,640)・幅388、鍋の素を買うまで押せない・注意の一文が出る",
+	c.check("「店を出る」（張記。旧「店選びへ」）：(852,640)・幅388、鍋の素を買うまで押せない・注意の一文が出る",
 		_at(back, Vector2(852, 640), 388) and back.disabled and meat.get_node("%WarnNote").visible)
 	c.check("段階の選択の前は、鍋の素を押せない", s.is_in_prep_tier() or (tiers.get_child(0) as Button).disabled)
 	guard = 0
@@ -162,7 +162,7 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		if not _press(back):
 			root.left.advance()   # 会話の入力待ちなどで押せないときは会話を進める
-	c.check("「店選びへ」（会話を進めるのと同じ）で市場（MARKET）に着く", s.is_in_market())
+	c.check("「店を出る」（張記。会話を進めるのと同じ）で市場（MARKET）に着く", s.is_in_market())
 
 	# --- 4. 市場（店選び）---
 	_sort(root)
@@ -203,11 +203,11 @@ func run(t: SceneTree) -> int:
 	c.check("「この店で買った」に品名と額が出る（UIだけの集計）", shop.get_node("%BoughtBox").visible
 		and shop.get_node("%BoughtList").text == "%s ¥%d" % [str(first["label"]), int(first["price"])], shop.get_node("%BoughtList").text)
 	_press(shop.get_node("%BackButton"))
-	c.check("「店選びへ戻る」→ leave_shop：市場に戻り、青果に「¥%d 使った」" % int(first["price"]),
+	c.check("「店を出る」→ leave_shop：市場に戻り、青果に「¥%d 使った」" % int(first["price"]),
 		s.market_shop == "" and _visible_pane(root) == market
 			and produce_row.get_node("State").text == "¥%d 使った" % int(first["price"]), produce_row.get_node("State").text)
 
-	# 張記に入り直す：追加購入の行が押せる・「店選びへ」は leave_shop
+	# 張記に入り直す：追加購入の行が押せる・「店を出る」は leave_shop
 	_press(meat_row)
 	c.check("市場から張記に入ると、食肉仲卸の画面（鍋の素は買った状態）", _visible_pane(root) == meat and s.market_shop == "meat_wholesale"
 		and tiers.get_child(0).get_node("BoughtFrame").visible)
@@ -215,7 +215,7 @@ func run(t: SceneTree) -> int:
 	c.check("鍋の素を買ったあとは、追加購入の「買う」を押せる（買えるもの）",
 		(meat_goods.get_child(0).get_node("BuyButton") as Button).disabled == (not bool(s.shop_view("meat_wholesale")[0]["affordable"])))
 	_press(back)
-	c.check("市場の中の張記では「店選びへ」= leave_shop", s.market_shop == "" and _visible_pane(root) == market)
+	c.check("市場の中の張記では「店を出る」= leave_shop", s.market_shop == "" and _visible_pane(root) == market)
 
 	# 市場を出る
 	_press(market.get_node("%ExitButton"))

@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPaneBuyShop
 ## 右の枠：購入（ほかの店）。寸法表 SCREENS_UI_LAYOUT §6。いま入っている店は session.market_shop。
-## 商品の行 → buy_item（UIの集計を通す）。「この店で買った」はUIの集計（plan Q10）。「店選びへ戻る」→ leave_shop()。
+## 商品の行 → buy_item（UIの集計を通す）。「この店で買った」はUIの集計（plan Q10）。「店を出る」（旧「店選びへ戻る」）→ leave_shop()。
 
 var session: PlaySession = null
 var tally: UiShopTally = null

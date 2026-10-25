@@ -6,7 +6,7 @@ class_name UiGameRoot
 ## 部品は bind_session(session) を1回、refresh() を描き直しのたびに受ける（引数なし）。
 ## 右の枠は同じ位置に重ねた画面のうち、いまの状態の1つだけを出す（_right_pane）。
 ## 全面（仕込み・結果・ゲームオーバー）が出ている間は、左側と右の枠を隠す（_full_screen）。
-## スマホ・会話ログは右の枠（開店中は操作エリア）と入れ替わる（overlay。表示だけの状態）。Day1の朝は前日が無いので、
+## スマホは右の枠（開店中は操作エリア）と入れ替わる（overlay。表示だけの状態）。会話ログは会話枠が上へ伸びる形（LeftSide が持つ。右の枠は触らない）。Day1の朝は前日が無いので、
 ## 右の枠を出さずにスマホから始める。朝の入力待ち「スマホを見る。」は、スマホを開くと終わる（開いている間の会話のクリックでも）。
 
 @onready var session: PlaySession = %Session
@@ -18,7 +18,6 @@ class_name UiGameRoot
 @onready var pane_kaiten: UiPaneKaiten = %PaneKaiten
 @onready var pane_close: UiPaneClose = %PaneClose
 @onready var pane_phone: UiPanePhone = %PanePhone
-@onready var pane_log: UiPaneLog = %PaneLog
 @onready var right_pane: Control = %RightPane
 @onready var full_prep: UiFullPrep = %FullPrep
 @onready var full_result: UiFullResult = %FullResult
@@ -26,12 +25,12 @@ class_name UiGameRoot
 
 ## 市場の「この店で買ったもの」のUIだけの集計（plan Q10）。仕込みに入るたびに捨てる。
 var tally := UiShopTally.new()
-## 右の枠と入れ替えて出しているもの（""／"phone"／"log"）。表示だけの状態で、区切り（phase_entering）で捨てる。
+## 右の枠と入れ替えて出しているもの（""／"phone"）。表示だけの状態で、区切り（phase_entering）で捨てる。
 var overlay := ""
 
 
 func _panes() -> Array:
-	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten, pane_close, pane_phone, pane_log]
+	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten, pane_close, pane_phone]
 
 
 func _fulls() -> Array:
@@ -48,12 +47,10 @@ func _ready() -> void:
 	pane_buy_meat.advance_requested.connect(left.advance)
 	full_prep.advance_requested.connect(left.advance)
 	left.phone_requested.connect(_on_phone_icon)
-	left.log_requested.connect(_on_log_icon)
 	left.wait_input_clicked.connect(_on_wait_input_clicked)
 	pane_morning.phone_requested.connect(open_phone.bind("news"))
 	pane_phone.close_requested.connect(close_overlay)
 	pane_phone.dms_read.connect(left.refresh_phone_badge)
-	pane_log.close_requested.connect(close_overlay)
 	session.phase_entering.connect(_on_phase_entering)
 	session.changed.connect(_redraw)
 	session.start()
@@ -75,6 +72,7 @@ func _redraw() -> void:
 	if shown != null:
 		shown.refresh()
 	session.record_visible_event()
+	left.refresh_log()
 
 
 ## いま出す全面（無ければ null）：市場を出たあとの仕込み・結果・ゲームオーバー。
@@ -89,12 +87,10 @@ func _full_screen() -> Control:
 	return null
 
 
-## いま右の枠に出す画面（無ければ null）。スマホ・会話ログを開いていれば、それが右の枠（開店中は操作エリア）と入れ替わる。
+## いま右の枠に出す画面（無ければ null）。スマホを開いていれば、それが右の枠（開店中は操作エリア）と入れ替わる。
 func _right_pane() -> Control:
 	if overlay == "phone":
 		return pane_phone
-	if overlay == "log":
-		return pane_log
 	match GameState.phase:
 		GameState.Phase.WAKE:
 			return pane_morning
@@ -135,7 +131,6 @@ func _on_phase_entering(phase: int) -> void:
 	left.reset_ui_state()
 	pane_kaiten.reset_ui_state()
 	full_result.reset_ui_state()
-	pane_log.reset_ui_state()
 	pane_phone.reset_ui_state()
 	overlay = ""
 	if phase == GameState.Phase.WAKE and session.previous_day_record().is_empty():
@@ -173,15 +168,6 @@ func _on_phone_icon() -> void:
 		close_overlay()
 	else:
 		open_phone(pane_phone.tab)
-
-
-func _on_log_icon() -> void:
-	if overlay == "log":
-		close_overlay()
-	else:
-		overlay = "log"
-		pane_log.reset_ui_state()
-		_redraw()
 
 
 ## 入力待ちで会話を進めようとした：スマホを開いていれば入力を終える（開いていなければ何もしない＝「スマホを見る」を押す）。

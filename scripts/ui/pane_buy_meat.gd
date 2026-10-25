@@ -3,7 +3,7 @@ class_name UiPaneBuyMeat
 ## 右の枠：購入（食肉仲卸＝張記）。寸法表 SCREENS_UI_LAYOUT §5。市場に入って最初に開く。
 ## 鍋の素の3段階は、段階の選択（PREP_TIER）にいるときだけ押せる → choose_prep_tier(id)。
 ## 追加購入の商品の行はDay2から（市場の開く日から）、鍋の素を買ったあとから押せる → buy_item（UIの集計を通す）。
-## 「店選びへ」（plan Q9）：市場（MARKET）の前は、会話を進めるのと同じ（鍋の素を買うまで押せない）。
+## 「店を出る」（旧「店選びへ」。plan Q9）：市場（MARKET）の前は、会話を進めるのと同じ（鍋の素を買うまで押せない）。
 ## 市場の中で張記に入っているときは leave_shop()。
 
 signal advance_requested()

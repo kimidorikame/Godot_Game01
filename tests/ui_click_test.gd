@@ -145,4 +145,74 @@ func run(t: SceneTree) -> int:
 		c.check("閉店の会話枠：どの点にも会話枠が当たる", _blockers(root).is_empty(), str(_blockers(root)))
 
 	root.queue_free()
+
+	# --- 5. 左の列のどこをクリックしても進む（キャラ表示エリア・会話枠）。アイコンと右の枠では進まない。ログは進めずに閉じる ---
+	GameState.reset_for_new_game()
+	root = load("res://scenes/game_root.tscn").instantiate()
+	t.root.add_child(root)
+	s = root.session
+	var viewport := root.get_viewport()
+	var left_hits := {}
+	for ix in range(0, 41):
+		for iy in range(0, 37):
+			var pos := Vector2(ix * 20.0 + 1.0, iy * 20.0 + 1.0)   # 左の列 0〜820 × 0〜720
+			if pos.x >= 820.0 or pos.y >= 720.0:
+				continue
+			var motion := InputEventMouseMotion.new()
+			motion.position = pos
+			motion.global_position = pos
+			viewport.push_input(motion, true)
+			var hit := viewport.gui_get_hovered_control()
+			var hit_name := str(hit.name) if hit != null else "(なし)"
+			left_hits[hit_name] = int(left_hits.get(hit_name, 0)) + 1
+	var allowed := ["ClickArea", "DialogueBox", "PhoneIcon", "LogIcon", "SkipButton", "PhoneBadge"]
+	var stray := {}
+	for hit_name in left_hits:
+		if not allowed.has(hit_name):
+			stray[hit_name] = left_hits[hit_name]
+	c.check("左の列（820×720）：どの点も、会話を進める領域（ClickArea・会話枠）かアイコンのボタンに当たる（ほかの部品が塞がない）",
+		stray.is_empty() and left_hits.has("ClickArea") and left_hits.has("DialogueBox"), str(left_hits))
+	var before_portrait: int = s.flow.runner.index
+	load("res://tests/ui_autoplay.gd").click_at(viewport, Vector2(410, 300))   # キャラ表示エリア
+	c.check("キャラ表示エリアをクリックしても、会話が1つ進む", s.flow.runner.index == before_portrait + 1, str(s.flow.runner.index))
+	before_portrait = s.flow.runner.index
+	load("res://tests/ui_autoplay.gd").click_at(viewport, Vector2(60, 300))   # 左端の何も無い所
+	c.check("左の列の何も無い所をクリックしても、会話が1つ進む", s.flow.runner.index == before_portrait + 1)
+	before_portrait = s.flow.runner.index
+	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%PhoneIcon"))
+	c.check("スマホのアイコンでは会話は進まない（スマホの開閉）", s.flow.runner.index == before_portrait)
+	var overlay_now: String = root.overlay
+	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%PhoneIcon"))
+	c.check("スマホのアイコンをもう一度押すと元に戻る（会話は進まない）", s.flow.runner.index == before_portrait and root.overlay != overlay_now)
+	# 右の枠：ボタンでも空き部分でも会話を進めない
+	var right_pane: Control = root.right_pane
+	var right_visible := ""
+	for pane in root._panes():
+		if (pane as Control).visible:
+			right_visible = str(pane.name)
+	var before_right: int = s.flow.runner.index
+	load("res://tests/ui_autoplay.gd").click_at(viewport, right_pane.get_global_rect().get_center())
+	c.check("右の枠の空き部分をクリックしても、会話は進まない（%s）" % right_visible, s.flow.runner.index == before_right)
+	# ログ：開いているあいだのクリックは進めずに閉じる。もう一度ログのアイコンでも閉じる。右の枠は触らない
+	var log_box: UiLogBox = root.left.get_node("%LogBox")
+	var right_before_log := right_visible
+	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%LogIcon"))
+	c.check("ログのアイコン：会話枠が上へ伸びて今日の行が並ぶ", root.left.is_log_open() and log_box.visible and log_box.row_count() >= 1
+		and log_box.get_global_rect().position.y < root.left.get_node("%DialogueBox").get_global_rect().position.y
+		and log_box.get_global_rect().end.y == root.left.get_node("%DialogueBox").get_global_rect().end.y)
+	var after_open_right := ""
+	for pane in root._panes():
+		if (pane as Control).visible:
+			after_open_right = str(pane.name)
+	c.check("ログを開いても、右の枠は置き換わらない", after_open_right == right_before_log, "%s → %s" % [right_before_log, after_open_right])
+	var before_log: int = s.flow.runner.index
+	load("res://tests/ui_autoplay.gd").click_at(viewport, log_box.get_global_rect().get_center())
+	c.check("ログの枠の中のクリックでは閉じない（会話も進まない）", root.left.is_log_open() and s.flow.runner.index == before_log)
+	load("res://tests/ui_autoplay.gd").click_at(viewport, Vector2(410, 150))
+	c.check("ログを開いているあいだ、枠の外（左の列）のクリックは会話を進めず、ログを閉じる",
+		not root.left.is_log_open() and not log_box.visible and s.flow.runner.index == before_log)
+	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%LogIcon"))
+	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%LogIcon"))
+	c.check("もう一度ログのアイコンを押しても閉じる（会話は進まない）", not root.left.is_log_open() and s.flow.runner.index == before_log)
+	root.queue_free()
 	return c.finish()

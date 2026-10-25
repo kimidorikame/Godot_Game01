@@ -2,11 +2,12 @@ extends Control
 class_name UiLeftSide
 ## 本番UIの左側（共通）：上部の日・時間帯、所持金・評判、立ち絵枠、名前の札、会話枠、選択肢、
 ## スマホ・ログのアイコン、既読スキップ。鍋でもトッピングでも位置は動かさない（寸法表 KAITEN_UI_LAYOUT §1）。
+## 会話を進めるクリックは、左の列のどこでも受ける（背面の ClickArea＝820×720。キャラ表示エリアと会話枠を含む）。スマホ・ログ・既読スキップの
+## ボタン、右の枠は受けない（上に重なるボタンが先に受ける）。ログ（LogBox）は会話枠が上へ伸びた形で、開いているあいだのクリックは進めずに閉じる。
 ## ゲームの判定は持たない。PlaySession の問い（current_line・current_choices・day_info など）を読んで描き、
 ## 会話を進める操作だけを PlaySession へ送る。親（game_root）が bind_session() を1回、refresh() を changed のたびに呼ぶ。
 
 signal phone_requested()
-signal log_requested()
 ## 入力待ち（WAIT_INPUT。朝の「スマホを見る。」）で会話を進めようとした。ルートが、スマホを開いていれば入力を終える。
 signal wait_input_clicked()
 
@@ -22,6 +23,8 @@ var _page := 0
 var _key := ""
 ## 直前に出していた行の本文。列が終わって現在の行が無くなったとき、これを残す（区切りで捨てる）。
 var _last_text := ""
+## 会話ログ（LogBox）を開いているか。表示だけの状態で、区切り（phase_entering）で閉じる。
+var _log_open := false
 
 @onready var _day_label: Label = %DayLabel
 @onready var _screen_name: Label = %ScreenName
@@ -39,13 +42,16 @@ var _last_text := ""
 @onready var _dialogue_text: Label = %DialogueText
 @onready var _page_mark: Label = %PageMark
 @onready var _skip_button: Button = %SkipButton
+@onready var _click_area: Control = %ClickArea
+@onready var _log_box: UiLogBox = %LogBox
 
 
 func _ready() -> void:
 	_phone_icon.pressed.connect(func(): phone_requested.emit())
-	_log_icon.pressed.connect(func(): log_requested.emit())
+	_log_icon.pressed.connect(toggle_log)
 	_skip_button.pressed.connect(_on_skip_pressed)
 	_dialogue_box.gui_input.connect(_on_dialogue_input)
+	_click_area.gui_input.connect(_on_dialogue_input)
 
 
 func bind_session(s: PlaySession) -> void:
@@ -132,6 +138,9 @@ func refresh() -> void:
 	_skip_button.disabled = not session.can_skip_step()
 	# 既読スキップは会話枠の右下に重なる。押せないあいだはクリックを受けず、下の会話枠に通す（押せない枠が会話のクリックを塞がない）
 	_skip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE if _skip_button.disabled else Control.MOUSE_FILTER_STOP
+	_log_box.visible = _log_open
+	if _log_open:
+		_log_box.refresh(session)
 
 
 ## 開店中、いま客がそこにいるか（立ち絵の枠を出す）。語りの行でも、客が店にいる間は枠を残す。
@@ -227,6 +236,9 @@ func _skip_silent_events() -> void:
 
 ## 区切り（phase_entering）で、表示だけの状態を捨てる。
 func reset_ui_state() -> void:
+	_log_open = false
+	_log_box.visible = false
+	_log_box.reset()
 	_key = ""
 	_page = 0
 	_last_text = ""
@@ -237,7 +249,36 @@ func _on_skip_pressed() -> void:
 		session.skip_read()
 
 
+## 左の列のクリック（キャラ表示エリア・会話枠）：会話を進める。ログを開いているあいだは、進めずにログを閉じる。
 func _on_dialogue_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		advance()
+		if _log_open:
+			close_log()
+		else:
+			advance()
 		accept_event()
+
+
+## 描き直しの最後に（会話ログへ今の行を記録したあと）、開いているログへ新しい行を足す。
+func refresh_log() -> void:
+	if _log_open and session != null:
+		_log_box.refresh(session)
+
+
+func is_log_open() -> bool:
+	return _log_open
+
+
+## 「ログ」のアイコン：開く／閉じる（もう一度押すと閉じる）。右の枠は触らない。
+func toggle_log() -> void:
+	if _log_open:
+		close_log()
+		return
+	_log_open = true
+	_log_box.reset()
+	refresh()
+
+
+func close_log() -> void:
+	_log_open = false
+	refresh()

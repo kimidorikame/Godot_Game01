@@ -29,8 +29,11 @@ static func press(button: BaseButton) -> bool:
 ## 本物のマウスの左クリック（移動→押す→離す）を、コントロールの中心の座標でビューポートへ送る。
 ## 当たり判定を通るので、上に重なった部品がクリックを塞いでいれば進まない（gui_input を直接呼ぶ方法では気づけない）。
 static func click(control: Control) -> void:
-	var viewport := control.get_viewport()
-	var pos := control.get_global_rect().get_center()
+	click_at(control.get_viewport(), control.get_global_rect().get_center())
+
+
+## 座標（ビューポートの座標。画面の拡大前）を指定する本物のマウスの左クリック。
+static func click_at(viewport: Viewport, pos: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = pos
 	motion.global_position = pos
@@ -65,9 +68,6 @@ func step() -> String:
 			return _talk()   # スマホを開いたまま会話を進める＝入力待ち「スマホを見る。」を終える
 		press(root.pane_phone.get_node("%CloseButton"))
 		return "スマホを閉じる"
-	if root.pane_log.visible:
-		press(root.pane_log.get_node("%CloseButton"))
-		return "ログを閉じる"
 	if root.pane_morning.visible:
 		var primary: Button = root.pane_morning.get_node("%PrimaryButton")
 		if primary.text == "市場へ" and press(primary):
@@ -86,7 +86,7 @@ func step() -> String:
 			if i < tiers.get_child_count() and press(tiers.get_child(i)):
 				return "鍋の素（%d）" % i
 		if press(root.pane_buy_meat.get_node("%BackButton")):
-			return "店選びへ"
+			return "店を出る（張記）"
 		return _talk()
 	if root.pane_market.visible:
 		var stalls: Control = root.pane_market.get_node("%Stalls")
@@ -114,7 +114,7 @@ func step() -> String:
 	return _talk()
 
 
-## 店の中：商品の1行目の「買う」を SHOP_PLAN の回数だけ押してから、店選びへ戻る。
+## 店の中：商品の1行目の「買う」を SHOP_PLAN の回数だけ押してから、店を出る。
 func _buy_in(pane: Control, stall_index: int) -> String:
 	var goods: Control = pane.get_node("%Goods")
 	if _bought_here < int(SHOP_PLAN.get(stall_index, 0)) and goods.get_child_count() > 0 \
@@ -122,7 +122,7 @@ func _buy_in(pane: Control, stall_index: int) -> String:
 		_bought_here += 1
 		return "買う"
 	press(pane.get_node("%BackButton"))
-	return "店選びへ戻る"
+	return "店を出る"
 
 
 func _kaiten() -> String:

@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/left_side.gd" id="1_4soef"]
+[ext_resource type="Script" path="res://scripts/ui/log_box.gd" id="2_logbx"]
 
 [node name="LeftSide" type="Control"]
 layout_mode = 3
@@ -9,6 +10,12 @@ offset_right = 820.0
 offset_bottom = 720.0
 mouse_filter = 2
 script = ExtResource("1_4soef")
+
+[node name="ClickArea" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 820.0
+offset_bottom = 720.0
 
 [node name="HudDate" type="Panel" parent="."]
 unique_name_in_owner = true
@@ -172,6 +179,7 @@ offset_left = 210.0
 offset_top = 352.0
 offset_right = 610.0
 offset_bottom = 404.0
+mouse_filter = 2
 theme_override_constants/separation = 12
 
 [node name="DialogueBox" type="Panel" parent="."]
@@ -222,6 +230,42 @@ offset_bottom = 40.0
 theme_type_variation = &"LabelName"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="LogBox" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 24.0
+offset_top = 232.0
+offset_right = 796.0
+offset_bottom = 696.0
+theme_type_variation = &"PanelDark"
+script = ExtResource("2_logbx")
+
+[node name="LogHint" type="Label" parent="LogBox"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 8.0
+offset_right = 756.0
+offset_bottom = 30.0
+mouse_filter = 2
+theme_type_variation = &"LabelCaption"
+text = "会話ログ（もう一度「ログ」を押すか、枠の外をクリックで閉じる）"
+vertical_alignment = 1
+
+[node name="LogScroll" type="ScrollContainer" parent="LogBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 36.0
+offset_right = 756.0
+offset_bottom = 448.0
+horizontal_scroll_mode = 0
+
+[node name="LogContent" type="VBoxContainer" parent="LogBox/LogScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="PhoneIcon" type="Button" parent="."]
 unique_name_in_owner = true

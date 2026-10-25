@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Theme" path="res://resources/ui_theme.tres" id="1_r4kn7"]
 [ext_resource type="Script" path="res://scripts/ui/game_root.gd" id="2_wt8xl"]
@@ -18,8 +18,6 @@
 [ext_resource type="Script" path="res://scripts/ui/pane_close.gd" id="16_2l3ii"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pane_phone.tscn" id="17_jccvb"]
 [ext_resource type="Script" path="res://scripts/ui/pane_phone.gd" id="18_lxrpf"]
-[ext_resource type="PackedScene" path="res://scenes/ui/pane_log.tscn" id="19_2un5i"]
-[ext_resource type="Script" path="res://scripts/ui/pane_log.gd" id="20_11kok"]
 [ext_resource type="PackedScene" path="res://scenes/ui/full_prep.tscn" id="21_usp3i"]
 [ext_resource type="Script" path="res://scripts/ui/full_prep.gd" id="22_tc12w"]
 [ext_resource type="PackedScene" path="res://scenes/ui/full_result.tscn" id="23_r54vu"]
@@ -116,14 +114,6 @@ layout_mode = 0
 offset_right = 420.0
 offset_bottom = 672.0
 script = ExtResource("18_lxrpf")
-
-[node name="PaneLog" type="Panel" parent="RightPane" instance=ExtResource("19_2un5i")]
-unique_name_in_owner = true
-visible = false
-layout_mode = 0
-offset_right = 420.0
-offset_bottom = 672.0
-script = ExtResource("20_11kok")
 
 [node name="Full" type="Control" parent="."]
 unique_name_in_owner = true

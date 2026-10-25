@@ -125,12 +125,15 @@ func run(t: SceneTree) -> int:
 		and phone.tab == "news")
 	AutoplayPress.press(root.left.get_node("%PhoneIcon"))
 	c.check("もう一度アイコンを押すと閉じる", root.overlay == "" and root.pane_morning.visible)
+	# ログ：会話枠が上へ伸びて過去の行を並べる（右の枠は置き換えない）。もう一度押すと閉じる。
+	var log_box: UiLogBox = root.left.get_node("%LogBox")
+	var right_before: Control = root.pane_morning
 	AutoplayPress.press(root.left.get_node("%LogIcon"))
-	var log_pane: UiPaneLog = root.pane_log
-	c.check("ログのアイコン：右の枠に会話ログ（今日の会話の行）", log_pane.visible and log_pane.get_node("%Header/Title").text == "会話ログ"
-		and log_pane.get_node("%Content").get_child_count() == s.talk_log_entries().size() and s.talk_log_entries().size() >= 1)
-	AutoplayPress.press(log_pane.get_node("%CloseButton"))
-	c.check("ログの「閉じる」で戻る", root.overlay == "" and root.pane_morning.visible)
+	c.check("ログのアイコン：会話枠が上へ伸びて今日の会話の行が並ぶ（右の枠は朝のまま）", root.left.is_log_open() and log_box.visible
+		and log_box.row_count() == s.talk_log_entries().size() and s.talk_log_entries().size() >= 1 and root.pane_morning.visible and right_before.visible
+		and log_box.get_global_rect().position.y < root.left.get_node("%DialogueBox").get_global_rect().position.y)
+	AutoplayPress.press(root.left.get_node("%LogIcon"))
+	c.check("もう一度ログのアイコンを押すと閉じる", not root.left.is_log_open() and not log_box.visible and root.pane_morning.visible)
 	# 開店中：操作エリアと入れ替わり、「閉じる(鍋・トッピングに戻る)」で戻る（椀の中身は保持）
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()

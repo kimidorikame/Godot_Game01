@@ -27,7 +27,6 @@ const FULL_PREP_PATH := "res://scenes/ui/full_prep.tscn"
 const FULL_RESULT_PATH := "res://scenes/ui/full_result.tscn"
 const FULL_GAMEOVER_PATH := "res://scenes/ui/full_gameover.tscn"
 const PANE_PHONE_PATH := "res://scenes/ui/pane_phone.tscn"
-const PANE_LOG_PATH := "res://scenes/ui/pane_log.tscn"
 const TNUM := 1953396077   # OpenType の機能 "tnum"（数字の幅をそろえる）のタグ
 const FONT_PATH := "res://assets/fonts/NotoSansJP[wght].ttf"   # Noto Sans JP（OFL。assets/fonts/OFL.txt）
 const WGHT := 2003265652   # OpenType の軸 "wght"（太さ）のタグ
@@ -64,7 +63,6 @@ func _initialize() -> void:
 	_build(FULL_GAMEOVER_PATH, _make_full_gameover, built, skipped)
 	# スマホ・会話ログ（UI準備B⑤）
 	_build(PANE_PHONE_PATH, _make_pane_phone, built, skipped)
-	_build(PANE_LOG_PATH, _make_pane_log, built, skipped)
 	_build(GAME_ROOT_PATH, _make_game_root, built, skipped)
 	print("作った: %s" % ", ".join(built))
 	print("読み飛ばした（既にある）: %s" % ", ".join(skipped))
@@ -609,7 +607,7 @@ func _make_pane_buy_meat() -> PackedScene:
 	_node(scroll, goods, "Goods", Rect2(), root, true)
 	_label(root, "WarnNote", "鍋の素を買うまで、ほかの店へは行けない", Rect2(16, 590, 388, 22), root, "LabelWarnSmall", true,
 		HORIZONTAL_ALIGNMENT_CENTER)
-	_button(root, "BackButton", "店選びへ", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
+	_button(root, "BackButton", "店を出る", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
 	return _pack(root)
 
 
@@ -633,7 +631,7 @@ func _make_pane_buy_shop() -> PackedScene:
 	var bought_list := _label(bought, "BoughtList", "", Rect2(12, 24, 364, 38), root, "LabelWarnSmall", true)
 	bought_list.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bought_list.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_button(root, "BackButton", "店選びへ戻る", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
+	_button(root, "BackButton", "店を出る", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
 	return _pack(root)
 # --- 開店の操作エリア（UI準備B③）---
 
@@ -977,20 +975,6 @@ func _make_pane_phone() -> PackedScene:
 	return _pack(root)
 
 
-## 右の枠：会話ログ。寸法表に無いので、右の枠の共通の形（見出しの帯・中身の余白14・一番下の補助ボタン）で出す。
-func _make_pane_log() -> PackedScene:
-	var root := _pane_root("PaneLog", "res://scripts/ui/pane_log.gd")
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_node(root, scroll, "Scroll", Rect2(16, 62, 388, 544), root, true)
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 6)
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_node(scroll, content, "Content", Rect2(), root, true)
-	_button(root, "CloseButton", "閉じる", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
-	return _pack(root)
-
-
 # --- ルート ---
 
 func _make_game_root() -> PackedScene:
@@ -1018,7 +1002,7 @@ func _make_game_root() -> PackedScene:
 	# 右の枠の画面は同じ位置に重ね、ルートがいまの1つだけを出す
 	for pane in [["PaneMorning", PANE_MORNING_PATH], ["PaneMarket", PANE_MARKET_PATH], ["PaneBuyMeat", PANE_BUY_MEAT_PATH],
 			["PaneBuyShop", PANE_BUY_SHOP_PATH], ["PaneKaiten", PANE_KAITEN_PATH],
-			["PaneClose", PANE_CLOSE_PATH], ["PanePhone", PANE_PHONE_PATH], ["PaneLog", PANE_LOG_PATH]]:
+			["PaneClose", PANE_CLOSE_PATH], ["PanePhone", PANE_PHONE_PATH]]:
 		var inst := _instance(right, pane[1], pane[0], Rect2(0, 0, 420, 672), root, true)
 		inst.visible = false
 	# 全面（仕込み・結果・ゲームオーバー）。出ている間は左側と右の枠を隠す
