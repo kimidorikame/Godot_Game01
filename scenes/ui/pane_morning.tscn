@@ -285,7 +285,7 @@ offset_top = 56.0
 offset_right = 376.0
 offset_bottom = 84.0
 theme_type_variation = &"LabelWarnBody"
-text = "今朝の運営費 −¥0"
+text = "水と炭（運営費） ¥0"
 vertical_alignment = 1
 
 [node name="UsableLabel" type="Label" parent="RecordBoxes/MoneyBox"]

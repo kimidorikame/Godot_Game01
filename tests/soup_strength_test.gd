@@ -150,6 +150,9 @@ func run(t: SceneTree) -> int:
 	# --- 8. 濃縮だしの購入：¥16・毎日何度でも買える。dashi_unitsは日をまたいで持ち越され、
 	#    新しい周回でリセットされる ---
 	var panel5 = _setup(t)
+	var pending5: int = panel5.session.operating_cost_pending()
+	if pending5 > 0:
+		Ledger.record("release", pending5, "", 0, 0, "operating")   # 運営費（水と炭）は引き終えた状態にそろえる（UI準備D・D-4）
 	GameState.money = 100
 	GameState.dashi_units = 0
 	panel5.session.buy_item("meat_wholesale", "dashi")

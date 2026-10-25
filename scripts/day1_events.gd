@@ -24,7 +24,7 @@ static func wake_events() -> Array:
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
 	] + News.morning_events(GameState.day_count) + _wake_common_events() + [
-		{ "type": "TEXT", "text": "共同水道と炭屋への払い（¥%d）は、もう済ませた。" % GameState.DAILY_OPERATING_COST },
+		{ "type": "TEXT", "text": "水と炭の支払い（運営費 ¥%d）は、市場を出るときに払う。" % GameState.DAILY_OPERATING_COST },
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]
 
@@ -205,9 +205,9 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	events.append({ "type": "MARKET", "text": "（市場をぶらつく）",
 		"options": _market_options(scraps_base) })
 	# 場所代・水道代の再編＋日々の運営費：市場を出た瞬間の物語上のけじめ（表示専用の
-	# TEXT。効果は持たない。実際の日々の運営費の天引きはWAKEで既に済んでおり、市場を
-	# 出た瞬間にDebugPanel._on_market_exit_pressedが支払い予定の表示だけを決済する）。
-	events.append({ "type": "TEXT", "text": "共同水道と炭屋に寄り、市場を出た。" })
+	# TEXT。効果は持たない）。日々の運営費（水と炭）は、このTEXTに乗る前の「市場を出る」操作
+	# （PlaySession.exit_market）で引く（UI準備D・D-4。朝は確保だけ）。
+	events.append({ "type": "TEXT", "text": "水を汲み、炭を買った（−¥%d）。" % GameState.DAILY_OPERATING_COST })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })

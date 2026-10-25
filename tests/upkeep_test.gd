@@ -29,28 +29,29 @@ func run(t: SceneTree) -> int:
 			- GameState.RENT_PRICE + 9 * 45 == 500)
 	c.check("場所代+水道代の合計は140", GameState.RENT_PRICE + GameState.WATER_PRICE == 140)
 
-	# --- 2. WAKEに入ると日々の運営費が引かれる(Day1・Day2とも) ---
+	# --- 2. WAKEに入ると日々の運営費は支払い予定として確保される（引くのは市場を出るとき。UI準備D・D-4）(Day1・Day2とも) ---
 	var panel = _setup(t, 300, 1)
-	c.check("Day1のWAKEで日々の運営費が引かれる(300-75=225)",
-		GameState.money == 225, str(GameState.money))
+	c.check("Day1のWAKEでは運営費を引かず、支払い予定75として確保する(300のまま)",
+		GameState.money == 300 and panel.session.operating_cost_pending() == 75, str(GameState.money))
 	var panel_d2 = _setup(t, 300, 2)
-	c.check("Day2のWAKEでも日々の運営費が引かれる(300-75=225)",
-		GameState.money == 225, str(GameState.money))
+	c.check("Day2のWAKEでも同じ(300のまま・支払い予定75)",
+		GameState.money == 300 and panel_d2.session.operating_cost_pending() == 75, str(GameState.money))
 
 	# --- 3. [次のPhase]相当(flow.advance_phase)をrunnerに一切触れず直後に呼んでも、
 	#    運営費は既にWAKE突入時点で確定している(スキップできない。§0で見つけた
 	#    抜け穴の直接的な回帰テスト) ---
 	var panel2 = _setup(t, 300, 1)
 	var money_after_wake: int = GameState.money
-	c.check("スキップ前の時点で既に225円に減っている", money_after_wake == 225)
+	c.check("スキップ前の時点で、運営費は確保済み（残金300のまま・支払い予定75）", money_after_wake == 300 and panel2.session.operating_cost_pending() == 75)
 	panel2.session.flow.advance_phase()   # WAKEのrunner(4要素)を1つも消化せずPREPへ進む
-	c.check("[次のPhase]で即座にWAKEを抜けても運営費は二重に引かれない・戻らない",
-		GameState.money == money_after_wake, str(GameState.money))
+	c.check("[次のPhase]で即座にWAKEを抜けても、運営費の確保は消えない・二重にならない（引くのは市場を出るとき）",
+		GameState.money == money_after_wake and panel2.session.operating_cost_pending() == 75, str(GameState.money))
 
 	# --- 4. 運営費差し引き後の所持金でPREPのscraps_base判定が行われる
 	#    (140円スタート: 差し引き前80以上→通常なら仕込み可、差し引き後65<80で端材屋行き) ---
 	var panel3 = _setup(t, 140, 1)
-	c.check("WAKE後の所持金は140-75=65", GameState.money == 65, str(GameState.money))
+	c.check("WAKE後の所持金は140（運営費75は支払い予定）。運営費を除いた現金は65", GameState.money == 140
+		and GameState.money - panel3.session.operating_cost_pending() == 65, str(GameState.money))
 	GameState.phase = GameState.Phase.PREP
 	panel3.session.set_runner_for_phase(GameState.Phase.PREP)
 	c.check("運営費差し引き後(65<80)なので端材屋ルートになる", panel3.session.scraps_base)
@@ -112,16 +113,16 @@ func run(t: SceneTree) -> int:
 	#    （GameStateは単一のシングルトンなので、徴収日のケースと混ざらないよう各シナリオで
 	#    resetから作り直して自己完結させる） ---
 	var panel8 = _setup(t, 300, 2)
-	c.check("非徴収日のWAKE直後は確保0（運営費は払い済みなので確保しない）", Ledger.pending_bills_today() == 0,
+	c.check("非徴収日のWAKE直後の支払い予定は運営費75だけ（請求は無い）", Ledger.pending_bills_today() == 75 and panel8.session.operating_cost_pending() == 75,
 		str(Ledger.pending_bills_today()))
-	c.check("非徴収日：使える現金は残金そのもの(300-75=225)", Ledger.usable_cash() == 225 and GameState.money == 225,
+	c.check("非徴収日：使える現金は残金−支払い予定(300-75=225)", Ledger.usable_cash() == 225 and GameState.money == 300,
 		str(Ledger.usable_cash()))
 	var money_before8: int = GameState.money
 	panel8.session.exit_market()
 	c.check("非徴収日：市場を出ると確保が0になる", Ledger.pending_bills_today() == 0,
 		str(Ledger.pending_bills_today()))
-	c.check("非徴収日は水道代が発生しないので市場を出てもmoneyは動かない",
-		GameState.money == money_before8, str(GameState.money))
+	c.check("非徴収日は水道代が発生しないので、市場を出ると運営費75だけ引かれる",
+		GameState.money == money_before8 - 75, str(GameState.money))
 
 	# --- 10. F4帳簿/3-5（DESIGN.md 10.3.5）：徴収日はWAKE直後140（場所代90+水道代50。
 	#    3-5で水道代も確保対象に加えた。運営費75は払い済みなので含めない）、市場を出ると場所代ぶんの90だけ残る
@@ -131,7 +132,7 @@ func run(t: SceneTree) -> int:
 	#    Ledger.record("release", RENT_PRICE)を同じタイミングで呼ぶペアで決済される。
 	#    ここではそのペアを直接呼んで検証する) ---
 	var panel9 = _setup(t, 300, 1)
-	c.check("徴収日のWAKE直後は確保90+50=140", Ledger.pending_bills_today() == 140,
+	c.check("徴収日のWAKE直後の支払い予定は運営費75＋場所代90＋水道代50=215", Ledger.pending_bills_today() == 215,
 		str(Ledger.pending_bills_today()))
 	c.check("徴収日：Day1の使える現金は85(300-75-140)", Ledger.usable_cash() == 85,
 		str(Ledger.usable_cash()))
@@ -153,16 +154,16 @@ func run(t: SceneTree) -> int:
 	c.check("MARKETの直後に市場を出た旨のTEXTが入る",
 		market_idx >= 0 and market_idx + 1 < tail.size()
 			and str(tail[market_idx + 1].get("type", "")) == "TEXT"
-			and str(tail[market_idx + 1].get("text", "")).contains("共同水道と炭屋"),
+			and str(tail[market_idx + 1].get("text", "")).contains("水を汲み、炭を買った"),
 		str(tail))
 
 	# --- 13. F4帳簿：STATE VIEWERのbudget行（残金/確保/使える）が確保額の変化を反映する
 	#    （常時表示。0になっても行自体は消えない） ---
 	var panel10 = _setup(t, 300, 1)
-	c.check("WAKE直後はbudget行が残金225(300-運営費75)/確保140(場所代90+水道代50)/使える85になる",
-		panel10._format_game_state().contains("budget(残金/確保/使える): 225 / 140 / 85"),
+	c.check("WAKE直後はbudget行が残金300/確保215(運営費75+場所代90+水道代50)/使える85になる",
+		panel10._format_game_state().contains("budget(残金/確保/使える): 300 / 215 / 85"),
 		panel10._format_game_state())
-	c.check("SNSタブの「使える現金」も同じ値(85円)", panel10._format_tonight_memo().contains("使える現金: 85円（残金225／確保140）"))
+	c.check("SNSタブの「使える現金」も同じ値(85円)", panel10._format_tonight_memo().contains("使える現金: 85円（残金300／確保215）"))
 	c.check("基金の安全上限は同じ使える現金85を元にする（85−翌日の確保額、0未満は0）",
 		RepairFund.safe_limit() == maxi(85 - int(RepairFund.next_day_reserve()["total"]), 0),
 		str(RepairFund.safe_limit()))

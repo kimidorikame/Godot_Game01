@@ -5,7 +5,7 @@ class_name UiFullGameOver
 ## 「Day N の朝からやり直す」：戻れる朝があれば retry()（最後の朝）、無ければ run_again()（Day1の朝から。記録が無ければ新しい周）。
 ## 「終わる」はタイトル画面（フェーズ6）まで押せない。
 
-const KIND_LABELS := { "daily_cost": "運営費", "water": "水道代", "rent": "場所代", "kit": "初日セット" }
+const KIND_LABELS := { "daily_cost": "水と炭（運営費）", "water": "水道代", "rent": "場所代", "kit": "初日セット" }
 const PHASE_LABELS := { GameState.Phase.WAKE: "朝", GameState.Phase.PREP: "市場", GameState.Phase.OPEN: "営業中",
 	GameState.Phase.CLOSE: "閉店" }
 

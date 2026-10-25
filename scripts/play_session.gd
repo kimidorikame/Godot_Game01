@@ -83,9 +83,11 @@ var scraps_base := false
 
 # --- 予算（共通） ---
 
-## 予算の3つ：残金・確保（まだ払っていない請求）・使える現金。
+## 予算：残金（所持金そのもの）・支払い予定（reserved。まだ払っていない請求＝日々の運営費〔水と炭〕と徴収日の場所代・水道代）・使える現金（残金−支払い予定）。
+## operating は、そのうち日々の運営費（水と炭）の分。
 func budget() -> Dictionary:
-	return { "money": GameState.money, "reserved": Ledger.pending_bills_today(), "usable": Ledger.usable_cash() }
+	return { "money": GameState.money, "reserved": Ledger.pending_bills_today(), "usable": Ledger.usable_cash(),
+		"operating": operating_cost_pending() }
 
 
 # --- 市場・仕込み（UI準備A②） ---
@@ -285,13 +287,16 @@ func visit_water_stall() -> bool:
 	return true
 
 
-## [市場を出る]：水場に未訪問なら自動で訪れて水道代を払い、入力完了して先へ進む（仕込みの続きへ）。
+## [市場を出る]：水場に未訪問なら自動で訪れて水道代（徴収日だけ）を払い、日々の運営費（水と炭）を引いて、入力完了して先へ進む（仕込みの続きへ）。
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。水道代が払えずゲームオーバーに
 ## なったら先へ進まず false（進んだら true）。
 func exit_market() -> bool:
 	if not market_visited_water:
 		if not visit_water_stall():
 			return false
+	# 日々の運営費（水と炭）：市場を出るときに引く（「水を汲み、炭を買った」。UI準備D・D-4）。払えなければゲームオーバー。
+	if not pay_operating_cost():
+		return false
 	complete_input_and_advance()
 	return true
 
@@ -311,6 +316,38 @@ func pay_or_game_over(amount: int, category: String = "") -> bool:
 		"phase": GameState.phase }
 	game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
 	return false
+
+
+## 払えるかだけを見る（払わない）。払えれば true。払えなければ pay_or_game_over と同じ内容でゲームオーバーにして false。
+## 朝の日々の運営費（引くのは市場を出るとき）に使う＝ゲームオーバーの判定は今までどおり朝。
+func check_or_game_over(amount: int, category: String = "") -> bool:
+	if GameState.money >= amount:
+		return true
+	game_over_detail = { "kind": category, "amount": amount, "money": GameState.money, "day": GameState.day_count,
+		"phase": GameState.phase }
+	game_over("所持金が足りない。支払えない（必要 ¥%d／所持 ¥%d）。" % [amount, GameState.money])
+	return false
+
+
+## まだ引いていない日々の運営費（水と炭）。朝に確保（ref:"operating"）し、引いたとき解く。帳簿から読む（今日の分だけ）。
+func operating_cost_pending() -> int:
+	var total := 0
+	for entry in GameState.ledger:
+		if int(entry.get("day", -1)) == GameState.day_count and str(entry.get("ref", "")) == "operating" \
+				and str(entry.get("category", "")) in ["reserve", "release"]:
+			total += int(entry.get("amount", 0))
+	return -total
+
+
+## 日々の運営費（水と炭）を引く（まだ引いていなければ）。払えなければゲームオーバーで false。引いたら帳簿の確保を解く。
+func pay_operating_cost() -> bool:
+	var pending := operating_cost_pending()
+	if pending <= 0:
+		return true
+	if not pay_or_game_over(pending, "daily_cost"):
+		return false
+	Ledger.record("release", pending, "", 0, 0, "operating")
+	return true
 
 
 ## ゲームオーバーにする（理由を持ち越して GAME_OVER へ）。
@@ -2118,9 +2155,11 @@ func set_runner_for_phase(phase: int) -> void:
 		# 支払えずゲームオーバーになったら、force_phase(GAME_OVER)が既に
 		# set_runner_for_phase(GAME_OVER)を呼んでrunnerを組んでいるので、ここで
 		# wake_events()のrunnerに上書きしないよう即returnする。
-		if not pay_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
+		# UI準備D・D-4：日々の運営費（水と炭）は、朝は払えるかだけを見る（払えなければ今までどおり朝のゲームオーバー）。
+		# 実際に引くのは市場を出るとき（exit_market。市場を通らないときは OPEN に入るとき）。それまでは「支払い予定」として確保する。
+		if not check_or_game_over(GameState.DAILY_OPERATING_COST, "daily_cost"):
 			return
-		# 運営費が払えた朝だけ記録する（払えずゲームオーバーになった朝へ戻っても、同じ
+		# 運営費が払える朝だけ記録する（払えずゲームオーバーになった朝へ戻っても、同じ
 		# 不足で必ず詰むため。戻れる最後の朝＝GameState.latest_morning()は前日の朝になる）。
 		GameState.record_morning(morning)
 		# 1枠セーブ：記録と同じ朝の辞書を書く（運営費が払えた朝だけ。読み込んだ朝が
@@ -2131,8 +2170,9 @@ func set_runner_for_phase(phase: int) -> void:
 		# set_pending_bills_for_today()。3-5（DESIGN.md 10.3.5）で徴収日は場所代に加え水道代ぶんも
 		# 確保対象に含めた＝実際の支払いタイミングは変えていない。水道代は水場訪問時、場所代は
 		# 場所代の支払い時に払い、その瞬間にreleaseする。Ledger.pending_bills_today()がこの記帳から
-		# 確保額を計算し直す）。日々の運営費は上でもう払い済みなので確保しない（先に直す③：
-		# 払った金額をもう一度確保すると、使える現金が運営費ぶん二重に引かれていた）。
+		# 確保額を計算し直す）。日々の運営費は、市場を出るとき（払ったとき）に確保を解く。
+		# 日々の運営費（水と炭）も、市場を出るときに引くまで確保する（ref:"operating"。operating_cost_pending で読める）。
+		Ledger.record("reserve", -GameState.DAILY_OPERATING_COST, "", 0, 0, "operating")
 		var reserve_amount := 0
 		if GameState.is_collection_day():
 			reserve_amount = GameState.RENT_PRICE + GameState.WATER_PRICE
@@ -2160,11 +2200,15 @@ func set_runner_for_phase(phase: int) -> void:
 		# 捨てた品目を先頭の一言テキストで知らせる（市場で買い足しても救われない簡易版）。
 		# クズ野菜ベース: 所持金が一番安い仕込み（PREP_TIERS[0]）にも満たなければ、
 		# 3段階から選ばせず食肉仲卸ではなく端材屋へ回る（自動）。
-		scraps_base = GameState.money < int(Day1Events.PREP_TIERS[0].get("price", 0))
+		# まだ引いていない運営費（水と炭）を除いた現金で決める（運営費を朝に引いていた頃と同じ判定。UI準備D・D-4）。
+		scraps_base = GameState.money - operating_cost_pending() < int(Day1Events.PREP_TIERS[0].get("price", 0))
 		var spoiled := GameState.discard_spoiled_inventory()
 		log_spoiled_items = spoiled   # 日次ログ用に保持（廃棄額の概算に使う）
 		flow.set_runner(Day1Events.prep_events(spoiled, scraps_base))
 	elif phase == GameState.Phase.OPEN:
+		# 準備を終えて開店するとき、日々の運営費（水と炭）をまだ引いていなければ引く（通常は市場を出るときに引いている）。
+		if not pay_operating_cost():
+			return
 		# 客ループは OpenController に隔離（DESIGN.md 4章）。中身の再生は客ごとの runner。
 		# モブの種類・人数は枠ごとにcustomer_schedule()が内部で独立抽選するので、ここでは
 		# デバッグ用の一律上書き値（debug_mob_count。-1=自動）をそのまま渡すだけでよい。
@@ -2806,7 +2850,7 @@ func ingredient_options() -> Array:
 	return out
 
 
-## 今朝払った運営費（朝のWAKEで払った分。帳簿の "daily_cost" の今日の合計）。
+## 今日もう払った運営費（帳簿の "daily_cost" の今日の合計。市場を出るとき以降に出る。朝はまだ0＝払う予定は operating_cost_pending）。
 func morning_cost() -> int:
 	return int(Ledger.spend_by_category_today().get("daily_cost", 0))
 

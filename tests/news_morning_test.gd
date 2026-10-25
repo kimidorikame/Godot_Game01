@@ -43,7 +43,7 @@ func run(t: SceneTree) -> int:
 			types[0] == "TEXT" and types[1] == EventRunner.TYPE_WAIT_INPUT and str(events[1]["text"]) == "スマホを見る。")
 		c.check("Day%d：ニュース・DMは「スマホを見る。」の直後、従来の語りの前に並ぶ" % day,
 			events.slice(2, 2 + news.size()) == news
-				and str(events[2 + news.size()]["text"]).begins_with("共同水道と炭屋")
+				and str(events[2 + news.size()]["text"]).begins_with("水と炭の支払い")
 				and str(events[events.size() - 1]["text"]) == "さて、準備へ向かうか。")
 		var all_news := true
 		for ev in news:
@@ -68,7 +68,7 @@ func run(t: SceneTree) -> int:
 	var plain := Day1Events.wake_events()
 	c.check("ニュースの無い日：従来の4イベント（目が覚めた→スマホ→水道→準備）",
 		plain.size() == 4 and str(plain[1]["text"]) == "スマホを見る。"
-			and str(plain[2]["text"]).begins_with("共同水道と炭屋") and str(plain[3]["text"]) == "さて、準備へ向かうか。")
+			and str(plain[2]["text"]).begins_with("水と炭の支払い") and str(plain[3]["text"]) == "さて、準備へ向かうか。")
 	c.check("ニュースの無いデータのニュースタブは「まだ届いていません」", News.tab_text(3) == "ニュース：まだ届いていません")
 	News.clear_cache()
 

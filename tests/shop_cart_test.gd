@@ -25,20 +25,20 @@ func run(t: SceneTree) -> int:
 	var s := PlaySession.new()
 	t.root.add_child(s)
 	s.start()
-	GameState.money = 200   # Day1（徴収日）の朝は、場所代90＋水道代50＝140を確保済み。使える＝60
-	c.check("確保140・残金200 → 使える60", s.purchase_limit() == 60 and int(s.budget()["usable"]) == 60 and int(s.budget()["reserved"]) == 140)
+	GameState.money = 275   # Day1（徴収日）の朝は、運営費75＋場所代90＋水道代50＝215を確保済み。使える＝60
+	c.check("支払い予定215・残金275 → 使える60", s.purchase_limit() == 60 and int(s.budget()["usable"]) == 60 and int(s.budget()["reserved"]) == 215)
 	c.check("買えない理由（使える現金を超える）が文で出る", s.purchase_block_reason(100) != "" and s.purchase_block_reason(60) == "" and s.purchase_block_reason(61) != "")
 	var inv_before := GameState.inventory.duplicate(true)
 	s.buy_item("seafood", "fish_maw")   # ¥100：残金200は足りるが、使える60を超える
 	c.check("buy_item：残金は足りても、使える現金（60）を超える ¥100 は買えない（確保分に手を付けられない）",
-		GameState.money == 200 and GameState.inventory == inv_before)
+		GameState.money == 275 and GameState.inventory == inv_before)
 	s.buy_item("seafood", "shrimp_single")   # ¥20：使える範囲
-	c.check("buy_item：使える範囲の ¥20 は買える", GameState.money == 180 and GameState.fresh_count("shrimp") >= 1)
+	c.check("buy_item：使える範囲の ¥20 は買える", GameState.money == 255 and GameState.fresh_count("shrimp") >= 1)
 	var tiers := s.prep_tiers()
 	c.check("prep_tiers の affordable も使える現金で決まる（小¥80は使える40を超えて買えない）", not bool(tiers[0]["affordable"]) and s.purchase_limit() == 40)
 	var money_before := GameState.money
 	s.choose_prep_tier("small")
-	c.check("choose_prep_tier：使える現金を超える鍋の素は買えない（残金180・小¥80でも、確保140を引くと使えるのは40）",
+	c.check("choose_prep_tier：使える現金を超える鍋の素は買えない（残金255・小¥80でも、支払い予定215を引くと使えるのは40）",
 		GameState.money == money_before and not s.prep_tier_paid())
 	var view := s.shop_view("seafood")
 	c.check("shop_view の affordable も使える現金で決まる", not bool(view[3]["affordable"]) and bool(view[1]["affordable"]) == (20 <= 40), str(view))
@@ -150,7 +150,7 @@ func run(t: SceneTree) -> int:
 	var meat: UiPaneBuyMeat = root.pane_buy_meat
 	var tier_cards: Control = meat.get_node("%Tiers")
 	c.check("Day2の鍋の素の選択（張記）まで進んだ", session.is_in_prep_tier() and meat.visible)
-	GameState.money = 100   # 小¥80・中¥110・大¥140：使える100なら小だけ
+	GameState.money = 100 + session.operating_cost_pending()   # 小¥80・中¥110・大¥140：使える100なら小だけ（運営費75は支払い予定）
 	session.notify_changed()
 	c.check("使える100：中・大は選べない（押せない）・理由が出る", not (tier_cards.get_child(0) as Button).disabled
 		and (tier_cards.get_child(1) as Button).disabled and (tier_cards.get_child(2) as Button).disabled and meat.get_node("%ReasonLabel").text != "",

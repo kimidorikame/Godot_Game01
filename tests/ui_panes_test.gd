@@ -92,9 +92,9 @@ func run(t: SceneTree) -> int:
 	morning.refresh()
 	c.check("来られなかった客の分は「鍋」に含める（素材 1・鍋 2）。合計は記録のunserved_cupsのまま",
 		morning.get_node("%ShortLabel").text == "足りなかった 2杯（素材 1・鍋 2）", morning.get_node("%ShortLabel").text)
-	c.check("評判の前後・今朝の運営費・使える現金",
+	c.check("評判の前後・水と炭（運営費。市場を出るときに払う）・使える現金",
 		morning.get_node("%ReputationLabel").text == "評判 30 → 33"
-			and morning.get_node("%CostLabel").text == "今朝の運営費 −¥%d" % GameState.DAILY_OPERATING_COST
+			and morning.get_node("%CostLabel").text == "水と炭（運営費） ¥%d　市場を出るときに払う" % GameState.DAILY_OPERATING_COST
 			and morning.get_node("%UsableLabel").text == "使える現金 ¥%d" % int(s.budget()["usable"]))
 	var boxes := { "SalesBox": Rect2(852, 86, 388, 71), "GradesBox": Rect2(852, 167, 388, 96), "ShortBox": Rect2(852, 273, 388, 95),
 		"MoneyBox": Rect2(852, 378, 388, 123) }

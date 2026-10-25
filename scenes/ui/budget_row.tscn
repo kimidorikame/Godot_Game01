@@ -50,7 +50,7 @@ offset_top = 3.0
 offset_right = 115.0
 offset_bottom = 21.0
 theme_type_variation = &"LabelCaption"
-text = "確保"
+text = "支払い予定"
 vertical_alignment = 1
 
 [node name="Value" type="Label" parent="Reserved"]

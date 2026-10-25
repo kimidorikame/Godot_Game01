@@ -16,6 +16,11 @@ func _setup(t: SceneTree, money: int, day: int, keep_wake_money: bool = false):
 	t.root.add_child(panel)
 	if not keep_wake_money:
 		GameState.money = money
+		# このスイートの所持金は「運営費（水と炭）を引いたあと」の値（運営費は市場を出るとき・開店のときに引く。UI準備D・D-4）。
+		# 引き終えた状態にそろえる（確保を解くだけ。所持金は動かさない）。
+		var pending: int = panel.session.operating_cost_pending()
+		if pending > 0:
+			Ledger.record("release", pending, "", 0, 0, "operating")
 	GameState.phase = GameState.Phase.PREP
 	panel.session.set_runner_for_phase(GameState.Phase.PREP)
 	return panel
@@ -44,8 +49,8 @@ func run(t: SceneTree) -> int:
 	# --- 1. 予算（共通）：残金・確保・使える ---
 	var p1 = _setup(t, 300, 1, true)
 	var b: Dictionary = p1.session.budget()
-	c.check("Day1の朝の予算：残金225・確保140・使える85（運営費75を払い済み）",
-		b == { "money": 225, "reserved": 140, "usable": 85 }, str(b))
+	c.check("Day1の朝の予算：残金300・支払い予定215（運営費75＋場所代・水道代140）・使える85（運営費は市場を出るときに引く）",
+		b == { "money": 300, "reserved": 215, "usable": 85, "operating": 75 }, str(b))
 	p1.free()
 
 	# --- 2. 仕込み3段階：段階の一覧・買えるか・鍋の素を買ったか ---

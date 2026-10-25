@@ -144,6 +144,7 @@ func run(t: SceneTree) -> int:
 	GameState.add_inventory("tofu", 3)
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
 	GameState.phase = GameState.Phase.OPEN
+	p6.session.pay_operating_cost()   # 運営費（水と炭）は開店の前に引く（市場を出るとき）。数値の比較はそのあとから
 	var numbers_before := _numbers()
 	p6.session.set_runner_for_phase(GameState.Phase.OPEN)
 	c.check("衝突を前置しても数値は不変", _numbers() == numbers_before)
@@ -203,7 +204,7 @@ func run(t: SceneTree) -> int:
 		wake_texts.append(str(ev.get("text", "")))
 	var news_count := News.morning_events(2).size()
 	c.check("at:wake の共通イベントは朝のニュースの後に出る",
-		wake_texts[2 + news_count] == "朝の出来事" and wake_texts[3 + news_count].begins_with("共同水道"))
+		wake_texts[2 + news_count] == "朝の出来事" and wake_texts[3 + news_count].begins_with("水と炭の支払い"))
 	var p10 = _wake_panel(t, 2)
 	c.check("朝に出した共通イベントは再生済みになる", p10.session.played_events == ["w"])
 	p10.free()

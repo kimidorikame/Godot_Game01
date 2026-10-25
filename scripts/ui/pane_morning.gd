@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPaneMorning
 ## 右の枠：朝（昨夜の成績）。寸法表 SCREENS_UI_LAYOUT §2。
-## 中身は previous_day_record()（日次ログの1日分）・morning_cost()・budget() を読むだけ。
+## 中身は previous_day_record()（日次ログの1日分）・operating_cost_pending()・budget() を読むだけ。
 ## 一番下の主ボタンは「市場へ」だけ（flow.advance_phase()）。朝の列を読み終えるまでは押せない。
 ## 「スマホを見る」ボタンは無い（ニュースとDMはスマホのボタンで読む。朝の会話枠にも出さない。UI準備D）。
 ## Day1の朝は前日が無いので、成績の箱を出さない（スマホから始める。スマホはUI準備B⑤）。
@@ -51,7 +51,8 @@ func refresh() -> void:
 		_short_label.text = UiParts.unserved_text(int(rec.get("unserved_cups", 0)), PlaySession.unserved_display(rec))
 		_spoil_label.text = _spoil_text(rec)
 		_reputation_label.text = "評判 %d → %d" % [int(rec.get("opening_reputation", 0)), int(rec.get("closing_reputation", 0))]
-	_cost_label.text = "今朝の運営費 −¥%d" % session.morning_cost()
+	_cost_label.text = "水と炭（運営費） ¥%d　市場を出るときに払う" % session.operating_cost_pending() if session.operating_cost_pending() > 0 \
+		else "水と炭（運営費） −¥%d　払った" % session.morning_cost()
 	_usable_label.text = "使える現金 ¥%d" % int(session.budget()["usable"])
 	_primary.text = "市場へ"
 	_primary.disabled = not session.flow.is_runner_done() or session.flow.is_advance_blocked()

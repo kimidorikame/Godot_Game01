@@ -18,7 +18,8 @@ func run(t: SceneTree) -> int:
 		info["day"] == 2 and info["phase"] == GameState.Phase.WAKE and info["phase_name"] == "WAKE"
 			and info["money"] == GameState.money and info["reputation"] == GameState.reputation
 			and info["slot_name"] == "" and info["slot_index"] == -1, str(info))
-	c.check("今朝払った運営費：帳簿の運営費", s.morning_cost() == GameState.DAILY_OPERATING_COST)
+	c.check("朝の運営費（水と炭）：まだ引かない＝払った額0・支払い予定は運営費。budget の operating も同じ", s.morning_cost() == 0
+		and s.operating_cost_pending() == GameState.DAILY_OPERATING_COST and int(s.budget()["operating"]) == GameState.DAILY_OPERATING_COST)
 	var line: Dictionary = s.current_line()
 	c.check("いま表示すべき文：種類・話し手・本文が出る（朝の語りは地の文＝話し手なし）",
 		line.has("type") and line.has("speaker") and line.has("text") and line["speaker"] == "" and str(line["text"]) != "", str(line))

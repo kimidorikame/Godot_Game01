@@ -19,9 +19,9 @@ func run(t: SceneTree) -> int:
 	var changes := { "n": 0 }
 	s.changed.connect(func(): changes["n"] += 1)
 	s.start()
-	c.check("start()：朝（WAKE）の列が組まれ、運営費が引かれ、朝の記録が1件ある",
+	c.check("start()：朝（WAKE）の列が組まれ、運営費は支払い予定として確保され（まだ引かない）、朝の記録が1件ある",
 		GameState.phase == GameState.Phase.WAKE and s.flow.runner != null and s.flow.runner.events.size() > 0
-			and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST
+			and GameState.money == GameState.INITIAL_MONEY and s.operating_cost_pending() == GameState.DAILY_OPERATING_COST
 			and GameState.morning_snapshots.has(2))
 	c.check("最初の組み立て（start）でも phase_entering が出る", entered == [GameState.Phase.WAKE])
 	s.flow.advance_phase()   # WAKE→PREP（フェーズの遷移を session が自分で受ける）
@@ -77,12 +77,12 @@ func run(t: SceneTree) -> int:
 			and ex["can_new_run"], str(ex))
 	p.run_again()
 	c.check("run_again()：記録が空でも新しい周のDay1のWAKEへ", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
-		and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST)
+		and GameState.money == GameState.INITIAL_MONEY and p.operating_cost_pending() == GameState.DAILY_OPERATING_COST)
 	GameState.day_count = 1
 	var morning_money := GameState.money
 	GameState.money = 5
 	c.check("retry_from_morning(1)：Day1の朝へ戻る（所持金が朝の値に戻る）",
-		p.retry_from_morning(1) and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST
+		p.retry_from_morning(1) and GameState.money == GameState.INITIAL_MONEY
 			and GameState.phase == GameState.Phase.WAKE and morning_money == GameState.money)
 	c.check("存在しない日の朝へは戻れない（false）", not p.retry_from_morning(9))
 	panel._phone_mode = true

@@ -199,7 +199,7 @@ func run(t: SceneTree) -> int:
 		and not root.left.visible)
 	c.check("枠 (320,234) 640×251", _near(over.get_node("%Frame").get_global_rect(), Rect2(320, 234, 640, 251)))
 	c.check("何日目のどこで何が払えなかったかと所持金", over.get_node("%Detail").text
-		== "Day 3 の朝に、運営費 ¥%d が払えなかった。
+		== "Day 3 の朝に、水と炭（運営費） ¥%d が払えなかった。
 所持金 ¥20" % GameState.DAILY_OPERATING_COST, over.get_node("%Detail").text)
 	c.check("払えなかったDay3の朝は記録されず、戻れる最後の朝はDay2", not GameState.morning_snapshots.has(3)
 		and GameState.morning_snapshots.has(2))
@@ -239,6 +239,6 @@ func run(t: SceneTree) -> int:
 			and retry.text == "Day 1 の朝からやり直す" and not retry.disabled, retry.text)
 	_press(retry)
 	c.check("→ run_again（新しい周）でDay1の朝から", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
-		and GameState.money == GameState.INITIAL_MONEY - GameState.DAILY_OPERATING_COST)
+		and GameState.money == GameState.INITIAL_MONEY)
 	root.queue_free()
 	return c.finish()

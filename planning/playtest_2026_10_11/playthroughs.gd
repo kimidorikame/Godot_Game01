@@ -231,10 +231,10 @@ func play(p: String, run_seed: int) -> Dictionary:
 		if GameState.day_count == 1:
 			if GameState.phase == GameState.Phase.PREP and not seen_prep:
 				seen_prep = true
-				day1_cash["after_wake"] = GameState.money
+				day1_cash["after_wake"] = cash()
 			if GameState.phase == GameState.Phase.OPEN and not seen_open:
 				seen_open = true
-				day1_cash["after_market"] = GameState.money
+				day1_cash["after_market"] = cash()
 		var r: EventRunner = panel.session.flow.runner
 		if GameState.phase == GameState.Phase.NEXT_DAY:
 			rows.append(day_row())
@@ -276,10 +276,10 @@ func play(p: String, run_seed: int) -> Dictionary:
 		var typ := str(ev.get("type", "")) if ev is Dictionary else ""
 		if typ == "PREP_TIER":
 			if GameState.day_count == 1 and not day1_cash.has("after_kit"):
-				day1_cash["after_kit"] = GameState.money
+				day1_cash["after_kit"] = cash()
 			var tier := choose_tier()
 			var chosen := tier
-			if GameState.money < int(Day1Events.prep_tier_by_id(tier).price):
+			if cash() < int(Day1Events.prep_tier_by_id(tier).price):
 				tier = "small"
 			tier_log.append({ "policy": policy_label, "seed": run_seed, "day": GameState.day_count,
 				"target": target_cups(), "chosen": chosen, "tier": tier })
@@ -287,7 +287,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 			panel.session.choose_prep_tier(tier)
 			if GameState.day_count == 1:
 				day1_cash["tier"] = tier
-				day1_cash["after_tier"] = GameState.money
+				day1_cash["after_tier"] = cash()
 			continue
 		if typ == "MARKET":
 			if not before_market:
@@ -619,7 +619,7 @@ func shop() -> void:
 	if GameState.day_count < Rules.market_open_from_day() or policy == "bare_broth":
 		return
 	if policy != "strength_neglect":
-		while GameState.dashi_units < 2 and GameState.money >= 16:
+		while GameState.dashi_units < 2 and cash() >= 16:
 			buy("meat_wholesale", "dashi")
 	var need: Dictionary = visible_need(target_cups()) if info_mode == "visible" else (Forecast.cases().back() as Dictionary)["required"]
 	if policy == "cheap_valid":
@@ -644,7 +644,7 @@ func shop() -> void:
 					if best.is_empty() or option.score < best.score \
 							or (option.score == best.score and option.unit < best.unit):
 						best = option
-			if best.is_empty() or GameState.money < int(best.price):
+			if best.is_empty() or cash() < int(best.price):
 				break
 			buy(str(best.shop), str(best.id))
 	if info_mode == "visible" and policy == "forecast_favorites":
@@ -682,9 +682,15 @@ func ensure(id: String, target: int) -> void:
 					choices.append({ "shop": shop_id, "good": good,
 						"score": ceili(float(short) / units) * int(good.price) })
 		choices.sort_custom(func(a, b): return a.score < b.score)
-		if choices.is_empty() or GameState.money < int(choices[0].good.price):
+		if choices.is_empty() or cash() < int(choices[0].good.price):
 			return
 		buy(str(choices[0].shop), str(choices[0].good.id))
+
+
+## 判断と記録に使う現金：残金から、まだ引いていない運営費（水と炭）を除いた額。運営費を朝に引いていた頃（UI準備Dより前）の所持金と
+## 同じ値＝予報ありの基準（v2）の判断・記録（day1_cash など）を保つため。運営費を市場を出るときに引くようにしたあとも、この値で判断する。
+func cash() -> int:
+	return GameState.money - panel.session.operating_cost_pending()
 
 
 func buy(shop_id: String, id: String) -> void:

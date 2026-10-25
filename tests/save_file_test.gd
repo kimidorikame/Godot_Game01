@@ -229,8 +229,8 @@ func run(t: SceneTree) -> int:
 	c.check("続きから：日・評判・在庫が保存した朝のもの",
 		GameState.day_count == 4 and GameState.reputation == 47
 			and int(GameState.inventory.get("tofu", 0)) == 3 and GameState.dashi_units == 2)
-	c.check("続きから：所持金は保存した朝（321）から運営費を引いた値",
-		GameState.money == 321 - GameState.DAILY_OPERATING_COST, str(GameState.money))
+	c.check("続きから：所持金は保存した朝（321）のまま・運営費は支払い予定",
+		GameState.money == 321 and panel2.session.operating_cost_pending() == GameState.DAILY_OPERATING_COST, str(GameState.money))
 	c.check("続きから：DayPlanは保存したものと同一（build()を呼ばない）",
 		GameState.today_plan["slots"] == saved["state"]["today_plan"]["slots"]
 			and GameState.today_plan["mob_instances"] == saved["state"]["today_plan"]["mob_instances"]
@@ -240,8 +240,8 @@ func run(t: SceneTree) -> int:
 	c.check("読み込んだ朝がmorning_snapshotsに入っている（起動直後のDay1の記録は無い）",
 		GameState.morning_snapshots.has(4) and not GameState.morning_snapshots.has(1)
 			and GameState.morning_snapshots.size() == 1)
-	c.check("続きから：読み込んだ朝のdaily_costは1回だけ・reserveは請求のある日（徴収日）だけ1回",
-		_count_today("daily_cost") == 1 and _count_today("reserve") == (1 if GameState.is_collection_day() else 0))
+	c.check("続きから：読み込んだ朝のdaily_costはまだ0（市場を出るときに引く）・reserveは運営費の確保1回と、請求のある日（徴収日）の確保1回",
+		_count_today("daily_cost") == 0 and _count_today("reserve") == (2 if GameState.is_collection_day() else 1))
 	# 読み込み直後の朝で詰んだとき：読み込んだ朝へ戻れる
 	GameState.money = 5
 	GameState.inventory["probe"] = 1
@@ -250,7 +250,7 @@ func run(t: SceneTree) -> int:
 	c.check("読み込んだ朝へ再挑戦できる", panel2.session.retry_from_morning() and GameState.day_count == 4)
 	c.check("再挑戦した朝は読み込んだ朝のDayPlan・所持金・在庫",
 		GameState.today_plan["slots"] == saved["state"]["today_plan"]["slots"]
-			and GameState.money == 321 - GameState.DAILY_OPERATING_COST
+			and GameState.money == 321
 			and not GameState.inventory.has("probe"))
 	c.check("続きから後は書き込みが有効（ファイルは同じ朝のまま更新される）",
 		int(MorningSave.read_file()["day"]) == 4)
