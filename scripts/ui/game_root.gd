@@ -135,6 +135,7 @@ func _on_phase_entering(phase: int) -> void:
 	pane_kaiten.reset_ui_state()
 	full_result.reset_ui_state()
 	pane_log.reset_ui_state()
+	pane_phone.reset_ui_state()
 	overlay = ""
 	if phase == GameState.Phase.WAKE and session.previous_day_record().is_empty():
 		# Day1の朝（前日が無い）は、右の枠を出さずにスマホから始める（ニュース）
@@ -156,6 +157,7 @@ func open_phone(tab: String = "news") -> void:
 
 func close_overlay() -> void:
 	overlay = ""
+	pane_phone.reset_ui_state()
 	_redraw()
 
 

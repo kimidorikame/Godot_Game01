@@ -513,10 +513,10 @@ func goals_by_run(results: Array) -> Array:
 	return out
 
 
-## ニュース／共通イベントの表示専用 TEXT か（type が TEXT で、part が news または common_event）。
+## ニュース／共通イベント／張記の会話（UI準備C③）の表示専用 TEXT か（type が TEXT で、part が news・common_event・prep_talk）。
 func is_display_only(ev) -> bool:
 	return ev is Dictionary and str(ev.get("type", "")) == "TEXT" \
-			and ["news", "common_event"].has(str(ev.get("part", "")))
+			and ["news", "common_event", "prep_talk"].has(str(ev.get("part", "")))
 
 
 func act(kind: String) -> void:

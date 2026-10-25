@@ -1,0 +1,44 @@
+{
+  "id": "week7",
+  "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。",
+  "hints": {
+    "many": { "demand_word": "多め" },
+    "few": { "demand_word": "少ない" }
+  },
+  "days": {
+    "2": [
+      { "id": "d2_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:40",
+        "text": "今日は入荷が遅れてる。早めに来な", "hint": "none", "provisional": true },
+      { "id": "d2_delivery_man", "from": "配達員", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
+        "text": "昨日のスープ、体にしみた。また夜に寄るよ", "hint": "none", "provisional": true }
+    ],
+    "3": [
+      { "id": "d3_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:30",
+        "text": "魚がしばらく入らないかもしれない", "hint": "none", "provisional": true },
+      { "id": "d3_market_quiet", "from": "市場の顔なじみ", "from_kind": "npc", "time": "7:10",
+        "text": "今日は人通りが少ないな。夜も静かかもしれない", "hint": "few", "provisional": true },
+      { "id": "d3_officer", "from": "新人警官", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "6:05",
+        "text": "昨夜のこと、同僚にも話しました。今夜は何人か連れて行くかもしれません", "hint": "many", "provisional": true }
+    ],
+    "4": [
+      { "id": "d4_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:35",
+        "text": "うちの店が映り込んでる。勘弁してくれ", "hint": "none", "provisional": true },
+      { "id": "d4_dock_workers", "from": "港湾労働者の組", "from_kind": "mob", "requires": { "mob_type": "dock_workers", "nights": 2 }, "time": "5:20",
+        "text": "港の連中が噂してる。今夜は覗きに行くやつが増えそうだ", "hint": "many", "provisional": true }
+    ],
+    "5": [
+      { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
+        "text": "明日は現場に近づくな", "hint": "none", "provisional": true },
+      { "id": "d5_thug", "from": "チンピラ", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
+        "text": "この前の味、悪くなかった。……それだけだ", "hint": "none", "provisional": true }
+    ],
+    "6": [
+      { "id": "d6_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:20",
+        "text": "今日は早仕舞いも考えな", "hint": "none", "provisional": true }
+    ],
+    "7": [
+      { "id": "d7_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:50",
+        "text": "第八码頭は当面封鎖。魚は入らない", "hint": "none", "provisional": true }
+    ]
+  }
+}

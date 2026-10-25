@@ -30,6 +30,18 @@ static func demand_word(reputation: int) -> String:
 	return str(words[table.size() - 1]) if table.size() - 1 < words.size() and not words.is_empty() else ""
 
 
+## 客足の言葉（demand_words の1つ）に当たる需要表の行の「中心」（需要の中心の値）。DMの匂わせの条件に使う
+## （「多い」＝多めの行の中心以上、「少ない」＝少ないの行の中心以下。数値はコードに直書きせず、需要表から読む）。
+## 言葉が無い・表の行より言葉が多いときは -1。
+static func demand_row_center(word: String) -> int:
+	var words: Array = _data().get("demand_words", [])
+	var table: Array = Rules.demand_table()
+	var i := words.find(word)
+	if i < 0 or i >= table.size():
+		return -1
+	return int((table[i] as Array)[1])
+
+
 ## 客足の言葉の数が需要表の行数と合っているか（データの検査用）。
 static func demand_words_match_table() -> bool:
 	return (_data().get("demand_words", []) as Array).size() == Rules.demand_table().size()

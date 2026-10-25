@@ -68,9 +68,21 @@ func run(t: SceneTree) -> int:
 			and tabs.get_child(1).get_global_position().is_equal_approx(Vector2(977, 54)) and tabs.get_child(2).text == "レシピ")
 	c.check("「閉じる」(852,640)・幅388", phone.get_node("%CloseButton").get_global_position().is_equal_approx(Vector2(852, 640))
 		and absf(phone.get_node("%CloseButton").size.x - 388.0) < 0.5)
+	# SNSタブ＝DM（UI準備C③）。Day2：条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
+	AutoplayPress.press(tabs.get_child(1))
+	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（●1）が出る", phone.get_node("%SnsBadge").text == "●1", phone.get_node("%SnsBadge").text)
 	AutoplayPress.press(tabs.get_child(0))
-	c.check("SNS：Cで DM に替えるまで「まだ新着はありません」（客足予報は出さない）", phone.tab == "sns"
-		and phone.get_node("%Content").get_child_count() == 1 and phone.get_node("%Content").get_child(0).text == "まだ新着はありません")
+	var dm_rows: Array = phone.get_node("%Content").get_children()
+	c.check("SNS：届いているDMが1件（Day2の市場の顔なじみ）。予報は出さない", phone.tab == "sns" and dm_rows.size() == 1
+		and dm_rows[0] is Panel and dm_rows[0].get_child_count() >= 4, str(dm_rows))
+	var dm_texts: Array = []
+	for node in dm_rows[0].get_children():
+		if node is Label:
+			dm_texts.append(node.text)
+	c.check("DMの行：本文・差出人・時刻（常連の印は客でない差出人には付けない）",
+		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("6:40") and not dm_texts.has("常連"), str(dm_texts))
+	c.check("開いた時点で未読だった行には、左に注意色の線を残す", dm_rows[0].get_children().any(func(n): return n is ColorRect))
+	c.check("SNSタブを表示したので既読になり、タブの数は消える", phone.get_node("%SnsBadge").text == "" and s.dm_unread_count() == 0)
 	AutoplayPress.press(tabs.get_child(2))
 	var recipe_texts: Array = []
 	for label in phone.get_node("%Content").get_children():

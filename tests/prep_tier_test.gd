@@ -166,8 +166,11 @@ func run(t: SceneTree) -> int:
 	var events: Array = Day1Events.prep_events(spoiled, false)
 	c.check("prep_eventsの先頭に破棄の一言が入る(既存動作の回帰)",
 		str(events[0].get("type", "")) == "TEXT" and str(events[0].get("text", "")).contains("捨てた"))
-	c.check("その後、食肉売場のTEXT→PREP_TIER(3段階選択)の順で並ぶ",
-		str(events[1].get("type", "")) == "TEXT" and str(events[2].get("type", "")) == "PREP_TIER",
+	# UI準備C③：食肉売場のTEXTのあと、PREP_TIERの直前に張記の店主との会話（part:"prep_talk"）が入る
+	c.check("その後、食肉売場のTEXT→張記の会話(prep_talk)→PREP_TIER(3段階選択)の順で並ぶ",
+		str(events[1].get("type", "")) == "TEXT" and str(events[2].get("part", "")) == "prep_talk"
+			and str(events.back().get("type", "")) == "PREP_TIER" and events.size() >= 4
+			and events.slice(2, events.size() - 1).all(func(e): return str(e.get("part", "")) == "prep_talk"),
 		str(events))
 
 	return c.finish()

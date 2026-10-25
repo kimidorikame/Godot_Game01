@@ -1,0 +1,24 @@
+# 本番UI（UI準備C）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_C.gd が書き出す（手で直さない）
+
+## スクリーンショット
+01_morning.png  朝（昨夜の成績。足りなかった杯数の内訳の数は撮るための仮の状態）
+02_phone.png  スマホ（ニュース）
+03_market.png  市場（店選び）
+04_buy_meat.png  購入（張記。中を買ったあと）
+05_buy_tofu.png  購入（福生豆腐麺房。豆腐を1回買ったあと）
+06_kaiten_pot.png  開店の鍋
+07_kaiten_topping.png  開店のトッピング（傷んだ在庫あり・減点の予告あり）
+08_shortage.png  鍋が尽きた保留
+09_mob_group.png  モブの団体の確認
+10_close.png  閉店（今夜の結果と修繕基金。足りなかった杯数の内訳の数は撮るための仮の状態）
+11_prep.png  仕込み（全面）
+12_result.png  結果（全面・1ページ目）
+13_gameover.png  ゲームオーバー（全面）
+14_sns_dm.png  スマホ（SNS＝DM。Day2。開いた時点で未読だった行は左に注意色の線）
+15_sns_hint_many.png  スマホ（SNS。Day3。需要の中心を14に置いた仮の状態：匂わせ many のDMが届く）
+16_sns_hint_few.png  スマホ（SNS。Day3。需要の中心を7に置いた仮の状態：匂わせ few のDMが届く）
+17_prep_talk.png  張記の会話・Day2（前日の注文の杯数と足りなかった杯数だけ）
+18_prep_talk_day1.png  張記の会話・Day1（主人公が目安の杯数を言う）
+
+## 入りきらない箇所（0件）

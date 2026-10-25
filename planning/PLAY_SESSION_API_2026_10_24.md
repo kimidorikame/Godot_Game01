@@ -129,7 +129,9 @@ session.record_visible_event()
 | `result_view()` | `{summary（Result.summarize）, goals（Result.judge_goals。完走・標準・挑戦・料理・常連）}` |
 | `exits()` | `{available, can_retry, can_last_morning, can_run_again, run_again_is_new_run, can_new_run, can_continue}` |
 | `game_over_info()` | `{available, kind（"daily_cost"／"water"／"rent"／"kit"／""）, amount, money, day, phase}`。GAME_OVER で、払えなかった支払いの記録があるときだけ available（UI準備B④で追加。表示だけ） |
-| `phone_news()` | `[{day, is_today, news[{headline,body[],provisional}], dm[{from,text,provisional}], events[{lines[],provisional}]}]`（新しい日が上・今日と過ぎた日だけ） |
+| `phone_news()` | `[{day, is_today, news[{headline,body[],provisional}], events[{lines[],provisional}]}]`（新しい日が上・今日と過ぎた日だけ。DMは `phone_dm()`） |
+| `phone_dm()` | `[{id, day, from, from_kind（customer／mob／npc）, time, text, hint, provisional, unread}]`（SNSタブ。新しい順。名前あり客に初めて提供した翌日から／同じ種類のモブに2夜提供した翌日から／客でない差出人は条件なし。匂わせ〔many・few〕は、その日の需要の中心と矛盾しない日だけ。UI準備C③） |
+| `dm_unread_count()`・`mark_dms_read()` | 未読の数（SNSタブに出す）／届いているDMを読んだ扱いにする（SNSタブを表示した時点で呼ぶ。`ReadState`＝保存とは別のファイル。idで持つ） |
 | `phone_recipes()` | `{slots[{index,name,tags,ingredients}], usual[{customer,ingredients}]}`（空き枠は name が ""） |
 | `talk_log_entries()` | `[{day, kind, speaker, text}]`（今日の会話ログ。コピー） |
 
@@ -205,14 +207,13 @@ session.record_visible_event()
 | ニュース（今日と過ぎた日） | `phone_news()` |
 | 保存レシピ・客ごとの「いつもの」 | `phone_recipes()` |
 | ログ | `talk_log_entries()` |
-| SNS（予報） | 今は DebugPanel の `_format_tonight_memo` のみ（C で DM に置き換える） |
+| SNS（DM） | `phone_dm()`・`dm_unread_count()`・`mark_dms_read()`（UI準備C③。DebugPanel の `_format_tonight_memo` は検証用の予報メモで、本番UIには出さない） |
 
 ## 7. まだ取れない項目（作っていない）
 
 | 項目 | 状況 | 予定 |
 |---|---|---|
 | 客足（評判の横の言葉） | 無い | C |
-| DM（常連からのDM） | `phone_news()` の `dm` は街のDMだけ | C |
 | 短縮名（客の表示名の短縮） | `log_speaker`・`ScheduleData.customer_display_name` は正式な表示名 | C |
 | 会話ログの構造化の拡張（注文の要約など） | `talk_log_entries()` は行のみ。注文の要約は文字列（`TalkLog.order_summary_lines()`） | 対象外 |
 | 開店中に鍋を触れる条件（ADJUST中も触れる） | `can_touch_pot()` は今の挙動のまま | C |

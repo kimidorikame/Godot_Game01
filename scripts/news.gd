@@ -12,7 +12,6 @@ class_name News
 ## データ形：
 ##   must_info … [{ id, day, label }, …]  カタログ（9項目。dayは届く日）
 ##   days.<日> … { news:[{ id, headline, body[], must_info[], provisional }],
-##                 dm:[{ from, text, provisional }],
 ##                 events:[{ id, at, lines[], must_info[], provisional }] }
 ##   at … "wake"（朝のニュースの後）／時間帯名（その時間帯の最初の客の前）／"close"（閉店の語りの前）
 
@@ -54,11 +53,12 @@ static func catalog(source: Dictionary = {}) -> Array:
 	return result
 
 
-## その日のニュース・DM・共通イベント。{ news: [], dm: [], events: [] }（無い日・形が不正は空）。
+## その日のニュース・共通イベント。{ news: [], events: [] }（無い日・形が不正は空）。DMは scripts/dm.gd
+## （data/dm/<id>.json。UI準備C③で、ニュースのデータの dm 欄からSNSタブのDMへ移した）。
 static func day_entry(day: int, source: Dictionary = {}) -> Dictionary:
 	var d: Dictionary = source if not source.is_empty() else data()
 	var days = d.get("days", {})
-	var entry := { "news": [], "dm": [], "events": [] }
+	var entry := { "news": [], "events": [] }
 	if days is Dictionary and (days as Dictionary).get(str(day)) is Dictionary:
 		for key in entry:
 			var raw = (days[str(day)] as Dictionary).get(key, [])
@@ -110,8 +110,8 @@ static func scene_problems(ep: Dictionary, source: Dictionary = {}) -> Array:
 	return problems
 
 
-## 朝（WAKE）に必ず差す、その日のニュースとDMの TEXT イベント（part:"news"）。見出し→本文の順、続けて
-## DM。ニュースもDMも無い日は空配列＝従来の起床の列と同一。状態を読むだけ（日番号からデータを引く）。
+## 朝（WAKE）に必ず差す、その日のニュースの TEXT イベント（part:"news"）。見出し→本文の順。ニュースの無い日は
+## 空配列＝従来の起床の列と同一。状態を読むだけ（日番号からデータを引く）。DMは朝の語りに出さない（SNSタブ）。
 ## 表示だけで、ゲームの数値には触れない。
 static func morning_events(day: int, source: Dictionary = {}) -> Array:
 	var events := []
@@ -123,10 +123,6 @@ static func morning_events(day: int, source: Dictionary = {}) -> Array:
 			for line in item["body"]:
 				if line is String and line != "":
 					events.append({ "type": "TEXT", "text": line, "part": "news" })
-	for item in entry["dm"]:
-		if str(item.get("text", "")) != "":
-			events.append({ "type": "TEXT", "text": "DM（%s）：%s" % [str(item.get("from", "")), str(item["text"])],
-				"part": "news" })
 	return events
 
 
@@ -176,8 +172,6 @@ static func tab_text(today: int, played_ids: Array = [], source: Dictionary = {}
 			if item.get("body") is Array:
 				for line in item["body"]:
 					section.append("　%s" % str(line))
-		for item in entry["dm"]:
-			section.append("DM（%s）：%s%s" % [str(item.get("from", "")), _provisional_mark(item), str(item.get("text", ""))])
 		for item in entry["events"]:
 			if day < today or played_ids.has(str(item.get("id", ""))):
 				if item.get("lines") is Array:
@@ -272,10 +266,6 @@ static func problems(source: Dictionary = {}) -> Array:
 			if not _is_line_list(item.get("body", []), true):
 				found.append("Day%d %s の body が文字列の配列でない" % [day, nid])
 			found.append_array(_must_info_problems(item.get("must_info", []), known, "Day%d %s" % [day, nid], day))
-		for item in (entry as Dictionary).get("dm", []):
-			if not (item is Dictionary) or not (item.get("from") is String) or str(item["from"]) == "" \
-					or not (item.get("text") is String) or str(item["text"]) == "":
-				found.append("Day%d の DM に from / text が無い" % day)
 		for item in (entry as Dictionary).get("events", []):
 			if not (item is Dictionary):
 				found.append("Day%d の共通イベントの要素が辞書でない" % day)

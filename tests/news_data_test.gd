@@ -61,7 +61,7 @@ func run(_t: SceneTree) -> int:
 	var any_items := 0
 	for day in range(1, 8):
 		var entry := News.day_entry(day)
-		for kind in ["news", "dm", "events"]:
+		for kind in ["news", "events"]:
 			for item in entry[kind]:
 				any_items += 1
 				all_provisional = all_provisional and bool(item.get("provisional", false))
@@ -99,7 +99,7 @@ func run(_t: SceneTree) -> int:
 	no_headline["days"]["1"]["news"][0]["headline"] = ""
 	c.check("headline が空だと落ちる", not News.problems(no_headline).is_empty())
 	var bad_day_key := _fresh()
-	bad_day_key["days"]["9"] = { "news": [], "dm": [], "events": [] }
+	bad_day_key["days"]["9"] = { "news": [], "events": [] }
 	c.check("日のキーが最終日を超えると落ちる", not News.problems(bad_day_key).is_empty())
 	var no_catalog := _fresh()
 	no_catalog.erase("must_info")

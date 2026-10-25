@@ -130,11 +130,36 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 		])
 		events.append_array(prep_after_tier_events(PREP_TIERS[0], true))
 	else:
-		events.append_array([
-			{ "type": "TEXT", "text": "食肉売場へ来た" },
-			{ "type": "PREP_TIER", "text": "「いつもの、って言われてもな。今日はどれだけ仕込む？」",
-				"options": prep_tier_options() },
-		])
+		events.append({ "type": "TEXT", "text": "食肉売場へ来た" })
+		events.append_array(prep_talk_events())
+		events.append({ "type": "PREP_TIER", "text": "（仕込む量を決める。）", "options": prep_tier_options() })
+	return events
+
+
+## 張記の店主との会話（鍋の素を選ぶ直前。UI準備C③・DESIGN.md 10.4）。杯数の見当は、予報やDMではなくこの会話で出す。
+## 店主が「今日はどれぐらい仕込む？」と聞き、主人公が答える。
+##   固定需要の日（Day1）：主人公が目安の杯数を一度だけ言う（数は day_overrides の fixed_demand から読む）。
+##   それ以外：主人公は**プレイヤーがもう知っている事実だけ**を言う＝前日の注文の杯数（日次ログの planned_cups。前日成績の
+##   「注文◯杯」と同じ値）と、足りなかった杯数があればそれ。今夜の見込みの数は言わない（言うと予報と同じになる）。
+##   前日の記録が無いときは、店主の問いだけ。台詞は仮（チャット側で差し替える）。
+## part:"prep_talk" の表示だけのTEXT（ゲームの数値には触れない。乱数なし）。クズ野菜ベースの日は prep_events が呼ばない。
+static func prep_talk_events() -> Array:
+	var events := [{ "type": "TEXT", "text": "「今日はどれぐらい仕込む？」", "part": "prep_talk" }]
+	var fixed := int(Rules.day_overrides(GameState.day_count).get("fixed_demand", 0))
+	if fixed > 0:
+		events.append({ "type": "TEXT", "text": "「最初の晩だし……%d杯くらいかな」" % fixed, "part": "prep_talk" })
+		return events
+	var previous := {}
+	for record in GameState.day_records:
+		if record is Dictionary and int(record.get("day", 0)) < GameState.day_count:
+			previous = record
+	if previous.is_empty():
+		return events
+	var line := "「昨日は%d杯の注文だった" % int(previous.get("planned_cups", 0))
+	var unserved := int(previous.get("unserved_cups", 0))
+	if unserved > 0:
+		line += "。%d杯、足りなかった" % unserved
+	events.append({ "type": "TEXT", "text": line + "」", "part": "prep_talk" })
 	return events
 
 

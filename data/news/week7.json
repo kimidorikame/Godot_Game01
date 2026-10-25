@@ -19,7 +19,6 @@
           "body": ["港の荷が止まり始めている。街の実感はまだ薄い。"],
           "must_info": ["strike_started"], "provisional": true }
       ],
-      "dm": [],
       "events": []
     },
     "2": {
@@ -28,19 +27,13 @@
           "body": ["迂回路ができ、物流が遅れ始めている。"],
           "must_info": ["checkpoints"], "provisional": true }
       ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "今日は入荷が遅れてる。早めに来な", "provisional": true }
-      ],
       "events": []
     },
     "3": {
       "news": [
-        { "id": "d3_spillover", "headline": "迂回輸送で市内の物流が混乱。歓楽街では客足が落ちている",
+        { "id": "d3_spillover", "headline": "迂回輸送で市内の物流が混乱。歓楽街でも仕入れと支払いが滞っている",
           "body": ["ストの影響が夜の街と金の流れにまで及んでいる。"],
           "must_info": ["nightlife_spillover"], "provisional": true }
-      ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "魚がしばらく入らないかもしれない", "provisional": true }
       ],
       "events": []
     },
@@ -49,9 +42,6 @@
         { "id": "d4_video", "headline": "現場を撮った動画が拡散、外部メディアが注目",
           "body": ["噂と映像が街の外へ広がっている。"],
           "must_info": ["video_spread"], "provisional": true }
-      ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "うちの店が映り込んでる。勘弁してくれ", "provisional": true }
       ],
       "events": []
     },
@@ -64,9 +54,6 @@
           "body": ["港湾の利権の移動が検討されているという。"],
           "must_info": ["rights_shift"], "provisional": true }
       ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "明日は現場に近づくな", "provisional": true }
-      ],
       "events": []
     },
     "6": {
@@ -74,9 +61,6 @@
         { "id": "d6_forced", "headline": "今夜、会社側が強行搬出に踏み切るとの情報",
           "body": ["ピケと会社側の緊張が高まっている。"],
           "must_info": [], "provisional": true }
-      ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "今日は早仕舞いも考えな", "provisional": true }
       ],
       "events": [
         { "id": "d6_clash", "at": "宵の口",
@@ -96,9 +80,6 @@
           "body": ["警察：暴動に伴う放火の疑い。", "労働組合側：関与を否定。",
                    "配信者：出回った映像を撤回。", "いずれも裏付けは取れていない。"],
           "must_info": ["truth_unresolved"], "provisional": true }
-      ],
-      "dm": [
-        { "from": "市場の顔なじみ", "text": "第八码頭は当面封鎖。魚は入らない", "provisional": true }
       ],
       "events": []
     }

@@ -523,6 +523,24 @@ func unserved_breakdown() -> Dictionary:
 		"unserved_not_arrived": maxi(unserved - tracked, 0) }
 
 
+## その夜に1杯以上提供したモブの種類（重複なし・並びは種類idの順）。モブの客は instance id（"mob#N"）で記録されるので、
+## 今夜の計画（today_plan の mob_instances）から種類を引く。
+func mob_types_served_tonight() -> Array:
+	var types := []
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	for record in GameState.served:
+		if not (record is Dictionary) or bool(record.get("discarded", false)) or int(record.get("servings", 0)) <= 0:
+			continue
+		var customer := str(record.get("customer", ""))
+		if not Day1Events.is_mob_customer(customer):
+			continue
+		var type_id := str((instances.get(customer, {}) as Dictionary).get("type", ""))
+		if type_id != "" and not types.has(type_id):
+			types.append(type_id)
+	types.sort()
+	return types
+
+
 ## 画面に出す内訳（素材が足りない／鍋が足りない／断った）。閉店のあと来られなかった客の分は「鍋が足りない」に含める。
 ## 内訳のキーが無い古い記録（C③より前のセーブ）は空の辞書。record は日次ログの1日分か tonight_result() の結果。
 static func unserved_display(record: Dictionary) -> Dictionary:
@@ -1737,6 +1755,8 @@ func on_day_ending() -> void:
 	var breakdown := unserved_breakdown()
 	for key in ["unserved_ingredients", "unserved_pot", "unserved_declined", "unserved_not_arrived"]:
 		log_entry[key] = int(breakdown[key])
+	# UI準備C③：その夜に1杯以上提供したモブの種類（DMの出す条件「同じ種類のモブに2夜提供」の元。保存は day_records に入る）
+	log_entry["mob_types_served"] = mob_types_served_tonight()
 	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
@@ -2506,29 +2526,55 @@ func phone_recipes() -> Dictionary:
 
 
 ## スマホのニュースタブ：今日と、その周で既に過ぎた日の分だけ（未来の日は見せない）。新しい日が上。
-## [{ day, is_today, news[{headline, body[], provisional}], dm[{from, text, provisional}], events[{lines[], provisional}] }]
+## [{ day, is_today, news[{headline, body[], provisional}], events[{lines[], provisional}] }]（DMは phone_dm()）
 ## 過ぎた日の共通イベントは出来事として載せ、今日の分は再生済み（played_events）のものだけ。中身が空の日は出さない。
 func phone_news() -> Array:
 	var out: Array = []
 	var today := GameState.day_count
 	for day in range(today, 0, -1):
 		var entry := News.day_entry(day)
-		var section := { "day": day, "is_today": day == today, "news": [], "dm": [], "events": [] }
+		var section := { "day": day, "is_today": day == today, "news": [], "events": [] }
 		for item in entry["news"]:
 			section["news"].append({ "headline": str(item.get("headline", "")),
 				"body": (item.get("body", []) as Array).duplicate() if item.get("body") is Array else [],
-				"provisional": bool(item.get("provisional", false)) })
-		for item in entry["dm"]:
-			section["dm"].append({ "from": str(item.get("from", "")), "text": str(item.get("text", "")),
 				"provisional": bool(item.get("provisional", false)) })
 		for item in entry["events"]:
 			if day < today or played_events.has(str(item.get("id", ""))):
 				if item.get("lines") is Array:
 					section["events"].append({ "lines": (item["lines"] as Array).duplicate(),
 						"provisional": bool(item.get("provisional", false)) })
-		if not (section["news"].is_empty() and section["dm"].is_empty() and section["events"].is_empty()):
+		if not (section["news"].is_empty() and section["events"].is_empty()):
 			out.append(section)
 	return out
+
+
+## スマホのSNSタブ：今日までに届いたDM（新しい順）。[{ id, day, from, from_kind, time, text, hint, provisional, unread }]
+## 届く条件は Dm（名前あり客に初めて提供した翌日から／同じ種類のモブに2夜提供した翌日から／客でない差出人は条件なし。
+## 匂わせの向きは需要の中心と矛盾しない日だけ）。未読は ReadState（保存とは別のファイル）で持つ。
+func phone_dm() -> Array:
+	var out := Dm.inbox(GameState.day_count)
+	for item in out:
+		item["unread"] = not ReadState.is_read(_dm_read_key(item))
+	return out
+
+
+## 未読のDMの数（スマホのSNSタブに出す）。
+func dm_unread_count() -> int:
+	var n := 0
+	for item in Dm.inbox(GameState.day_count):
+		if not ReadState.is_read(_dm_read_key(item)):
+			n += 1
+	return n
+
+
+## いま届いているDMを、読んだ扱いにする（SNSタブを開いて表示した時点で呼ぶ）。
+func mark_dms_read() -> void:
+	for item in Dm.inbox(GameState.day_count):
+		ReadState.mark(_dm_read_key(item))
+
+
+func _dm_read_key(item: Dictionary) -> String:
+	return ReadState.line_key("dm", "", str(item["id"]), str(item["id"]))   # 文が差し替わっても既読は変えない（idで持つ）
 
 
 ## スマホのログタブ：今日の会話ログ（上から古い順）。[{ day, kind, speaker, text }]。実行時の記録のみ（保存しない）。

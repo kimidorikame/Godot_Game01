@@ -225,3 +225,9 @@ static func regular_schedule() -> String:
 static func news() -> String:
 	_ensure_loaded()
 	return str(_cache.get("news", ""))
+
+
+## DMのデータのid（data/dm/<id>.json。UI準備C③。ニュースと同じ置き方）。
+static func dm() -> String:
+	_ensure_loaded()
+	return str(_cache.get("dm", ""))

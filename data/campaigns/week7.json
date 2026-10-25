@@ -38,5 +38,6 @@
   "goals": { "cash_standard": 1500, "cash_challenge": 1600,
              "good_rate": 0.85, "regular_great": 8 },
   "regular_schedule": "week7_regulars",
-  "news": "week7"
+  "news": "week7",
+  "dm": "week7"
 }

@@ -67,7 +67,7 @@ func run(t: SceneTree) -> int:
 	for e in TalkLog.entries:
 		kinds[str(e["text"])] = str(e["kind"])
 	c.check("ニュースの見出しは kind:news", kinds.get("ニュース：港湾局とスト側の協議が物別れ。第八码頭の周辺で検問が始まった") == "news", str(kinds))
-	c.check("DMも kind:news", kinds.get("DM（市場の顔なじみ）：今日は入荷が遅れてる。早めに来な") == "news")
+	c.check("朝の語りにDMは出ない（SNSタブのDMへ移した）", not kinds.keys().any(func(k): return str(k).begins_with("DM（")))
 	panel.free()
 
 	# --- 3. 客の接客：同じ客を何度組み直しても二重にならず、台詞の順に記録される ---

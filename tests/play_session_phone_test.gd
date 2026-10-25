@@ -78,7 +78,7 @@ func run(t: SceneTree) -> int:
 	sorted_desc.reverse()
 	c.check("スマホのニュース：今日と過ぎた日だけ（未来の日は出ない）・新しい日が上・各日に項目がある",
 		days == sorted_desc and days.all(func(d): return d <= GameState.day_count)
-			and news.all(func(x): return x.has("news") and x.has("dm") and x.has("events") and x.has("is_today")), str(days))
+			and news.all(func(x): return x.has("news") and x.has("events") and x.has("is_today")), str(days))
 	var entries: Array = s.talk_log_entries()
 	c.check("スマホのログ：今日の会話ログが構造（日・種類・話し手・本文）で読める。コピーを返す",
 		not entries.is_empty() and entries[0].has("text") and entries[0].has("speaker") and entries.size() == TalkLog.entries.size())

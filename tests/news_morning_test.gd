@@ -56,10 +56,10 @@ func run(t: SceneTree) -> int:
 	# --- 2. 必須情報が朝に届く（Day6の衝突・火災は共通イベント）。DMも出る ---
 	GameState.reset_for_new_game()
 	GameState.day_count = 2
-	c.check("DM（市場の顔なじみ）もニュースの後に出る",
-		_texts(Day1Events.wake_events()).has("DM（市場の顔なじみ）：今日は入荷が遅れてる。早めに来な"))
+	c.check("DMは朝の語りに出さない（UI準備C③：SNSタブのDMへ移した。scripts/dm.gd）",
+		not str(_texts(Day1Events.wake_events())).contains("DM（") and not str(_texts(Day1Events.wake_events())).contains("入荷が遅れてる"))
 	GameState.day_count = 1
-	c.check("DMの無い日（Day1）はDMが出ない", not str(_texts(Day1Events.wake_events())).contains("DM（"))
+	c.check("Day1にもDMは出ない", not str(_texts(Day1Events.wake_events())).contains("DM（"))
 
 	# --- 3. ニュースの無い日は従来の列と同一 ---
 	News._cache = { "id": "week7", "days": {} }
@@ -76,7 +76,7 @@ func run(t: SceneTree) -> int:
 	var p4 = _wake_panel(t, 3)
 	var ev4: Array = p4.session.flow.runner.events
 	c.check("パネルのWAKEにも差し込まれる（Day3：迂回輸送の見出し）",
-		_texts(ev4).has("ニュース：迂回輸送で市内の物流が混乱。歓楽街では客足が落ちている"))
+		_texts(ev4).has("ニュース：迂回輸送で市内の物流が混乱。歓楽街でも仕入れと支払いが滞っている"))
 	p4.free()
 	GameState.reset_for_new_game()
 	GameState.day_count = 3
@@ -119,7 +119,7 @@ func run(t: SceneTree) -> int:
 	c.check("新しい日が上（Day4 → Day3 → Day2 → Day1）",
 		tab.find("◆今日（Day4）◆") < tab.find("◆Day3◆") and tab.find("◆Day3◆") < tab.find("◆Day2◆")
 			and tab.find("◆Day2◆") < tab.find("◆Day1◆"))
-	c.check("DMはニュースと別の行（DM（…）：）", tab.contains("DM（市場の顔なじみ）：") and tab.contains("【仮】"))
+	c.check("ニュースタブにDMは出さない（SNSタブへ移した）。仮の印は付く", not tab.contains("DM（") and tab.contains("【仮】"))
 	# 再挑戦で戻した朝より後の日は見えない
 	GameState.day_count = 6
 	p6.session.retry_from_morning(2)
