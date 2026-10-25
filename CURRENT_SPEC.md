@@ -13,9 +13,11 @@ DESIGN.md が「これから作る指示書」なのに対し、こちらは「�
 ## 0. 全体像（一言で）
 
 サイバーパンク／九龍風スラムの屋台で一日一鍋のスープを営む会話＋小規模経営ゲーム。
-現状は **本番UI・絵なし**。開発用の DebugPanel（State Viewer）上で、状態を見ながら
-ボタンで手動進行できる段階。Day1（起床→仕込み→営業→閉店→翌日）が状態遷移として
-通しで動く。
+現状は **本番UIの骨組みまで実装済み（絵はすべて仮）**。メインシーンは `scenes/game_root.tscn`
+（UI準備B）で、Day1の朝から最終日の結果画面までマウスだけで遊べる。開発用の DebugPanel
+（State Viewer）は `scenes/debug_panel.tscn` に残してあり、状態を見ながらボタンで手動進行できる。
+**【2026-10-25】UI準備A〜C**（処理の切り出し・本番UIの骨組み・ルールと情報の変更）が入った。
+下の「§6 本番UI（UI準備A・B）」「§6 ルールと情報の変更（UI準備C）」を参照。
 
 ---
 
@@ -73,7 +75,9 @@ DESIGN.md が「これから作る指示書」なのに対し、こちらは「�
   - `Forecast`（`scripts/forecast.gd`・3-7）：朝の一画面（SNSタブの客足予報）の集計。
     状態を持たない静的クラスで、`GameState.today_plan`と`GameState.inventory`から計算し、
     数値・辞書を返す（文字列の組み立ては`DebugPanel._format_tonight_memo()`）。詳細は
-    下記「スマホUI」の「SNSタブ（客足予報）」参照。
+    下記「スマホUI」の「SNSタブ（客足予報）」参照。**【UI準備C①・2026-10-25】予報はプレイヤーに
+    出さなくなった**（本番UIのSNSタブはDM。DebugPanelの予報メモは「検証用」）。`Forecast`は
+    自動試遊の既定（`info=forecast`）とテストが使うので消していない。
 
 ---
 
@@ -1191,6 +1195,14 @@ GameState.dashi_units   # 濃縮だしの保有回数分
   `_is_strength_zero_in_adjust()`。2026-09-26改訂：濃さ0の条件を追加）。補充できる
   ものが何も無ければ`[鍋を見る]`は出さない（入っても出口が無くなるため）。水やだしを
   足して`[戻る]`すると、選んでいた具材を残したままADJUSTに戻れる
+  **【2026-10-25・UI準備C④で変更】上の「原則押せない」は廃止した。** ADJUST中も、**足りているときを
+  含めて、足せるものがあれば鍋を触れる**（`PlaySession.can_touch_pot()` から、ADJUST中の例外を外した）。
+  濃さは判定（REACT）の瞬間に読むので、椀を作る途中にだし・水を足した濃さで判定される
+  （`tests/pot_adjust_test.gd`）。**SERVE中（椀を確定してから判定まで）は、今までどおり触れない**
+  （判定の前に濃さを変えられないため）。足せるものが何も無ければ、ADJUST中も触れない。
+  DebugPanelの`[鍋を見る]`も同じ問いで押せる。本番UIでは、鍋タブでだし・水を押せ、減点の予告の
+  「鍋タブでだし +2」「鍋タブで水」がADJUST中にも出る。自動試遊（既存13方針×30シード）は、客の最初の
+  イベントで鍋を整える動きなので、結果は変わらなかった（v2と390/390周で全キー一致）
 - 資源が尽きた操作はボタンが無効になる
 - `[戻る]`が塞がれるのは、水待ちなら「水を足せば解ける」とき、だし待ちなら
   「だしを足せば解ける」ときだけ（`_pot_locked_until_water()`／
@@ -1227,6 +1239,10 @@ GameState.dashi_units   # 濃縮だしの保有回数分
   既定値にリセットする（鍋モード・市場モードの防御的リセットと同じ扱い）。
 
 #### SNSタブ（客足予報・朝の一画面）（3-7実装済み・2026-10-11・DESIGN.md 10.4）
+
+> **【2026-10-25・UI準備C①】本番UIではこの予報を出さない**（DESIGN.md 10.4）。本番UIのSNSタブは
+> DM（下記「ルールと情報の変更（UI準備C）」）。ここ（DebugPanelのSNSタブ）の予報メモは**検証用**として
+> 残し、見出しは「◆本日の客足予報（検証用）◆」。以下は、その検証用の予報メモの仕様。
 
 `_format_tonight_memo()`が、WAKEで確定した`GameState.today_plan["slots"]`を
 時間帯ごとに並べ、その下に集計を足す。`today_plan["slots"]`が空（起床前など）なら
@@ -2044,6 +2060,10 @@ GameState.try_pay(amount) -> bool
   検査を1件追加）。全44スイート2449件成功。旧`playthrough_results_regulars.json`（運営費65・12/13/14）とは
   **意図して一致しなくなった**（上書きしていない）。新しい基準は運営費75・`reach_true`の13方針×30シード
   （`playthrough_results_regulars_v2.json`。引数で明示して取る）。
+- **【2026-10-25・UI準備C⑤】予報を使わない前提でも測った（v3）**：上の結果はすべて「予報で仕込みと仕入れを決める」基準方針（v2）での値。
+  本番UIは予報を出さなくなったので、予報を読まないハーネス（引数`info=visible`／`visible_improvise`）でも測った。基本GOODの平均最終現金は
+  v2の1636に対して、既定版418・補う版1316（どちらも1500達成0/30）。**この「75は暫定値」の結論は、予報を使わない前提では変わる可能性がある**
+  （詳細は「ルールと情報の変更（UI準備C）」のC-6と`PLAYTHROUGH_RESULTS_V3.md`）。合格ラインの判断（ラインを変えるか、数値を調整するか）は、人の試遊のあとに決める。
 - **結果の置き場所**：`planning/playtest_2026_10_11/PLAYTHROUGH_RESULTS_REMEASURE.md`（到達杯数の補正と運営費の感度）、
   `PLAYTHROUGH_RESULTS_COST75.md`（残り11方針と切り分け）、`PLAYTHROUGH_RESULTS_COST75_V2.md`（新しい基準と基金）。
 - **限界**：自動操作は人間の読み違い・操作の手間・面白さを測らない。`reach_true`の基本GOODは、営業中の水足しと
@@ -2750,6 +2770,88 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   廃止し、無言で精算される）
 - 場所代 -90（2026-09-26改訂：150→90）: 理不尽「あ、そうだ。今月分。」（徴収日のみ）
 
+### 本番UI（UI準備A・B・実装済み・2026-10-24〜25）
+
+**UI準備A（処理の切り出し）**：DebugPanelが兼任していた「操作と問い」を `PlaySession`
+（`scripts/play_session.gd`。Node。`FlowController`を子に持つ）へ移した。画面は`PlaySession`の問い
+（`day_info`・`current_line`・`pot_view`・`bowl_view`・`ingredient_options`・`fund_view`・`phone_news`…）を読み、
+操作（`next_event`・`select_ingredient`・`buy_item`・`choose_prep_tier`・`contribute_fund`…）を送るだけ。
+状態が変わるたびに`changed`が出る。使い方は`planning/PLAY_SESSION_API_2026_10_24.md`。DebugPanelは表示専用になった。
+ゲームの結果は1つも変えていない（自動試遊30シード×13方針が全キー一致）。
+
+**UI準備B（本番UIの骨組み）**：
+- **メインシーン `scenes/game_root.tscn`**（1280×720）。`PlaySession`を子に持ち、`changed`で全体を描き直し、
+  描き直しの最後に`record_visible_event()`（会話ログ・既読）。`phase_entering`で、スマホ・ログの開閉・鍋タブの手動切り替え・
+  会話枠のページなど、表示だけの状態を捨てる。
+- 左側（`scenes/ui/left_side.tscn`）：Day・時間帯ゲージ（宵／夜半／明。開店中）または画面名（朝／市場／閉店）、所持金・評判（・客足）、
+  立ち絵の枠、名前の札、会話枠（1行30字×3行。入りきらない文は枠内でページ送り）、選択肢、スマホ・ログのアイコン、既読スキップ。
+  会話を進めるのは会話枠のクリック・Enter・Space。
+- 右の枠（同じ位置 (836,24) 420×672 に重ね、状態に合う1つだけを出す）：朝（昨夜の成績）・市場・購入（食肉仲卸／ほかの店）・
+  開店の操作エリア（鍋／トッピングのタブ）・閉店（今夜の結果と修繕基金）・スマホ・会話ログ。全面（左側と右の枠を隠す）：仕込み・結果・ゲームオーバー。
+- 共通：`resources/ui_theme.tres`（配色12色＝`UiPalette`・型の変種）、Noto Sans JP（`assets/fonts/`。OFL）。
+  寸法は`planning/KAITEN_UI_LAYOUT_2026_10_24.md`・`SCREENS_UI_LAYOUT_2026_10_24.md`の表どおり。
+  シーンは`tools/build_ui_scenes.gd`が最初に作ったもの（**再実行すると手の調整が消える**。既存のファイルは引数`--overwrite`が無ければ上書きしない）。
+  UI準備Cでの変更（`pane_phone.tscn`のSNSの未読ラベルなど）は`.tscn`を直接編集しており、生成スクリプトには反映していない。
+- 開店の鍋・トッピング：傷んだ在庫は具材ボタンを2つに分ける（本体＝新鮮、右端「傷N」＝傷んだ側）。椀の枠は傷んだ具材を注意色の枠で「豆腐(傷)」。
+  具材の名前は短縮名（`data/ui/ui_labels.json`の`short_names`。開店の操作エリアだけで使う）。
+  `bowl_view()`は、品目ごとの傷んだ印`additions_damaged`を返す（表示だけ）。
+- 市場：「この店で買った」「¥24 使った」は、UIだけの集計（`scripts/ui/shop_tally.gd`。保存しない）。
+- ゲームオーバー：`PlaySession.game_over_info()`が、詰んだ支払いの種類・必要額・所持金・日・フェーズを返す（表示だけ）。
+  「Day N の朝からやり直す」のNは、`retry()`が戻る先の朝（運営費が払えなかった朝は記録されないので、前日の朝）。
+- テスト：`tests/ui_left_side_test.gd`・`ui_panes_test.gd`・`ui_kaiten_test.gd`・`ui_close_full_test.gd`・`ui_e2e_test.gd`
+  （UIのボタンと会話枠のクリックだけで、Day1の朝から最終日の結果画面まで進める。台本は`tests/ui_autoplay.gd`）。
+  スクリーンショットは`tools/ui_screens_B.gd`（`planning/ui_screens_B/`に13枚）・`tools/ui_screens_C.gd`（`planning/ui_screens_C/`）。
+- 動作確認の環境：Godot 4.4.1 と 4.7.2 の両方で、全テストと、試遊の30シード×13方針の照合を行った（差なし）。
+
+### ルールと情報の変更（UI準備C・実装済み・2026-10-25・DESIGN.md 10.4）
+
+客足予報をやめ、客の多い少ないの手がかりを別の形で出す。DESIGN.mdの書き換えは`892dc9f`。
+`planning/UI_C_RULES_INFO_REQUEST_2026_10_25.md`が依頼書、`planning/DESIGN_10_4_REWRITE_2026_10_24.md`が書き換え案の記録（反映済み）。
+
+- **C-1 予報の表示をやめた**：本番UIは予報を出さない。DebugPanelの予報メモは「検証用」。`Forecast`は残す。
+- **C-2 客足**：評判の横に「評判 33・客足 ふつう」。言葉は`data/ui/ui_labels.json`の`demand_words`、区切りは
+  `Rules.demand_table()`の閾値（評判0〜19＝少ない／20〜44＝ふつう／45〜59＝多め／60〜70＝多い／71〜＝とても多い）。
+  日の固定需要（Day1）やその日の事情は反映しない。
+- **C-3 足りなかった杯数の内訳**：日次ログ`log_entry`に`unserved_ingredients`（素材が足りない）・`unserved_pot`（鍋が足りない）・
+  `unserved_declined`（断った）・`unserved_not_arrived`（閉店のあと来られなかった客）を追加（4つの合計は`unserved_cups`。既存のキーは変えない。
+  保存の形式の版は上げない）。判断の瞬間に`PlaySession.log_unserved`へ積む：名前あり客を断る＝鍋（残量・濃さ0で出せない）／素材（椀が成立せず在庫に味か具の素材が
+  1つも無い）／それ以外は断った。モブの団体＝出し切れなかった分を、出せる人数を決めた制約（濃さ0＝鍋、椀が成立しない＝素材、鍋の残量と
+  具材の在庫の小さい方。同じなら鍋）で分ける。閉店（手動・自動）＝今の客の残りは鍋。画面（朝の前日成績・閉店の今夜の結果）は
+  「足りなかった 4杯（素材 1・鍋 2・断った 1）」で、来られなかった客の分は「鍋」に含める（`PlaySession.unserved_display`）。
+- **C-4 DM（SNSタブ）**：データは`data/dm/week7.json`（`Rules.dm()`）、読み口は`scripts/dm.gd`（`Dm`）。1通は日・差出人・条件（`requires`）・
+  匂わせの向き（`hint`：many／few／none）・時刻・本文（仮）。届く条件は、その日の朝の状態で決まる関数：名前あり客は初めて提供した翌日から
+  （`customer_memory`）、モブは同じ種類に2夜提供した翌日から（日次ログの`mob_types_served`＝新設）、客でない差出人（市場の顔なじみ）は条件なし。
+  匂わせ：many＝その日の需要の中心が「多め」の行の中心以上、few＝「少ない」の行の中心以下（数値は需要表と客足の言葉から読む）。
+  必須情報はDMに置かない。ニュースのデータの`dm`欄は、ここへ移した（朝の語りにDMは出さない）。Day3のニュース`d3_spillover`の見出しは
+  「…歓楽街でも仕入れと支払いが滞っている」に差し替えた。データのテスト：ニュースと共通イベントの本文に「客足」を含めない、DMの向きと中心が矛盾しない
+  （`tests/dm_test.gd`）。SNSタブは`phone_dm()`（新しい順。丸い顔・名前・常連の印・時刻・本文）、未読は左に注意色の線とSNSタブの●と数、
+  「スマホ」ボタンにも●と数。SNSタブを表示した時点で既読（`ReadState`。idで持つ。保存とは別）。
+- **張記の店主との会話**（鍋の素を選ぶ直前。`part:"prep_talk"`の表示だけのTEXT）：Day1は主人公が目安の杯数を一度だけ言う
+  （`fixed_demand`から読む）。Day2以降は前日の注文の杯数（日次ログの`planned_cups`。前日成績の「注文◯杯」と同じ値）と足りなかった杯数だけ。
+  今夜の見込みの数は言わない。クズ野菜ベースの日は入れない。`PREP_TIER`の台詞は「（仕込む量を決める。）」。
+- **C-5 鍋の条件**：前出（「鍋を触る操作」）。
+- **C-7 小さな直し**：列を読み終えた画面（閉店など）でも、会話枠に最後に出した行を残す。`coconut_milk`の短縮名を「ココナツ」に。
+- **C-6 予報を使わない自動試遊（新しい基準・v3）**：ハーネス（`planning/playtest_2026_10_11/playthroughs.gd`）の引数`[6]`（info）：
+  `forecast`（既定。予報を読む＝v2と同じ。v2と390/390周で全キー一致）／`visible`（予報を読まず、前日の注文杯数・客足の言葉・DMの匂わせ・
+  自分が受けた注文・在庫と所持金だけで決める＝v3。**言葉と数の対応を覚えた熟練プレイヤー相当**）／`visible_improvise`（visibleに加えて、
+  注文のタグの素材が手元に無いとき、足りない軸〔味・具〕をほかの在庫で補う）。v3の見込み杯数＝（前日の注文杯数＋客足の言葉の帯の中心）÷2を
+  四捨五入し、DMの匂わせで±1（Day1は張記の会話の9杯）。仕入れの必要数＝自分が受けた直近2夜の注文のタグの割合×見込み杯数。
+  下限版（別枠）は見込み＝前日の注文杯数だけ。結果は`playthrough_results_regulars_v3.json`（visible）・`..._v3_improvise.json`・
+  `PLAYTHROUGH_RESULTS_V3.md`（`summarize_v3.mjs`）。**v2（`playthrough_results_regulars_v2.json`）は上書きしていない。**
+
+  | （運営費75・`reach_true`・各30シード） | 平均最終現金 | 1500達成 | GOOD以上率 | ゲームオーバー |
+  |---|---:|---:|---:|---:|
+  | v2 基本GOOD（予報あり） | 1636 | 93.3% | 98.5% | 0 |
+  | **v3 基本GOOD（既定版）** | **418** | 0.0% | 64.9% | 3 |
+  | v3 基本GOOD・下限版（既定版） | 422 | 0.0% | 64.5% | — |
+  | **v3 基本GOOD（補う版）** | **1316** | 0.0% | 64.9% | 0 |
+  | v3 基本GOOD・下限版（補う版） | 1328 | 0.0% | 63.5% | 0 |
+
+  10.13の判定：既定版は項目1・1b・2・3・4が不合格（D1のみ合格）。補う版は項目2・3・4・D1が合格、項目1・1bが不合格。
+  既定版の出せなかった杯数のほとんど（1周あたり22.8杯のうち22.7杯）は「断った」で、注文のタグの素材が無い夜に他の在庫で補わず売れない椀を
+  断る方針の動き方による（プレイヤーの動きとは違う）。**運営費75は予報ありの基準で確定した暫定値で、予報を使わない前提では結論が変わる
+  可能性がある。合格ラインの判断（ラインを変えるか、数値を調整するか）は、人の試遊のあとに決める（まだ決めていない）。**
+
 ---
 
 ## 7. 条件別Event列生成（Day2テスト・確認済み）
@@ -2805,8 +2907,8 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scripts/balance_log.gd` | 日次ログ（`user://balance_log.jsonl`）の書き出しと`run_id`・`attempt`。システム整理A・2026-10-17追記 |
 | `tests/display_name_test.gd`・`tests/balance_log_retry_test.gd`・`tests/market_talk_test.gd`・`tests/bill_scene_test.gd`・`tests/demand_route_test.gd` | 表示名／再挑戦の`run_id`・`attempt`／`market_talk`（`tests/fixtures/prep_events_system_a.json`と照合）／`bills[].scene`の場所代／需要経路。システム整理A・2026-10-17追記 |
 | `tests/scene_keys_test.gd`・`tests/after_serve_test.gd`・`tests/choice_test.gd`・`tests/scene_facts_test.gd` | 場面の新キーの読み口と検査／提供後の列・UNSERVED・閉店退店／選択・締めの差分／`sets_facts`・`request_honored`・保存の往復と旧形式。システム整理C・2026-10-17追記 |
-| `scripts/news.gd` | 日別ニュース・DM・共通イベントと必須情報9項目のカタログ（読み口・検証・朝のTEXT・ニュースタブ本文）。システム整理D・2026-10-17追記 |
-| `data/news/week7.json` | 日別ニュース・DM・共通イベントと必須情報のカタログ（文面は仮案。`provisional`）。システム整理D・2026-10-17追記 |
+| `scripts/news.gd` | 日別ニュース・共通イベントと必須情報9項目のカタログ（読み口・検証・朝のTEXT・ニュースタブ本文）。システム整理D・2026-10-17追記。**UI準備C③でDMを`scripts/dm.gd`へ移した**（`News.day_entry`はニュースとイベントだけ返す） |
+| `data/news/week7.json` | 日別ニュース・共通イベントと必須情報のカタログ（文面は仮案。`provisional`）。システム整理D・2026-10-17追記。UI準備Cで`dm`欄を削除し、Day3の見出しを差し替え |
 | `tests/news_data_test.gd`・`tests/news_morning_test.gd`・`tests/common_event_test.gd` | 担保の検証・未知idの弾き／朝のニュースとニュースタブ／共通イベント・取り戻し・二重再生なし・数値不変・ハーネスの読み飛ばし。システム整理D・2026-10-17追記 |
 | `tests/multi_cup_test.gd` | 複数杯の場面（`cups`）の読み口・検証・Event列・記録（`customer_events_4_3.json`）との厳密な一致・1杯の場面だけの機能が出ないこと。システム整理E・2026-10-18追記 |
 | `scripts/recipe_book.gd`・`data/recipes/names.json` | 保存レシピの検証・保存・「いつもの」の引き当て・適用前の在庫検査・名前の候補（データ）。4-7①・2026-10-18追記 |
@@ -2819,6 +2921,16 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `tests/fixtures/episodes/<客>/*.json` | 4-4b-2のテスト用の場面データ（`requires`・`order`・`callback`入り。`ScheduleData.episodes_dir`で差し替えて読む） |
 | `data/campaigns/week7.json` | F1・7日版の経済数値・徴収・Day1上書き等の設定（2026-09-28追記） |
 | `data/kits/day1_kit.json` | 初日セットの内訳（合計¥210。3-5実装・2026-10-01追記） |
+| `scripts/play_session.gd` | `PlaySession`（Node）。画面の操作と問いの入口。`FlowController`を子に持つ。UI準備A・2026-10-24追記。UI準備Cで`log_unserved`／`unserved_display`／`phone_dm`／`dm_unread_count`／`mark_dms_read`を追加。使い方は`planning/PLAY_SESSION_API_2026_10_24.md` |
+| `scenes/game_root.tscn`・`scenes/ui/*.tscn`・`scripts/ui/*.gd` | 本番UIの骨組み（メインシーン・左側・右の枠・全面の画面）。UI準備B・2026-10-24追記。`scripts/ui/ui_labels.gd`は表示名・短縮名・客足の言葉など（`data/ui/ui_labels.json`を読む）、`ui_parts.gd`は共通の部品（足りなかった杯数の文など）、`shop_tally.gd`は市場の「この店で買った」の集計 |
+| `resources/ui_theme.tres`・`scripts/ui/ui_palette.gd`・`assets/fonts/` | Theme・配色12色・Noto Sans JP（OFL）。UI準備B |
+| `tools/build_ui_scenes.gd`・`tools/ui_screens_B.gd`・`tools/ui_screens_C.gd` | 画面シーンの初回生成（再実行すると手の調整が消える）／スクリーンショットの撮影（`planning/ui_screens_B/`13枚・`planning/ui_screens_C/`20枚）。UI準備B・C |
+| `scripts/dm.gd`・`data/dm/week7.json` | DM（SNSタブ）の読み口と条件の評価・データ（文面は仮）。`Rules.dm()`が読む。UI準備C③・2026-10-25追記 |
+| `data/ui/ui_labels.json` | 画面の表示名・短縮名・店の品揃え・客足の言葉（`demand_words`）。UI準備B・C |
+| `tests/ui_left_side_test.gd`・`ui_panes_test.gd`・`ui_kaiten_test.gd`・`ui_close_full_test.gd`・`ui_e2e_test.gd`・`ui_autoplay.gd` | 左側／右の枠／開店の操作エリア／閉店と全面の画面／UIだけでDay1の朝から最終日まで通す試験（台本は`ui_autoplay.gd`）。UI準備B・C |
+| `tests/play_session_*_test.gd` | `PlaySession`の問いと操作（開店・市場・閉店・鍋・スマホ・朝・見え方）。UI準備A〜C |
+| `tests/unserved_breakdown_test.gd`・`tests/dm_test.gd`・`tests/pot_adjust_test.gd` | 足りなかった杯数の内訳（素材・鍋・断った）／DMのデータ・条件・向き／ADJUST中も鍋を触れること（SERVE中は触れない）。UI準備C・2026-10-25追記 |
+| `planning/playtest_2026_10_11/playthroughs.gd`（引数`[6]`info）・`summarize_v3.mjs`・`PLAYTHROUGH_RESULTS_V3.md`・`playthrough_results_regulars_v3*.json` | 予報を使わない自動試遊（v3）のハーネス・集計・結果。`playthrough_results_regulars_v2.json`は予報あり（v2）の基準で、上書きしていない。UI準備C⑤・2026-10-25追記 |
 
 ※ Graybox（graybox_open）は STEP 17.5 の検証後に削除した。
 具材が増えて計器盤で操作しきれなくなった段階で作り直す。
@@ -2950,6 +3062,7 @@ Day3以降ぶん・モブ7種の中身は、いずれも「客名＋要求タグ
 詳しい経緯・客/モブの中身は SEVEN_DAY_OUTLINE.md §13-8・§10 を参照。
 
 ### D. 本番UI（見た目・一番最後）
+- **骨組みは UI準備B で実装済み**（§6「本番UI（UI準備A・B）」）。残りは本番の絵・音・開始／設定／終了（フェーズ6）
 - 絵・セリフ表示・屋台画面
 - 選択肢は調味料と具材で表示を分ける（種類が増えると1列では探しにくい）
 - 客と鍋を常時表示し、注文時に鍋の領域が椀の画面に切り替わる（DESIGN.md 7.6）
