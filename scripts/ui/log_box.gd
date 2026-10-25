@@ -49,7 +49,7 @@ func _add(text: String, variation: StringName) -> void:
 	label.theme_type_variation = variation
 	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.custom_minimum_size = Vector2(720, 0)
+	label.custom_minimum_size = Vector2(630, 0)   # 右端の「スマホ」「ログ」のボタン（x 686〜）に重ならない幅
 	_content.add_child(label)
 
 

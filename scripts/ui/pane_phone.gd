@@ -2,14 +2,15 @@ extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
 ## タブは SNS／ニュース／レシピ。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
-## 未読のDMがあれば SNS タブに数（注意色）を出し、SNS タブを表示した時点で読んだ扱いにする（mark_dms_read）。
+## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
+## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
 ## ニュース＝phone_news() のニュース（日付・見出し・本文）、レシピ＝phone_recipes()（保存したレシピと、客ごとの「いつもの」）。
 ## 品名は本名（短縮名は開店の操作エリアだけ）。「閉じる」で元の画面に戻る（開店中は「閉じる(鍋・トッピングに戻る)」）。
 
 signal close_requested()
-## SNS タブを表示して、未読のDMを読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
-signal dms_read()
+## SNS・ニュースのタブを表示して、未読を読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
+signal unread_cleared()
 
 const TABS := ["sns", "news", "recipe"]
 
@@ -24,9 +25,12 @@ var tab := "news"
 @onready var _content: VBoxContainer = %Content
 @onready var _close: Button = %CloseButton
 @onready var _badge: Label = %SnsBadge
+@onready var _news_badge: Label = %NewsBadge
 
 ## このスマホを開いてから、未読として見せたDMのid（行の左に線を残す）。閉じる・区切りで捨てる。
 var _fresh := {}
+## このスマホを開いてから、未読として見せたニュースのid（見出しの頭に●を残す）。
+var _fresh_news := {}
 
 
 func _ready() -> void:
@@ -42,6 +46,7 @@ func bind_session(s: PlaySession) -> void:
 ## 区切り・閉じるで、表示だけの状態を捨てる。
 func reset_ui_state() -> void:
 	_fresh = {}
+	_fresh_news = {}
 
 
 func refresh() -> void:
@@ -93,7 +98,7 @@ func _fill_sns() -> void:
 	var unread_before := session.dm_unread_count()
 	session.mark_dms_read()   # 表示した時点で既読にする
 	if unread_before > 0:
-		dms_read.emit()
+		unread_cleared.emit()
 
 
 func _add_dm_row(item: Dictionary, unread: bool) -> void:
@@ -158,17 +163,27 @@ func _add_dm_row(item: Dictionary, unread: bool) -> void:
 
 func _fill_news() -> void:
 	var count := 0
+	var unread_before := session.news_unread_count()
+	for section in session.phone_news():
+		if (section["news"] as Array).is_empty():
+			continue
+		for item in section["news"]:
+			if bool(item["unread"]):
+				_fresh_news[str(item["id"])] = true
 	for section in session.phone_news():
 		if (section["news"] as Array).is_empty():
 			continue
 		_add("Day %d%s" % [int(section["day"]), "（今日）" if bool(section["is_today"]) else ""], &"LabelSub")
 		for item in section["news"]:
-			_add(str(item["headline"]), &"LabelPhoneHeadline")
+			_add(("● " if _fresh_news.has(str(item["id"])) else "") + str(item["headline"]), &"LabelPhoneHeadline")
 			for line in item["body"]:
 				_add(str(line), &"LabelPhoneBody")
 			count += 1
 	if count == 0:
 		_add("ニュースはまだありません", &"LabelDim")
+	session.mark_news_read()   # 表示した時点で既読にする
+	if unread_before > 0:
+		unread_cleared.emit()
 
 
 func _fill_recipes() -> void:
@@ -193,10 +208,12 @@ static func _names(ids: Array) -> String:
 	return "・".join(names)
 
 
-## SNSタブの未読の数（注意色の丸）。SNSタブを表示しているあいだは読んだ扱いなので出さない。
+## SNSタブ・ニュースタブの未読の数（注意色の丸）。そのタブを表示しているあいだは読んだ扱いなので出さない。
 func _refresh_badge() -> void:
-	var unread := session.dm_unread_count() if tab != "sns" else 0
-	_badge.text = "●%d" % unread if unread > 0 else ""
+	var dm_unread := session.dm_unread_count() if tab != "sns" else 0
+	_badge.text = "●%d" % dm_unread if dm_unread > 0 else ""
+	var news_unread := session.news_unread_count() if tab != "news" else 0
+	_news_badge.text = "●%d" % news_unread if news_unread > 0 else ""
 
 
 func _on_tab_pressed(next_tab: String) -> void:

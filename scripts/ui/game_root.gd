@@ -7,7 +7,7 @@ class_name UiGameRoot
 ## 右の枠は同じ位置に重ねた画面のうち、いまの状態の1つだけを出す（_right_pane）。
 ## 全面（仕込み・結果・ゲームオーバー）が出ている間は、左側と右の枠を隠す（_full_screen）。
 ## スマホは右の枠（開店中は操作エリア）と入れ替わる（overlay。表示だけの状態）。会話ログは会話枠が上へ伸びる形（LeftSide が持つ。右の枠は触らない）。Day1の朝は前日が無いので、
-## 右の枠を出さずにスマホから始める。朝の入力待ち「スマホを見る。」は、スマホを開くと終わる（開いている間の会話のクリックでも）。
+## 右の枠を出さずにスマホ（ニュース）から始める。朝の会話枠にはニュースもスマホの入力待ちも出さない（LeftSide が続けて進める）。
 
 @onready var session: PlaySession = %Session
 @onready var left: UiLeftSide = %LeftSide
@@ -47,10 +47,8 @@ func _ready() -> void:
 	pane_buy_meat.advance_requested.connect(left.advance)
 	full_prep.advance_requested.connect(left.advance)
 	left.phone_requested.connect(_on_phone_icon)
-	left.wait_input_clicked.connect(_on_wait_input_clicked)
-	pane_morning.phone_requested.connect(open_phone.bind("news"))
 	pane_phone.close_requested.connect(close_overlay)
-	pane_phone.dms_read.connect(left.refresh_phone_badge)
+	pane_phone.unread_cleared.connect(left.refresh_phone_badge)
 	session.phase_entering.connect(_on_phase_entering)
 	session.changed.connect(_redraw)
 	session.start()
@@ -141,14 +139,11 @@ func _on_phase_entering(phase: int) -> void:
 		tally.clear()
 
 
-## スマホを開く（tab を開く）。朝の入力待ち「スマホを見る。」にいれば、開くと同時に入力を終える。
+## スマホを開く（tab を開く）。
 func open_phone(tab: String = "news") -> void:
 	overlay = "phone"
 	pane_phone.tab = tab
-	if _waiting_phone_input():
-		session.complete_input()   # changed で描き直す
-	else:
-		_redraw()
+	_redraw()
 
 
 func close_overlay() -> void:
@@ -157,23 +152,11 @@ func close_overlay() -> void:
 	_redraw()
 
 
-## 朝の入力待ち「スマホを見る。」（WAIT_INPUT）にいて、入力を終えられるか。
-func _waiting_phone_input() -> bool:
-	return GameState.phase == GameState.Phase.WAKE and session.is_waiting_input() \
-		and str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT and session.can_complete_input()
-
-
 func _on_phone_icon() -> void:
 	if overlay == "phone":
 		close_overlay()
 	else:
 		open_phone(pane_phone.tab)
-
-
-## 入力待ちで会話を進めようとした：スマホを開いていれば入力を終える（開いていなければ何もしない＝「スマホを見る」を押す）。
-func _on_wait_input_clicked() -> void:
-	if overlay == "phone" and _waiting_phone_input():
-		session.complete_input()
 
 
 ## 会話を進めるキー：Enter・Space（左クリックは会話枠が受ける）。

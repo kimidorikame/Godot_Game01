@@ -8,13 +8,12 @@ class_name UiLeftSide
 ## 会話を進める操作だけを PlaySession へ送る。親（game_root）が bind_session() を1回、refresh() を changed のたびに呼ぶ。
 
 signal phone_requested()
-## 入力待ち（WAIT_INPUT。朝の「スマホを見る。」）で会話を進めようとした。ルートが、スマホを開いていれば入力を終える。
-signal wait_input_clicked()
 
 const CHARS_PER_LINE := 30    # 会話枠：1行30字（全角。半角は0.5字）
 const LINES_PER_PAGE := 3     # ×3行。入りきらない文は枠内でページ送り
 const SLOT_SHORT := { "宵の口": "宵", "夜半": "夜半", "明け方": "明" }
 const SILENT_TYPES := ["ADD_ITEM"]   # 画面に出す文が無いEvent（会話枠が空になる）。会話を進めるときに続けて進める
+const NEWS_PART := "news"            # 朝のニュースの行。会話枠には出さない（ニュースはスマホで読む）。続けて進める
 const SUMMARY_LINE := "昨夜の成績を確かめた。"   # part:"day_summary" の行は、会話枠にはこの1行だけを出す（中身は右の枠）
 
 var session: PlaySession = null
@@ -103,12 +102,12 @@ func _display() -> Dictionary:
 	return { "speaker": str(line.get("speaker", "")), "text": text }
 
 
-## スマホのボタンの未読の印（SNSの未読の●と数）。数の取り方は SNS タブ内と同じ（session.dm_unread_count）。
-## SNS タブを表示して読んだ扱いになったとき（pane_phone の dms_read）にも、親が呼ぶ。
+## スマホのボタンの未読の印（●と数）。DMとニュースの未読の合計（session.phone_unread_count）。
+## SNS・ニュースのタブを表示して読んだ扱いになったとき（pane_phone の unread_cleared）にも、親が呼ぶ。
 func refresh_phone_badge() -> void:
 	if session == null:
 		return
-	var unread := session.dm_unread_count()
+	var unread := session.phone_unread_count()
 	_phone_badge.text = "●%d" % unread if unread > 0 else ""
 
 
@@ -141,6 +140,11 @@ func refresh() -> void:
 	_log_box.visible = _log_open
 	if _log_open:
 		_log_box.refresh(session)
+		# ログは会話枠が上へ伸びた形：下の会話枠と名前の札は隠す（ログの背面から透けない）
+		_dialogue_box.visible = false
+		_name_plate.visible = false
+	else:
+		_dialogue_box.visible = true
 
 
 ## 開店中、いま客がそこにいるか（立ち絵の枠を出す）。語りの行でも、客が店にいる間は枠を残す。
@@ -203,8 +207,7 @@ func _refresh_choices() -> void:
 
 
 ## 会話を進める（会話枠のクリック・Enter・Space）。ページが残っていれば先にページを送り、
-## 残っていなければ PlaySession の次のEventへ（can_next_event のとき）。入力待ち（WAIT_INPUT）では
-## wait_input_clicked を出すだけ（入力を終えるかはルートが決める）。
+## 残っていなければ PlaySession の次のEventへ（can_next_event のとき）。会話枠に出さないEvent（_is_silent）は続けて進める。
 func advance() -> void:
 	if session == null:
 		return
@@ -212,26 +215,36 @@ func advance() -> void:
 		_page += 1
 		_show_page()
 		return
-	if session.is_waiting_input() and str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
-		wait_input_clicked.emit()
-		return
 	if session.can_next_event():
 		session.next_event()
-		_skip_silent_events()
+	_skip_silent_events()
 
 
-## 画面に出す文が無い、進行だけのEvent（初日セットの受け取り＝ADD_ITEM）か。会話枠が空のまま何度もクリックさせない。
+## 会話枠に出さずに続けて進めるEventか：画面に出す文が無い進行だけのEvent（初日セットの受け取り＝ADD_ITEM）、
+## 朝のニュースの行（part:"news"。ニュースはスマホで読む）、スマホの入力待ち（WAIT_INPUT「スマホを見る。」。入力は自動で終える）。
 func _is_silent(line: Dictionary) -> bool:
-	return SILENT_TYPES.has(str(line.get("type", ""))) and str(line.get("text", "")) == ""
+	var type := str(line.get("type", ""))
+	if type == EventRunner.TYPE_WAIT_INPUT:
+		return true
+	if type == "TEXT" and str(line.get("part", "")) == NEWS_PART:
+		return true
+	return SILENT_TYPES.has(type) and str(line.get("text", "")) == ""
 
 
-## 会話を進めたあと、現在のEventが画面に出す文の無いものなら、続けて進める（Eventは1つずつ順に反映される。
-## 進める条件はクリックと同じ can_next_event）。出す文のあるEventか、選択・入力待ちで止まる。
+## 会話を進めたあと、現在のEventが会話枠に出さないものなら、続けて進める（Eventは1つずつ順に反映される。
+## 進める条件はクリックと同じ）。出す文のあるEventか、選択・入力で止まる。
 func _skip_silent_events() -> void:
 	var guard := 0
-	while guard < 64 and session.can_next_event() and _is_silent(session.current_line()):
+	while guard < 64 and _is_silent(session.current_line()):
 		guard += 1
-		session.next_event()
+		if str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
+			if not (session.is_waiting_input() and session.can_complete_input()):
+				return
+			session.complete_input()
+		elif session.can_next_event():
+			session.next_event()
+		else:
+			return
 
 
 ## 区切り（phase_entering）で、表示だけの状態を捨てる。

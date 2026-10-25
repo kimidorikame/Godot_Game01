@@ -104,28 +104,27 @@ func run(t: SceneTree) -> int:
 	c.check("朝：右の枠は (836,24) 420×672", _near(morning.get_global_rect(), Rect2(836, 24, 420, 672)))
 	var primary: Button = morning.get_node("%PrimaryButton")
 	c.check("朝：主ボタンは (852,634)・幅388", _at(primary, Vector2(852, 634), 388), str(primary.get_global_rect()))
-	c.check("朝の語りの途中は「スマホを見る」", primary.text == "スマホを見る" and not primary.disabled)
+	c.check("朝の主ボタンは「市場へ」だけ（「スマホを見る」ボタンは無い）。朝の語りの途中は押せない", primary.text == "市場へ" and primary.disabled and not s.flow.is_runner_done())
 
-	# 会話を進めて「スマホを見る。」の入力待ちへ → 主ボタンで入力完了（スマホを開く合図も出る）
+	# 会話を進める：ニュースの行・スマホの入力待ち「スマホを見る。」は会話枠に出さずに続けて進む
 	var guard := 0
-	while not s.is_waiting_input() and guard < 20:
-		guard += 1
-		root.left.advance()
-	c.check("会話をクリックで進めると、入力待ち「スマホを見る。」で止まる", s.is_waiting_input()
-		and str(s.current_line()["text"]) == "スマホを見る。")
-	var phone := { "n": 0 }
-	morning.phone_requested.connect(func(): phone["n"] += 1)
-	_press(primary)
-	c.check("「スマホを見る」：入力待ちを終えて先へ進み、スマホを開く（右の枠がスマホのニュースに替わる）",
-		not s.is_waiting_input() and phone["n"] == 1 and root.overlay == "phone" and root.pane_phone.visible
-			and not morning.visible and root.pane_phone.tab == "news")
-	_press(root.pane_phone.get_node("%CloseButton"))
-	c.check("スマホの「閉じる」で朝の画面に戻る", root.overlay == "" and morning.visible)
-	guard = 0
+	var shown_texts: Array = []
 	while not s.flow.is_runner_done() and guard < 80:
 		guard += 1
 		root.left.advance()
-	c.check("朝の列を読み終えると、主ボタンは「市場へ」", s.flow.is_runner_done() and primary.text == "市場へ" and not primary.disabled)
+		shown_texts.append(str(root.left.get_node("%DialogueText").text))
+		if s.is_waiting_input():
+			break
+	c.check("朝の語りを会話枠のクリックだけで読み終える（入力待ちで止まらない）", s.flow.is_runner_done() and not s.is_waiting_input(), str(shown_texts))
+	var news_shown := false
+	for text in shown_texts:
+		news_shown = news_shown or str(text).contains("ニュース：") or str(text).contains("スマホを見る")
+	c.check("朝の会話枠に、ニュースとスマホの入力待ちの行は出ない", not news_shown and not shown_texts.is_empty(), str(shown_texts))
+	c.check("朝の列を読み終えると、「市場へ」が押せる", primary.text == "市場へ" and not primary.disabled)
+	_press(root.left.get_node("%PhoneIcon"))
+	c.check("スマホのボタンで、右の枠がスマホに替わる（ニュースのタブ）", root.overlay == "phone" and root.pane_phone.visible and not morning.visible)
+	_press(root.pane_phone.get_node("%CloseButton"))
+	c.check("スマホの「閉じる」で朝の画面に戻る", root.overlay == "" and morning.visible)
 	_press(primary)
 	c.check("「市場へ」で仕込み（PREP）へ（flow.advance_phase）", GameState.phase == GameState.Phase.PREP)
 

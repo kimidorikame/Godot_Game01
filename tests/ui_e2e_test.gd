@@ -47,8 +47,8 @@ func run(t: SceneTree) -> int:
 	c.check("全部の日（Day1〜最終日）を通った", days_seen.size() == GameState.FINAL_DAY, str(days_seen.keys()))
 	c.check("朝・仕込み・開店・閉店の各フェーズを通った", phases_seen.has(GameState.Phase.WAKE) and phases_seen.has(GameState.Phase.PREP)
 		and phases_seen.has(GameState.Phase.OPEN) and phases_seen.has(GameState.Phase.CLOSE))
-	c.check("主な操作を一通り使った（スマホを見る・鍋の素・市場を出る・開店する・提供・閉店する・次の日へ）",
-		actions.has("スマホを見る") and actions.has("鍋の素（1）") and actions.has("市場を出る")
+	c.check("主な操作を一通り使った（市場へ・鍋の素・市場を出る・開店する・提供・閉店する・次の日へ）",
+		actions.has("市場へ") and actions.has("鍋の素（1）") and actions.has("市場を出る")
 			and actions.has("開店する") and actions.has("提供") and actions.has("閉店する") and actions.has("次の日へ"), str(actions))
 	var split_ok := true
 	var split_detail := ""

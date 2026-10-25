@@ -61,17 +61,20 @@ func run(t: SceneTree) -> int:
 	var blockers := _blockers(root)
 	c.check("会話枠のどの点にも、会話枠が当たる（塞ぐのは、押せる既読スキップのボタンだけ）", blockers.is_empty(), str(blockers))
 	c.check("既読スキップは、押せないあいだはクリックを受けない（押せるときだけ受ける）", skip.disabled == (skip.mouse_filter == Control.MOUSE_FILTER_IGNORE))
+	# 朝の列：目が覚めた／（スマホの入力待ち・ニュースは会話枠に出さずに続けて進む）／共同水道の払い／さて、準備へ向かうか
 	var steps := 0
-	var all_one := true
-	var detail := ""
-	while steps < 5 and GameState.phase == GameState.Phase.WAKE:
+	var texts: Array = []
+	while steps < 6 and not s.flow.is_runner_done():
 		var before: int = s.flow.runner.index
 		_click_box(root)
-		if s.flow.runner.index != before + 1:
-			all_one = false
-			detail += " %d→%d" % [before, s.flow.runner.index]
 		steps += 1
-	c.check("Day1の朝：会話枠をクリックするたびに、会話が1つずつ進む（本物のマウス）", all_one and steps == 5, detail)
+		texts.append(_box_text(root))
+		if s.flow.runner.index <= before:
+			break
+	c.check("Day1の朝：会話枠のクリックで進み、ニュースとスマホの入力待ちの行は出ない（本物のマウス）",
+		s.flow.is_runner_done() and steps == 3 and not texts.any(func(x): return str(x).contains("ニュース：") or str(x).contains("スマホを見る")),
+		str(texts))
+	c.check("朝の会話枠が空にならない（列の終わりでも、最後に出した行を残す）", not texts.any(func(x): return str(x) == ""), str(texts))
 
 	# --- 2. Enter・Space でも同じだけ進む（開店の前の朝の列の終わりまで）---
 	GameState.reset_for_new_game()
@@ -81,12 +84,14 @@ func run(t: SceneTree) -> int:
 	s = root.session
 	play = load("res://tests/ui_autoplay.gd").new(root)
 	var key_ok := true
+	var key_texts: Array = []
 	for keycode in [KEY_ENTER, KEY_SPACE, KEY_KP_ENTER]:
 		var before_key: int = s.flow.runner.index
 		_key(root, keycode)
-		if s.flow.runner.index != before_key + 1:
+		key_texts.append(_box_text(root))
+		if s.flow.runner.index <= before_key:
 			key_ok = false
-	c.check("Enter・Space・テンキーのEnterでも、会話が1つずつ進む", key_ok, str(s.flow.runner.index))
+	c.check("Enter・Space・テンキーのEnterでも、会話が進む（クリックと同じ。朝の3行）", key_ok and s.flow.is_runner_done(), str(key_texts))
 
 	# --- 3. Day1 の仕込み（鍋の素を選ぶまで）：空の枠でクリックさせない ---
 	var guard := 0
@@ -174,10 +179,10 @@ func run(t: SceneTree) -> int:
 		stray.is_empty() and left_hits.has("ClickArea") and left_hits.has("DialogueBox"), str(left_hits))
 	var before_portrait: int = s.flow.runner.index
 	load("res://tests/ui_autoplay.gd").click_at(viewport, Vector2(410, 300))   # キャラ表示エリア
-	c.check("キャラ表示エリアをクリックしても、会話が1つ進む", s.flow.runner.index == before_portrait + 1, str(s.flow.runner.index))
+	c.check("キャラ表示エリアをクリックしても、会話が進む", s.flow.runner.index > before_portrait, str(s.flow.runner.index))
 	before_portrait = s.flow.runner.index
 	load("res://tests/ui_autoplay.gd").click_at(viewport, Vector2(60, 300))   # 左端の何も無い所
-	c.check("左の列の何も無い所をクリックしても、会話が1つ進む", s.flow.runner.index == before_portrait + 1)
+	c.check("左の列の何も無い所をクリックしても、会話が進む", s.flow.runner.index > before_portrait or s.flow.is_runner_done())
 	before_portrait = s.flow.runner.index
 	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%PhoneIcon"))
 	c.check("スマホのアイコンでは会話は進まない（スマホの開閉）", s.flow.runner.index == before_portrait)

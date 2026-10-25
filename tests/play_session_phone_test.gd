@@ -94,6 +94,9 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(s2)
 	s2.start()
 	var steps := s2.skip_read()
+	if s2.is_waiting_input():
+		s2.complete_input()   # 朝のスマホの入力待ち（会話枠には出さない行）を終えて、続きを進める
+		steps += s2.skip_read()
 	c.check("skip_read()：WAKEの語りを進める（フェーズをまたがない・上限以内）。見えた行は session が会話ログへ記録する",
 		GameState.phase == GameState.Phase.WAKE and steps >= 0 and steps <= PlaySession.SKIP_READ_LIMIT
 			and TalkLog.entries.size() >= 1, "%d歩／ログ%d行" % [steps, TalkLog.entries.size()])

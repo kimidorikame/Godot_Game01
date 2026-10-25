@@ -2343,6 +2343,9 @@ func record_visible_event() -> void:
 		"TEXT":
 			if str(ev.get("part", "")) == "news":
 				kind = "news"
+	# 朝の会話枠にはニュースとスマホの入力待ちを出さない（ニュースはスマホで読む）ので、会話ログにも載せない
+	if kind == "news" or str(ev.get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
+		text = ""
 	if text == "":
 		last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
 		return
@@ -2526,7 +2529,8 @@ func phone_recipes() -> Dictionary:
 
 
 ## スマホのニュースタブ：今日と、その周で既に過ぎた日の分だけ（未来の日は見せない）。新しい日が上。
-## [{ day, is_today, news[{headline, body[], provisional}], events[{lines[], provisional}] }]（DMは phone_dm()）
+## [{ day, is_today, news[{id, headline, body[], must_info[], provisional, unread}], events[{lines[], provisional}] }]（DMは phone_dm()）。
+## unread は ReadState（保存とは別のファイル。idで持つ）。
 ## 過ぎた日の共通イベントは出来事として載せ、今日の分は再生済み（played_events）のものだけ。中身が空の日は出さない。
 func phone_news() -> Array:
 	var out: Array = []
@@ -2535,9 +2539,11 @@ func phone_news() -> Array:
 		var entry := News.day_entry(day)
 		var section := { "day": day, "is_today": day == today, "news": [], "events": [] }
 		for item in entry["news"]:
-			section["news"].append({ "headline": str(item.get("headline", "")),
+			section["news"].append({ "id": str(item.get("id", "")), "headline": str(item.get("headline", "")),
 				"body": (item.get("body", []) as Array).duplicate() if item.get("body") is Array else [],
-				"provisional": bool(item.get("provisional", false)) })
+				"must_info": (item.get("must_info", []) as Array).duplicate() if item.get("must_info") is Array else [],
+				"provisional": bool(item.get("provisional", false)),
+				"unread": not ReadState.is_read(_news_read_key(str(item.get("id", "")))) })
 		for item in entry["events"]:
 			if day < today or played_events.has(str(item.get("id", ""))):
 				if item.get("lines") is Array:
@@ -2571,6 +2577,43 @@ func dm_unread_count() -> int:
 func mark_dms_read() -> void:
 	for item in Dm.inbox(GameState.day_count):
 		ReadState.mark(_dm_read_key(item))
+
+
+## 未読のニュースの数（スマホのニュースタブに出す）。今日と過ぎた日のニュースで、まだ表示していないもの。
+func news_unread_count() -> int:
+	var n := 0
+	for section in phone_news():
+		for item in section["news"]:
+			if bool(item["unread"]):
+				n += 1
+	return n
+
+
+## 未読のニュースのうち、必須情報（must_info）を持つものの id。朝の会話枠にはニュースを出さないので、
+## 「市場へ」の時点で必須情報のニュースが未読のまま進めることがある（ゲートは付けない）。
+func unread_must_info_news() -> Array:
+	var ids: Array = []
+	for section in phone_news():
+		for item in section["news"]:
+			if bool(item["unread"]) and not (item["must_info"] as Array).is_empty():
+				ids.append(str(item["id"]))
+	return ids
+
+
+## いま届いているニュースを、読んだ扱いにする（ニュースタブを開いて表示した時点で呼ぶ）。
+func mark_news_read() -> void:
+	for section in phone_news():
+		for item in section["news"]:
+			ReadState.mark(_news_read_key(str(item["id"])))
+
+
+## スマホのボタンの未読の数：DMとニュースの合計。
+func phone_unread_count() -> int:
+	return dm_unread_count() + news_unread_count()
+
+
+func _news_read_key(id: String) -> String:
+	return ReadState.line_key("news", "", id, id)   # 文が差し替わっても既読は変えない（idで持つ）
 
 
 func _dm_read_key(item: Dictionary) -> String:

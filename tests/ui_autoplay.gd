@@ -64,16 +64,12 @@ func step() -> String:
 	if choices.get_child_count() > 0 and press(choices.get_child(0)):
 		return "選択肢"
 	if root.pane_phone.visible:
-		if session.is_waiting_input() and str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
-			return _talk()   # スマホを開いたまま会話を進める＝入力待ち「スマホを見る。」を終える
 		press(root.pane_phone.get_node("%CloseButton"))
 		return "スマホを閉じる"
 	if root.pane_morning.visible:
 		var primary: Button = root.pane_morning.get_node("%PrimaryButton")
 		if primary.text == "市場へ" and press(primary):
 			return "市場へ"
-		if session.is_waiting_input() and press(primary):
-			return "スマホを見る"
 		return _talk()
 	if GameState.day_count != _visited_day:
 		_visited_day = GameState.day_count

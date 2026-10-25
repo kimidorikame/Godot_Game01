@@ -86,13 +86,20 @@ func run(t: SceneTree) -> int:
 	c.check("「仕込み中」と「鍋の素 中・11杯・濃さ3」", prep.get_node("Title").text == "仕込み中"
 		and prep.get_node("%Detail").text == "鍋の素 中・%d杯・濃さ3" % int(s.today_base()["servings"]), prep.get_node("%Detail").text)
 	c.check("点は1つ目（市場を出た）が点き、「開店する」はまだ出ない", prep.lit_dots() == 1 and not prep.get_node("%OpenButton").visible)
+	# 自動：クリックしなくても、約0.7秒ごとに点が1つずつ点く（テストでは時間を手で送る）
+	prep.auto_advance = false
+	prep.tick(UiFullPrep.STEP_SECONDS * 0.5)
+	c.check("0.7秒たつ前は点は増えない", prep.lit_dots() == 1)
+	prep.tick(UiFullPrep.STEP_SECONDS * 0.5)
+	c.check("0.7秒たつと点が2つになる（クリックなし）", prep.lit_dots() == 2 and not prep.get_node("%OpenButton").visible)
 	_click(prep)
-	c.check("全面をクリック → 次のEvent（点が2つ）", prep.lit_dots() == 2)
+	c.check("全面をクリック → すぐ全部の点が点く（3つ・列を読み終える）", prep.lit_dots() == 3 and s.flow.is_runner_done())
 	guard = 0
 	while not s.flow.is_runner_done() and guard < 10:
 		guard += 1
 		_click(prep)
-	c.check("列を読み終えると点は3つ・「開店する」(540,440)・幅200", prep.lit_dots() == 3 and prep.get_node("%OpenButton").visible
+	prep.tick(UiFullPrep.STEP_SECONDS * 2.0)
+	c.check("全部ついたら時間がたっても進まず、「開店する」(540,440)・幅200が出る", prep.lit_dots() == 3 and prep.get_node("%OpenButton").visible
 		and _at(prep.get_node("%OpenButton"), Vector2(540, 440), 200))
 	_press(prep.get_node("%OpenButton"))
 	c.check("「開店する」→ flow.advance_phase で開店（OPEN）。全面は消え、左側が戻る",

@@ -59,14 +59,16 @@ func run(t: SceneTree) -> int:
 		panel._refresh()
 	c.check("再描画を繰り返しても行は増えない", TalkLog.entries.size() == size_before)
 
-	# --- 2. 朝のニュース・DMは news として記録される ---
+	# --- 2. 朝のニュースは会話ログに載せない（ニュースはスマホで読む。UI準備D）---
 	panel.session.next_event()       # 「スマホを見る。」（入力待ち）
 	panel.session.complete_input()
 	guard_loop(panel, 6)
 	var kinds := {}
 	for e in TalkLog.entries:
 		kinds[str(e["text"])] = str(e["kind"])
-	c.check("ニュースの見出しは kind:news", kinds.get("ニュース：港湾局とスト側の協議が物別れ。第八码頭の周辺で検問が始まった") == "news", str(kinds))
+	c.check("朝のニュースの行・スマホの入力待ちは会話ログに載らない（地の文だけが並ぶ）",
+		not kinds.has("ニュース：港湾局とスト側の協議が物別れ。第八码頭の周辺で検問が始まった") and not kinds.has("スマホを見る。")
+			and not kinds.values().has("news"), str(kinds))
 	c.check("朝の語りにDMは出ない（SNSタブのDMへ移した）", not kinds.keys().any(func(k): return str(k).begins_with("DM（")))
 	panel.free()
 

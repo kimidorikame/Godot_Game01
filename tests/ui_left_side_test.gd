@@ -136,8 +136,8 @@ func run(t: SceneTree) -> int:
 		s.flow.runner.index == before and guard == page_count - 1, "guard=%d pages=%d" % [guard, page_count])
 	if s.can_next_event():
 		left.advance()
-		c.check("最後のページで advance() すると PlaySession の次のEventへ進む", s.flow.runner.index == before + 1
-			or GameState.phase != GameState.Phase.WAKE)
+		c.check("最後のページで advance() すると PlaySession の次のEventへ進む（会話枠に出さないEventは続けて進む）",
+			s.flow.runner.index >= before + 1 or GameState.phase != GameState.Phase.WAKE)
 
 	# 昨夜の成績の行（part:"day_summary"）は、会話枠に1行だけ出す
 	s.flow.runner = EventRunner.new([{ "type": "TEXT", "text": "昨夜の売上は100円。\n提供は9杯。", "part": "day_summary" }])
