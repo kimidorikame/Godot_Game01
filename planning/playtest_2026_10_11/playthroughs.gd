@@ -13,8 +13,12 @@ extends RefCounted
 ## 引数（--以降）：[0]=旧7方針のシード数(既定30) [1]=新5方針のシード数(既定=[0])
 ##   [2]=出力ファイル名(既定playthrough_results.json) [3]=方針のカンマ区切り絞り込み（"all"＝絞り込まない）
 ##   [4]=到達杯数の表（"default"＝既定の12/13/14／"reach_true"＝12/15/18。再測定）
-##   [5]=運営費の上書き（整数。省略＝データのまま。データは変えず、実行中だけ GameState の値を差し替えて、
+##   [5]=運営費の上書き（整数。省略または負＝データのまま。データは変えず、実行中だけ GameState の値を差し替えて、
 ##       終わったら元へ戻す）
+##   [6]=手がかり（UI準備C⑤。"forecast"＝既定。予報〔Forecast〕を読む＝v2と同じ／"visible"＝予報を読まず、プレイヤーに
+##       見えるものだけ〔前日の注文杯数・客足の言葉・DMの匂わせ・自分が受けた注文・在庫と所持金〕で決める＝v3。
+##       v3は「言葉と数の対応を覚えた熟練プレイヤー」相当）／"visible_improvise"＝"visible" に加えて、注文のタグの素材が
+##       手元に無いとき、足りない軸（味・具）をほかの在庫で補って椀を成立させる（参考の補助測定。v3の既定には含めない）
 
 const OUT := "res://planning/playtest_2026_10_11/"
 const POLICIES_OLD := ["forecast_good", "forecast_favorites", "always_small", "always_large",
@@ -41,6 +45,10 @@ const FUND_BASE_POLICY := "forecast_good"
 ##   strength_neglect_dashi … strength_neglect と同じ判断（濃さ・鮮度のミス）で、毎朝のだし2個の買い置きだけ
 ##                            基準方針と同じにしたもの（だしの買い置きが下振れの原因かを単独で見るため）
 const POLICIES_ISOLATION := ["strength_neglect_dashi"]
+## 下限版（UI準備C⑤。別枠。引数[3]で名前を指定したときだけ走る。"visible" 専用）：見込みを「前日の注文杯数だけ」にする
+## （客足の言葉もDMの匂わせも使わない。Day1は張記の会話の9杯）。ほかの判断は基になる方針と同じ。
+const POLICIES_LOWER := ["forecast_good_lower", "favorite_oracle_lower"]
+const LOWER_BASE := { "forecast_good_lower": "forecast_good", "favorite_oracle_lower": "favorite_oracle" }
 const TIER_REACH := { "small": 12, "medium": 13, "large": 14 }
 ## 再測定（引数[4]=reach_true のときだけ使う）：営業中の水足しを含めて、その段階で一晩に出せる総杯数
 ## （先に直す④の実測：小12／中15／大18）。choose_tier() が「その段階で足りるか」を測るための表。
@@ -49,7 +57,15 @@ const SHOPS := ["produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafo
 
 var tree: SceneTree
 var panel
-var policy := ""
+var policy := ""   # 判断の分岐に使う名前（下限版は基になる方針の名前）
+var policy_label := ""   # 結果に出す名前（下限版は *_lower）
+var lower_only := false
+var info_mode := "forecast"
+var improvise := false   # "visible_improvise" のとき：欠けた軸（味・具）をほかの在庫で補う
+## v3（visible）の「自分が受けた注文」の記録：夜ごとの { tags: { タグ: 杯数 }, cups }。ADJUSTで見た注文（注文カード）から数える。
+var seen_nights: Array = []
+var night_tags: Dictionary = {}
+var night_cups := 0
 var reach_name := "default"
 var tier_reach: Dictionary = TIER_REACH
 ## 仕込み段階の選択の記録（再測定。最上位の tier_log に出す。各周のキーには足さない）。
@@ -89,6 +105,14 @@ func run(t: SceneTree) -> void:
 	var only: Array = str(args[3]).split(",") if args.size() > 3 else []
 	if only.has("all"):
 		only = []
+	info_mode = str(args[6]) if args.size() > 6 else "forecast"
+	if not ["forecast", "visible", "visible_improvise"].has(info_mode):
+		push_error("unknown info: " + info_mode)
+		return
+	var info_label := info_mode
+	improvise = info_mode == "visible_improvise"
+	if improvise:
+		info_mode = "visible"
 	reach_name = str(args[4]) if args.size() > 4 else "default"
 	if reach_name == "reach_true":
 		tier_reach = TIER_REACH_TRUE
@@ -107,7 +131,7 @@ func run(t: SceneTree) -> void:
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
 			policies.append(p)
-	for p in POLICIES_FUND + POLICIES_ISOLATION:
+	for p in POLICIES_FUND + POLICIES_ISOLATION + POLICIES_LOWER:
 		if only.has(p):
 			policies.append(p)
 	var results: Array = []
@@ -119,7 +143,7 @@ func run(t: SceneTree) -> void:
 	var output := { "commit": git_head(), "tracked_changes": git_dirty(),
 		"engine": Engine.get_version_info(), "daily_operating_cost": GameState.DAILY_OPERATING_COST,
 		"seeds_old": seeds_old, "seeds_new": seeds_new,
-		"policies": policies, "runs": results }
+		"policies": policies, "runs": results, "info_mode": info_label }
 	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
 	output["reach"] = reach_name
 	output["tier_log"] = tier_log
@@ -160,7 +184,12 @@ func is_neglect() -> bool:
 
 
 func play(p: String, run_seed: int) -> Dictionary:
-	policy = p
+	policy_label = p
+	lower_only = LOWER_BASE.has(p)
+	policy = str(LOWER_BASE.get(p, p))
+	seen_nights = []
+	night_tags = {}
+	night_cups = 0
 	cur_seed = run_seed
 	clicks = 0
 	purchases = 0
@@ -209,8 +238,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 		var r: EventRunner = panel.session.flow.runner
 		if GameState.phase == GameState.Phase.NEXT_DAY:
 			rows.append(day_row())
+			seen_nights.append({ "tags": night_tags.duplicate(), "cups": night_cups })
+			night_tags = {}
+			night_cups = 0
 			var split: Dictionary = panel.session.unserved_breakdown()
-			unserved_log.append({ "policy": policy, "seed": run_seed, "day": GameState.day_count,
+			unserved_log.append({ "policy": policy_label, "seed": run_seed, "day": GameState.day_count,
 				"ingredients": int(split["unserved_ingredients"]), "pot": int(split["unserved_pot"]),
 				"declined": int(split["unserved_declined"]), "not_arrived": int(split["unserved_not_arrived"]),
 				"unserved": int(split["unserved_cups"]) })
@@ -249,7 +281,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 			var chosen := tier
 			if GameState.money < int(Day1Events.prep_tier_by_id(tier).price):
 				tier = "small"
-			tier_log.append({ "policy": policy, "seed": run_seed, "day": GameState.day_count,
+			tier_log.append({ "policy": policy_label, "seed": run_seed, "day": GameState.day_count,
 				"target": target_cups(), "chosen": chosen, "tier": tier })
 			act("prep")
 			panel.session.choose_prep_tier(tier)
@@ -295,7 +327,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 		else:
 			act("next_text_event")
 			panel.session.next_event()
-	var result := { "policy": policy, "seed": run_seed, "completed": done,
+	var result := { "policy": policy_label, "seed": run_seed, "completed": done,
 		"stalled": stalled or steps >= 6000, "cash": GameState.money, "rep": GameState.reputation,
 		"rows": rows, "incidents": incidents.duplicate(true), "actions": counts.duplicate(),
 		"clicks": clicks, "purchases": purchases, "steps": steps, "day1_cash": day1_cash.duplicate(),
@@ -393,7 +425,55 @@ func choose_tier() -> String:
 
 
 func target_cups() -> int:
+	if info_mode == "visible":
+		return visible_target()
 	return int(Forecast.total()["high"])
+
+
+## v3（予報を読まない）の見込み杯数。プレイヤーに見えるものだけで決める：
+##   Day1（固定需要の日）＝張記の会話で主人公が言う目安（fixed_demand）。
+##   それ以外＝（前日の注文杯数＋客足の言葉の帯の中心）÷2を四捨五入し、今朝のDMの匂わせで±1（many＋1・few−1）。
+##   下限版（lower_only）＝前日の注文杯数だけ。
+## 客足の言葉の帯の中心は「言葉と数の対応を覚えた」熟練プレイヤーの見立て（UiLabels.demand_row_center）。
+func visible_target() -> int:
+	var fixed := int(Rules.day_overrides(GameState.day_count).get("fixed_demand", 0))
+	if fixed > 0:
+		return fixed
+	var previous: Dictionary = panel.session.previous_day_record()
+	var band := UiLabels.demand_row_center(UiLabels.demand_word(GameState.reputation))
+	var yesterday := int(previous.get("planned_cups", 0)) if not previous.is_empty() else band
+	if lower_only:
+		return yesterday
+	return roundi((yesterday + band) / 2.0) + dm_hint()
+
+
+## 今朝届いたDMの匂わせ：many があれば＋1、few があれば−1（なければ0）。
+func dm_hint() -> int:
+	var hint := 0
+	for item in panel.session.phone_dm():
+		if int(item["day"]) != GameState.day_count:
+			continue
+		if str(item["hint"]) == "many":
+			hint = 1
+		elif str(item["hint"]) == "few" and hint == 0:
+			hint = -1
+	return hint
+
+
+## v3の仕入れの必要数：自分が受けた直近2夜の注文のタグの割合×見込み杯数（切り上げ）。注文を見ていなければ空。
+func visible_need(target: int) -> Dictionary:
+	var tag_cups := {}
+	var total := 0
+	for night in seen_nights.slice(maxi(seen_nights.size() - 2, 0)):
+		for tag in night["tags"]:
+			tag_cups[tag] = int(tag_cups.get(tag, 0)) + int(night["tags"][tag])
+		total += int(night["cups"])
+	var need := {}
+	if total <= 0:
+		return need
+	for tag in tag_cups:
+		need[tag] = ceili(float(target) * float(tag_cups[tag]) / float(total))
+	return need
 
 
 ## --- 修繕基金の方針（4-9③） ---
@@ -541,7 +621,7 @@ func shop() -> void:
 	if policy != "strength_neglect":
 		while GameState.dashi_units < 2 and GameState.money >= 16:
 			buy("meat_wholesale", "dashi")
-	var need: Dictionary = (Forecast.cases().back() as Dictionary)["required"]
+	var need: Dictionary = visible_need(target_cups()) if info_mode == "visible" else (Forecast.cases().back() as Dictionary)["required"]
 	if policy == "cheap_valid":
 		var cups := target_cups()
 		need = { "SOUR": cups, "FILLING": cups }
@@ -567,7 +647,14 @@ func shop() -> void:
 			if best.is_empty() or GameState.money < int(best.price):
 				break
 			buy(str(best.shop), str(best.id))
-	if policy in ["forecast_favorites", "favorite_oracle"]:
+	if info_mode == "visible" and policy == "forecast_favorites":
+		# 今夜の客の並びは読まない（見えない）。好物を知っている客（来店記録）の分を、1つずつ多く持っておく
+		for cid in GameState.customer_memory:
+			if GameState.knows_favorite(str(cid)):
+				var known_favorite := str((Day1Events._customer_flavor(str(cid)) as Dictionary).get("favorite", ""))
+				if known_favorite != "":
+					ensure(known_favorite, GameState.fresh_count(known_favorite) + 1)
+	elif policy in ["forecast_favorites", "favorite_oracle"]:
 		for slot in GameState.today_plan.get("slots", []):
 			for cid in slot.customers:
 				var flavor: Dictionary = Day1Events._customer_flavor(str(cid))
@@ -614,6 +701,11 @@ func buy(shop_id: String, id: String) -> void:
 
 
 func cook(order: Dictionary) -> void:
+	# 自分が受けた注文（注文カードで見えるタグ×杯数）を覚える（v3の仕入れの必要数の元）
+	var order_cups := int(order.get("servings", 1))
+	for order_tag in order.get("wanted_tags", []):
+		night_tags[str(order_tag)] = int(night_tags.get(str(order_tag), 0)) + order_cups
+	night_cups += order_cups
 	if policy == "bare_broth":
 		return
 	var wanted: Array = (order.get("wanted_tags", []) as Array).duplicate()
@@ -650,11 +742,37 @@ func cook(order: Dictionary) -> void:
 				act("ingredient_damaged")
 				panel.session.select_ingredient(damaged_id, true)
 				added.append(damaged_id)
+	if improvise:
+		improvise_bowl(n)
 	var customer := str(order.get("customer", ""))
 	if policy == "forecast_favorites" and GameState.knows_favorite(customer):
 		add_favorite(order, added, n)
 	elif policy == "favorite_oracle" and not is_mob:
 		add_favorite(order, added, n)
+
+
+## visible_improvise：椀に味か具が欠けているとき、その軸の素材をほかの在庫から1つ足して、売れる椀にする
+## （注文のタグの素材が手元に無い日に、プレイヤーなら試すこと）。手元にその軸の素材が無ければ何もしない。
+func improvise_bowl(n: int) -> void:
+	var additions: Array = panel.session.open.current_bowl.get("additions", [])
+	var axes := [["flavor", ["HOT", "MELLOW", "SOUR", "BITTER", "SAVORY"]], ["topping", ["POWER", "GENTLE", "FILLING", "BITE", "TREAT"]]]
+	for axis in axes:
+		var has := false
+		for id in additions:
+			has = has or (Ingredients.is_flavor(str(id)) if axis[0] == "flavor" else Ingredients.is_topping(str(id)))
+		if has or additions.size() >= OpenController.MAX_ADDITIONS:
+			continue
+		var pick := ""
+		for tag in axis[1]:
+			var id := choose(str(tag), n)
+			if id == "":
+				continue
+			if pick == "" or (GameState.fresh_count(id) >= n and GameState.fresh_count(pick) < n):
+				pick = id
+		if pick != "":
+			act("ingredient")
+			panel.session.select_ingredient(pick)
+			additions = panel.session.open.current_bowl.get("additions", [])
 
 
 ## 「安い完成料理だけ」：売れる最小構成（味1＋具1）を、手元にある安い素材から選ぶ。
@@ -771,7 +889,7 @@ func fix_pot() -> bool:
 			elif s < 2 and not GameState.can_add_dashi():
 				reason = "no_dashi"
 			if reason != "":
-				water_stop_log.append({ "policy": policy, "seed": cur_seed, "day": GameState.day_count,
+				water_stop_log.append({ "policy": policy_label, "seed": cur_seed, "day": GameState.day_count,
 					"reason": reason, "remaining": v, "strength": s, "need": n,
 					"dashi_units": GameState.dashi_units })
 			break
