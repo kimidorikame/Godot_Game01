@@ -117,7 +117,7 @@ func run(t: SceneTree) -> int:
 		left.get_node("%DayLabel").text == "Day 1" and left.get_node("%ScreenName").text == "朝"
 			and left.get_node("%ScreenName").visible and not left.get_node("%TimeGauge").visible)
 	c.check("所持金と評判を出す", left.get_node("%MoneyLabel").text == "¥%d" % GameState.money
-		and left.get_node("%ReputationLabel").text == "評判 %d" % GameState.reputation)
+		and left.get_node("%ReputationLabel").text == "評判 %d・客足 %s" % [GameState.reputation, UiLabels.demand_word(GameState.reputation)])
 	c.check("会話の相手がいない朝は、立ち絵と名前の札を出さない", not left.get_node("%Portrait").visible and not left.get_node("%NamePlate").visible)
 	var shown: String = left.get_node("%DialogueText").text
 	c.check("会話枠に、いまの行の頭（ページ分割した先頭）が入る",
@@ -176,6 +176,38 @@ func run(t: SceneTree) -> int:
 	c.check("客の台詞（GREET）は、立ち絵の枠と名前の札（表示名）を出す",
 		left.get_node("%Portrait").visible and left.get_node("%NamePlate").visible
 			and left.get_node("%NameLabel").text == s.log_speaker("officer") and left.get_node("%NameLabel").text != "")
+
+	# 列を読み終えた画面：会話枠を空にせず、最後に出した行を残す（話し手の枠は出さない）。区切りで捨てる
+	s.flow.runner = EventRunner.new([{ "type": "GREET", "customer": "officer", "text": "最後の一言。" }])
+	left.reset_ui_state()
+	left.refresh()
+	s.flow.runner.index = s.flow.runner.events.size()
+	s.flow.runner.status = EventRunner.Status.DONE
+	left.refresh()
+	c.check("列が終わっても、会話枠には最後の行が残る（空にならない）", left.get_node("%DialogueText").text == "最後の一言。")
+	c.check("残した行では、立ち絵と名前の札は出さない", not left.get_node("%NamePlate").visible)
+	left.reset_ui_state()
+	left.refresh()
+	c.check("区切り（reset_ui_state）で、残した行は捨てる", left.get_node("%DialogueText").text == "")
+
+	# 客足の言葉（評判の横）：区切りは需要表から読む
+	var table: Array = Rules.demand_table()
+	c.check("客足の言葉の数は需要表の行数と同じ（5つ）", UiLabels.demand_words_match_table() and table.size() == 5)
+	var edges := { 0: "少ない", 19: "少ない", 20: "ふつう", 44: "ふつう", 45: "多め", 59: "多め", 60: "多い", 70: "多い", 71: "とても多い", 100: "とても多い" }
+	var edges_ok := true
+	for rep in edges:
+		edges_ok = edges_ok and UiLabels.demand_word(int(rep)) == edges[rep]
+	c.check("評判の区切り（0・19・20・44・45・59・60・70・71）で言葉が替わる", edges_ok)
+	var center_matches := true
+	GameState.day_count = 2   # Day1 は需要が固定（9）なので、Day2 で見る
+	for rep in [0, 19, 20, 44, 45, 59, 60, 70, 71, 100]:
+		GameState.reputation = rep
+		var word_rank: int = ["少ない", "ふつう", "多め", "多い", "とても多い"].find(UiLabels.demand_word(rep))
+		center_matches = center_matches and word_rank == [7, 9, 11, 14, 17].find(GameState.demand_center_today())
+	c.check("言葉の区切りは、需要の中心（7・9・11・14・17）の区切りと同じ（Day1以外）", center_matches)
+	GameState.reputation = 33
+	s.notify_changed()
+	c.check("画面の評判の横に客足の言葉が出る", left.get_node("%ReputationLabel").text == "評判 33・客足 ふつう", left.get_node("%ReputationLabel").text)
 
 	root.queue_free()
 	return c.finish()

@@ -79,8 +79,8 @@ func run(t: SceneTree) -> int:
 		c.check("%s を読み込める" % path.get_file(), inst != null)
 		if inst != null:
 			inst.free()
-	c.check("短縮名：ナムプリ・ココナッツ・浮き袋（表に無い品目は本名）",
-		UiLabels.short_name("nam_prik_pao") == "ナムプリ" and UiLabels.short_name("coconut_milk") == "ココナッツ"
+	c.check("短縮名：ナムプリ・ココナツ（1行に収まる形）・浮き袋（表に無い品目は本名）",
+		UiLabels.short_name("nam_prik_pao") == "ナムプリ" and UiLabels.short_name("coconut_milk") == "ココナツ"
 			and UiLabels.short_name("fish_maw") == "浮き袋" and UiLabels.short_name("soup_base") == Ingredients.name_for("soup_base"))
 	var all_ids := ["nam_prik_pao", "coconut_milk", "pickled_lime", "bitter_melon", "herbal_sauce", "offal", "meat_ball", "tofu",
 		"broken_wrapper", "winter_melon", "cartilage", "tendon_meat", "dried_wood_ear", "rice_noodle", "shrimp", "clam", "fish_maw"]
@@ -142,7 +142,7 @@ func run(t: SceneTree) -> int:
 	c.check("椀の枠：「豆腐(傷)」・注意色の枠", top.get_node("%Slots/Slot1/Label").text == "豆腐(傷)"
 		and top.get_node("%Slots/Slot1").theme_type_variation == &"PanelSlotDamaged")
 	_press(tabs.get_child(1))
-	c.check("分類タブを押すと調味料の一覧（ナムプリ・ココナッツ）", grid.get_child(0).get_node("MainButton/Name").text == "ナムプリ"
+	c.check("分類タブを押すと調味料の一覧（ナムプリ・ココナツ）", grid.get_child(0).get_node("MainButton/Name").text == "ナムプリ"
 		and tabs.get_child(1).theme_type_variation == &"ButtonCategoryOn")
 	_press(grid.get_child(0).get_node("MainButton"))
 	bowl = s.bowl_view()

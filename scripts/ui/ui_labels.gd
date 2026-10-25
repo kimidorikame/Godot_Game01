@@ -19,6 +19,22 @@ static func shop_name(shop_id: String, fallback: String = "") -> String:
 	return str((_data().get("shops", {}) as Dictionary).get(shop_id, fallback))
 
 
+## 客足の言葉（評判の横）。区切りは需要表（Rules.demand_table()＝[閾値, 中心] を閾値の降順に並べた行）から読み、
+## 行の並びと言葉（demand_words。表と同じ並び＝多い順）を対応させる。日の固定需要・その日の事情は反映しない。
+static func demand_word(reputation: int) -> String:
+	var words: Array = _data().get("demand_words", [])
+	var table: Array = Rules.demand_table()
+	for i in range(table.size()):
+		if reputation >= int((table[i] as Array)[0]):
+			return str(words[i]) if i < words.size() else ""
+	return str(words[table.size() - 1]) if table.size() - 1 < words.size() and not words.is_empty() else ""
+
+
+## 客足の言葉の数が需要表の行数と合っているか（データの検査用）。
+static func demand_words_match_table() -> bool:
+	return (_data().get("demand_words", []) as Array).size() == Rules.demand_table().size()
+
+
 ## 品目の短縮名（開店の操作エリアの具材ボタン・椀の枠・減点の予告だけで使う）。表に無ければ本名。
 static func short_name(item_id: String) -> String:
 	var names: Dictionary = _data().get("short_names", {})

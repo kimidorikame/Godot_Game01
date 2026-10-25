@@ -19,6 +19,8 @@ var session: PlaySession = null
 var _pages: Array = []
 var _page := 0
 var _key := ""
+## 直前に出していた行の本文。列が終わって現在の行が無くなったとき、これを残す（区切りで捨てる）。
+var _last_text := ""
 
 @onready var _day_label: Label = %DayLabel
 @onready var _screen_name: Label = %ScreenName
@@ -84,10 +86,12 @@ func _display() -> Dictionary:
 		return { "speaker": session.reask_customer_id, "text": "\n".join(lines) }
 	var line := session.current_line()
 	if line.is_empty():
-		return { "speaker": "", "text": "" }
+		# 列を読み終えた画面（閉店など）：会話枠を空にせず、最後に出した行を残す（話し手の枠は出さない）
+		return { "speaker": "", "text": _last_text, "retained": true }
 	var text := str(line.get("text", ""))
 	if str(line.get("part", "")) == "day_summary":
 		text = SUMMARY_LINE
+	_last_text = text
 	return { "speaker": str(line.get("speaker", "")), "text": text }
 
 
@@ -97,14 +101,15 @@ func refresh() -> void:
 	var info := session.day_info()
 	_day_label.text = "Day %d" % int(info["day"])
 	_money_label.text = "¥%d" % int(info["money"])
-	_reputation_label.text = "評判 %d" % int(info["reputation"])
+	_reputation_label.text = "評判 %d・客足 %s" % [int(info["reputation"]), UiLabels.demand_word(int(info["reputation"]))]
 	_refresh_time(info)
 	var shown := _display()
 	var speaker := str(shown["speaker"])
 	_portrait.visible = speaker != "" or _customer_present(info)
 	_name_plate.visible = speaker != ""
 	_name_label.text = session.log_speaker(speaker) if speaker != "" else ""
-	var run_index := session.flow.runner.index if session.flow.runner != null else -1
+	# 残している行は、列の位置が進んでも同じ行なので、ページを戻さない
+	var run_index := -2 if shown.has("retained") else (session.flow.runner.index if session.flow.runner != null else -1)
 	var key := "%d|%d|%s" % [int(info["phase"]), run_index, str(shown["text"])]
 	if key != _key:
 		_key = key
@@ -195,6 +200,7 @@ func advance() -> void:
 func reset_ui_state() -> void:
 	_key = ""
 	_page = 0
+	_last_text = ""
 
 
 func _on_skip_pressed() -> void:

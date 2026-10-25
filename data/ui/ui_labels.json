@@ -1,5 +1,6 @@
 {
-	"_comment": "本番UIの表示だけの名前（ゲームの判定には使わない）。店名は SCREENS_UI_LAYOUT §4。短縮名は KAITEN_UI_LAYOUT §6（開店の操作エリアだけで使う。並びは品目の定義順＝Ingredients）。",
+	"_comment": "本番UIの表示だけの名前（ゲームの判定には使わない）。客足の言葉 demand_words は需要表（week7.json の demand_table）の行と同じ並び（71〜／60〜／45〜／20〜／0〜）。店名は SCREENS_UI_LAYOUT §4。短縮名は KAITEN_UI_LAYOUT §6（開店の操作エリアだけで使う。並びは品目の定義順＝Ingredients）。",
+	"demand_words": ["とても多い", "多い", "多め", "ふつう", "少ない"],
 	"shops": {
 		"meat_wholesale": "張記肉類加工",
 		"produce": "永順青果",
@@ -10,7 +11,7 @@
 	},
 	"short_names": {
 		"nam_prik_pao": "ナムプリ",
-		"coconut_milk": "ココナッツ",
+		"coconut_milk": "ココナツ",
 		"pickled_lime": "塩ライム",
 		"bitter_melon": "苦瓜",
 		"herbal_sauce": "薬膳だれ",

@@ -736,7 +736,7 @@ func _format_game_state() -> String:
 		"money(所持金): %d" % GameState.money,
 		"budget(残金/確保/使える): %d / %d / %d" % [
 			GameState.money, Ledger.pending_bills_today(), Ledger.usable_cash()],
-		"reputation(評判): %d" % GameState.reputation,
+		"reputation(評判): %d・客足 %s" % [GameState.reputation, UiLabels.demand_word(GameState.reputation)],
 		"inventory(在庫数): %d 個" % _inventory_total(),
 		"inventory_detail(内訳): %s" % _format_inventory_detail(),
 		"rumors(情報数): %d 件" % GameState.rumors.size(),
@@ -834,13 +834,14 @@ func _format_phone() -> String:
 ## Day2以降（range）は常連の基本注文・既知の好物＋モブの客層（種類の一覧・重複除去。
 ## 人数・組数は出さない）＋総杯数の幅（需要の中心±幅）。「今日の頼み」は出さない。
 ## 自動購入はしない（表示のみ）。起床前などtoday_plan["slots"]が空なら旧来の文言を返す。
+## UI準備C①：本番UIはこの予報を出さない（10.4）。ここは**検証用**として残す（見出しに「（検証用）」）。
 func _format_tonight_memo() -> String:
 	var slots: Array = GameState.today_plan.get("slots", [])
 	if slots.is_empty():
 		return "SNS：まだ新着はありません"
 	var exact: bool = Forecast.mode() == "exact"
 	var total := Forecast.total()
-	var lines := PackedStringArray(["◆本日の客足予報%s◆" % ("（確定）" if exact else "")])
+	var lines := PackedStringArray(["◆本日の客足予報%s（検証用）◆" % ("（確定）" if exact else "")])
 	if exact:
 		lines.append("総杯数: %d杯" % int(total["low"]))
 	else:
