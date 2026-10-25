@@ -80,6 +80,18 @@ func run(t: SceneTree) -> int:
 	c.check("足りなかった杯数（Bでは合計だけ）と廃棄の品目・個数・額",
 		morning.get_node("%ShortLabel").text == "足りなかった 2杯" and morning.get_node("%SpoilLabel").text == "廃棄 豆腐2個（¥16）",
 		morning.get_node("%SpoilLabel").text)
+	# 内訳のキーがある記録（UI準備C③）：素材1・鍋1（来られなかった1杯を含む）→「鍋 2」。0の項目は出さない
+	GameState.day_records[0]["unserved_ingredients"] = 1
+	GameState.day_records[0]["unserved_pot"] = 1
+	GameState.day_records[0]["unserved_declined"] = 0
+	GameState.day_records[0]["unserved_not_arrived"] = 0
+	morning.refresh()
+	c.check("足りなかった杯数の内訳：「足りなかった 2杯（素材 1・鍋 1）」", morning.get_node("%ShortLabel").text == "足りなかった 2杯（素材 1・鍋 1）",
+		morning.get_node("%ShortLabel").text)
+	GameState.day_records[0]["unserved_not_arrived"] = 1
+	morning.refresh()
+	c.check("来られなかった客の分は「鍋」に含める（素材 1・鍋 2）。合計は記録のunserved_cupsのまま",
+		morning.get_node("%ShortLabel").text == "足りなかった 2杯（素材 1・鍋 2）", morning.get_node("%ShortLabel").text)
 	c.check("評判の前後・今朝の運営費・使える現金",
 		morning.get_node("%ReputationLabel").text == "評判 30 → 33"
 			and morning.get_node("%CostLabel").text == "今朝の運営費 −¥%d" % GameState.DAILY_OPERATING_COST

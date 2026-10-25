@@ -58,6 +58,9 @@ var tier_log: Array = []
 ## 各周のキーには足さない）。reason：doses＝水の回数切れ／remaining＝残量条件（13杯以上残っている）／
 ## strength_floor＝濃さの下限（足すと0を下回る）／no_dashi＝濃さが低いのにだしを足せない／other。
 var water_stop_log: Array = []
+## 足りなかった杯数の理由別の記録（UI準備C③。最上位の unserved_log に出す。各周のキーには足さない）。
+## 日ごとに { policy, seed, day, ingredients, pot, declined, not_arrived, unserved }（PlaySession.unserved_breakdown）。
+var unserved_log: Array = []
 var cur_seed := 0
 var clicks := 0
 var purchases := 0
@@ -121,6 +124,7 @@ func run(t: SceneTree) -> void:
 	output["reach"] = reach_name
 	output["tier_log"] = tier_log
 	output["water_stop_log"] = water_stop_log
+	output["unserved_log"] = unserved_log
 	output["tier_reach"] = tier_reach.duplicate()
 	output["daily_operating_cost_data"] = data_cost
 	output["daily_operating_cost_overridden"] = cost_override >= 0
@@ -205,6 +209,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 		var r: EventRunner = panel.session.flow.runner
 		if GameState.phase == GameState.Phase.NEXT_DAY:
 			rows.append(day_row())
+			var split: Dictionary = panel.session.unserved_breakdown()
+			unserved_log.append({ "policy": policy, "seed": run_seed, "day": GameState.day_count,
+				"ingredients": int(split["unserved_ingredients"]), "pot": int(split["unserved_pot"]),
+				"declined": int(split["unserved_declined"]), "not_arrived": int(split["unserved_not_arrived"]),
+				"unserved": int(split["unserved_cups"]) })
 			if GameState.day_count == 1:
 				day1_cash["end"] = GameState.money
 			if GameState.day_count == 7:

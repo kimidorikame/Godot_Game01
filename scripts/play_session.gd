@@ -422,6 +422,116 @@ var log_quality_counts := {}       # {"GREAT":n, "GOOD":n, "OK":n, "BAD":n, "":n
 
 var log_spoiled_items := {}        # PREP突入時のdiscard_spoiled_inventory()の結果をそのまま保持
 
+# 足りなかった杯数の理由別（UI準備C③。記録だけで、ゲームの結果には関与しない）。判断の瞬間に積む：
+# "ingredients"＝素材が足りなくて出せなかった／"pot"＝鍋（残量・濃さ）で出せなかった（閉店で打ち切った客を含む）／
+# "declined"＝出せたのに断った。閉店のあと来られなかった客の分は積まず、日の終わりに「出せなかった合計−この3つ」
+# として unserved_not_arrived に出す（unserved_breakdown）。WAKE・OPEN突入でリセット。
+var log_unserved := { "ingredients": 0, "pot": 0, "declined": 0 }
+## [客を断る]を押した時点の理由（pending_decline と同じ寿命。_serve_customer_decline が積む）。
+var pending_decline_reason := "declined"
+
+
+# --- 足りなかった杯数の理由別（UI準備C③。記録だけ） ---
+
+## 理由別の記録へ cups 杯を足す。理由が空・杯数が0以下なら何もしない。
+func _add_unserved(reason: String, cups: int) -> void:
+	if cups <= 0 or reason == "":
+		return
+	var key := reason if log_unserved.has(reason) else "declined"
+	log_unserved[key] = int(log_unserved[key]) + cups
+
+
+## 今の椀を作ったまま[客を断る]を押したときの理由。鍋（残量・濃さ0）で出せない＝"pot"。味・具の素材が欠けていて、
+## 手元の在庫に味か具の素材が1つも無い＝"ingredients"。それ以外（出せたのに断った、在庫はあるのに椀を作らなかった）＝"declined"。
+func _bowl_block_reason() -> String:
+	if open == null:
+		return "declined"
+	var reasons: Array = SaleRule.check(open.current_bowl, GameState.soup, { "servings": current_servings() }).get("reasons", [])
+	if reasons.has(SaleRule.SHORT_SERVINGS) or reasons.has(SaleRule.STRENGTH_ZERO):
+		return "pot"
+	if reasons.has(SaleRule.NO_FLAVOR) or reasons.has(SaleRule.NO_TOPPING):
+		return "ingredients" if _stock_lacks_flavor_or_topping() else "declined"
+	return "declined"
+
+
+## 手元の在庫（新鮮・傷んだ）に、味の素材か具の素材が1つも無いか。
+func _stock_lacks_flavor_or_topping() -> bool:
+	var has_flavor := false
+	var has_topping := false
+	for id in GameState.inventory:
+		if str(id) == "soup_base" or GameState.fresh_count(id) + GameState.damaged_count(id) <= 0:
+			continue
+		has_flavor = has_flavor or Ingredients.is_flavor(str(id))
+		has_topping = has_topping or Ingredients.is_topping(str(id))
+	return not (has_flavor and has_topping)
+
+
+## モブの団体：注文 ordered 人に対して actual 人しか出さない（0＝断る）ときの、出せなかった分の理由。
+## 出し切るなら空。出せる人数が1以上なのに断った＝"declined"。出せなかった場合は、出せる人数を決めた制約で分ける
+## （濃さ0＝鍋／味・具が欠けた椀＝素材［在庫に素材があるのに作らなかったなら断った］／鍋の残量と具材の在庫の小さい方。同じなら鍋）。
+func _mob_shortfall_reason(ordered: int, actual: int) -> String:
+	if actual >= ordered:
+		return ""
+	if actual <= 0 and mob_achievable_servings(ordered) >= 1:
+		return "declined"
+	if GameState.soup == null or int(GameState.soup.get("strength", 3)) <= 0:
+		return "pot"
+	if open != null:
+		var reasons: Array = SaleRule.check(open.current_bowl, GameState.soup).get("reasons", [])
+		if reasons.has(SaleRule.NO_FLAVOR) or reasons.has(SaleRule.NO_TOPPING):
+			return "ingredients" if _stock_lacks_flavor_or_topping() else "declined"
+	return "pot" if int(GameState.soup.get("remaining_servings", 0)) <= _mob_ingredient_limit(ordered) else "ingredients"
+
+
+## 選んだ具材のバケツ別の在庫から決まる、出せる人数の上限（mob_achievable_servings の具材の項と同じ数え方）。選んでいなければ ordered。
+func _mob_ingredient_limit(ordered: int) -> int:
+	var limit := ordered
+	var counts := {}
+	for pick in mob_picks:
+		var key: String = "%s|%s" % [pick["id"], pick["damaged"]]
+		counts[key] = int(counts.get(key, 0)) + 1
+	var seen := {}
+	for pick in mob_picks:
+		var key: String = "%s|%s" % [pick["id"], pick["damaged"]]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		var avail: int = GameState.damaged_count(pick["id"]) if pick["damaged"] else GameState.fresh_count(pick["id"])
+		limit = mini(limit, int(avail / int(counts[key])))
+	return limit
+
+
+## 今の客（いまの接客の runner の現在位置から先）に、まだ出していない注文の杯数。閉店で打ち切るときの、その客の分。
+func _cups_left_for_current_customer() -> int:
+	if flow.runner == null:
+		return 0
+	var total := 0
+	for i in range(maxi(flow.runner.index, 0), flow.runner.events.size()):
+		var ev = flow.runner.events[i]
+		if ev is Dictionary and str(ev.get("type", "")) == "REACT":
+			total += int(ev.get("servings", 0))
+	return total
+
+
+## 今夜の足りなかった杯数の内訳（キーは日次ログと同じ）。理由別の記録に無い分（閉店のあと来られなかった客）は
+## unserved_not_arrived（出せなかった合計−理由別の合計）。4つの合計は unserved_cups と同じ。
+func unserved_breakdown() -> Dictionary:
+	var unserved := maxi(log_planned_cups - int(tonight_totals()["served_cups"]), 0)
+	var tracked := int(log_unserved["ingredients"]) + int(log_unserved["pot"]) + int(log_unserved["declined"])
+	return { "unserved_cups": unserved, "unserved_ingredients": int(log_unserved["ingredients"]),
+		"unserved_pot": int(log_unserved["pot"]), "unserved_declined": int(log_unserved["declined"]),
+		"unserved_not_arrived": maxi(unserved - tracked, 0) }
+
+
+## 画面に出す内訳（素材が足りない／鍋が足りない／断った）。閉店のあと来られなかった客の分は「鍋が足りない」に含める。
+## 内訳のキーが無い古い記録（C③より前のセーブ）は空の辞書。record は日次ログの1日分か tonight_result() の結果。
+static func unserved_display(record: Dictionary) -> Dictionary:
+	if not record.has("unserved_pot"):
+		return {}
+	return { "ingredients": int(record.get("unserved_ingredients", 0)),
+		"pot": int(record.get("unserved_pot", 0)) + int(record.get("unserved_not_arrived", 0)),
+		"declined": int(record.get("unserved_declined", 0)) }
+
 
 # --- 開店（客キュー・椀・提供・Eventの受け側。UI準備A③a） ---
 
@@ -606,7 +716,8 @@ func _apply_event(ev) -> void:
 				if retry_remaining > 0:
 					_serve_mob_recipe_and_retry(ev, int(result.get("servings", 0)), retry_remaining)
 				else:
-					_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)))
+					_serve_mob_partial(ev, int(result.get("servings", 0)), int(result.get("ordered", 0)),
+						str(result.get("reason", "")))
 				return
 			# F3 断る操作（DESIGN.md 10.3.6）：[客を断る]で既に確定させているので、
 			# 判定・鍋消費・売上を一切発生させず未提供として記録する（モブの
@@ -777,6 +888,8 @@ func _serve_customer(ev: Dictionary) -> void:
 func _serve_customer_decline(ev: Dictionary) -> void:
 	var customer_id := str(ev.get("customer", ""))
 	declined_now = true   # 反応文はreactions.UNSERVEDから引く（current_reaction_text）
+	_add_unserved(pending_decline_reason, int(ev.get("servings", 1)))
+	pending_decline_reason = "declined"
 	# 来店記録（4-4b-1）：断りも「来た」事実として残す（served=0のまま）。
 	if open != null and CustomerMemory.is_recordable(customer_id):
 		CustomerMemory.ensure_visit(customer_id, open.current_slot_name(),
@@ -1117,6 +1230,7 @@ func _auto_close_kitchen() -> void:
 	if reason == "":
 		return
 	closed_early_reason = reason
+	_add_unserved("pot", _cups_left_for_current_customer())
 	queue_unserved_exit()
 	log_closed_early = true   # 日次ログ：鍋が尽きて自動的に閉店した
 	flow.force_phase(GameState.Phase.CLOSE)
@@ -1272,7 +1386,8 @@ func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 ## （客が変わるまで待つ通常の_flush_visit_tallyタイミングとは違い、モブは既存どおり
 ## REACT到達の瞬間に確定させる。visit_tally.is_empty()なら何もしない性質を使っているので、
 ## レシピ1回だけの団体（従来どおりの2択のみ）でも同じ関数で正しく動く）。
-func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int) -> void:
+func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int, reason: String = "") -> void:
+	_add_unserved(reason, maxi(ordered - actual, 0))   # 出せなかった分（この団体の最後のレシピ）の理由別の記録
 	_apply_mob_recipe(ev, actual)
 	flush_visit_tally()
 
@@ -1398,6 +1513,7 @@ func close_shop() -> void:
 	var reason := reason_after_collecting_rent("（今日はここで店じまいにする。）")
 	if reason == "":
 		return
+	_add_unserved("pot", _cups_left_for_current_customer())   # 閉店で打ち切った今の客の分（鍋が足りない）
 	pending_shortage_ev = null
 	pot_open = false
 	closed_early_reason = reason
@@ -1457,7 +1573,7 @@ func pot_locked_until_dashi() -> bool:
 func group_serve(n: int, ordered: int) -> void:
 	if mob_recipe_number == 1:
 		mob_original_ordered = ordered
-	pending_group_result = { "servings": n, "ordered": ordered }
+	pending_group_result = { "servings": n, "ordered": ordered, "reason": _mob_shortfall_reason(ordered, n) }
 	pending_group_choice = false
 	complete_input_and_advance()
 
@@ -1466,7 +1582,7 @@ func group_serve(n: int, ordered: int) -> void:
 func group_decline(ordered: int) -> void:
 	if mob_recipe_number == 1:
 		mob_original_ordered = ordered
-	pending_group_result = { "servings": 0, "ordered": ordered }
+	pending_group_result = { "servings": 0, "ordered": ordered, "reason": _mob_shortfall_reason(ordered, 0) }
 	pending_group_choice = false
 	complete_input_and_advance()
 
@@ -1491,6 +1607,7 @@ func group_retry(achievable: int, ordered: int) -> void:
 ## パターンでSERVE→REACTへ進める。
 func decline_customer() -> void:
 	pending_decline = true
+	pending_decline_reason = _bowl_block_reason()
 	complete_input_and_advance()
 
 
@@ -1616,6 +1733,10 @@ func on_day_ending() -> void:
 		"regular_good_plus": int(regulars["good_plus"]),
 		"regular_visits": regulars["visits"],
 	}
+	# UI準備C③：足りなかった杯数の内訳（追加のみ。既存のキーは変えない）。4つの合計は unserved_cups と同じ。
+	var breakdown := unserved_breakdown()
+	for key in ["unserved_ingredients", "unserved_pot", "unserved_declined", "unserved_not_arrived"]:
+		log_entry[key] = int(breakdown[key])
 	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
@@ -1753,13 +1874,17 @@ func tonight_totals() -> Dictionary:
 
 ## 閉店の「今夜の結果」：{ ordered_cups（朝に確定した注文杯数）, served_cups, unserved_cups, grades（評価の内訳）, sales }。
 ## 値は日次ログの1日分（on_day_ending が作る log_entry）と同じ元から読む（新しい集計はしない）。
-## 未提供の内訳（素材・鍋・断った）はCで足す。
+## 未提供の内訳は unserved_ingredients・unserved_pot・unserved_declined・unserved_not_arrived（UI準備C③。画面は unserved_display）。
 func tonight_result() -> Dictionary:
 	var totals := tonight_totals()
 	var served_cups := int(totals["served_cups"])
-	return { "ordered_cups": log_planned_cups, "served_cups": served_cups,
+	var result := { "ordered_cups": log_planned_cups, "served_cups": served_cups,
 		"unserved_cups": maxi(log_planned_cups - served_cups, 0),
 		"grades": log_quality_counts.duplicate(), "sales": int(totals["sale_total"]) }
+	var breakdown := unserved_breakdown()
+	for key in ["unserved_ingredients", "unserved_pot", "unserved_declined", "unserved_not_arrived"]:
+		result[key] = int(breakdown[key])
+	return result
 
 
 ## 朝に見せる前日成績：日次ログの1日分（on_day_ending が作る log_entry と同じキー）。
@@ -1887,6 +2012,7 @@ func set_runner_for_phase(phase: int) -> void:
 		log_opening_reputation = GameState.reputation
 		log_planned_cups = 0
 		log_judged_planned_cups = 0
+		log_unserved = { "ingredients": 0, "pot": 0, "declined": 0 }
 		log_water_used = 0
 		log_dashi_used = 0
 		log_closed_early = false
@@ -1979,6 +2105,7 @@ func set_runner_for_phase(phase: int) -> void:
 		# 分も積む（④評判の更新：当夜品質Qの分母。判定対象ではない杯をQから除外するため）。
 		log_planned_cups = 0
 		log_judged_planned_cups = 0
+		log_unserved = { "ingredients": 0, "pot": 0, "declined": 0 }
 		for slot in open.schedule:
 			for customer_id in slot.get("customers", []):
 				for ev in Day1Events.customer_events(str(customer_id)):

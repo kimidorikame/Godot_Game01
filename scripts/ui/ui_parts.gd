@@ -10,6 +10,20 @@ static func set_header(header: Control, title: String, sub: String = "") -> void
 	(header.get_node("Sub") as Label).text = sub
 
 
+## 足りなかった杯数の1行：「足りなかった 4杯（素材 1・鍋 2・断った 1）」。内訳は0でないものだけ。内訳が無い
+## （古い記録）か合計が0なら合計だけ。display は PlaySession.unserved_display() の結果。
+## 「鍋」には、閉店のあと来られなかった客の分を含める（unserved_display）。
+static func unserved_text(total: int, display: Dictionary) -> String:
+	var text := "足りなかった %d杯" % total
+	if total <= 0 or display.is_empty():
+		return text
+	var parts: Array = []
+	for pair in [["ingredients", "素材"], ["pot", "鍋"], ["declined", "断った"]]:
+		if int(display.get(pair[0], 0)) > 0:
+			parts.append("%s %d" % [pair[1], int(display[pair[0]])])
+	return text if parts.is_empty() else "%s（%s）" % [text, "・".join(parts)]
+
+
 ## 予算の3つ（残金／確保／使える）。session.budget() の値を入れる。
 static func set_budget(row: Control, budget: Dictionary) -> void:
 	(row.get_node("Money/Value") as Label).text = "¥%d" % int(budget["money"])

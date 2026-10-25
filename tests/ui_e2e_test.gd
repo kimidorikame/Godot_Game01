@@ -42,6 +42,15 @@ func run(t: SceneTree) -> int:
 	c.check("主な操作を一通り使った（スマホを見る・鍋の素・市場を出る・開店する・提供・閉店する・次の日へ）",
 		actions.has("スマホを見る") and actions.has("鍋の素（1）") and actions.has("市場を出る")
 			and actions.has("開店する") and actions.has("提供") and actions.has("閉店する") and actions.has("次の日へ"), str(actions))
+	var split_ok := true
+	var split_detail := ""
+	for record in GameState.day_records:
+		var total: int = int(record["unserved_ingredients"]) + int(record["unserved_pot"]) + int(record["unserved_declined"]) 			+ int(record["unserved_not_arrived"])
+		if total != int(record["unserved_cups"]):
+			split_ok = false
+			split_detail += " Day%d:%d≠%d" % [int(record["day"]), total, int(record["unserved_cups"])]
+	c.check("7日分の記録すべてで、足りなかった杯数の内訳の合計が unserved_cups と同じ（UI準備C③）",
+		split_ok and GameState.day_records.size() == GameState.FINAL_DAY, split_detail)
 	print("  UIの通しの操作の内訳: ", actions)
 	root.queue_free()
 

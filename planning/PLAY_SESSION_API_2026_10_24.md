@@ -121,8 +121,9 @@ session.record_visible_event()
 | `prep_tiers()` | `[{id, label, servings, price, affordable}]` |
 | `prep_tier_paid()` / `today_base()` | 鍋の素を買ったか／`{paid, tier_id, label, servings, scraps}`（クズ野菜ベースの日は scraps=true・支払い無し） |
 | `can_exit_market()` / `is_in_market()` / `is_in_prep_tier()` | bool |
-| `tonight_result()` | `{ordered_cups, served_cups, unserved_cups, grades（評価の内訳）, sales}`（閉店の今夜の結果） |
-| `previous_day_record()` | 前日の日次ログ1日分（`on_day_ending` が作る log_entry と同じキー）。Day1の朝は `{}` |
+| `tonight_result()` | `{ordered_cups, served_cups, unserved_cups, grades（評価の内訳）, sales, unserved_ingredients, unserved_pot, unserved_declined, unserved_not_arrived}`（閉店の今夜の結果。内訳の4つの合計は unserved_cups。UI準備C③） |
+| `PlaySession.unserved_display(record)` | 画面の内訳 `{ingredients, pot, declined}`（来られなかった客の分は pot に含める）。`tonight_result()` か `previous_day_record()` の結果を渡す。内訳のキーが無い古い記録は `{}` |
+| `previous_day_record()` | 前日の日次ログ1日分（`on_day_ending` が作る log_entry と同じキー。UI準備C③で `unserved_ingredients`・`unserved_pot`・`unserved_declined`・`unserved_not_arrived` を追加）。Day1の朝は `{}` |
 | `morning_cost()` | 今朝払った運営費 |
 | `fund_view()` | `{available, complete, targets[{id,label,paid,price,repaired,locked,selected}], selected, paid_tonight, nightly_max, max_contribution, steps[{amount,can}], notice, reserve}`（積み立てが出ない間は `{available:false}`） |
 | `result_view()` | `{summary（Result.summarize）, goals（Result.judge_goals。完走・標準・挑戦・料理・常連）}` |
@@ -210,7 +211,6 @@ session.record_visible_event()
 
 | 項目 | 状況 | 予定 |
 |---|---|---|
-| 足りなかった杯数の内訳（素材・鍋・断った） | `tonight_result()` は未提供の合計だけ | C |
 | 客足（評判の横の言葉） | 無い | C |
 | DM（常連からのDM） | `phone_news()` の `dm` は街のDMだけ | C |
 | 短縮名（客の表示名の短縮） | `log_speaker`・`ScheduleData.customer_display_name` は正式な表示名 | C |

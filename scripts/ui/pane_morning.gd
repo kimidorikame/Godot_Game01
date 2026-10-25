@@ -49,8 +49,8 @@ func refresh() -> void:
 		var counts: Dictionary = rec.get("quality_counts", {})
 		for grade in GRADES:
 			(_grades.get_node(grade + "/Count") as Label).text = str(int(counts.get(grade, 0)))
-		# 足りなかった杯数の内訳（素材・鍋・断った）はCで足す。Bでは未提供の合計だけ。
-		_short_label.text = "足りなかった %d杯" % int(rec.get("unserved_cups", 0))
+		# 足りなかった杯数と内訳（素材・鍋・断った。UI準備C③）。内訳が無い古い記録は合計だけ
+		_short_label.text = UiParts.unserved_text(int(rec.get("unserved_cups", 0)), PlaySession.unserved_display(rec))
 		_spoil_label.text = _spoil_text(rec)
 		_reputation_label.text = "評判 %d → %d" % [int(rec.get("opening_reputation", 0)), int(rec.get("closing_reputation", 0))]
 	_cost_label.text = "今朝の運営費 −¥%d" % session.morning_cost()

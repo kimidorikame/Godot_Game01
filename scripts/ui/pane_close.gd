@@ -42,8 +42,8 @@ func refresh() -> void:
 	var result := session.tonight_result()
 	_sales_value.text = "¥%d" % int(result["sales"])
 	_served_label.text = "提供 %d杯 / 注文%d杯" % [int(result["served_cups"]), int(result["ordered_cups"])]
-	# 足りなかった杯数の理由（素材・鍋・断った）はCで足す。Bでは合計だけ。
-	_short_label.text = "足りなかった %d杯" % int(result["unserved_cups"])
+	# 足りなかった杯数と内訳（素材・鍋・断った。UI準備C③）
+	_short_label.text = UiParts.unserved_text(int(result["unserved_cups"]), PlaySession.unserved_display(result))
 	_short_label.visible = int(result["unserved_cups"]) > 0
 	var counts: Dictionary = result["grades"]
 	for grade in GRADES:
