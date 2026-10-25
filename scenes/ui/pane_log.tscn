@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_log.gd" id="1_vq5lo"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pane_header.tscn" id="2_ns66c"]
+
+[node name="PaneLog" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_vq5lo")
+
+[node name="Header" type="Control" parent="." instance=ExtResource("2_ns66c")]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 51.0
+mouse_filter = 2
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 62.0
+offset_right = 404.0
+offset_bottom = 606.0
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="CloseButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 616.0
+offset_right = 404.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "閉じる"

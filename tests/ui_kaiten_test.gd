@@ -58,6 +58,7 @@ func _open_root(t: SceneTree, customers: Array, stock: Dictionary, damaged: Dict
 	GameState.phase = GameState.Phase.OPEN
 	s.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	s.load_current_customer()
+	root.close_overlay()   # 前日の記録が無い朝で開いたスマホを閉じる（実際の流れでは開店に入るときに捨てる）
 	s.notify_changed()
 	var guard := 0
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 40:
@@ -264,6 +265,7 @@ func run(t: SceneTree) -> int:
 	GameState.today_plan["mob_instances"]["mob_ui"] = { "type": "dock_workers", "count": 4 }
 	s.open = OpenController.new([{ "name": "宵の口", "customers": ["mob_ui"] }])
 	s.load_current_customer()
+	root.close_overlay()   # 前日の記録が無い朝で開いたスマホを閉じる（実際の流れでは開店に入るときに捨てる）
 	s.notify_changed()
 	guard = 0
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 40:

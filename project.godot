@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="GODOT_project01"
-run/main_scene="res://scenes/debug_panel.tscn"
+run/main_scene="res://scenes/game_root.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

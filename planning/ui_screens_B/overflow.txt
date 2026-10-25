@@ -1,0 +1,19 @@
+# 本番UI（UI準備B）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_B.gd が書き出す（手で直さない）
+
+## スクリーンショット
+01_morning.png  朝（昨夜の成績）
+02_phone.png  スマホ（ニュース）
+03_market.png  市場（店選び）
+04_buy_meat.png  購入（張記。中を買ったあと）
+05_buy_tofu.png  購入（福生豆腐麺房。豆腐を1回買ったあと）
+06_kaiten_pot.png  開店の鍋
+07_kaiten_topping.png  開店のトッピング（傷んだ在庫あり・減点の予告あり）
+08_shortage.png  鍋が尽きた保留
+09_mob_group.png  モブの団体の確認
+10_close.png  閉店（今夜の結果と修繕基金）
+11_prep.png  仕込み（全面）
+12_result.png  結果（全面・1ページ目）
+13_gameover.png  ゲームオーバー（全面）
+
+## 入りきらない箇所（0件）

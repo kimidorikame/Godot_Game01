@@ -6,6 +6,8 @@ class_name UiGameRoot
 ## 部品は bind_session(session) を1回、refresh() を描き直しのたびに受ける（引数なし）。
 ## 右の枠は同じ位置に重ねた画面のうち、いまの状態の1つだけを出す（_right_pane）。
 ## 全面（仕込み・結果・ゲームオーバー）が出ている間は、左側と右の枠を隠す（_full_screen）。
+## スマホ・会話ログは右の枠（開店中は操作エリア）と入れ替わる（overlay。表示だけの状態）。Day1の朝は前日が無いので、
+## 右の枠を出さずにスマホから始める。朝の入力待ち「スマホを見る。」は、スマホを開くと終わる（開いている間の会話のクリックでも）。
 
 @onready var session: PlaySession = %Session
 @onready var left: UiLeftSide = %LeftSide
@@ -15,6 +17,8 @@ class_name UiGameRoot
 @onready var pane_buy_shop: UiPaneBuyShop = %PaneBuyShop
 @onready var pane_kaiten: UiPaneKaiten = %PaneKaiten
 @onready var pane_close: UiPaneClose = %PaneClose
+@onready var pane_phone: UiPanePhone = %PanePhone
+@onready var pane_log: UiPaneLog = %PaneLog
 @onready var right_pane: Control = %RightPane
 @onready var full_prep: UiFullPrep = %FullPrep
 @onready var full_result: UiFullResult = %FullResult
@@ -22,10 +26,12 @@ class_name UiGameRoot
 
 ## 市場の「この店で買ったもの」のUIだけの集計（plan Q10）。仕込みに入るたびに捨てる。
 var tally := UiShopTally.new()
+## 右の枠と入れ替えて出しているもの（""／"phone"／"log"）。表示だけの状態で、区切り（phase_entering）で捨てる。
+var overlay := ""
 
 
 func _panes() -> Array:
-	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten, pane_close]
+	return [pane_morning, pane_market, pane_buy_meat, pane_buy_shop, pane_kaiten, pane_close, pane_phone, pane_log]
 
 
 func _fulls() -> Array:
@@ -41,6 +47,12 @@ func _ready() -> void:
 	pane_buy_shop.tally = tally
 	pane_buy_meat.advance_requested.connect(left.advance)
 	full_prep.advance_requested.connect(left.advance)
+	left.phone_requested.connect(_on_phone_icon)
+	left.log_requested.connect(_on_log_icon)
+	left.wait_input_clicked.connect(_on_wait_input_clicked)
+	pane_morning.phone_requested.connect(open_phone.bind("news"))
+	pane_phone.close_requested.connect(close_overlay)
+	pane_log.close_requested.connect(close_overlay)
 	session.phase_entering.connect(_on_phase_entering)
 	session.changed.connect(_redraw)
 	session.start()
@@ -76,8 +88,12 @@ func _full_screen() -> Control:
 	return null
 
 
-## いま右の枠に出す画面（無ければ null）。
+## いま右の枠に出す画面（無ければ null）。スマホ・会話ログを開いていれば、それが右の枠（開店中は操作エリア）と入れ替わる。
 func _right_pane() -> Control:
+	if overlay == "phone":
+		return pane_phone
+	if overlay == "log":
+		return pane_log
 	match GameState.phase:
 		GameState.Phase.WAKE:
 			return pane_morning
@@ -118,8 +134,57 @@ func _on_phase_entering(phase: int) -> void:
 	left.reset_ui_state()
 	pane_kaiten.reset_ui_state()
 	full_result.reset_ui_state()
+	pane_log.reset_ui_state()
+	overlay = ""
+	if phase == GameState.Phase.WAKE and session.previous_day_record().is_empty():
+		# Day1の朝（前日が無い）は、右の枠を出さずにスマホから始める（ニュース）
+		overlay = "phone"
+		pane_phone.tab = "news"
 	if phase == GameState.Phase.PREP:
 		tally.clear()
+
+
+## スマホを開く（tab を開く）。朝の入力待ち「スマホを見る。」にいれば、開くと同時に入力を終える。
+func open_phone(tab: String = "news") -> void:
+	overlay = "phone"
+	pane_phone.tab = tab
+	if _waiting_phone_input():
+		session.complete_input()   # changed で描き直す
+	else:
+		_redraw()
+
+
+func close_overlay() -> void:
+	overlay = ""
+	_redraw()
+
+
+## 朝の入力待ち「スマホを見る。」（WAIT_INPUT）にいて、入力を終えられるか。
+func _waiting_phone_input() -> bool:
+	return GameState.phase == GameState.Phase.WAKE and session.is_waiting_input() \
+		and str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT and session.can_complete_input()
+
+
+func _on_phone_icon() -> void:
+	if overlay == "phone":
+		close_overlay()
+	else:
+		open_phone(pane_phone.tab)
+
+
+func _on_log_icon() -> void:
+	if overlay == "log":
+		close_overlay()
+	else:
+		overlay = "log"
+		pane_log.reset_ui_state()
+		_redraw()
+
+
+## 入力待ちで会話を進めようとした：スマホを開いていれば入力を終える（開いていなければ何もしない＝「スマホを見る」を押す）。
+func _on_wait_input_clicked() -> void:
+	if overlay == "phone" and _waiting_phone_input():
+		session.complete_input()
 
 
 ## 会話を進めるキー：Enter・Space（左クリックは会話枠が受ける）。

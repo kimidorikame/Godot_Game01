@@ -26,6 +26,8 @@ const PANE_CLOSE_PATH := "res://scenes/ui/pane_close.tscn"
 const FULL_PREP_PATH := "res://scenes/ui/full_prep.tscn"
 const FULL_RESULT_PATH := "res://scenes/ui/full_result.tscn"
 const FULL_GAMEOVER_PATH := "res://scenes/ui/full_gameover.tscn"
+const PANE_PHONE_PATH := "res://scenes/ui/pane_phone.tscn"
+const PANE_LOG_PATH := "res://scenes/ui/pane_log.tscn"
 const TNUM := 1953396077   # OpenType の機能 "tnum"（数字の幅をそろえる）のタグ
 const FONT_PATH := "res://assets/fonts/NotoSansJP[wght].ttf"   # Noto Sans JP（OFL。assets/fonts/OFL.txt）
 const WGHT := 2003265652   # OpenType の軸 "wght"（太さ）のタグ
@@ -60,6 +62,9 @@ func _initialize() -> void:
 	_build(FULL_PREP_PATH, _make_full_prep, built, skipped)
 	_build(FULL_RESULT_PATH, _make_full_result, built, skipped)
 	_build(FULL_GAMEOVER_PATH, _make_full_gameover, built, skipped)
+	# スマホ・会話ログ（UI準備B⑤）
+	_build(PANE_PHONE_PATH, _make_pane_phone, built, skipped)
+	_build(PANE_LOG_PATH, _make_pane_log, built, skipped)
 	_build(GAME_ROOT_PATH, _make_game_root, built, skipped)
 	print("作った: %s" % ", ".join(built))
 	print("読み飛ばした（既にある）: %s" % ", ".join(skipped))
@@ -174,6 +179,11 @@ func _make_theme() -> Theme:
 	_label_variation(t, "LabelResult", UiPalette.TEXT, 18)
 	t.set_font("font", "LabelPrepTitle", bold)
 	t.set_font("font", "LabelTitleWarn", bold)
+	# スマホ・会話ログ（UI準備B⑤）
+	_label_variation(t, "LabelPhoneHeadline", UiPalette.TEXT, 16)
+	_label_variation(t, "LabelPhoneBody", UiPalette.TEXT, 14)
+	_label_variation(t, "LabelLogNarration", UiPalette.DIM, 14)
+	t.set_font("font", "LabelPhoneHeadline", bold)
 	for bold_type in ["LabelDay", "LabelName", "ButtonPrimary", "LabelHeading"]:
 		t.set_font("font", bold_type, bold)
 
@@ -929,6 +939,58 @@ func _make_full_gameover() -> PackedScene:
 	return _pack(root)
 
 
+# --- スマホ・会話ログ（UI準備B⑤）---
+
+## 右の枠：スマホ。寸法表 SCREENS_UI_LAYOUT §3（上の帯 (2,2) 416×28、タブ (2,30) 1つ139×46、閉じる (16,616) 388×40）。
+func _make_pane_phone() -> PackedScene:
+	var root := Panel.new()
+	root.name = "PanePhone"
+	root.set_script(load("res://scripts/ui/pane_phone.gd"))
+	root.layout_mode = 3
+	root.size = Vector2(420, 672)
+	_panel(root, "TopBand", "PanelBand", Rect2(2, 2, 416, 28), root)
+	_label(root, "TopLeft", "スマホ", Rect2(14, 2, 200, 28), root, "LabelCaption")
+	_label(root, "TopRight", "Day 1", Rect2(206, 2, 200, 28), root, "LabelCaption", true, HORIZONTAL_ALIGNMENT_RIGHT)
+	var tabs := Control.new()
+	tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, tabs, "Tabs", Rect2(2, 30, 417, 46), root, true)
+	var titles := ["SNS", "ニュース", "レシピ"]
+	for i in range(3):
+		var b := _button(tabs, "Tab%d" % (i + 1), titles[i], "ButtonTab", Rect2(i * 139, 0, 139, 46), root)
+		b.add_theme_font_size_override("font_size", 17)
+	var underline := ColorRect.new()
+	underline.color = UiPalette.ACCENT
+	underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, underline, "Underline", Rect2(0, 73, 139, 3), root, true)
+	var line := ColorRect.new()
+	line.color = UiPalette.LINE
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node(root, line, "TabLine", Rect2(2, 76, 416, 1), root)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_node(root, scroll, "Scroll", Rect2(16, 90, 388, 516), root, true)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 6)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_node(scroll, content, "Content", Rect2(), root, true)
+	_button(root, "CloseButton", "閉じる", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
+	return _pack(root)
+
+
+## 右の枠：会話ログ。寸法表に無いので、右の枠の共通の形（見出しの帯・中身の余白14・一番下の補助ボタン）で出す。
+func _make_pane_log() -> PackedScene:
+	var root := _pane_root("PaneLog", "res://scripts/ui/pane_log.gd")
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_node(root, scroll, "Scroll", Rect2(16, 62, 388, 544), root, true)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 6)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_node(scroll, content, "Content", Rect2(), root, true)
+	_button(root, "CloseButton", "閉じる", "ButtonSecondary", Rect2(16, 616, 388, 40), root, true)
+	return _pack(root)
+
+
 # --- ルート ---
 
 func _make_game_root() -> PackedScene:
@@ -956,7 +1018,7 @@ func _make_game_root() -> PackedScene:
 	# 右の枠の画面は同じ位置に重ね、ルートがいまの1つだけを出す
 	for pane in [["PaneMorning", PANE_MORNING_PATH], ["PaneMarket", PANE_MARKET_PATH], ["PaneBuyMeat", PANE_BUY_MEAT_PATH],
 			["PaneBuyShop", PANE_BUY_SHOP_PATH], ["PaneKaiten", PANE_KAITEN_PATH],
-			["PaneClose", PANE_CLOSE_PATH]]:
+			["PaneClose", PANE_CLOSE_PATH], ["PanePhone", PANE_PHONE_PATH], ["PaneLog", PANE_LOG_PATH]]:
 		var inst := _instance(right, pane[1], pane[0], Rect2(0, 0, 420, 672), root, true)
 		inst.visible = false
 	# 全面（仕込み・結果・ゲームオーバー）。出ている間は左側と右の枠を隠す

@@ -104,7 +104,11 @@ func run(t: SceneTree) -> int:
 	var phone := { "n": 0 }
 	morning.phone_requested.connect(func(): phone["n"] += 1)
 	_press(primary)
-	c.check("「スマホを見る」：入力待ちを終えて先へ進み、スマホを開く合図を出す", not s.is_waiting_input() and phone["n"] == 1)
+	c.check("「スマホを見る」：入力待ちを終えて先へ進み、スマホを開く（右の枠がスマホのニュースに替わる）",
+		not s.is_waiting_input() and phone["n"] == 1 and root.overlay == "phone" and root.pane_phone.visible
+			and not morning.visible and root.pane_phone.tab == "news")
+	_press(root.pane_phone.get_node("%CloseButton"))
+	c.check("スマホの「閉じる」で朝の画面に戻る", root.overlay == "" and morning.visible)
 	guard = 0
 	while not s.flow.is_runner_done() and guard < 80:
 		guard += 1
@@ -211,7 +215,10 @@ func run(t: SceneTree) -> int:
 	var root1: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
 	t.root.add_child(root1)
 	var s1: PlaySession = root1.session
-	c.check("Day1の朝：成績の箱は出さず「初日」の一文", not root1.pane_morning.get_node("%RecordBoxes").visible
+	c.check("Day1の朝（前日が無い）：右の枠を出さずにスマホ（ニュース）から始める", root1.overlay == "phone"
+		and root1.pane_phone.visible and root1.pane_phone.tab == "news" and not root1.pane_morning.visible)
+	_press(root1.pane_phone.get_node("%CloseButton"))
+	c.check("スマホを閉じると朝の画面：成績の箱は出さず「初日」の一文", root1.pane_morning.visible and not root1.pane_morning.get_node("%RecordBoxes").visible
 		and root1.pane_morning.get_node("%NoRecord").visible and root1.pane_morning.get_node("%Header/Title").text == "朝")
 	s1.flow.force_phase(GameState.Phase.PREP)
 	c.check("Day1の食肉仲卸：追加購入の行は出さない", _visible_pane(root1) == root1.pane_buy_meat

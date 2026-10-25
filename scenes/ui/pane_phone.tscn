@@ -1,0 +1,121 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pane_phone.gd" id="1_ovv3m"]
+
+[node name="PanePhone" type="Panel"]
+offset_right = 420.0
+offset_bottom = 672.0
+script = ExtResource("1_ovv3m")
+
+[node name="TopBand" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = 418.0
+offset_bottom = 30.0
+mouse_filter = 2
+theme_type_variation = &"PanelBand"
+
+[node name="TopLeft" type="Label" parent="."]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 2.0
+offset_right = 214.0
+offset_bottom = 30.0
+theme_type_variation = &"LabelCaption"
+text = "スマホ"
+vertical_alignment = 1
+
+[node name="TopRight" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 206.0
+offset_top = 2.0
+offset_right = 406.0
+offset_bottom = 30.0
+theme_type_variation = &"LabelCaption"
+text = "Day 1"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="Tabs" type="Control" parent="."]
+unique_name_in_owner = true
+anchors_preset = 0
+offset_left = 2.0
+offset_top = 30.0
+offset_right = 419.0
+offset_bottom = 76.0
+mouse_filter = 2
+
+[node name="Tab1" type="Button" parent="Tabs"]
+layout_mode = 0
+offset_right = 139.0
+offset_bottom = 46.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+theme_override_font_sizes/font_size = 17
+text = "SNS"
+
+[node name="Tab2" type="Button" parent="Tabs"]
+layout_mode = 0
+offset_left = 139.0
+offset_right = 278.0
+offset_bottom = 46.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+theme_override_font_sizes/font_size = 17
+text = "ニュース"
+
+[node name="Tab3" type="Button" parent="Tabs"]
+layout_mode = 0
+offset_left = 278.0
+offset_right = 417.0
+offset_bottom = 46.0
+focus_mode = 0
+theme_type_variation = &"ButtonTab"
+theme_override_font_sizes/font_size = 17
+text = "レシピ"
+
+[node name="Underline" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_top = 73.0
+offset_right = 139.0
+offset_bottom = 76.0
+mouse_filter = 2
+color = Color(0.909804, 0.639216, 0.239216, 1)
+
+[node name="TabLine" type="ColorRect" parent="."]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 76.0
+offset_right = 418.0
+offset_bottom = 77.0
+mouse_filter = 2
+color = Color(0.239216, 0.282353, 0.352941, 1)
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 90.0
+offset_right = 404.0
+offset_bottom = 606.0
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="CloseButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 616.0
+offset_right = 404.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonSecondary"
+text = "閉じる"

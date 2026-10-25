@@ -7,6 +7,8 @@ class_name UiLeftSide
 
 signal phone_requested()
 signal log_requested()
+## 入力待ち（WAIT_INPUT。朝の「スマホを見る。」）で会話を進めようとした。ルートが、スマホを開いていれば入力を終える。
+signal wait_input_clicked()
 
 const CHARS_PER_LINE := 30    # 会話枠：1行30字（全角。半角は0.5字）
 const LINES_PER_PAGE := 3     # ×3行。入りきらない文は枠内でページ送り
@@ -173,13 +175,17 @@ func _refresh_choices() -> void:
 
 
 ## 会話を進める（会話枠のクリック・Enter・Space）。ページが残っていれば先にページを送り、
-## 残っていなければ PlaySession の次のEventへ（can_next_event のとき）。
+## 残っていなければ PlaySession の次のEventへ（can_next_event のとき）。入力待ち（WAIT_INPUT）では
+## wait_input_clicked を出すだけ（入力を終えるかはルートが決める）。
 func advance() -> void:
 	if session == null:
 		return
 	if _page < _pages.size() - 1:
 		_page += 1
 		_show_page()
+		return
+	if session.is_waiting_input() and str(session.current_line().get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
+		wait_input_clicked.emit()
 		return
 	if session.can_next_event():
 		session.next_event()
