@@ -20,5 +20,6 @@
 16_sns_hint_few.png  スマホ（SNS。Day3。需要の中心を7に置いた仮の状態：匂わせ few のDMが届く）
 17_prep_talk.png  張記の会話・Day2（前日の注文の杯数と足りなかった杯数だけ）
 18_prep_talk_day1.png  張記の会話・Day1（主人公が目安の杯数を言う）
+19_sns_day7.png  スマホ（SNS。Day7。DMが多い日。一覧は縦にスクロールできる。8通）
 
 ## 入りきらない箇所（0件）

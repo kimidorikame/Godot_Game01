@@ -8,6 +8,8 @@ class_name UiPanePhone
 ## 品名は本名（短縮名は開店の操作エリアだけ）。「閉じる」で元の画面に戻る（開店中は「閉じる(鍋・トッピングに戻る)」）。
 
 signal close_requested()
+## SNS タブを表示して、未読のDMを読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
+signal dms_read()
 
 const TABS := ["sns", "news", "recipe"]
 
@@ -88,7 +90,10 @@ func _fill_sns() -> void:
 			_fresh[str(item["id"])] = true
 	for item in items:
 		_add_dm_row(item, _fresh.has(str(item["id"])))
+	var unread_before := session.dm_unread_count()
 	session.mark_dms_read()   # 表示した時点で既読にする
+	if unread_before > 0:
+		dms_read.emit()
 
 
 func _add_dm_row(item: Dictionary, unread: bool) -> void:

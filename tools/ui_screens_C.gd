@@ -1,5 +1,5 @@
 # 本番UI（UI準備C）のスクリーンショットを撮る（1280×720のPNGを planning/ui_screens_C/ へ。UI準備Bの13枚に、
-# 客足・足りなかった杯数の内訳・DM・張記の会話の状態を足した18枚）。
+# 客足・足りなかった杯数の内訳・DM・張記の会話・鍋を触れる状態の状態を足したもの）。
 # ウィンドウありで起動する（ヘッドレスでは描画されない。一瞬ウィンドウが出る）：
 #   godot --path . --resolution 1280x720 --script res://tools/ui_screens_C.gd
 # 遊び方は UIの通しテストと同じ台本（tests/ui_autoplay.gd。ボタンと会話枠のクリックだけ）。傷んだ在庫・鍋が尽きた保留・
@@ -116,6 +116,11 @@ func _initialize() -> void:
 	s.notify_changed()
 	await _shot("16_sns_hint_few", "スマホ（SNS。Day3。需要の中心を7に置いた仮の状態：匂わせ few のDMが届く）")
 	gs.today_plan["demand_center"] = real_center
+	ui.close_overlay()
+	# Day7 の朝：DMが多い日（今日までに届いたDMがたまる。一覧は縦にスクロールできる）
+	_until(func(): return gs.day_count == 7 and gs.phase == gs.Phase.WAKE)
+	ui.open_phone("sns")
+	await _shot("19_sns_day7", "スマホ（SNS。Day7。DMが多い日。一覧は縦にスクロールできる。%d通）" % s.phone_dm().size())
 	ui.close_overlay()
 	# 最終日の結果まで遊ぶ
 	_until(func(): return ui.full_result.visible, Callable(), 20000)

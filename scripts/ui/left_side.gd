@@ -30,6 +30,7 @@ var _last_text := ""
 @onready var _portrait: Control = %Portrait
 @onready var _choices: VBoxContainer = %Choices
 @onready var _phone_icon: Button = %PhoneIcon
+@onready var _phone_badge: Label = %PhoneBadge
 @onready var _log_icon: Button = %LogIcon
 @onready var _name_plate: Control = %NamePlate
 @onready var _name_label: Label = %NameLabel
@@ -95,9 +96,19 @@ func _display() -> Dictionary:
 	return { "speaker": str(line.get("speaker", "")), "text": text }
 
 
+## スマホのボタンの未読の印（SNSの未読の●と数）。数の取り方は SNS タブ内と同じ（session.dm_unread_count）。
+## SNS タブを表示して読んだ扱いになったとき（pane_phone の dms_read）にも、親が呼ぶ。
+func refresh_phone_badge() -> void:
+	if session == null:
+		return
+	var unread := session.dm_unread_count()
+	_phone_badge.text = "●%d" % unread if unread > 0 else ""
+
+
 func refresh() -> void:
 	if session == null:
 		return
+	refresh_phone_badge()
 	var info := session.day_info()
 	_day_label.text = "Day %d" % int(info["day"])
 	_money_label.text = "¥%d" % int(info["money"])

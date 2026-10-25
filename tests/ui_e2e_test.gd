@@ -6,6 +6,14 @@ extends RefCounted
 const MAX_STEPS := 6000
 
 
+## 入れ物の並べ替えは次のフレームに起きるので、テストでは手で走らせる（子から順に）。
+func _sort(node: Node) -> void:
+	for child in node.get_children():
+		_sort(child)
+	if node is Container:
+		node.notification(Container.NOTIFICATION_SORT_CHILDREN)
+
+
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
@@ -69,6 +77,8 @@ func run(t: SceneTree) -> int:
 	c.check("「閉じる」(852,640)・幅388", phone.get_node("%CloseButton").get_global_position().is_equal_approx(Vector2(852, 640))
 		and absf(phone.get_node("%CloseButton").size.x - 388.0) < 0.5)
 	# SNSタブ＝DM（UI準備C③）。Day2：条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
+	c.check("スマホのボタンにも、SNSの未読の●と数が出る（数の取り方はSNSタブ内と同じ）", root.left.get_node("%PhoneBadge").text == "●1"
+		and root.left.get_node("%PhoneBadge").text == "●%d" % s.dm_unread_count(), root.left.get_node("%PhoneBadge").text)
 	AutoplayPress.press(tabs.get_child(1))
 	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（●1）が出る", phone.get_node("%SnsBadge").text == "●1", phone.get_node("%SnsBadge").text)
 	AutoplayPress.press(tabs.get_child(0))
@@ -83,6 +93,23 @@ func run(t: SceneTree) -> int:
 		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("6:40") and not dm_texts.has("常連"), str(dm_texts))
 	c.check("開いた時点で未読だった行には、左に注意色の線を残す", dm_rows[0].get_children().any(func(n): return n is ColorRect))
 	c.check("SNSタブを表示したので既読になり、タブの数は消える", phone.get_node("%SnsBadge").text == "" and s.dm_unread_count() == 0)
+	c.check("既読になったので、スマホのボタンの未読の印も消える", root.left.get_node("%PhoneBadge").text == "")
+	# DMが多い日：一覧はスクロールできる（縦のスクロール枠で、中身が枠より高くなる）
+	var many_items: Array = []
+	for i in range(12):
+		many_items.append({ "id": "dm_many_%d" % i, "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:%02d" % i,
+			"text": "多い日のテスト用のDM（%d）。" % i, "hint": "none", "provisional": true })
+	Dm._cache = { "id": Rules.dm(), "hints": Dm.data()["hints"], "days": { "2": many_items } }
+	Dm._loaded_id = Rules.dm()
+	phone.refresh()
+	var scroll: ScrollContainer = phone.get_node("%Scroll")
+	_sort(root)
+	c.check("DMが多い日（12通）：一覧はスクロール枠に入っていて、中身が枠より高い（スクロールできる）",
+		scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED and phone.get_node("%Content").get_child_count() == 12
+			and phone.get_node("%Content").get_combined_minimum_size().y > scroll.size.y,
+		"%s > %s" % [str(phone.get_node("%Content").get_combined_minimum_size().y), str(scroll.size.y)])
+	Dm.clear_cache()
+	s.mark_dms_read()
 	AutoplayPress.press(tabs.get_child(2))
 	var recipe_texts: Array = []
 	for label in phone.get_node("%Content").get_children():

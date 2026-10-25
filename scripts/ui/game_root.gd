@@ -52,6 +52,7 @@ func _ready() -> void:
 	left.wait_input_clicked.connect(_on_wait_input_clicked)
 	pane_morning.phone_requested.connect(open_phone.bind("news"))
 	pane_phone.close_requested.connect(close_overlay)
+	pane_phone.dms_read.connect(left.refresh_phone_badge)
 	pane_log.close_requested.connect(close_overlay)
 	session.phase_entering.connect(_on_phase_entering)
 	session.changed.connect(_redraw)
