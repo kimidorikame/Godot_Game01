@@ -48,6 +48,8 @@ const POLICIES_ISOLATION := ["strength_neglect_dashi"]
 ## 下限版（UI準備C⑤。別枠。引数[3]で名前を指定したときだけ走る。"visible" 専用）：見込みを「前日の注文杯数だけ」にする
 ## （客足の言葉もDMの匂わせも使わない。Day1は張記の会話の9杯）。ほかの判断は基になる方針と同じ。
 const POLICIES_LOWER := ["forecast_good_lower", "favorite_oracle_lower"]
+## 備蓄型（情報量の実験の続き。UI準備D。別枠）。予報も見込みも読まず、日持ちする7材料と生ものの3タグを「k単位（購入単位＝1袋）」ぶん手元に置く。引数 info=stock で使う（stockpile_shop）。
+const POLICIES_STOCK := ["stockpile"]
 const LOWER_BASE := { "forecast_good_lower": "forecast_good", "favorite_oracle_lower": "favorite_oracle" }
 const TIER_REACH := { "small": 12, "medium": 13, "large": 14 }
 ## 再測定（引数[4]=reach_true のときだけ使う）：営業中の水足しを含めて、その段階で一晩に出せる総杯数
@@ -67,6 +69,14 @@ var levels_on := false
 var level_p_reg := 1.0      # 常連（名前あり客）のタグを前もって知っている割合（0〜1）
 var level_p_mob := 1.0      # モブのタグを前もって知っている割合
 var level_forecast_target := false   # 見込み杯数（仕込みの大きさ）も予報の値にする（確認用）
+## 備蓄型（info=stock）：k＝手元に置く単位（購入単位＝1袋）の数、p＝生もの3タグの今夜の必要を前もって知っている確率（-1＝情報なし）
+var stock_on := false
+var stock_k := 2
+var stock_p := -1.0
+## 備蓄型の材料：日持ちする7つ（腐らない）と、生ものでしか満たせない3タグ（腐る。POWER は袋の単価が安い肉団子）
+const STOCK_DURABLE := [["HOT", "nam_prik_pao"], ["SOUR", "pickled_lime"], ["SAVORY", "herbal_sauce"], ["GENTLE", "winter_melon"],
+	["FILLING", "rice_noodle"], ["BITE", "dried_wood_ear"], ["TREAT", "fish_maw"]]
+const STOCK_FRESH := [["MELLOW", "coconut_milk"], ["BITTER", "bitter_melon"], ["POWER", "meat_ball"]]
 ## v3（visible）の「自分が受けた注文」の記録：夜ごとの { tags: { タグ: 杯数 }, cups }。ADJUSTで見た注文（注文カード）から数える。
 var seen_nights: Array = []
 var night_tags: Dictionary = {}
@@ -111,13 +121,20 @@ func run(t: SceneTree) -> void:
 	if only.has("all"):
 		only = []
 	info_mode = str(args[6]) if args.size() > 6 else "forecast"
-	if not ["forecast", "visible", "visible_improvise", "levels"].has(info_mode):
+	if not ["forecast", "visible", "visible_improvise", "levels", "stock"].has(info_mode):
 		push_error("unknown info: " + info_mode)
 		return
 	var info_label := info_mode
 	improvise = info_mode == "visible_improvise"
 	if improvise:
 		info_mode = "visible"
+	stock_on = info_mode == "stock"
+	if stock_on:
+		# 備蓄型：椀の作り方・仕込みの大きさ・濃さは補う版（visible_improvise）と同じ。引数 [7]＝k、[8]＝生ものの情報の確率（%。-1＝情報なし）
+		improvise = true
+		info_mode = "visible"
+		stock_k = int(args[7]) if args.size() > 7 else 2
+		stock_p = float(args[8]) / 100.0 if args.size() > 8 and float(args[8]) >= 0.0 else -1.0
 	levels_on = info_mode == "levels"
 	if levels_on:
 		# 情報量の実験：補う版（visible_improvise）が土台。引数 [7]＝常連の割合（%）、[8]＝モブの割合（%）、[9]＝"forecast_target" なら見込み杯数も予報
@@ -144,7 +161,7 @@ func run(t: SceneTree) -> void:
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
 			policies.append(p)
-	for p in POLICIES_FUND + POLICIES_ISOLATION + POLICIES_LOWER:
+	for p in POLICIES_FUND + POLICIES_ISOLATION + POLICIES_LOWER + POLICIES_STOCK:
 		if only.has(p):
 			policies.append(p)
 	var results: Array = []
@@ -159,6 +176,8 @@ func run(t: SceneTree) -> void:
 		"policies": policies, "runs": results, "info_mode": info_label }
 	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
 	output["reach"] = reach_name
+	if stock_on:
+		output["info_stock"] = { "k": stock_k, "p_fresh": stock_p }
 	if levels_on:
 		output["info_levels"] = { "p_regular": level_p_reg, "p_mob": level_p_mob, "forecast_target": level_forecast_target }
 	output["tier_log"] = tier_log
@@ -536,6 +555,53 @@ func levels_need(target: int) -> Dictionary:
 	return need
 
 
+## 備蓄型の仕入れ（info=stock・方針 stockpile）。予報も見込みも読まない。
+##   日持ちする7材料（STOCK_DURABLE）：手元が k 単位（購入単位＝1袋の個数×k）を切ったら、袋を買い足す。
+##   生もの3タグ（STOCK_FRESH）：毎朝、手元（前日の残りを含む）が k 単位になるよう買い足す。
+##     stock_p が0以上のときは、タグごと・夜ごとに確率 p で「今夜の必要を知っている」とし、その分だけ買う（必要が0なら買わない）。
+##     知らない分は備蓄の数（k単位）で補う。当たりは info_draw（専用の決まった値）。
+##   予算は「使える」の範囲（cash()）。足りないときは、足りない材料のうち袋の値段が一番安いものから買う。
+func stockpile_shop() -> void:
+	var targets := {}
+	for pair in STOCK_DURABLE:
+		targets[str(pair[1])] = stock_k * pack_of(str(pair[1])).count
+	var full: Dictionary = {}
+	if stock_p >= 0.0:
+		full = (Forecast.cases().back() as Dictionary)["required"]
+	for pair in STOCK_FRESH:
+		var item := str(pair[1])
+		var target: int = stock_k * pack_of(item).count
+		if stock_p >= 0.0 and info_draw("fresh", str(pair[0]), 0) < stock_p:
+			target = int(full.get(str(pair[0]), 0))
+		targets[item] = target
+	var guard := 0
+	while guard < 80:
+		guard += 1
+		var best := {}
+		for item in targets:
+			if GameState.fresh_count(str(item)) >= int(targets[item]):
+				continue
+			var pack: Dictionary = pack_of(str(item))
+			if cash() >= int(pack.price) and (best.is_empty() or int(pack.price) < int(best.price)):
+				best = pack
+		if best.is_empty():
+			break
+		buy(str(best.shop), str(best.id))
+	if panel.session.market_shop != "":
+		act("shop_exit")
+		panel.session.leave_shop()
+
+
+## 品目の購入単位（1袋）：{ shop, id, price, count }。袋が複数あれば（モツ・海老の小口など）個数が一番多い袋。
+func pack_of(item: String) -> Dictionary:
+	var best := {}
+	for shop_id in SHOPS:
+		for good in PlaySession.shop_goods(shop_id):
+			if str(good.get("item", "")) == item and (best.is_empty() or int(good.get("count", 1)) > int(best.count)):
+				best = { "shop": shop_id, "id": str(good.get("id", "")), "price": int(good.get("price", 0)), "count": int(good.get("count", 1)) }
+	return best
+
+
 ## 0以上1未満の決まった値（情報量の実験の「知っているか」の当たり）。乱数の状態を持たない。
 func info_draw(group: String, tag: String, k: int) -> float:
 	var h: int = ("%d|%d|%s|%s|%d" % [cur_seed, GameState.day_count, group, tag, k]).hash()
@@ -688,6 +754,9 @@ func shop() -> void:
 	if policy != "strength_neglect":
 		while GameState.dashi_units < 2 and cash() >= 16:
 			buy("meat_wholesale", "dashi")
+	if stock_on:
+		stockpile_shop()
+		return
 	var need: Dictionary = visible_need(target_cups()) if info_mode == "visible" else (Forecast.cases().back() as Dictionary)["required"]
 	if levels_on:
 		need = levels_need(target_cups())
