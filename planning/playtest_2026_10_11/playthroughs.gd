@@ -73,6 +73,7 @@ var level_forecast_target := false   # 見込み杯数（仕込みの大きさ�
 var stock_on := false
 var stock_k := 2
 var stock_p := -1.0
+var stock_pieces := false   # true：k は手元の個数（袋の数ではない。測り直し）。手元が k 個を切ったら1袋買い足す
 ## 備蓄型の材料：日持ちする7つ（腐らない）と、生ものでしか満たせない3タグ（腐る。POWER は袋の単価が安い肉団子）
 const STOCK_DURABLE := [["HOT", "nam_prik_pao"], ["SOUR", "pickled_lime"], ["SAVORY", "herbal_sauce"], ["GENTLE", "winter_melon"],
 	["FILLING", "rice_noodle"], ["BITE", "dried_wood_ear"], ["TREAT", "fish_maw"]]
@@ -135,6 +136,7 @@ func run(t: SceneTree) -> void:
 		info_mode = "visible"
 		stock_k = int(args[7]) if args.size() > 7 else 2
 		stock_p = float(args[8]) / 100.0 if args.size() > 8 and float(args[8]) >= 0.0 else -1.0
+		stock_pieces = args.size() > 9 and str(args[9]) == "pieces"   # [9]＝pieces なら k は個数（既定は袋の数）
 	levels_on = info_mode == "levels"
 	if levels_on:
 		# 情報量の実験：補う版（visible_improvise）が土台。引数 [7]＝常連の割合（%）、[8]＝モブの割合（%）、[9]＝"forecast_target" なら見込み杯数も予報
@@ -177,7 +179,7 @@ func run(t: SceneTree) -> void:
 	# 再測定の設定（最上位だけに足す。各周のキーは変えない）。daily_operating_cost は実際に使った値。
 	output["reach"] = reach_name
 	if stock_on:
-		output["info_stock"] = { "k": stock_k, "p_fresh": stock_p }
+		output["info_stock"] = { "k": stock_k, "p_fresh": stock_p, "unit": "pieces" if stock_pieces else "packs" }
 	if levels_on:
 		output["info_levels"] = { "p_regular": level_p_reg, "p_mob": level_p_mob, "forecast_target": level_forecast_target }
 	output["tier_log"] = tier_log
@@ -557,6 +559,7 @@ func levels_need(target: int) -> Dictionary:
 
 ## 備蓄型の仕入れ（info=stock・方針 stockpile）。予報も見込みも読まない。
 ##   日持ちする7材料（STOCK_DURABLE）：手元が k 単位（購入単位＝1袋の個数×k）を切ったら、袋を買い足す。
+##     stock_pieces（引数 [9]＝pieces）のときは k＝手元の個数（袋の数ではない）：k 個を切ったら1袋買い足す（袋はどれも k 個より多い）。
 ##   生もの3タグ（STOCK_FRESH）：毎朝、手元（前日の残りを含む）が k 単位になるよう買い足す。
 ##     stock_p が0以上のときは、タグごと・夜ごとに確率 p で「今夜の必要を知っている」とし、その分だけ買う（必要が0なら買わない）。
 ##     知らない分は備蓄の数（k単位）で補う。当たりは info_draw（専用の決まった値）。
@@ -564,13 +567,13 @@ func levels_need(target: int) -> Dictionary:
 func stockpile_shop() -> void:
 	var targets := {}
 	for pair in STOCK_DURABLE:
-		targets[str(pair[1])] = stock_k * pack_of(str(pair[1])).count
+		targets[str(pair[1])] = stock_k if stock_pieces else stock_k * pack_of(str(pair[1])).count
 	var full: Dictionary = {}
 	if stock_p >= 0.0:
 		full = (Forecast.cases().back() as Dictionary)["required"]
 	for pair in STOCK_FRESH:
 		var item := str(pair[1])
-		var target: int = stock_k * pack_of(item).count
+		var target: int = stock_k if stock_pieces else stock_k * pack_of(item).count
 		if stock_p >= 0.0 and info_draw("fresh", str(pair[0]), 0) < stock_p:
 			target = int(full.get(str(pair[0]), 0))
 		targets[item] = target
