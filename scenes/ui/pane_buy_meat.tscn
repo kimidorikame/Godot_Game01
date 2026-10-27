@@ -34,9 +34,9 @@ mouse_filter = 2
 [node name="TiersCaption" type="Label" parent="."]
 layout_mode = 0
 offset_left = 16.0
-offset_top = 127.0
+offset_top = 122.0
 offset_right = 404.0
-offset_bottom = 149.0
+offset_bottom = 142.0
 theme_type_variation = &"LabelCaption"
 text = "鍋の素"
 vertical_alignment = 1
@@ -45,27 +45,27 @@ vertical_alignment = 1
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 155.0
+offset_top = 146.0
 offset_right = 404.0
-offset_bottom = 274.0
+offset_bottom = 244.0
 theme_override_constants/separation = 8
 
 [node name="Tier1" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
-custom_minimum_size = Vector2(124, 119)
+custom_minimum_size = Vector2(124, 98)
 layout_mode = 2
 focus_mode = 0
 theme_type_variation = &"ButtonCard"
 script = ExtResource("5_2ed0d")
 
 [node name="Tier2" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
-custom_minimum_size = Vector2(124, 119)
+custom_minimum_size = Vector2(124, 98)
 layout_mode = 2
 focus_mode = 0
 theme_type_variation = &"ButtonCard"
 script = ExtResource("5_2ed0d")
 
 [node name="Tier3" type="Button" parent="Tiers" instance=ExtResource("4_oypq2")]
-custom_minimum_size = Vector2(124, 119)
+custom_minimum_size = Vector2(124, 98)
 layout_mode = 2
 focus_mode = 0
 theme_type_variation = &"ButtonCard"
@@ -75,9 +75,9 @@ script = ExtResource("5_2ed0d")
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 282.0
+offset_top = 252.0
 offset_right = 404.0
-offset_bottom = 400.0
+offset_bottom = 494.0
 horizontal_scroll_mode = 0
 
 [node name="Goods" type="VBoxContainer" parent="GoodsScroll"]
@@ -91,51 +91,29 @@ script = ExtResource("6_5nh5w")
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 406.0
+offset_top = 500.0
 offset_right = 404.0
-offset_bottom = 492.0
+offset_bottom = 552.0
 
 [node name="ReasonLabel" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 496.0
+offset_top = 556.0
 offset_right = 404.0
-offset_bottom = 530.0
+offset_bottom = 590.0
 mouse_filter = 2
 theme_type_variation = &"LabelWarnSmall"
 autowrap_mode = 3
 vertical_alignment = 1
 
-[node name="ConfirmButton" type="Button" parent="."]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 16.0
-offset_top = 534.0
-offset_right = 206.0
-offset_bottom = 574.0
-focus_mode = 0
-theme_type_variation = &"ButtonPrimary"
-text = "購入確定"
-
-[node name="ExitBuyButton" type="Button" parent="."]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 214.0
-offset_top = 534.0
-offset_right = 404.0
-offset_bottom = 574.0
-focus_mode = 0
-theme_type_variation = &"ButtonPrimary"
-text = "購入して店を出る"
-
 [node name="WarnNote" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 580.0
+offset_top = 592.0
 offset_right = 404.0
-offset_bottom = 610.0
+offset_bottom = 612.0
 theme_type_variation = &"LabelWarnSmall"
 text = "鍋の素を買うまで、ほかの店へは行けない"
 horizontal_alignment = 1
@@ -144,10 +122,21 @@ vertical_alignment = 1
 [node name="BackButton" type="Button" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 16.0
+offset_left = 214.0
 offset_top = 616.0
 offset_right = 404.0
 offset_bottom = 656.0
 focus_mode = 0
 theme_type_variation = &"ButtonSecondary"
 text = "店を出る"
+
+[node name="ConfirmButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 16.0
+offset_top = 616.0
+offset_right = 206.0
+offset_bottom = 656.0
+focus_mode = 0
+theme_type_variation = &"ButtonPrimary"
+text = "購入確定"

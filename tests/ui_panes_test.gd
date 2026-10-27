@@ -134,14 +134,17 @@ func run(t: SceneTree) -> int:
 	c.check("仕込みに入ると、右の枠は食肉仲卸（張記）", _visible_pane(root) == meat
 		and meat.get_node("%Header/Title").text == "張記肉類加工")
 	var tiers: Control = meat.get_node("%Tiers")
-	c.check("鍋の素の3つ：(852,179) から 124×119、間隔8",
-		_near(tiers.get_child(0).get_global_rect(), Rect2(852, 179, 124, 119)) and _near(tiers.get_child(1).get_global_rect(), Rect2(984, 179, 124, 119)),
+	c.check("鍋の素の3つ：(852,170) から 124×98、間隔8（UI準備F3で低くした）",
+		_near(tiers.get_child(0).get_global_rect(), Rect2(852, 170, 124, 98)) and _near(tiers.get_child(1).get_global_rect(), Rect2(984, 170, 124, 98)),
 		str(tiers.get_child(0).get_global_rect(), tiers.get_child(1).get_global_rect()))
 	c.check("予算の3つ：(852,86) 388×55", _near(meat.get_node("%Budget").get_global_rect(), Rect2(852, 86, 388, 55)))
-	c.check("商品の行の枠：(852,306) 388×118（かごの枠のぶん低くした。5品は縦に送る）", _near(meat.get_node("%GoodsScroll").get_global_rect(), Rect2(852, 306, 388, 118)), str(meat.get_node("%GoodsScroll").get_global_rect()))
+	var meat_scroll: Rect2 = meat.get_node("%GoodsScroll").get_global_rect()
+	var meat_cart: Rect2 = meat.get_node("%CartBox").get_global_rect()
+	c.check("商品の行の枠：(852,276) 幅388（縦に送る棒のぶん広いことがある）・下端はかごの上6px（かごの高さに合わせて伸び縮みする。UI準備F3）", _near(Rect2(meat_scroll.position, Vector2(388, 0)), Rect2(852, 276, 388, 0)) and meat_scroll.size.x >= 384.0
+		and absf(meat_scroll.end.y - (meat_cart.position.y - 6.0)) <= 1.0 and meat_scroll.size.y >= 180.0, str(meat_scroll, meat_cart))
 	var back: Button = meat.get_node("%BackButton")
-	c.check("「店を出る」（張記。旧「店選びへ」）：(852,640)・幅388、鍋の素を買うまで押せない・注意の一文が出る",
-		_at(back, Vector2(852, 640), 388) and back.disabled and meat.get_node("%WarnNote").visible)
+	c.check("「店を出る」（張記。旧「店選びへ」）：(1050,640)・幅190（右半分。左は「購入確定」。UI準備F3）、鍋の素を買うまで押せない・注意の一文が出る",
+		_at(back, Vector2(1050, 640), 190) and back.disabled and meat.get_node("%WarnNote").visible)
 	c.check("段階の選択の前は、鍋の素を押せない", s.is_in_prep_tier() or (tiers.get_child(0) as Button).disabled)
 	guard = 0
 	while not s.is_in_prep_tier() and guard < 30:

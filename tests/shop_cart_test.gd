@@ -67,23 +67,23 @@ func run(t: SceneTree) -> int:
 	var ledger0 := GameState.ledger.size()
 	var tofu_stock0 := GameState.fresh_count("tofu")
 	c.check("商品の行のボタンは「かごに入れる」", (goods.get_child(0).get_node("BuyButton") as Button).text == "かごに入れる")
-	c.check("かごが空のとき、「購入確定」「購入して店を出る」は押せず、出口は「店を出る」",
-		(shop.get_node("%ConfirmButton") as Button).disabled and (shop.get_node("%ExitBuyButton") as Button).disabled
-			and (shop.get_node("%BackButton") as Button).text == "店を出る" and shop.get_node("%CartBox/CartList").text == "（空）")
+	c.check("かごが空のとき、「購入確定」は押せず、出口は「店を出る」",
+		(shop.get_node("%ConfirmButton") as Button).disabled and not shop.has_node("%ExitBuyButton")
+			and (shop.get_node("%BackButton") as Button).text == "店を出る" and shop.get_node("%CartBox/CartScroll/CartList").text == "（空）")
 	_press(goods.get_child(0).get_node("BuyButton"))
 	_press(goods.get_child(0).get_node("BuyButton"))
 	c.check("「かごに入れる」2回＝2セット：まだ買わない（残金・在庫・帳簿は動かない）",
 		GameState.money == money0 and GameState.fresh_count("tofu") == tofu_stock0 and GameState.ledger.size() == ledger0 and root.cart.count("tofu_noodles") == 2)
 	c.check("かごの表示：同じ商品はまとめて「豆腐×2 ¥%d」・合計" % (tofu_price * 2),
-		shop.get_node("%CartBox/CartList").text == "豆腐×2 ¥%d" % (tofu_price * 2) and shop.get_node("%CartBox/CartTotal").text == "合計 ¥%d" % (tofu_price * 2))
+		shop.get_node("%CartBox/CartScroll/CartList").text == "豆腐×2 ¥%d" % (tofu_price * 2) and shop.get_node("%CartBox/CartTotal").text == "合計 ¥%d" % (tofu_price * 2))
 	c.check("「使える」は、かごの分を引いた額（残金・確保はそのまま）",
 		shop.get_node("%Budget/Usable/Value").text == "¥%d" % (usable0 - tofu_price * 2) and shop.get_node("%Budget/Money/Value").text == "¥%d" % money0)
-	c.check("「購入確定」「購入して店を出る」が押せる。出口は「買わずに店を出る」", not (shop.get_node("%ConfirmButton") as Button).disabled
-		and not (shop.get_node("%ExitBuyButton") as Button).disabled and (shop.get_node("%BackButton") as Button).text == "買わずに店を出る")
+	c.check("「購入確定」が押せる。出口は「買わずに店を出る」", not (shop.get_node("%ConfirmButton") as Button).disabled
+		and (shop.get_node("%BackButton") as Button).text == "買わずに店を出る")
 	_press(shop.get_node("%CartBox/UndoButton"))
 	c.check("「1つ戻す」で最後に入れたものが戻る", root.cart.count("tofu_noodles") == 1 and shop.get_node("%CartBox/CartTotal").text == "合計 ¥%d" % tofu_price)
 	_press(shop.get_node("%CartBox/ClearButton"))
-	c.check("「全部戻す」でかごが空になる", root.cart.count("tofu_noodles") == 0 and shop.get_node("%CartBox/CartList").text == "（空）")
+	c.check("「全部戻す」でかごが空になる", root.cart.count("tofu_noodles") == 0 and shop.get_node("%CartBox/CartScroll/CartList").text == "（空）")
 
 	# 入れた順に買う：豆腐・米麺・豆腐（購入確定）
 	_press(goods.get_child(0).get_node("BuyButton"))
@@ -115,8 +115,8 @@ func run(t: SceneTree) -> int:
 			and shop.get_node("%ReasonLabel").text != "", shop.get_node("%ReasonLabel").text)
 	GameState.money = Ledger.pending_bills_today() + noodle_price   # かごの合計が使える額を超えた状態にする（残金が減った）
 	session.notify_changed()
-	c.check("かごの合計が「使える」を超えると、「購入確定」「購入して店を出る」は押せない",
-		(shop.get_node("%ConfirmButton") as Button).disabled and (shop.get_node("%ExitBuyButton") as Button).disabled)
+	c.check("かごの合計が「使える」を超えると、「購入確定」は押せない",
+		(shop.get_node("%ConfirmButton") as Button).disabled)
 	var money_cap := GameState.money
 	shop._on_confirm(false)
 	c.check("（押せない状態で呼んでも買わない）", GameState.money == money_cap and root.cart.count("tofu_noodles") == 2)
@@ -128,16 +128,17 @@ func run(t: SceneTree) -> int:
 	_press(shop.get_node("%BackButton"))
 	c.check("「買わずに店を出る」：買わずに市場へ戻り、かごは空", session.market_shop == "" and GameState.money == money_leave and root.cart.count("tofu_noodles") == 0)
 
-	# 購入して店を出る：買ってから出る
+	# 購入確定のあと店を出る：買ってから出る（「購入して店を出る」のボタンは無くした。UI準備F3）
 	_press(stalls.get_child(3))
 	var ledger2 := GameState.ledger.size()
 	_press(goods.get_child(0).get_node("BuyButton"))
-	_press(shop.get_node("%ExitBuyButton"))
-	c.check("「購入して店を出る」：かごの商品を買って、市場（店選び）へ戻る", session.market_shop == "" and _market_tail(ledger2).size() == 1
+	_press(shop.get_node("%ConfirmButton"))
+	_press(shop.get_node("%BackButton"))
+	c.check("「購入確定」→「店を出る」：かごの商品を買って、市場（店選び）へ戻る", session.market_shop == "" and _market_tail(ledger2).size() == 1
 		and GameState.money == money_leave - tofu_price and root.pane_market.visible)
 	root.queue_free()
 
-	# --- 3. 鍋の素：選んで「購入して店を出る」。使える現金を超える段階は選べない ---
+	# --- 3. 鍋の素：選んで「購入確定」→「店を出る」。使える現金を超える段階は選べない ---
 	GameState.reset_for_new_game()
 	root = load("res://scenes/game_root.tscn").instantiate()
 	t.root.add_child(root)
@@ -158,12 +159,14 @@ func run(t: SceneTree) -> int:
 	var tier_money := GameState.money
 	_press(tier_cards.get_child(0))
 	var small_price := int(session.prep_tiers()[0]["price"])
-	c.check("小を選ぶ（まだ買わない）：「購入確定」「購入して店を出る」が押せる・「買わずに店を出る」", GameState.money == tier_money
-		and not (meat.get_node("%ConfirmButton") as Button).disabled and not (meat.get_node("%ExitBuyButton") as Button).disabled
-		and (meat.get_node("%BackButton") as Button).text == "買わずに店を出る" and meat.get_node("%CartBox/CartList").text.begins_with("鍋の素 小"))
+	c.check("小を選ぶ（まだ買わない）：「購入確定」が押せる・「買わずに店を出る」", GameState.money == tier_money
+		and not (meat.get_node("%ConfirmButton") as Button).disabled and not meat.has_node("%ExitBuyButton")
+		and (meat.get_node("%BackButton") as Button).text == "買わずに店を出る" and meat.get_node("%CartBox/CartScroll/CartList").text.begins_with("鍋の素 小"))
 	var index_before: int = session.flow.runner.index
-	_press(meat.get_node("%ExitBuyButton"))
-	c.check("「購入して店を出る」：鍋の素（小）を買って、会話を1つ進める", GameState.money == tier_money - small_price and session.prep_tier_paid()
+	_press(meat.get_node("%ConfirmButton"))
+	c.check("「購入確定」：鍋の素（小）を買う（店に残る）", GameState.money == tier_money - small_price and session.prep_tier_paid())
+	_press(meat.get_node("%BackButton"))
+	c.check("「店を出る」：会話を1つ進める", GameState.money == tier_money - small_price and session.prep_tier_paid()
 		and session.flow.runner.index != index_before and not session.is_in_prep_tier())
 	root.queue_free()
 

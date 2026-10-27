@@ -5,7 +5,7 @@ class_name UiPaneBuyMeat
 ## 「購入確定」で choose_prep_tier(id) を1回呼んで買う。追加購入の商品の行はDay2から（市場の開く日から）、鍋の素を買ったあとから
 ## 「かごに入れる」ができ、「購入確定」で入れた順に buy_item する（UIの集計を通す）。「使える」（残金−支払い予定）は、選んだ鍋の素とかごの
 ## 分を引いた額で見せ、それを超えるものは選べない・かごに入れられない（理由を出す）。
-## 「購入して店を出る」＝買ってから出る。「店を出る」（旧「店選びへ」。plan Q9）：市場（MARKET）の前は、会話を進めるのと同じ
+## 「購入確定」と「店を出る」は下段に横に並ぶ（UI準備F3。「購入して店を出る」は無くした）。「店を出る」（旧「店選びへ」。plan Q9）：市場（MARKET）の前は、会話を進めるのと同じ
 ## （鍋の素を買うまで押せない）。かごや選択中の鍋の素があるときは「買わずに店を出る」。市場の中で張記に入っているときは leave_shop()。
 
 signal advance_requested()
@@ -26,15 +26,14 @@ var cart: UiShopCart = null
 @onready var _cart_box: UiCartBox = %CartBox
 @onready var _reason: Label = %ReasonLabel
 @onready var _confirm: Button = %ConfirmButton
-@onready var _exit_buy: Button = %ExitBuyButton
 
 
 func _ready() -> void:
 	_back.pressed.connect(_on_back_pressed)
 	_goods.buy.connect(_on_buy)
 	_confirm.pressed.connect(_on_confirm.bind(false))
-	_exit_buy.pressed.connect(_on_confirm.bind(true))
 	_cart_box.undo_pressed.connect(_on_undo)
+	_cart_box.fitted.connect(_on_cart_fitted)
 	_cart_box.clear_pressed.connect(_on_clear)
 	for i in range(_tiers.get_child_count()):
 		(_tiers.get_child(i) as Button).pressed.connect(_on_tier_pressed.bind(i))
@@ -92,7 +91,6 @@ func refresh() -> void:
 	var can_confirm := pending > 0 and pending <= limit
 	_confirm.text = "購入確定（¥%d）" % pending if pending > 0 else "購入確定"
 	_confirm.disabled = not can_confirm
-	_exit_buy.disabled = not can_confirm
 	_back.text = "買わずに店を出る" if pending > 0 else "店を出る"
 	if session.is_in_market():
 		_back.disabled = false
@@ -175,3 +173,8 @@ func _on_back_pressed() -> void:
 		advance_requested.emit()
 	else:
 		session.notify_changed()
+
+
+## かごの枠の高さが変わったら、上に並ぶ商品の一覧の下端を、かごの上に合わせる（あいた高さは商品の一覧に回る）。
+func _on_cart_fitted() -> void:
+	(%GoodsScroll as Control).offset_bottom = _cart_box.offset_top - 6.0

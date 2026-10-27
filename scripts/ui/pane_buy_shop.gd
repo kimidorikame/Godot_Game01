@@ -2,7 +2,7 @@ extends Panel
 class_name UiPaneBuyShop
 ## 右の枠：購入（ほかの店）。寸法表 SCREENS_UI_LAYOUT §6。いま入っている店は session.market_shop。
 ## 商品の行の「かごに入れる」で、かご（UiShopCart）に1セット入る。何も買わない（所持金・在庫・帳簿は動かない）。
-## 「購入確定」（店に残る）か「購入して店を出る」で、かごの商品を入れた順に buy_item する（UIの集計を通す）。
+## 「購入確定」（店に残る）で、かごの商品を入れた順に buy_item する（UIの集計を通す）。下段は「購入確定」「店を出る」の2つ（UI準備F3）。
 ## 「店を出る」（旧「店選びへ戻る」。かごに何か入っていれば「買わずに店を出る」＝かごを空にして出る）→ leave_shop()。
 ## 「使える」（残金−支払い予定）は、かごの分を引いた額で見せる。それを超える商品はかごに入れられない（行のボタンが押せない・理由を出す）。
 ## 「この店で買った」はUIの集計（plan Q10）。
@@ -20,15 +20,14 @@ var cart: UiShopCart = null
 @onready var _cart_box: UiCartBox = %CartBox
 @onready var _reason: Label = %ReasonLabel
 @onready var _confirm: Button = %ConfirmButton
-@onready var _exit_buy: Button = %ExitBuyButton
 
 
 func _ready() -> void:
 	_back.pressed.connect(_on_back_pressed)
 	_goods.buy.connect(_on_buy)
 	_confirm.pressed.connect(_on_confirm.bind(false))
-	_exit_buy.pressed.connect(_on_confirm.bind(true))
 	_cart_box.undo_pressed.connect(_on_undo)
+	_cart_box.fitted.connect(_on_cart_fitted)
 	_cart_box.clear_pressed.connect(_on_clear)
 
 
@@ -63,7 +62,6 @@ func refresh() -> void:
 	var can_confirm := count > 0 and pending <= session.purchase_limit()
 	_confirm.text = "購入確定（¥%d）" % pending if count > 0 else "購入確定"
 	_confirm.disabled = not can_confirm
-	_exit_buy.disabled = not can_confirm
 	_back.text = "買わずに店を出る" if count > 0 else "店を出る"
 	_reason.text = UiParts.limit_reason(goods, remaining, int(session.budget()["reserved"]))
 
@@ -102,3 +100,8 @@ func _on_back_pressed() -> void:
 	if cart != null:
 		cart.clear(session.market_shop)
 	session.leave_shop()
+
+
+## かごの枠の高さが変わったら、上に並ぶ商品の一覧の下端を、かごの上に合わせる（あいた高さは商品の一覧に回る）。
+func _on_cart_fitted() -> void:
+	(%Scroll as Control).offset_bottom = _cart_box.offset_top - 6.0

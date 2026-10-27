@@ -1,0 +1,23 @@
+# 本番UI（UI準備F）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_F.gd が書き出す（手で直さない）
+
+## スクリーンショット
+meat_1_tier_selected.png  市場（張記。鍋の素「中」を選んだところ。かごは鍋の素1行）
+meat_2_empty_cart.png  市場（張記。鍋の素を買ったあと。かごは空＝1行）
+meat_3_cart_two.png  市場（張記。モツとモツ(小口1個)をかごに入れた。かごは1〜2行）
+meat_4_cart_many.png  市場（張記。かごに8品。かごは3行まで伸び、それ以上はかご内で縦に送る）
+meat_5_scrolled.png  市場（張記。商品の一覧を縦に送った）
+shop_0_cart.png  市場（張記肉類加工）4品をかごに入れた
+shop_0_empty.png  市場（張記肉類加工）かごは空
+shop_1_cart.png  市場（永順青果）4品をかごに入れた
+shop_1_empty.png  市場（永順青果）かごは空
+shop_2_cart.png  市場（南興乾貨行）4品をかごに入れた
+shop_2_empty.png  市場（南興乾貨行）かごは空
+shop_3_cart.png  市場（福生豆腐麺房）4品をかごに入れた
+shop_3_empty.png  市場（福生豆腐麺房）かごは空
+shop_4_cart.png  市場（海隆鮮貨）4品をかごに入れた
+shop_4_empty.png  市場（海隆鮮貨）かごは空
+shop_5_cart.png  市場（半端市「拾味」）4品をかごに入れた
+shop_5_empty.png  市場（半端市「拾味」）かごは空
+
+## 入りきらない箇所（0件）
