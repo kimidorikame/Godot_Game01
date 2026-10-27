@@ -2,7 +2,7 @@
   "id": "officer_01",
   "customer": "officer",
   "greet": [
-    "警官（SOUR/BITE）"
+    "警官（酸っぱい・歯ごたえ）"
   ],
   "reactions": {
     "GREAT": [
@@ -20,6 +20,6 @@
   },
   "servings": 1,
   "market_talk": [
-    "警官（市場・要求タグ: SOUR/BITE）"
+    "警官（市場・注文: 酸っぱい・歯ごたえ）"
   ]
 }

@@ -2,7 +2,7 @@
   "id": "officer_03",
   "customer": "officer",
   "greet": [
-    "警官（SOUR/BITE）"
+    "警官（酸っぱい・歯ごたえ）"
   ],
   "reactions": {
     "GREAT": [

@@ -3,7 +3,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員「注文（HOT/POWER）」1杯目",
+				"text": "配達員「注文（辛い・スタミナ）」1杯目",
 				"type": "GREET"
 			},
 			{
@@ -168,7 +168,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -349,7 +349,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -415,7 +415,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -472,7 +472,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -567,7 +567,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -672,7 +672,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -731,7 +731,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -788,7 +788,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -845,7 +845,7 @@
 		"hooker": [
 			{
 				"customer": "hooker",
-				"text": "娼婦（BITTER/TREAT）",
+				"text": "娼婦（苦い・ごちそう）",
 				"type": "GREET"
 			},
 			{
@@ -902,7 +902,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -1007,7 +1007,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -1066,7 +1066,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -1123,7 +1123,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -1180,7 +1180,7 @@
 		"hooker": [
 			{
 				"customer": "hooker",
-				"text": "娼婦（BITTER/TREAT）",
+				"text": "娼婦（苦い・ごちそう）",
 				"type": "GREET"
 			},
 			{
@@ -1237,7 +1237,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -1304,7 +1304,7 @@
 		"streamer": [
 			{
 				"customer": "streamer",
-				"text": "動画配信者（MELLOW/BITE）",
+				"text": "動画配信者（まろやか・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -1361,7 +1361,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -1420,7 +1420,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -1477,7 +1477,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -1534,7 +1534,7 @@
 		"hooker": [
 			{
 				"customer": "hooker",
-				"text": "娼婦（BITTER/TREAT）",
+				"text": "娼婦（苦い・ごちそう）",
 				"type": "GREET"
 			},
 			{
@@ -1591,7 +1591,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -1658,7 +1658,7 @@
 		"streamer": [
 			{
 				"customer": "streamer",
-				"text": "動画配信者（MELLOW/BITE）",
+				"text": "動画配信者（まろやか・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -1715,7 +1715,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -1774,7 +1774,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -1831,7 +1831,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -1888,7 +1888,7 @@
 		"hooker": [
 			{
 				"customer": "hooker",
-				"text": "娼婦（BITTER/TREAT）",
+				"text": "娼婦（苦い・ごちそう）",
 				"type": "GREET"
 			},
 			{
@@ -1945,7 +1945,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -2012,7 +2012,7 @@
 		"streamer": [
 			{
 				"customer": "streamer",
-				"text": "動画配信者（MELLOW/BITE）",
+				"text": "動画配信者（まろやか・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -2069,7 +2069,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{
@@ -2128,7 +2128,7 @@
 		"delivery_man": [
 			{
 				"customer": "delivery_man",
-				"text": "配達員（2日目以降・要求タグ: HOT/POWER）",
+				"text": "配達員（2日目以降・注文: 辛い・スタミナ）",
 				"type": "GREET"
 			},
 			{
@@ -2185,7 +2185,7 @@
 		"granny": [
 			{
 				"customer": "granny",
-				"text": "老婆（SAVORY/FILLING）",
+				"text": "老婆（うましお・腹もち）",
 				"type": "GREET"
 			},
 			{
@@ -2242,7 +2242,7 @@
 		"hooker": [
 			{
 				"customer": "hooker",
-				"text": "娼婦（BITTER/TREAT）",
+				"text": "娼婦（苦い・ごちそう）",
 				"type": "GREET"
 			},
 			{
@@ -2299,7 +2299,7 @@
 		"officer": [
 			{
 				"customer": "officer",
-				"text": "警官（SOUR/BITE）",
+				"text": "警官（酸っぱい・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -2366,7 +2366,7 @@
 		"streamer": [
 			{
 				"customer": "streamer",
-				"text": "動画配信者（MELLOW/BITE）",
+				"text": "動画配信者（まろやか・歯ごたえ）",
 				"type": "GREET"
 			},
 			{
@@ -2423,7 +2423,7 @@
 		"thug": [
 			{
 				"customer": "thug",
-				"text": "チンピラ（MELLOW/GENTLE）",
+				"text": "チンピラ（まろやか・やさしい）",
 				"type": "GREET"
 			},
 			{

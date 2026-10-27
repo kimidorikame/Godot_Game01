@@ -2,7 +2,7 @@
   "is_mob": true,
   "name": "安宿の夜勤受付",
   "greet": [
-    "安宿の夜勤受付 %d人（MELLOW/GENTLE）"
+    "安宿の夜勤受付 %d人（まろやか・やさしい）"
   ],
   "reactions": {
     "GOOD": [

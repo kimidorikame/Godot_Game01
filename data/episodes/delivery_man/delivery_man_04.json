@@ -2,7 +2,7 @@
   "id": "delivery_man_04",
   "customer": "delivery_man",
   "greet": [
-    "配達員（2日目以降・要求タグ: HOT/POWER）"
+    "配達員（2日目以降・注文: 辛い・スタミナ）"
   ],
   "reactions": {
     "GREAT": [

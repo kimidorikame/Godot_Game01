@@ -146,7 +146,7 @@
     },
     {
       "customer": "officer",
-      "text": "警官（市場・要求タグ: SOUR/BITE）",
+      "text": "警官（市場・注文: 酸っぱい・歯ごたえ）",
       "type": "GREET"
     },
     {
@@ -216,7 +216,7 @@
     },
     {
       "customer": "officer",
-      "text": "警官（市場・要求タグ: SOUR/BITE）",
+      "text": "警官（市場・注文: 酸っぱい・歯ごたえ）",
       "type": "GREET"
     },
     {

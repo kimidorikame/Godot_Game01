@@ -6,7 +6,7 @@ extends RefCounted
 ## Day1〜8の prep_after_tier_events）。市場の解禁（enabled）とは無関係に会話は出る。
 
 const FIXTURE_PATH := "res://tests/fixtures/prep_events_system_a.json"
-const OFFICER_LINE := "警官（市場・要求タグ: SOUR/BITE）"
+const OFFICER_LINE := "警官（市場・注文: 酸っぱい・歯ごたえ）"
 
 
 ## JSONを通した形（整数が小数になる差を避けて比べるため）にそろえる。
