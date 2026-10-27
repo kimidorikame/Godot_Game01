@@ -69,6 +69,28 @@ var levels_on := false
 var level_p_reg := 1.0      # 常連（名前あり客）のタグを前もって知っている割合（0〜1）
 var level_p_mob := 1.0      # モブのタグを前もって知っている割合
 var level_forecast_target := false   # 見込み杯数（仕込みの大きさ）も予報の値にする（確認用）
+## 計測H（チップと「具2個」）：ゲーム本体の規則とは別の、ハーネスだけの設定。既定は「無効・定価はデータのまま」で、v2 と全キー一致する。
+##   案T：提供ごとに 定価＋チップ（GOOD は tip_good、GREAT は tip_great。BAD・OK は 0。評判の増減は今のまま）。
+##   案G：具が1種類しか入っていない椀は、減点−1段階（濃さ1/5・傷みと同じ扱い。重ね掛けはしない＝すでに減点があれば変わらない）。
+## 実際の判定・売上・評判の処理（PlaySession・Judge）には触らない。提供が済んだあとに、日の評価の集計（log_quality_counts）と所持金へ反映する。
+var tip_good := 0
+var tip_great := 0
+var two_gu_on := false
+var price_override := -1
+## 案G＋仕入れ（計測Hの補足）：2つ目の具の仕入れまで方針に入れる。仕入れで、日持ちする具（冬瓜・米麺・乾燥きくらげ・魚の浮き袋）のうち
+## 一番安いものを1杯につき1個（備蓄型は個数 k のぶん）買い足す。椀には「注文に合う具」と「その安い具」を入れる（同じ材料は不可）。
+## 注文に合う具が最安の具と同じになる杯のために、2番目に安い具も同じ要領で（FILLING の必要数／備蓄型は k 個）買う。2つ目の具が手持ちに無いときだけ減点を受ける。
+var two_gu_buy := false
+const SECOND_GU := ["winter_melon", "rice_noodle", "dried_wood_ear", "fish_maw"]
+var tip_gu_on := false      # 上のどれかが有効（このときだけ、結果に tips・gu_penalized のキーを足す）
+var seen_counts: Dictionary = {}   # すでに反映した日の評価の杯数（日が変わると log_quality_counts は 0 に戻る）
+var tips_today := 0
+var gu_pen_today := 0
+var tips_total := 0
+var gu_pen_total := 0
+var last_cook_toppings := 0     # 直近に作った椀の具の数（椀が空に戻ったあとに反映する場合の控え）
+var gu_fallback_total := 0      # 椀が空に戻っていて、控えの具の数で反映した杯数（確認用）
+const GRADE_DOWN := { "GREAT": "GOOD", "GOOD": "OK", "OK": "BAD", "BAD": "BAD" }
 ## 備蓄型（info=stock）：k＝手元に置く単位（購入単位＝1袋）の数、p＝生もの3タグの今夜の必要を前もって知っている確率（-1＝情報なし）
 var stock_on := false
 var stock_k := 2
@@ -145,6 +167,13 @@ func run(t: SceneTree) -> void:
 		level_p_reg = float(args[7]) / 100.0 if args.size() > 7 else 1.0
 		level_p_mob = float(args[8]) / 100.0 if args.size() > 8 else 1.0
 		level_forecast_target = args.size() > 9 and str(args[9]) == "forecast_target"
+	# 計測H：[10]＝GOODのチップ、[11]＝GREATのチップ、[12]＝1なら「具2種類」を必須にする（案G）、[13]＝定価の上書き。省略＝無効。
+	tip_good = int(args[10]) if args.size() > 10 else 0
+	tip_great = int(args[11]) if args.size() > 11 else 0
+	two_gu_on = args.size() > 12 and int(args[12]) == 1
+	price_override = int(args[13]) if args.size() > 13 and int(args[13]) > 0 else -1
+	two_gu_buy = two_gu_on and args.size() > 14 and int(args[14]) == 1
+	tip_gu_on = tip_good != 0 or tip_great != 0 or two_gu_on or price_override > 0
 	reach_name = str(args[4]) if args.size() > 4 else "default"
 	if reach_name == "reach_true":
 		tier_reach = TIER_REACH_TRUE
@@ -159,6 +188,9 @@ func run(t: SceneTree) -> void:
 	var cost_override := int(args[5]) if args.size() > 5 and str(args[5]) != "" else -1
 	if cost_override >= 0:
 		GameState.DAILY_OPERATING_COST = cost_override
+	var data_price: int = GameState.PRICE_PER_SERVING
+	if price_override > 0:
+		GameState.PRICE_PER_SERVING = price_override
 	var policies: Array = []
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
@@ -187,6 +219,10 @@ func run(t: SceneTree) -> void:
 	output["unserved_log"] = unserved_log
 	output["tier_reach"] = tier_reach.duplicate()
 	output["daily_operating_cost_data"] = data_cost
+	if tip_gu_on:
+		output["tip_gu"] = { "tip_good": tip_good, "tip_great": tip_great, "two_gu": two_gu_on, "two_gu_buy": two_gu_buy, "price": GameState.PRICE_PER_SERVING,
+			"price_data": data_price }
+	GameState.PRICE_PER_SERVING = data_price
 	output["daily_operating_cost_overridden"] = cost_override >= 0
 	GameState.DAILY_OPERATING_COST = data_cost
 	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
@@ -238,6 +274,12 @@ func play(p: String, run_seed: int) -> Dictionary:
 	failure_log = []
 	fund_log = []
 	fund_stage_days = {}
+	seen_counts = {}
+	tips_today = 0
+	gu_pen_today = 0
+	tips_total = 0
+	gu_pen_total = 0
+	gu_fallback_total = 0
 	GameState.reset_for_new_game()
 	seed(run_seed * 1000 + 1)
 	panel = load("res://scenes/debug_panel.tscn").instantiate()
@@ -261,6 +303,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 		steps += 1
 		if steps % 12 == 0:
 			await tree.process_frame # release queue_free UI controls
+		if tip_gu_on:
+			settle_serves()
 		if GameState.phase == GameState.Phase.GAME_OVER:
 			incidents.append({ "type": "game_over", "day": GameState.day_count, "cash": GameState.money })
 			break
@@ -274,6 +318,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 		var r: EventRunner = panel.session.flow.runner
 		if GameState.phase == GameState.Phase.NEXT_DAY:
 			rows.append(day_row())
+			tips_today = 0
+			gu_pen_today = 0
 			seen_nights.append({ "tags": night_tags.duplicate(), "cups": night_cups })
 			night_tags = {}
 			night_cups = 0
@@ -370,6 +416,10 @@ func play(p: String, run_seed: int) -> Dictionary:
 		"failures": failure_log.duplicate(true),
 		"result_phase": result_phase, "result_summary": result_summary,
 		"closing_stock_units": GameState.inventory.duplicate(), "dashi": GameState.dashi_units }
+	if tip_gu_on:
+		result["tips"] = tips_total
+		result["gu_penalized"] = gu_pen_total
+		result["gu_fallback"] = gu_fallback_total
 	if POLICIES_FUND.has(policy):
 		result["fund_log"] = fund_log.duplicate(true)
 		result["stage_reached"] = RepairFund.repaired_ids().size()
@@ -577,6 +627,11 @@ func stockpile_shop() -> void:
 		if stock_p >= 0.0 and info_draw("fresh", str(pair[0]), 0) < stock_p:
 			target = int(full.get(str(pair[0]), 0))
 		targets[item] = target
+	if two_gu_buy:
+		# 案G＋仕入れ：最安・2番目に安い日持ちする具も、k 個（備蓄型は個数 k のぶん）手元に置く
+		var gu_order := second_gu_order()
+		for i in range(2):
+			targets[str(gu_order[i])] = maxi(int(targets.get(str(gu_order[i]), 0)), stock_k if stock_pieces else stock_k * pack_of(str(gu_order[i])).count)
 	var guard := 0
 	while guard < 80:
 		guard += 1
@@ -788,6 +843,8 @@ func shop() -> void:
 			if best.is_empty() or cash() < int(best.price):
 				break
 			buy(str(best.shop), str(best.id))
+	if two_gu_buy:
+		buy_second_gu(target_cups(), int(need.get("FILLING", 0)))
 	if info_mode == "visible" and policy == "forecast_favorites":
 		# 今夜の客の並びは読まない（見えない）。好物を知っている客（来店記録）の分を、1つずつ多く持っておく
 		for cid in GameState.customer_memory:
@@ -896,6 +953,115 @@ func cook(order: Dictionary) -> void:
 		add_favorite(order, added, n)
 	elif policy == "favorite_oracle" and not is_mob:
 		add_favorite(order, added, n)
+	if two_gu_on:
+		add_cheap_topping(n)
+	last_cook_toppings = 0
+	for id in panel.session.open.current_bowl.get("additions", []):
+		if Ingredients.is_topping(str(id)):
+			last_cook_toppings += 1
+
+
+## 日持ちする具（SECOND_GU）を、単価の安い順（同じなら id 順）に並べたもの。
+func second_gu_order() -> Array:
+	var ids: Array = SECOND_GU.duplicate()
+	ids.sort_custom(func(a, b):
+		var ua: float = float(pack_of(str(a)).price) / float(maxi(int(pack_of(str(a)).count), 1))
+		var ub: float = float(pack_of(str(b)).price) / float(maxi(int(pack_of(str(b)).count), 1))
+		if not is_equal_approx(ua, ub):
+			return ua < ub
+		return str(a) < str(b))
+	return ids
+
+
+## 案G＋仕入れ：朝の仕入れで、2つ目の具を買う。units＝最安の具の必要個数（1杯につき1個）、alt＝2番目に安い具の必要個数。
+func buy_second_gu(units: int, alt: int) -> void:
+	var order := second_gu_order()
+	if units > 0:
+		ensure(str(order[0]), units)
+	if alt > 0:
+		ensure(str(order[1]), alt)
+
+
+## 計測H・案G：具が1種類しか入っていない椀に、手持ちの一番安い具（単価の安い順。今ある新鮮な在庫が n 個以上）をもう1つ足す。
+## 足せる具が無い・枠（3つ）がいっぱいなら、そのまま（減点を受ける）。単価は市場でいちばん大きい袋の 値段÷個数。
+func add_cheap_topping(n: int) -> void:
+	var additions: Array = panel.session.open.current_bowl.get("additions", [])
+	if additions.size() >= OpenController.MAX_ADDITIONS:
+		return
+	var toppings := 0
+	for id in additions:
+		if Ingredients.is_topping(str(id)):
+			toppings += 1
+	if toppings >= 2:
+		return
+	var best := ""
+	var best_unit := 1.0e9
+	if two_gu_buy:
+		# 仕入れまで入れる版：2つ目の具は、日持ちする具を安い順に見て、手持ちにあるもの（注文に合う具と同じ材料は不可）。無ければ減点を受ける
+		for id in second_gu_order():
+			if not additions.has(str(id)) and GameState.fresh_count(str(id)) >= n:
+				best = str(id)
+				break
+		if best != "":
+			act("ingredient")
+			panel.session.select_ingredient(best)
+		return
+	for id in GameState.inventory:
+		var item := str(id)
+		if not Ingredients.is_topping(item) or additions.has(item) or GameState.fresh_count(item) < n:
+			continue
+		var pack := pack_of(item)
+		if pack.is_empty():
+			continue
+		var unit: float = float(pack.price) / float(maxi(int(pack.count), 1))
+		if unit < best_unit or (is_equal_approx(unit, best_unit) and item < best):
+			best = item
+			best_unit = unit
+	if best != "":
+		act("ingredient")
+		panel.session.select_ingredient(best)
+
+
+## 計測H：提供のあとに、日の評価の集計（log_quality_counts）へ増えた杯を見て、案G（具が1種類なら−1段階）と案T（チップ）を反映する。
+## 前回から増えた分だけ（日が変わって 0 に戻ったら、数え直す）。椀の中身（具の数・減点の有無）は、提供のあとも次の客が来るまで残っている。
+func settle_serves() -> void:
+	var counts_now: Dictionary = panel.session.log_quality_counts
+	for grade in GRADE_DOWN:
+		if int(counts_now.get(grade, 0)) < int(seen_counts.get(grade, 0)):
+			seen_counts = {}
+			break
+	var bowl: Dictionary = panel.session.open.current_bowl if panel.session.open != null else {}
+	var additions: Array = bowl.get("additions", [])
+	var toppings := 0
+	for id in additions:
+		if Ingredients.is_topping(str(id)):
+			toppings += 1
+	var already_penalized := bool(bowl.get("penalty_strength", false)) or bool(bowl.get("penalty_spoiled", false))
+	# 先に、前回から増えた杯数を全部の評価について読む（減点で1段階下げた杯を、次の評価の「増えた分」と数えない）
+	var added_by_grade := {}
+	for grade in ["GREAT", "GOOD", "OK", "BAD"]:
+		added_by_grade[grade] = int(counts_now.get(grade, 0)) - int(seen_counts.get(grade, 0))
+	for grade in ["GREAT", "GOOD", "OK", "BAD"]:
+		var added: int = int(added_by_grade[grade])
+		if added <= 0:
+			continue
+		var final_grade: String = grade
+		if two_gu_on and additions.is_empty():
+			gu_fallback_total += added
+			toppings = last_cook_toppings
+		if two_gu_on and toppings < 2 and not already_penalized:
+			final_grade = GRADE_DOWN[grade]
+			if final_grade != grade:
+				counts_now[grade] = int(counts_now[grade]) - added
+				counts_now[final_grade] = int(counts_now.get(final_grade, 0)) + added
+			gu_pen_today += added
+			gu_pen_total += added
+		var tip := tip_good if final_grade == "GOOD" else (tip_great if final_grade == "GREAT" else 0)
+		if tip > 0:
+			GameState.apply_money(tip * added)
+			tips_today += tip * added
+			tips_total += tip * added
+	seen_counts = counts_now.duplicate()
 
 
 ## visible_improvise：椀に味か具が欠けているとき、その軸の素材をほかの在庫から1つ足して、売れる椀にする
@@ -1074,6 +1240,14 @@ func day_row() -> Dictionary:
 		if bool(rec.get("declined", false)):
 			declined += 1
 	var quality: float = panel.session.quality_score(panel.session.log_quality_counts, panel.session.log_judged_planned_cups)
+	var row := _day_row_base(served, sale, declined, reg_cups, reg_good_plus, reg_great, quality)
+	if tip_gu_on:
+		row["tips"] = tips_today
+		row["gu_penalized"] = gu_pen_today
+	return row
+
+
+func _day_row_base(served: int, sale: int, declined: int, reg_cups: int, reg_good_plus: int, reg_great: int, quality: float) -> Dictionary:
 	return { "day": GameState.day_count, "cash": GameState.money, "open_rep": GameState.reputation,
 		"next_rep": roundi(GameState.reputation * 0.7 + quality * 0.3), "quality": quality,
 		"demand": panel.session.log_planned_cups, "judged_demand": panel.session.log_judged_planned_cups,
