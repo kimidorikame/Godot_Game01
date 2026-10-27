@@ -7,7 +7,7 @@ class_name UiKaitenTopping
 ## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置（16,418）に出す（plan Q14）。
 ## 短縮名を使うのはこの画面だけ（UiLabels.short_name）。
 
-const PER_TAB := 12
+const PER_TAB := 8   # 1ページの具材ボタン（高さを58にして、タグの言葉の札を載せた。UI準備F）。超えたら「具材1」「具材2」…
 const BLOCKER_TEXT := { "NO_FLAVOR": "味の素材が無い", "NO_TOPPING": "具が無い", "STRENGTH_ZERO": "濃さ0",
 	"SHORT_SERVINGS": "鍋が足りない" }
 
@@ -22,6 +22,8 @@ var _tab_customer := ""
 @onready var _usual_tags: Label = %UsualTags
 @onready var _today_row: Control = %TodayRow
 @onready var _today_tags: Label = %TodayTags
+@onready var _usual_chips: HBoxContainer = %UsualChips
+@onready var _today_chips: HBoxContainer = %TodayChips
 @onready var _reask: Button = %ReaskButton
 @onready var _slots: Control = %Slots
 @onready var _penalty: RichTextLabel = %Penalty
@@ -115,11 +117,19 @@ func _refresh_order_card() -> void:
 	_today_row.visible = true
 	var usual_known := bool(card.get("usual_known", false))
 	var today_known := bool(card.get("today_known", false))
-	_usual_tags.text = "・".join(card["base"]) if usual_known and not (card["base"] as Array).is_empty() else "？"
+	# 文字（_usual_tags・_today_tags）は、タグの言葉をつないだ形で持つ（札が出ていないときの「？」「いつもどおり」もここ）。
+	# タグがあるときは文字を隠して、言葉の札（UiTagChips。材料側と同じ見た目）を出す。
+	var usual_tags: Array = card["base"] if usual_known else []
+	var today_tags: Array = card["today"] if today_known else []
+	_usual_tags.text = TagWords.joined(usual_tags) if not usual_tags.is_empty() else "？"
 	if today_known:
-		_today_tags.text = "・".join(card["today"]) if not (card["today"] as Array).is_empty() else "いつもどおり"
+		_today_tags.text = TagWords.joined(today_tags) if not today_tags.is_empty() else "いつもどおり"
 	else:
 		_today_tags.text = "？"
+	UiTagChips.fill(_usual_chips, usual_tags)
+	UiTagChips.fill(_today_chips, today_tags)
+	_usual_tags.visible = usual_tags.is_empty()
+	_today_tags.visible = today_tags.is_empty()
 	_usual_tags.modulate = Color(1, 1, 1, 1.0) if _usual_tags.text != "？" else Color(1, 1, 1, 0.4)
 	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
 	_reask.visible = session.can_reask()
@@ -135,10 +145,12 @@ func _refresh_bowl(bowl: Dictionary) -> void:
 		if i < additions.size():
 			var is_damaged := i < damaged.size() and bool(damaged[i])
 			label.text = UiLabels.short_name(str(additions[i])) + ("(傷)" if is_damaged else "")
+			UiTagChips.fill(slot.get_node("Chips"), Ingredients.tags_for(str(additions[i])), true)   # その材料のタグの言葉の札（UI準備F）
 			slot.theme_type_variation = &"PanelSlotDamaged" if is_damaged else &"PanelSlot"
 			label.theme_type_variation = &"LabelSlotWarn" if is_damaged else &"LabelSlot"
 		else:
 			label.text = ""
+			UiTagChips.fill(slot.get_node("Chips"), [], true)
 			slot.theme_type_variation = &"PanelSlotEmpty"
 
 

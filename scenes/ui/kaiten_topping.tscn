@@ -31,6 +31,16 @@ theme_type_variation = &"LabelCaption"
 text = "いつもの"
 vertical_alignment = 1
 
+[node name="UsualChips" type="HBoxContainer" parent="UsualRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_top = 3.0
+offset_right = 296.0
+offset_bottom = 25.0
+mouse_filter = 2
+theme_override_constants/separation = 4
+
 [node name="UsualTags" type="Label" parent="UsualRow"]
 unique_name_in_owner = true
 layout_mode = 0
@@ -58,6 +68,16 @@ offset_bottom = 28.0
 theme_type_variation = &"LabelCaptionAccent"
 text = "今日"
 vertical_alignment = 1
+
+[node name="TodayChips" type="HBoxContainer" parent="TodayRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_top = 3.0
+offset_right = 296.0
+offset_bottom = 25.0
+mouse_filter = 2
+theme_override_constants/separation = 4
 
 [node name="TodayTags" type="Label" parent="TodayRow"]
 unique_name_in_owner = true
@@ -107,11 +127,22 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot1"]
 layout_mode = 0
+offset_top = 2.0
 offset_right = 125.0
-offset_bottom = 48.0
+offset_bottom = 28.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Chips" type="HBoxContainer" parent="Slots/Slot1"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 29.0
+offset_right = 123.0
+offset_bottom = 46.0
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 2
 
 [node name="Slot2" type="Panel" parent="Slots"]
 layout_mode = 0
@@ -123,11 +154,22 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot2"]
 layout_mode = 0
+offset_top = 2.0
 offset_right = 125.0
-offset_bottom = 48.0
+offset_bottom = 28.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Chips" type="HBoxContainer" parent="Slots/Slot2"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 29.0
+offset_right = 123.0
+offset_bottom = 46.0
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 2
 
 [node name="Slot3" type="Panel" parent="Slots"]
 layout_mode = 0
@@ -139,11 +181,22 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot3"]
 layout_mode = 0
+offset_top = 2.0
 offset_right = 125.0
-offset_bottom = 48.0
+offset_bottom = 28.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Chips" type="HBoxContainer" parent="Slots/Slot3"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 29.0
+offset_right = 123.0
+offset_bottom = 46.0
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 2
 
 [node name="Penalty" type="RichTextLabel" parent="."]
 unique_name_in_owner = true
@@ -179,73 +232,73 @@ theme_override_constants/v_separation = 6
 columns = 4
 
 [node name="Item1" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item2" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item3" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item4" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item5" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item6" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item7" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item8" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item9" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item10" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item11" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item12" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")

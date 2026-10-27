@@ -106,8 +106,8 @@ func run(t: SceneTree) -> int:
 		c.check("トッピング：%s の位置と大きさ（寸法表どおり）" % path, _near(top.get_node(path).get_global_rect(), rects[path]),
 			str(top.get_node(path).get_global_rect()))
 	var grid: GridContainer = top.get_node("%Grid")
-	c.check("具材ボタン：(852,296) 93×42、間隔6で4列",
-		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 93, 42)) and _near(grid.get_child(1).get_global_rect(), Rect2(951, 296, 93, 42))
+	c.check("具材ボタン：(852,296) 93×58、間隔6で4列",
+		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 93, 58)) and _near(grid.get_child(1).get_global_rect(), Rect2(951, 296, 93, 58))
 			and grid.columns == 4, str(grid.get_child(1).get_global_rect()))
 	c.check("聞き直す (1165,86)・幅75／提供 (852,595)・幅388", _at(top.get_node("%ReaskButton"), Vector2(1165, 86), 75)
 		and _at(top.get_node("%ServeButton"), Vector2(852, 595), 388))
@@ -286,7 +286,7 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		root.left.advance()
 	c.check("モブ：いつもの・今日の欄は出す（団体の注文のタグ・いつもどおり）。聞き直す・断るは出さない（断るは団体の確認で）",
-		top.get_node("%UsualRow").visible and top.get_node("%TodayRow").visible and top.get_node("%UsualTags").text == "HOT・POWER"
+		top.get_node("%UsualRow").visible and top.get_node("%TodayRow").visible and top.get_node("%UsualTags").text == "辛い・スタミナ"
 			and top.get_node("%TodayTags").text == "いつもどおり"
 			and not top.get_node("%ReaskButton").visible and (top.get_node("%DeclineButton") as Button).disabled)
 	grid = top.get_node("%Grid")

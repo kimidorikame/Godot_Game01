@@ -68,10 +68,10 @@ func run(t: SceneTree) -> int:
 	root.left.advance()   # 注文を言う行へ
 	card = s.order_card_view()
 	c.check("注文を言う行を出した時点で入る：いつもの＝SAVORY・FILLING、今日＝いつもどおり（提供のあとではない）",
-		bool(card["usual_known"]) and bool(card["today_known"]) and _texts(top) == ["SAVORY・FILLING", "いつもどおり"] and s.flow.runner.current().get("type") == "GREET", str(_texts(top)))
+		bool(card["usual_known"]) and bool(card["today_known"]) and _texts(top) == ["うましお・腹もち", "いつもどおり"] and s.flow.runner.current().get("type") == "GREET", str(_texts(top)))
 	c.check("見分けやすさ：分かった欄は濃い色", (top.get_node("%UsualTags") as Label).modulate.a == 1.0)
 	root.left.advance()   # ADJUST
-	c.check("ADJUST中も同じ（欄が埋まったまま）・[聞き直す]が出る", s.is_choosing_ingredients() and _texts(top) == ["SAVORY・FILLING", "いつもどおり"]
+	c.check("ADJUST中も同じ（欄が埋まったまま）・[聞き直す]が出る", s.is_choosing_ingredients() and _texts(top) == ["うましお・腹もち", "いつもどおり"]
 		and (top.get_node("%ReaskButton") as Button).visible and not (top.get_node("%ReaskButton") as Button).disabled)
 	c.check("好物を知った状態（favorite_known）は、欄が埋まっても変わらない（まだ知らない）", GameState.known_favorite_ids().is_empty())
 	var memory_after := GameState.customer_memory.duplicate(true)
@@ -85,7 +85,7 @@ func run(t: SceneTree) -> int:
 	s.select_ingredient("nam_prik_pao")
 	s.complete_input()
 	s.next_event()   # SERVE→REACT のあたり
-	c.check("提供・反応のあいだも、同じ杯の欄が出ている", _texts(top) == ["SAVORY・FILLING", "いつもどおり"])
+	c.check("提供・反応のあいだも、同じ杯の欄が出ている", _texts(top) == ["うましお・腹もち", "いつもどおり"])
 	root.queue_free()
 
 	# --- 3. 前の日に来たことがある客：「いつもの」は最初から入る。「今日」は注文を言う行まで「？」 ---
@@ -100,9 +100,9 @@ func run(t: SceneTree) -> int:
 	s.notify_changed()
 	card = s.order_card_view()
 	c.check("次に同じ客が来たとき：注文を言う前でも、いつものは入っている（SAVORY・FILLING）・今日は「？」",
-		bool(card["usual_known"]) and not bool(card["today_known"]) and _texts(top) == ["SAVORY・FILLING", "？"], str(card))
+		bool(card["usual_known"]) and not bool(card["today_known"]) and _texts(top) == ["うましお・腹もち", "？"], str(card))
 	root.left.advance()
-	c.check("注文を言う行で今日も入る（いつもどおり）", _texts(top) == ["SAVORY・FILLING", "いつもどおり"])
+	c.check("注文を言う行で今日も入る（いつもどおり）", _texts(top) == ["うましお・腹もち", "いつもどおり"])
 	root.queue_free()
 
 	# --- 4. 複数杯の場面（配達員の3杯）：杯ごと。持ち帰りの頼みは2杯目のあとの会話の最後の行で分かる ---
@@ -110,7 +110,7 @@ func run(t: SceneTree) -> int:
 	s = root.session
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
-	c.check("配達員の1杯目：いつもの＝HOT・POWER・今日＝いつもどおり（欄が出る）", _texts(top) == ["HOT・POWER", "いつもどおり"]
+	c.check("配達員の1杯目：いつもの＝HOT・POWER・今日＝いつもどおり（欄が出る）", _texts(top) == ["辛い・スタミナ", "いつもどおり"]
 		and not (top.get_node("%ReaskButton") as Button).visible, str(_texts(top)))
 	var texts_seen: Array = []
 	var guard := 0
@@ -127,9 +127,9 @@ func run(t: SceneTree) -> int:
 		else:
 			root.left.advance()
 		texts_seen.append(_texts(top))
-		if _texts(top)[1] == "MELLOW・GENTLE":
+		if _texts(top)[1] == "まろやか・やさしい":
 			take_out_seen = true
-	c.check("配達員の3杯目（持ち帰り）：今日の頼み＝MELLOW・GENTLE が欄に入る（2杯目のあとの会話の最後の行で）", take_out_seen, str(texts_seen.slice(-4)))
+	c.check("配達員の3杯目（持ち帰り）：今日の頼み＝まろやか・やさしい（MELLOW・GENTLE）が欄に入る（2杯目のあとの会話の最後の行で）", take_out_seen, str(texts_seen.slice(-4)))
 	var q := s.order_card_view()
 	c.check("そのとき、いつものはHOT・POWERのまま・今日の頼みは分かっている", q["base"] == ["HOT", "POWER"] and bool(q["today_known"]) and q["today"] == ["MELLOW", "GENTLE"], str(q))
 	root.queue_free()
@@ -140,7 +140,7 @@ func run(t: SceneTree) -> int:
 	top = root.pane_kaiten.topping
 	card = s.order_card_view()
 	c.check("モブ：注文を言う行（団体のgreet）で、いつもの＝HOT・POWER・今日＝いつもどおり。[聞き直す]は出ない",
-		bool(card["usual_known"]) and bool(card["today_known"]) and _texts(top) == ["HOT・POWER", "いつもどおり"] and not (top.get_node("%ReaskButton") as Button).visible, str(card))
+		bool(card["usual_known"]) and bool(card["today_known"]) and _texts(top) == ["辛い・スタミナ", "いつもどおり"] and not (top.get_node("%ReaskButton") as Button).visible, str(card))
 	root.queue_free()
 
 	GameState.reset_for_new_game()

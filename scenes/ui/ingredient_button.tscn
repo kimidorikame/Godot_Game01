@@ -3,43 +3,52 @@
 [ext_resource type="Script" path="res://scripts/ui/ingredient_button.gd" id="1_ma0rk"]
 
 [node name="IngredientButton" type="Control"]
-custom_minimum_size = Vector2(93, 42)
+custom_minimum_size = Vector2(93, 58)
 layout_mode = 3
 anchors_preset = 0
 offset_right = 93.0
-offset_bottom = 42.0
+offset_bottom = 58.0
 mouse_filter = 2
 script = ExtResource("1_ma0rk")
 
 [node name="MainButton" type="Button" parent="."]
 layout_mode = 0
 offset_right = 93.0
-offset_bottom = 42.0
+offset_bottom = 58.0
 focus_mode = 0
 theme_type_variation = &"ButtonIngredient"
 
 [node name="Name" type="Label" parent="MainButton"]
 layout_mode = 0
 offset_left = 5.0
-offset_top = 2.0
+offset_top = 3.0
 offset_right = 63.0
-offset_bottom = 40.0
+offset_bottom = 21.0
 theme_type_variation = &"LabelIngName"
 text = "名前"
 autowrap_mode = 1
 text_overrun_behavior = 3
-max_lines_visible = 2
+max_lines_visible = 1
 
 [node name="Count" type="Label" parent="MainButton"]
 layout_mode = 0
 offset_left = 5.0
-offset_top = 22.0
+offset_top = 20.0
 offset_right = 63.0
-offset_bottom = 40.0
+offset_bottom = 38.0
 theme_type_variation = &"LabelIngCount"
 text = "×0"
 horizontal_alignment = 2
 vertical_alignment = 1
+
+[node name="Chips" type="HBoxContainer" parent="MainButton"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 40.0
+offset_right = 92.0
+offset_bottom = 56.0
+mouse_filter = 2
+theme_override_constants/separation = 1
 
 [node name="DamagedButton" type="Button" parent="."]
 visible = false
@@ -47,7 +56,7 @@ layout_mode = 0
 offset_left = 64.0
 offset_top = 1.0
 offset_right = 92.0
-offset_bottom = 41.0
+offset_bottom = 37.0
 focus_mode = 0
 theme_type_variation = &"ButtonDamaged"
 text = "傷

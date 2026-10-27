@@ -1,0 +1,17 @@
+# 本番UI（UI準備F）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_F.gd が書き出す（手で直さない）
+
+## スクリーンショット
+market_1_meat.png  市場（張記。モツ。タグの言葉の札）
+market_2_stall0.png  市場（張記肉類加工）
+market_2_stall1.png  市場（永順青果）
+market_2_stall2.png  市場（南興乾貨行）
+market_2_stall3.png  市場（福生豆腐麺房）
+market_2_stall4.png  市場（海隆鮮貨）
+market_2_stall5.png  市場（半端市「拾味」）
+night_1_card_day1.png  営業中（Day1の最初の客。「いつもの」「今日」の欄）
+night_2_in_bowl.png  営業中（具材を1つ入れたところ）
+night_3_page0.png  営業中（具材ボタンのページ1。在庫を全品目に足した仮の状態）
+night_3_page1.png  営業中（具材ボタンのページ2。在庫を全品目に足した仮の状態）
+
+## 入りきらない箇所（0件）
