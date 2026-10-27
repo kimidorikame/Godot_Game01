@@ -77,13 +77,13 @@ func run(t: SceneTree) -> int:
 	c.check("「閉じる」(852,640)・幅388", phone.get_node("%CloseButton").get_global_position().is_equal_approx(Vector2(852, 640))
 		and absf(phone.get_node("%CloseButton").size.x - 388.0) < 0.5)
 	# SNSタブ＝DM（UI準備C③）。Day2：条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
-	c.check("スマホのボタンにも、SNSの未読の●と数が出る（数の取り方はSNSタブ内と同じ）", root.left.get_node("%PhoneBadge").text == "●1"
+	c.check("スマホのボタンにも、SNSの未読の●と数が出る（数の取り方はSNSタブ内と同じ）", s.dm_unread_count() >= 1
 		and root.left.get_node("%PhoneBadge").text == "●%d" % s.dm_unread_count(), root.left.get_node("%PhoneBadge").text)
 	AutoplayPress.press(tabs.get_child(1))
-	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（●1）が出る", phone.get_node("%SnsBadge").text == "●1", phone.get_node("%SnsBadge").text)
+	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（●1）が出る", phone.get_node("%SnsBadge").text == "●%d" % s.dm_unread_count() and s.dm_unread_count() >= 1, phone.get_node("%SnsBadge").text)
 	AutoplayPress.press(tabs.get_child(0))
 	var dm_rows: Array = phone.get_node("%Content").get_children()
-	c.check("SNS：届いているDMが1件（Day2の市場の顔なじみ）。予報は出さない", phone.tab == "sns" and dm_rows.size() == 1
+	c.check("SNS：届いているDM（Day2の市場の顔なじみ＋その夜の来店予告）。予報は出さない", phone.tab == "sns" and dm_rows.size() == s.phone_dm().size() and dm_rows.size() >= 1
 		and dm_rows[0] is Panel and dm_rows[0].get_child_count() >= 4, str(dm_rows))
 	var dm_texts: Array = []
 	for node in dm_rows[0].get_children():

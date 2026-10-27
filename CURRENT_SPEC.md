@@ -2834,6 +2834,15 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   「…歓楽街でも仕入れと支払いが滞っている」に差し替えた。データのテスト：ニュースと共通イベントの本文に「客足」を含めない、DMの向きと中心が矛盾しない
   （`tests/dm_test.gd`）。SNSタブは`phone_dm()`（新しい順。丸い顔・名前・常連の印・時刻・本文）、未読は左に注意色の線とSNSタブの●と数、
   「スマホ」ボタンにも●と数。SNSタブを表示した時点で既読（`ReadState`。idで持つ。保存とは別）。
+- **来店予告DM（UI準備E）**：その夜に来る予定の客・モブの種類を、朝のDMで知らせる（`Dm.preview_items`。データは`data/dm/week7.json`の`previews`＝
+  `max_per_morning`（3）・`mob_max`（2）・`first_day`（2）・`pools`（客・モブの種類ごとの`from`・`from_kind`・`time`・`texts[]`・`tag_hint`。文面・差出人は仮））。
+  本当のことだけ：Day2以降、計画（`today_plan`）の名前あり客と、`mob_instances`の種類。選び方は乱数なし：モブの種類を先に最大2件（計画の並びから
+  `(日番号＋件目) % 候補数`）、次に名前あり客（今日より前に来たことがある客を先に、同じ条件の中は日付で回す）で上限3まで。モブが2種類に満たない日は空いた分を名前あり客で埋める。
+  同じ朝に届く既存DMの差出人（`requires`の客・モブ、同じ`from`）は出さない。本文は日番号と主語idのハッシュで複数の言い回しから選ぶ。`{hint}`は`tag_hint`
+  （モブの好み2つのうち1つ。名前あり客は空）の言葉（`TagWords`）に置き換わる。本文に数字・「客足」を入れない（`Dm.problems`が検査）。
+  過去の日は日次ログ（`day_records`）の`planned_regulars`・`planned_mob_types`（新設・追加のみ。保存版は上げない。日の終わりに`today_plan`から書く）から同じ内容で出す
+  （計画は翌朝に作り直されて残らないため）。旧セーブ（キーが無い日）は、名前あり客は日程データから、モブは出さない。DMの`inbox`に入るので、未読の数・既読（idは`preview_d<日>_<主語>`）はそのまま。
+  確認：`tests/dm_preview_test.gd`。
 - **張記の店主との会話**（鍋の素を選ぶ直前。`part:"prep_talk"`の表示だけのTEXT）：Day1は主人公が目安の杯数を一度だけ言う
   （`fixed_demand`から読む）。Day2以降は前日の注文の杯数（日次ログの`planned_cups`。前日成績の「注文◯杯」と同じ値）と足りなかった杯数だけ。
   今夜の見込みの数は言わない。クズ野菜ベースの日は入れない。`PREP_TIER`の台詞は「（仕込む量を決める。）」。
@@ -3001,7 +3010,7 @@ EventRunnerへ渡す前に含めるEventを出し分ける。EventRunner自体�
 | `scenes/game_root.tscn`・`scenes/ui/*.tscn`・`scripts/ui/*.gd` | 本番UIの骨組み（メインシーン・左側・右の枠・全面の画面）。UI準備B・2026-10-24追記。`scripts/ui/ui_labels.gd`は表示名・短縮名・客足の言葉など（`data/ui/ui_labels.json`を読む）、`ui_parts.gd`は共通の部品（足りなかった杯数の文など）、`shop_tally.gd`は市場の「この店で買った」の集計 |
 | `resources/ui_theme.tres`・`scripts/ui/ui_palette.gd`・`assets/fonts/` | Theme・配色12色・Noto Sans JP（OFL）。UI準備B |
 | `tools/build_ui_scenes.gd`・`tools/ui_screens_B.gd`・`tools/ui_screens_C.gd` | 画面シーンの初回生成（再実行すると手の調整が消える）／スクリーンショットの撮影（`planning/ui_screens_B/`13枚・`planning/ui_screens_C/`20枚）。UI準備B・C |
-| `scripts/dm.gd`・`data/dm/week7.json` | DM（SNSタブ）の読み口と条件の評価・データ（文面は仮）。`Rules.dm()`が読む。UI準備C③・2026-10-25追記 |
+| `scripts/dm.gd`・`data/dm/week7.json` | DM（SNSタブ）の読み口と条件の評価・データ（文面は仮）。`Rules.dm()`が読む。UI準備C③・2026-10-25追記。来店予告（`previews`）はUI準備E |
 | `data/ui/ui_labels.json` | 画面の表示名・短縮名・店の品揃え・客足の言葉（`demand_words`）。UI準備B・C |
 | `tests/ui_left_side_test.gd`・`ui_panes_test.gd`・`ui_kaiten_test.gd`・`ui_close_full_test.gd`・`ui_e2e_test.gd`・`ui_autoplay.gd` | 左側／右の枠／開店の操作エリア／閉店と全面の画面／UIだけでDay1の朝から最終日まで通す試験（台本は`ui_autoplay.gd`）。UI準備B・C |
 | `tests/play_session_*_test.gd` | `PlaySession`の問いと操作（開店・市場・閉店・鍋・スマホ・朝・見え方）。UI準備A〜C |

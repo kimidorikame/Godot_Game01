@@ -1856,6 +1856,9 @@ func on_day_ending() -> void:
 		log_entry[key] = int(breakdown[key])
 	# UI準備C③：その夜に1杯以上提供したモブの種類（DMの出す条件「同じ種類のモブに2夜提供」の元。保存は day_records に入る）
 	log_entry["mob_types_served"] = mob_types_served_tonight()
+	# UI準備E：その夜に来る予定だった名前あり客・モブの種類（来店予告DMを過去の日も同じ内容で出すため。計画は翌朝に作り直されて残らない。追加のみ）
+	log_entry["planned_regulars"] = Dm.plan_regulars(GameState.today_plan)
+	log_entry["planned_mob_types"] = Dm.plan_mob_types(GameState.today_plan)
 	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
