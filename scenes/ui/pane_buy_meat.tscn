@@ -91,9 +91,9 @@ script = ExtResource("6_5nh5w")
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
-offset_top = 500.0
+offset_top = 536.0
 offset_right = 404.0
-offset_bottom = 552.0
+offset_bottom = 588.0
 
 [node name="ReasonLabel" type="Label" parent="."]
 unique_name_in_owner = true

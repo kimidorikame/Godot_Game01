@@ -64,6 +64,7 @@ func refresh() -> void:
 	_confirm.disabled = not can_confirm
 	_back.text = "買わずに店を出る" if count > 0 else "店を出る"
 	_reason.text = UiParts.limit_reason(goods, remaining, int(session.budget()["reserved"]))
+	_relayout()
 
 
 func _on_buy(good: Dictionary) -> void:
@@ -104,4 +105,14 @@ func _on_back_pressed() -> void:
 
 ## かごの枠の高さが変わったら、上に並ぶ商品の一覧の下端を、かごの上に合わせる（あいた高さは商品の一覧に回る）。
 func _on_cart_fitted() -> void:
-	(%Scroll as Control).offset_bottom = _cart_box.offset_top - 6.0
+	_relayout()
+
+
+## かごの上に、買えない理由（あれば。2行）を置き、その上までを商品の一覧にする。
+func _relayout() -> void:
+	var top := _cart_box.offset_top
+	if _reason.text != "":
+		_reason.offset_bottom = top - 4.0
+		_reason.offset_top = _reason.offset_bottom - 34.0
+		top = _reason.offset_top
+	(%Scroll as Control).offset_bottom = top - 6.0

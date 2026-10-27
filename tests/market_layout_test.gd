@@ -34,7 +34,7 @@ func _check_pane(pane: Control, scroll_path: String) -> String:
 	if absf(br.position.x - (origin.x + 214.0)) > TOL or absf(br.size.x - 190.0) > TOL or absf(br.position.y - cr.position.y) > TOL:
 		return "店を出るの位置：%s" % str(br)
 	var cart_r := cart.get_global_rect()
-	if absf(cart_r.end.y - (origin.y + 552.0)) > TOL:
+	if absf(cart_r.end.y - (origin.y + 588.0)) > TOL:
 		return "かごの下端が動いた：%s" % str(cart_r)
 	var sr := scroll.get_global_rect()
 	if absf(sr.end.y - (cart_r.position.y - 6.0)) > TOL:
@@ -93,7 +93,7 @@ func run(t: SceneTree) -> int:
 	var cart_h1: float = (meat.get_node("%CartBox") as Control).size.y
 	var cart_list: Label = meat.get_node("%CartBox/CartScroll/CartList")
 	var line_h := cart_list.get_theme_font("font", "LabelSub").get_height(cart_list.get_theme_font_size("font_size", "LabelSub"))
-	c.check("かごは品が入ると伸びる（最大3行）・下端は動かず、一覧の下端がそれに合わせて縮む", cart_h1 > cart_h0 and cart_h1 <= cart_h0 + 2.0 * line_h + 2.0
+	c.check("かごは空でも2行ぶん・品が入ると最大3行まで伸びる・下端は動かず、一覧の下端がそれに合わせて縮む", cart_h1 >= cart_h0 and cart_h1 <= cart_h0 + 1.0 * line_h + 2.0
 		and _check_pane(meat, "%GoodsScroll") == "" and (meat.get_node("%GoodsScroll") as Control).size.y < empty_scroll_h + 1.0, "%s %s %s" % [cart_h0, cart_h1, _check_pane(meat, "%GoodsScroll")])
 	c.check("商品の行は重ならない（間隔6）", _rows_ok(goods) == "", _rows_ok(goods))
 	# 4行以上になる中身：かごの中で縦に送る（枠は3行より伸びない）
@@ -103,7 +103,7 @@ func run(t: SceneTree) -> int:
 		{ "label": "おおおおおおおおおおおおおお", "qty": 1, "price": 10 }, { "label": "かかかかかかかかかかかかかか", "qty": 1, "price": 10 },
 		{ "label": "ききききききききききききき", "qty": 1, "price": 10 }], 70)
 	_sort(root)
-	c.check("かごの中身が4行を超えても枠は3行まで（それ以上は中で縦に送る）", (meat.get_node("%CartBox") as Control).size.y <= cart_h0 + 2.0 * line_h + 2.0
+	c.check("かごの中身が4行を超えても枠は3行まで（それ以上は中で縦に送る）", (meat.get_node("%CartBox") as Control).size.y <= cart_h0 + 1.0 * line_h + 2.0
 		and (meat.get_node("%CartBox/CartScroll") as ScrollContainer).size.y < cart_list.get_minimum_size().y + 0.5, "%s %s" % [(meat.get_node("%CartBox") as Control).size, cart_list.get_minimum_size()])
 	_press(meat.get_node("%CartBox/ClearButton"))
 	_press(meat.get_node("%BackButton"))

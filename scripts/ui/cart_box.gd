@@ -7,8 +7,9 @@ signal undo_pressed()
 signal clear_pressed()
 signal fitted()   # 枠の高さが変わった（上端が動いた）。上に並ぶ商品の一覧の下端を合わせ直す
 
-## 中身の行数（かごの中の一覧。折り返しも数える）に合わせて高さが伸びる：空は1行、品が入ると最大 MAX_LINES 行まで。それ以上は一覧の中で縦に送る。
+## 中身の行数（かごの中の一覧。折り返しも数える）に合わせて高さが伸びる：空でも2行ぶん、品が入ると最大 MAX_LINES 行まで。それ以上は一覧の中で縦に送る。
 ## 下端は動かさず、上端が上へ伸びる。
+const MIN_LINES := 2   # 空でも2行ぶんあけておく（品が入っても枠が跳ねない）
 const MAX_LINES := 3
 const HEAD := 28.0     # 1行目（かご・「1つ戻す」「全部戻す」・合計）の高さ
 const FOOT := 6.0
@@ -50,7 +51,7 @@ func _fit() -> void:
 	var line_h := font.get_height(size)
 	var content_h := font.get_multiline_string_size(_list.text, HORIZONTAL_ALIGNMENT_LEFT, width, size, -1,
 		TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_GRAPHEME_BOUND).y
-	var lines := clampi(ceili(content_h / line_h - 0.3), 1, MAX_LINES)
+	var lines := clampi(ceili(content_h / line_h - 0.3), MIN_LINES, MAX_LINES)
 	var list_h := ceilf(line_h * lines)
 	_scroll.offset_bottom = _scroll.offset_top + list_h
 	var height := HEAD + list_h + FOOT

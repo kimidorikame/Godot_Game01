@@ -10,7 +10,6 @@ theme_type_variation = &"PanelBox"
 script = ExtResource("1_debmp")
 
 [node name="Tags" type="HBoxContainer" parent="."]
-clip_contents = true
 layout_mode = 0
 offset_left = 12.0
 offset_top = 4.0

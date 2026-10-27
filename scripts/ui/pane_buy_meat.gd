@@ -104,6 +104,7 @@ func refresh() -> void:
 		if too_expensive:
 			reason = "使える現金は残り ¥%d。これを超える鍋の素は選べません" % maxi(remaining, 0)
 	_reason.text = reason
+	_relayout()
 
 
 func _selected_tier_label(tiers: Array) -> String:
@@ -177,4 +178,14 @@ func _on_back_pressed() -> void:
 
 ## かごの枠の高さが変わったら、上に並ぶ商品の一覧の下端を、かごの上に合わせる（あいた高さは商品の一覧に回る）。
 func _on_cart_fitted() -> void:
-	(%GoodsScroll as Control).offset_bottom = _cart_box.offset_top - 6.0
+	_relayout()
+
+
+## かごの上に、買えない理由（あれば。2行）を置き、その上までを商品の一覧にする。
+func _relayout() -> void:
+	var top := _cart_box.offset_top
+	if _reason.text != "":
+		_reason.offset_bottom = top - 4.0
+		_reason.offset_top = _reason.offset_bottom - 34.0
+		top = _reason.offset_top
+	(%GoodsScroll as Control).offset_bottom = top - 6.0
