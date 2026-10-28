@@ -145,12 +145,12 @@ func _add_dm_row(item: Dictionary, unread: bool) -> void:
 		mark.position = Vector2(62 + minf(from_label.get_minimum_size().x, 190.0) + 6.0, 8)
 		row.add_child(mark)
 	var time := Label.new()
-	time.text = str(item["time"])
+	time.text = Calendar.stamp(int(item.get("day", GameState.day_count)), str(item["time"]))   # 「Day3 05:40」（日付は届いた日。形は Calendar）
 	time.theme_type_variation = &"LabelCaption"
 	time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	time.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	time.position = Vector2(300, 6)
-	time.size = Vector2(76, 22)
+	time.position = Vector2(262, 6)
+	time.size = Vector2(114, 22)
 	row.add_child(time)
 	if unread:
 		var bar := ColorRect.new()
@@ -173,7 +173,7 @@ func _fill_news() -> void:
 	for section in session.phone_news():
 		if (section["news"] as Array).is_empty():
 			continue
-		_add("Day %d%s" % [int(section["day"]), "（今日）" if bool(section["is_today"]) else ""], &"LabelSub")
+		_add("%s%s" % [Calendar.label(int(section["day"])), "（今日）" if bool(section["is_today"]) else ""], &"LabelSub")
 		for item in section["news"]:
 			_add(("● " if _fresh_news.has(str(item["id"])) else "") + str(item["headline"]), &"LabelPhoneHeadline")
 			for line in item["body"]:

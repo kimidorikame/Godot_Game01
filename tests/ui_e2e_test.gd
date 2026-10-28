@@ -89,8 +89,8 @@ func run(t: SceneTree) -> int:
 	for node in dm_rows[0].get_children():
 		if node is Label:
 			dm_texts.append(node.text)
-	c.check("DMの行：本文・差出人・時刻（常連の印は客でない差出人には付けない）",
-		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("6:40") and not dm_texts.has("常連"), str(dm_texts))
+	c.check("DMの行：本文・差出人・日付と時刻（常連の印は客でない差出人には付けない）",
+		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("Day2 06:40") and not dm_texts.has("常連"), str(dm_texts))
 	c.check("開いた時点で未読だった行には、左に注意色の線を残す", dm_rows[0].get_children().any(func(n): return n is ColorRect))
 	c.check("SNSタブを表示したので既読になり、タブの数は消える", phone.get_node("%SnsBadge").text == "" and s.dm_unread_count() == 0)
 	c.check("既読になったので、スマホのボタンの未読の印も消える", root.left.get_node("%PhoneBadge").text == "")
