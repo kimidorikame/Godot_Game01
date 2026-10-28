@@ -150,6 +150,33 @@ func run(t: SceneTree) -> int:
 	many["texts"] = ["A", "B", "C"]
 	c.check("同じ客・種類に複数の文があるとき、日付で決める（同じ日・同じ主語なら同じ文・日が変われば変わりうる）",
 		Dm.preview_text(many, "x", 2) == Dm.preview_text(many, "x", 2) and ["A", "B", "C"].has(Dm.preview_text(many, "x", 3)))
+	# 本番の本文（UI準備E2）：{hint} はどの位置でも、ヒントの語（種類の好み2つのうち1つ）に置き換わる
+	var hint_words := { "dock_workers": "スタミナ", "inn_clerk": "まろやか", "general_store_clerk": "苦い", "market_porter": "腹もち",
+		"long_haul_driver": "ごちそう", "security_guard": "歯ごたえ", "street_cleaners": "酸っぱい" }
+	var hint_ok := true
+	var hint_detail := ""
+	for type_id in hint_words:
+		var mob_pool: Dictionary = Dm.previews_config()["pools"][type_id]
+		var tag := str(mob_pool["tag_hint"])
+		if TagWords.word(tag) != hint_words[type_id] or not Dm.mob_wanted_tags(type_id).has(tag):
+			hint_ok = false
+			hint_detail = "%s: %s" % [type_id, tag]
+		for text in mob_pool["texts"]:
+			var shown: String = str(text).replace("{hint}", TagWords.word(tag))
+			if shown.contains("{") or not shown.contains(hint_words[type_id]) or (mob_pool["texts"] as Array).size() != 2:
+				hint_ok = false
+				hint_detail = shown
+		for day in [2, 3]:
+			var rendered := Dm.preview_text(mob_pool, type_id, day)
+			if not rendered.contains(hint_words[type_id]) or rendered.contains("{"):
+				hint_ok = false
+				hint_detail = rendered
+	c.check("モブ7種：ヒントの語は決めたとおり・その種類の好みの言葉・{hint} は文のどこにあっても置き換わる（各2通り）", hint_ok, hint_detail)
+	var regular_ok := true
+	for id in ["delivery_man", "officer", "thug", "granny", "hooker", "streamer"]:
+		var regular_pool: Dictionary = Dm.previews_config()["pools"][id]
+		regular_ok = regular_ok and str(regular_pool["tag_hint"]) == "" and (regular_pool["texts"] as Array).size() == 2 			and not (regular_pool["texts"] as Array).any(func(x): return str(x).contains("{"))
+	c.check("名前あり客6人：各2通り・tag_hint なし", regular_ok)
 	# 検査が働く
 	var bad: Dictionary = Dm.data().duplicate(true)
 	bad["previews"]["pools"]["thug"]["tag_hint"] = "HOT"
