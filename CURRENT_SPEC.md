@@ -190,7 +190,11 @@ today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09
 
 ### ゲーム共通の定数（GameState に置く）
 - `PRICE_PER_SERVING = 45`（**2026-09-26改訂：差分表最後の3項目で50→45**）…
-  一杯の売価（内容にかかわらず固定）
+  一杯の売価（内容にかかわらず固定）。**チップ（UI準備H2）**：評価した杯だけ、定価に加えて`GameState.tip_for(評価, 杯数)`ぶんを受け取る
+  （GREAT +10・GOOD +5・OK／BAD・評価なしは 0。値は`data/campaigns/week7.json`の`economy.tips`＝`Rules.tips()`。定価は全評価で同じで、BADも受け取る。
+  評判の式・判定・SaleRuleは変えない）。売上（提供記録の`sale`・日次ログの`sale_total`・帳簿の`sale`）はチップを含み、うちチップを提供記録の`tip`・日次ログの`tips`・
+  `Result.summarize`の`tips`に持つ（追加のみ。保存版は上げない）。表示：夜の結果・昨夜の成績の売上の横に「うちチップ ¥xx」、結果画面の成績に「チップ合計」の1行、
+  提供の直後の反応の文に「+¥5」。自動試遊は既定でチップを0に差し替える（v2と全キー一致）。確認：`tests/tips_test.gd`
 - `SERVINGS_PER_BASE`は**2026-09-25（仕込み3段階化）で削除**。ベース1袋で作れる
   杯数は`Day1Events.PREP_TIERS`（小8杯/80・中11杯/110・大14杯/140）が持つ形に
   変わった（下記「仕込みの3段階化」参照。コミット`9a49e90`）
@@ -1788,7 +1792,7 @@ Event」パターンを流用）。
 各客: GREET → ADJUST（3枠を選ぶ・入力待ち）→ SERVE → REACT（判定＋売上確定）
       ※delivery_man だけは、会話の合間に ADJUST→SERVE→REACT を3回くり返す
         （3杯目は持ち帰り・評価なし。§5「1杯ずつ接客する客」）
-売上: PRICE_PER_SERVING(45) × servings（判定結果にかかわらず固定。2026-09-26改訂：50→45）
+売上: PRICE_PER_SERVING(45) × servings（判定結果にかかわらず固定。2026-09-26改訂：50→45）＋チップ（UI準備H2：GREAT +10／杯・GOOD +5／杯）
       delivery_man +135 / dock_workers +180 / thug +45 / granny +45
 thug のみ REACT 後に場所代 -90（PAY・try_pay経由・2026-09-26改訂：150→90）※徴収日のみ
 ```

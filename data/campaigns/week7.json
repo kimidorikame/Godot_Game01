@@ -5,6 +5,7 @@
   "economy": {
     "initial_money": 600, "initial_reputation": 30,
     "price_per_serving": 45, "daily_operating_cost": 75,
+    "tips": { "GREAT": 10, "GOOD": 5 },
     "prep_tiers": [[8, 80], [11, 110], [14, 140]],
     "pot_capacity": 14, "water_doses": 2, "dashi_price": 16,
     "demand_table": [[71, 17], [60, 14], [45, 11], [20, 9], [0, 7]],

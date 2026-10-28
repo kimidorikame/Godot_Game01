@@ -70,6 +70,8 @@ func _open_root(t: SceneTree, customers: Array, stock: Dictionary, damaged: Dict
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var tips_saved: Dictionary = GameState.TIPS
+	GameState.TIPS = {}   # このテストは定価だけの売上を見る（チップは tests/tips_test.gd）
 
 	# --- 1. シーン・短縮名 ---
 	for path in ["res://scenes/ui/ingredient_button.tscn", "res://scenes/ui/kaiten_pot.tscn", "res://scenes/ui/kaiten_topping.tscn",
@@ -357,4 +359,5 @@ func run(t: SceneTree) -> int:
 	_press(pot.get_node("%CloseButton"))
 	c.check("「閉店」→ close_shop：閉店（CLOSE）へ", GameState.phase == GameState.Phase.CLOSE)
 	root.queue_free()
+	GameState.TIPS = tips_saved
 	return c.finish()

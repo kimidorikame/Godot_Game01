@@ -189,6 +189,10 @@ func run(t: SceneTree) -> void:
 	if cost_override >= 0:
 		GameState.DAILY_OPERATING_COST = cost_override
 	var data_price: int = GameState.PRICE_PER_SERVING
+	# チップ（UI準備H2）：ゲーム本体の既定（GREAT 10・GOOD 5）は自動試遊に影響させない＝既定では 0 に差し替えて測る（v2 と全キー一致）。
+	# 引数 [10]（GOODのチップ）・[11]（GREATのチップ）を渡したときだけ、その値を本体のチップとして使う。終わったら戻す。
+	var data_tips: Dictionary = GameState.TIPS.duplicate()
+	GameState.TIPS = { "GOOD": tip_good, "GREAT": tip_great }
 	if price_override > 0:
 		GameState.PRICE_PER_SERVING = price_override
 	var policies: Array = []
@@ -223,6 +227,7 @@ func run(t: SceneTree) -> void:
 		output["tip_gu"] = { "tip_good": tip_good, "tip_great": tip_great, "two_gu": two_gu_on, "two_gu_buy": two_gu_buy, "price": GameState.PRICE_PER_SERVING,
 			"price_data": data_price }
 	GameState.PRICE_PER_SERVING = data_price
+	GameState.TIPS = data_tips
 	output["daily_operating_cost_overridden"] = cost_override >= 0
 	GameState.DAILY_OPERATING_COST = data_cost
 	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
@@ -338,6 +343,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 				panel.session.flow.advance_phase()
 				result_phase = str(GameState.Phase.keys()[GameState.phase])
 				result_summary = Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
+				if not tip_gu_on:
+					result_summary.erase("tips")   # UI準備H2で足した項目。v2 の形（全キー一致）を保つため、チップの測定でないときは出さない
 				done = true
 				break
 			seed(run_seed * 1000 + GameState.day_count + 1)
@@ -1056,11 +1063,12 @@ func settle_serves() -> void:
 				counts_now[final_grade] = int(counts_now.get(final_grade, 0)) + added
 			gu_pen_today += added
 			gu_pen_total += added
-		var tip := tip_good if final_grade == "GOOD" else (tip_great if final_grade == "GREAT" else 0)
-		if tip > 0:
-			GameState.apply_money(tip * added)
-			tips_today += tip * added
-			tips_total += tip * added
+		# チップはゲーム本体が提供のときに（減点の前の評価で）渡している。案Gで評価を下げた杯は、下げたあとの評価のチップとの差だけ直す
+		var tip_delta: int = GameState.tip_for(final_grade, added) - GameState.tip_for(grade, added)
+		if tip_delta != 0:
+			GameState.apply_money(tip_delta)
+			tips_today += tip_delta
+			tips_total += tip_delta
 	seen_counts = counts_now.duplicate()
 
 
@@ -1242,8 +1250,13 @@ func day_row() -> Dictionary:
 	var quality: float = panel.session.quality_score(panel.session.log_quality_counts, panel.session.log_judged_planned_cups)
 	var row := _day_row_base(served, sale, declined, reg_cups, reg_good_plus, reg_great, quality)
 	if tip_gu_on:
-		row["tips"] = tips_today
+		var game_tips := 0
+		for rec in GameState.served:
+			if not bool(rec.get("discarded", false)):
+				game_tips += int(rec.get("tip", 0))
+		row["tips"] = game_tips + tips_today
 		row["gu_penalized"] = gu_pen_today
+		tips_total += game_tips
 	return row
 
 

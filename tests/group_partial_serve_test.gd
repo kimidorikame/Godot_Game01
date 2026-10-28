@@ -44,6 +44,8 @@ func _setup(t: SceneTree, mob_count: int, inventory: Dictionary, kettle_remainin
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var tips_saved: Dictionary = GameState.TIPS
+	GameState.TIPS = {}   # このテストは定価だけの売上を見る（チップは tests/tips_test.gd）
 
 	# --- 1. 具材不足：4人組・肉団子(POWER)が3個のみ。ナムプリックパオ(HOT)は十分にあるので
 	#        要求タグ(HOT+POWER)は2つとも一致しGOOD判定になる（好物はモブに無いのでGREATなし）。
@@ -253,4 +255,5 @@ func run(t: SceneTree) -> int:
 	c.check("record_servedはこのケースも1件のみ",
 		GameState.served.size() == served_before9 + 1)
 
+	GameState.TIPS = tips_saved
 	return c.finish()

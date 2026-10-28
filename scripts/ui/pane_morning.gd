@@ -14,6 +14,7 @@ var session: PlaySession = null
 @onready var _record: Control = %RecordBoxes
 @onready var _no_record: Label = %NoRecord
 @onready var _sales_value: Label = %SalesValue
+@onready var _tip_label: Label = %TipLabel
 @onready var _served_label: Label = %ServedLabel
 @onready var _grades: Control = %Grades
 @onready var _short_label: Label = %ShortLabel
@@ -43,6 +44,8 @@ func refresh() -> void:
 	else:
 		UiParts.set_header(_header, "昨夜の成績", "Day %d" % int(rec["day"]))
 		_sales_value.text = "¥%d" % int(rec.get("sale_total", 0))
+		_tip_label.visible = int(rec.get("tips", 0)) > 0
+		_tip_label.text = "うちチップ ¥%d" % int(rec.get("tips", 0))
 		_served_label.text = "提供 %d杯 / 注文%d杯" % [int(rec.get("served_cups", 0)), int(rec.get("planned_cups", 0))]
 		var counts: Dictionary = rec.get("quality_counts", {})
 		for grade in GRADES:

@@ -36,6 +36,8 @@ func _norm(value) -> Variant:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var tips_saved: Dictionary = GameState.TIPS
+	GameState.TIPS = {}   # このテストは定価だけの売上を見る（チップは tests/tips_test.gd）
 	ScheduleData.episodes_dir = "res://data/episodes/"
 	ScheduleData.clear_cache()
 	GameState.reset_for_new_game()
@@ -270,4 +272,5 @@ func run(t: SceneTree) -> int:
 
 	ScheduleData.clear_cache()
 	GameState.reset_for_new_game()
+	GameState.TIPS = tips_saved
 	return c.finish()

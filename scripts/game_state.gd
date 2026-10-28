@@ -25,6 +25,15 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER, RESULT }
 # ここはRules経由の読み取り口として残す（既存の参照側は無改修のまま動く）。
 static var PRICE_PER_SERVING := Rules.price_per_serving()
 
+# チップ（UI準備H2）：評価ごとの追加の受け取り額（GREAT・GOOD。OK・BAD は 0）。定価は全評価で同じで、評判・判定には関係しない。
+# 値は data/campaigns/week7.json の economy.tips（Rules.tips()）。自動試遊（harness）は、既定ではここを空に差し替えて測る。
+static var TIPS := Rules.tips()
+
+
+## 評価 result の杯を servings 杯出したときのチップ（評価なし・OK・BAD は 0）。
+static func tip_for(result: String, servings: int) -> int:
+	return int(TIPS.get(result, 0)) * maxi(servings, 0)
+
 # 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
 # チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
 # §11「未解決」の直し方）の両方で使う（別々の数字にならないよう1箇所に置く）。

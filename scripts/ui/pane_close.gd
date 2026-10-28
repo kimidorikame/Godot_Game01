@@ -12,6 +12,7 @@ var session: PlaySession = null
 
 @onready var _header: Control = %Header
 @onready var _sales_value: Label = %SalesValue
+@onready var _tip_label: Label = %TipLabel
 @onready var _served_label: Label = %ServedLabel
 @onready var _short_label: Label = %ShortLabel
 @onready var _grades: Control = %Grades
@@ -41,6 +42,8 @@ func refresh() -> void:
 	UiParts.set_header(_header, "今夜の結果", "Day %d" % GameState.day_count)
 	var result := session.tonight_result()
 	_sales_value.text = "¥%d" % int(result["sales"])
+	_tip_label.visible = int(result["tips"]) > 0
+	_tip_label.text = "うちチップ ¥%d" % int(result["tips"])
 	_served_label.text = "提供 %d杯 / 注文%d杯" % [int(result["served_cups"]), int(result["ordered_cups"])]
 	# 足りなかった杯数と内訳（素材・鍋・断った。UI準備C③）
 	_short_label.text = UiParts.unserved_text(int(result["unserved_cups"]), PlaySession.unserved_display(result))

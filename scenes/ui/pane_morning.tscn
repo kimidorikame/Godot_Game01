@@ -43,6 +43,19 @@ theme_type_variation = &"LabelCaption"
 text = "売上"
 vertical_alignment = 1
 
+[node name="TipLabel" type="Label" parent="RecordBoxes/SalesBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 52.0
+offset_top = 4.0
+offset_right = 250.0
+offset_bottom = 22.0
+mouse_filter = 2
+theme_type_variation = &"LabelCaption"
+text = "うちチップ ¥0"
+vertical_alignment = 1
+visible = false
+
 [node name="SalesValue" type="Label" parent="RecordBoxes/SalesBox"]
 unique_name_in_owner = true
 layout_mode = 0

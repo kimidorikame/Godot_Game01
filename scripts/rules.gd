@@ -76,6 +76,17 @@ static func price_per_serving() -> int:
 	return int(_economy().get("price_per_serving", 45))
 
 
+## チップ（UI準備H2）：評価ごとに、定価（price_per_serving）に加えて受け取る額。{ "GREAT": 10, "GOOD": 5 }。
+## 書かれていない評価（OK・BAD）は 0。定価は全評価で同じ。評判の増減・判定には使わない。
+static func tips() -> Dictionary:
+	var raw = _economy().get("tips", {})
+	var out := {}
+	if raw is Dictionary:
+		for grade in raw:
+			out[str(grade)] = maxi(int(raw[grade]), 0)
+	return out
+
+
 static func daily_operating_cost() -> int:
 	return int(_economy().get("daily_operating_cost", 80))
 
