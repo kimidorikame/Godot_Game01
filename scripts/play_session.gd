@@ -575,6 +575,29 @@ func unserved_breakdown() -> Dictionary:
 		"unserved_not_arrived": maxi(unserved - tracked, 0) }
 
 
+## その夜に注文を受けたモブの種類（重複なし・出会った順。断った・提供できなかった団体も含む。いま接客中の団体は、注文が分かった時点から）。
+## 保存はしない（日の終わりに日次ログの mob_types_met へ入る）。モブの客は instance id（"mob#N"）で記録されるので、今夜の計画から種類を引く。
+func mob_types_met_tonight() -> Array:
+	var types := []
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	for record in GameState.served:
+		if not (record is Dictionary):
+			continue
+		var customer := str(record.get("customer", ""))
+		if not Day1Events.is_mob_customer(customer):
+			continue
+		var type_id := str((instances.get(customer, {}) as Dictionary).get("type", ""))
+		if type_id != "" and not types.has(type_id):
+			types.append(type_id)
+	if open != null and open.has_more() and GameState.phase == GameState.Phase.OPEN:
+		var current := str(open.current_customer())
+		if Day1Events.is_mob_customer(current) and bool(order_card_view().get("usual_known", false)):
+			var current_type := str((instances.get(current, {}) as Dictionary).get("type", ""))
+			if current_type != "" and not types.has(current_type):
+				types.append(current_type)
+	return types
+
+
 ## その夜に1杯以上提供したモブの種類（重複なし・並びは種類idの順）。モブの客は instance id（"mob#N"）で記録されるので、
 ## 今夜の計画（today_plan の mob_instances）から種類を引く。
 func mob_types_served_tonight() -> Array:
@@ -1863,6 +1886,8 @@ func on_day_ending() -> void:
 		log_entry[key] = int(breakdown[key])
 	# UI準備C③：その夜に1杯以上提供したモブの種類（DMの出す条件「同じ種類のモブに2夜提供」の元。保存は day_records に入る）
 	log_entry["mob_types_served"] = mob_types_served_tonight()
+	# UI準備G：その夜に注文を受けたモブの種類（断った団体も含む。出会った順。スマホの「客」タブの元。追加のみ）
+	log_entry["mob_types_met"] = mob_types_met_tonight()
 	# UI準備E：その夜に来る予定だった名前あり客・モブの種類（来店予告DMを過去の日も同じ内容で出すため。計画は翌朝に作り直されて残らない。追加のみ）
 	log_entry["planned_regulars"] = Dm.plan_regulars(GameState.today_plan)
 	log_entry["planned_mob_types"] = Dm.plan_mob_types(GameState.today_plan)
@@ -2739,6 +2764,55 @@ func _news_read_key(id: String) -> String:
 
 func _dm_read_key(item: Dictionary) -> String:
 	return ReadState.line_key("dm", "", str(item["id"]), str(item["id"]))   # 文が差し替わっても既読は変えない（idで持つ）
+
+
+## スマホの「客」タブ（客ノート。UI準備G）：出会った客の好みを見返す。見せるのは分かっていることだけ（会っていない客・種類は載せない）。
+## { regulars:[{ id, name, tags（いつもの）, days（来た日）, favorite_known, favorite（好物の材料名。知った客だけ）}]（出会った順）,
+##   mobs:[{ type, name, tags（好み。その種類の注文）}]（出会った順）}。新しい保存項目なし：名前あり客は来店記録（customer_memory）、
+## モブは日次ログの mob_types_met（旧セーブは提供した種類 mob_types_served で代用）と今夜の分から読む。
+## 名前あり客：今日より前の来店がある客、または今日の来店で「いつもの」が分かっている客（注文を言う行を見たあと）。
+func phone_notes() -> Dictionary:
+	var today := GameState.day_count
+	var current := ""
+	var current_known := false
+	if open != null and open.has_more() and GameState.phase == GameState.Phase.OPEN:
+		current = str(open.current_customer())
+		current_known = bool(order_card_view().get("usual_known", false))
+	var regulars := []
+	for customer_id in GameState.customer_memory:
+		var id := str(customer_id)
+		var profile := ScheduleData.customer_profile(id)
+		if profile.is_empty() or bool(profile.get("is_mob", false)):
+			continue
+		var days := []
+		for visit in CustomerMemory.visits_of(id):
+			var day := int((visit as Dictionary).get("day", 0))
+			if day < today or (day == today and (id != current or current_known)):
+				if not days.has(day):
+					days.append(day)
+		if days.is_empty():
+			continue
+		days.sort()
+		var known := GameState.knows_favorite(id)
+		var favorite := str(profile.get("favorite", ""))
+		regulars.append({ "id": id, "name": ScheduleData.customer_display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
+			"days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "" })
+	var types := []
+	for record in GameState.day_records:
+		if record is Dictionary:
+			for type_id in record.get("mob_types_met", record.get("mob_types_served", [])):
+				if not types.has(str(type_id)):
+					types.append(str(type_id))
+	for type_id in mob_types_met_tonight():
+		if not types.has(str(type_id)):
+			types.append(str(type_id))
+	var mobs := []
+	for type_id in types:
+		var data := ScheduleData.mob_data(str(type_id))
+		if data.is_empty():
+			continue
+		mobs.append({ "type": str(type_id), "name": str(data.get("name", type_id)), "tags": (data.get("wanted_tags", []) as Array).duplicate() })
+	return { "regulars": regulars, "mobs": mobs }
 
 
 ## スマホのログタブ：今日の会話ログ（上から古い順）。[{ day, kind, speaker, text }]。実行時の記録のみ（保存しない）。

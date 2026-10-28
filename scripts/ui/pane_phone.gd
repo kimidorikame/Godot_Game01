@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
-## タブは SNS／ニュース／レシピ。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
+## タブは SNS／ニュース／レシピ／客。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
 ## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
 ## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
@@ -12,7 +12,7 @@ signal close_requested()
 ## SNS・ニュースのタブを表示して、未読を読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
 signal unread_cleared()
 
-const TABS := ["sns", "news", "recipe"]
+const TABS := ["sns", "news", "recipe", "notes"]
 
 var session: PlaySession = null
 ## 表示だけの状態：開いているタブ。
@@ -59,6 +59,7 @@ func refresh() -> void:
 	for i in range(TABS.size()):
 		(_tabs.get_child(i) as Button).theme_type_variation = &"ButtonTabOn" if i == index else &"ButtonTab"
 	_underline.position.x = (_tabs.get_child(index) as Control).position.x
+	_underline.size.x = (_tabs.get_child(index) as Control).size.x
 	_close.text = "閉じる(鍋・トッピングに戻る)" if GameState.phase == GameState.Phase.OPEN else "閉じる"
 	_refresh_badge()
 	for child in _content.get_children():
@@ -71,6 +72,8 @@ func refresh() -> void:
 			_fill_news()
 		"recipe":
 			_fill_recipes()
+		"notes":
+			_fill_notes()
 
 
 func _add(text: String, variation: StringName) -> Label:
@@ -137,7 +140,7 @@ func _add_dm_row(item: Dictionary, unread: bool) -> void:
 	from_label.position = Vector2(62, 4)
 	from_label.size = Vector2(190, 26)
 	row.add_child(from_label)
-	if str(item["from_kind"]) != "npc":
+	if str(item["from_kind"]) == "customer":   # 常連の印は名前あり客の差出人だけ（客でない差出人・モブの組には付けない）
 		var mark := Label.new()
 		mark.text = "常連"
 		mark.theme_type_variation = &"LabelTag"
@@ -199,6 +202,70 @@ func _fill_recipes() -> void:
 		_add("まだありません", &"LabelDim")
 	for item in recipes["usual"]:
 		_add("%s：%s" % [session.log_speaker(str(item["customer"])), _names(item["ingredients"])], &"LabelPhoneBody")
+
+
+## 客ノート（UI準備G）：出会った客の好み。名前あり客を先、モブを後（それぞれ出会った順）。札は客側・材料側で同じ部品（UiTagChips）。
+func _fill_notes() -> void:
+	var notes := session.phone_notes()
+	if (notes["regulars"] as Array).is_empty() and (notes["mobs"] as Array).is_empty():
+		_add("まだ会った客はいません", &"LabelDim")
+		return
+	if not (notes["regulars"] as Array).is_empty():
+		_add("名前あり客", &"LabelSub")
+		for item in notes["regulars"]:
+			_add_note_row(str(item["name"]), "・".join(PackedStringArray((item["days"] as Array).map(func(d): return Calendar.label(int(d))))),
+				"いつもの", item["tags"], ("好物　" + str(item["favorite"])) if bool(item["favorite_known"]) else "")
+	if not (notes["mobs"] as Array).is_empty():
+		_add("モブ", &"LabelSub")
+		for item in notes["mobs"]:
+			_add_note_row(str(item["name"]), "", "好み", item["tags"], "")
+
+
+## 客ノートの1行（388幅）：名前・来た日（右）・札2枚・好物（知った客だけ）。
+func _add_note_row(title: String, days: String, tag_caption: String, tags: Array, favorite: String) -> void:
+	var row := Panel.new()
+	row.theme_type_variation = &"PanelBox"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.custom_minimum_size = Vector2(388, 70 if favorite != "" else 52)
+	_content.add_child(row)
+	var name_label := Label.new()
+	name_label.text = title
+	name_label.theme_type_variation = &"LabelShop"
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.position = Vector2(12, 3)
+	name_label.size = Vector2(170, 26)
+	row.add_child(name_label)
+	if days != "":
+		var days_label := Label.new()
+		days_label.text = days
+		days_label.theme_type_variation = &"LabelCaption"
+		days_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		days_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		days_label.position = Vector2(150, 7)
+		days_label.size = Vector2(226, 22)
+		row.add_child(days_label)
+	var caption := Label.new()
+	caption.text = tag_caption
+	caption.theme_type_variation = &"LabelCaption"
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption.position = Vector2(12, 28)
+	caption.size = Vector2(60, 20)
+	row.add_child(caption)
+	var chips := HBoxContainer.new()
+	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chips.add_theme_constant_override("separation", 4)
+	chips.position = Vector2(76, 28)
+	chips.size = Vector2(290, 20)
+	row.add_child(chips)
+	UiTagChips.fill(chips, tags)
+	if favorite != "":
+		var fav := Label.new()
+		fav.text = favorite
+		fav.theme_type_variation = &"LabelSub"
+		fav.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fav.position = Vector2(12, 48)
+		fav.size = Vector2(364, 20)
+		row.add_child(fav)
 
 
 static func _names(ids: Array) -> String:
