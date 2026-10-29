@@ -19,6 +19,9 @@ var session: PlaySession = null
 @onready var _grades: Control = %Grades
 @onready var _short_label: Label = %ShortLabel
 @onready var _spoil_label: Label = %SpoilLabel
+@onready var _balance_caption: Label = %Caption
+@onready var _purchase_label: Label = %PurchaseLabel
+@onready var _balance_label: Label = %BalanceLabel
 @onready var _reputation_label: Label = %ReputationLabel
 @onready var _cost_label: Label = %CostLabel
 @onready var _usable_label: Label = %UsableLabel
@@ -53,6 +56,14 @@ func refresh() -> void:
 		# 足りなかった杯数と内訳（素材・鍋・断った。UI準備C③）。内訳が無い古い記録は合計だけ
 		_short_label.text = UiParts.unserved_text(int(rec.get("unserved_cups", 0)), PlaySession.unserved_display(rec))
 		_spoil_label.text = _spoil_text(rec)
+		# 昨日の仕入れと収支（UI準備I）：収支＝売上（チップ込み）− 仕入れ − 運営費。Day1は場所代・水道代も引くので、別に添える
+		var spend: Dictionary = rec.get("spend_by_category", {})
+		var purchases := int(rec.get("purchases", PlaySession.purchases_from(spend)))
+		var balance := int(rec.get("sale_total", 0)) - purchases - int(spend.get("daily_cost", 0))
+		var bills := int(spend.get("rent", 0)) + int(spend.get("water", 0))
+		_purchase_label.text = "昨日の仕入れ ¥%d" % purchases
+		_balance_label.text = "昨日の収支 %s¥%d（売上 − 仕入れ − 運営費）" % ["+" if balance >= 0 else "−", absi(balance)]
+		_balance_caption.text = "昨日のお金の出入り%s" % ("　（ほかに場所代・水道代 ¥%d）" % bills if bills > 0 else "")
 		_reputation_label.text = "評判 %d → %d" % [int(rec.get("opening_reputation", 0)), int(rec.get("closing_reputation", 0))]
 	_cost_label.text = "水と炭（運営費） ¥%d　市場を出るときに払う" % session.operating_cost_pending() if session.operating_cost_pending() > 0 \
 		else "水と炭（運営費） −¥%d　払った" % session.morning_cost()

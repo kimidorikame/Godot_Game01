@@ -345,6 +345,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 				result_summary = Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
 				if not tip_gu_on:
 					result_summary.erase("tips")   # UI準備H2で足した項目。v2 の形（全キー一致）を保つため、チップの測定でないときは出さない
+				result_summary.erase("purchases")   # UI準備Iで足した項目。同じく v2 の形を保つため出さない（各日の仕入れは rows の spend にある）
 				done = true
 				break
 			seed(run_seed * 1000 + GameState.day_count + 1)

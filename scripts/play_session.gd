@@ -1888,13 +1888,15 @@ func on_day_ending() -> void:
 	log_entry["mob_types_served"] = mob_types_served_tonight()
 	# UI準備G：その夜に注文を受けたモブの種類（断った団体も含む。出会った順。スマホの「客」タブの元。追加のみ）
 	log_entry["mob_types_met"] = mob_types_met_tonight()
+	# UI準備I：その日の仕入れ（鍋の素・材料・追加のだし・Day1の初日セット。運営費・場所代・水道代は含めない。追加のみ）
+	log_entry["purchases"] = purchases_from(log_entry["spend_by_category"])
 	# UI準備E：その夜に来る予定だった名前あり客・モブの種類（来店予告DMを過去の日も同じ内容で出すため。計画は翌朝に作り直されて残らない。追加のみ）
 	log_entry["planned_regulars"] = Dm.plan_regulars(GameState.today_plan)
 	log_entry["planned_mob_types"] = Dm.plan_mob_types(GameState.today_plan)
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d) 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d) 仕入れ=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
-		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), spoiled_value,
+		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), int(log_entry["purchases"]), spoiled_value,
 		log_water_used, log_dashi_used, str(log_closed_early), str(log_quality_counts)])
 	BalanceLog.append(log_entry)
 	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
@@ -1902,6 +1904,15 @@ func on_day_ending() -> void:
 	GameState.record_day(log_entry)
 	# 日次の成績表示（③）：今日作ったlog_entryをそのまま人間向けの文にして、次のWAKE（別日）の先頭で一度だけ見せる。ここでのdebug_panel.gd内のローカル変数ではなくlog_entryの値だけを使うのは、日次ログファイルJSONと完全に同じ内容にして、二重の集計ロジックを作らないため。
 	last_day_summary_text = format_day_summary(log_entry)
+
+
+## その日の仕入れ：帳簿のカテゴリ別の支出（spend_by_category）のうち、市場・鍋の素・追加のだし・初日セット（kit）。
+## 運営費（daily_cost）・場所代（rent）・水道代（water）は仕入れではない（別に引く）。UI準備Iの「昨日の仕入れ」「昨日の収支」の元。
+static func purchases_from(spend: Dictionary) -> int:
+	var total := 0
+	for key in ["market", "prep", "dashi", "kit"]:
+		total += int(spend.get(key, 0))
+	return total
 
 
 ## 日次の成績表示（③）：on_day_ending()が組み立てたlog_entry（opening/closingの所持金・評判、

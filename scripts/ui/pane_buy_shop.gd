@@ -19,6 +19,7 @@ var cart: UiShopCart = null
 @onready var _back: Button = %BackButton
 @onready var _cart_box: UiCartBox = %CartBox
 @onready var _reason: Label = %ReasonLabel
+@onready var _final_note: Label = %FinalNote
 @onready var _confirm: Button = %ConfirmButton
 
 
@@ -38,6 +39,10 @@ func bind_session(s: PlaySession) -> void:
 func refresh() -> void:
 	if session == null or session.market_shop == "":
 		return
+	# 最終日の注意（UI準備I）。1行ぶん、商品の一覧の上端を下げる
+	_final_note.visible = GameState.is_final_day()
+	_final_note.text = UiParts.FINAL_DAY_NOTE
+	(%Scroll as Control).offset_top = 142.0 if _final_note.visible else 127.0
 	var shop := session.market_shop
 	var label := ""
 	for stall in session.market_stalls():

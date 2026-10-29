@@ -3,6 +3,9 @@ class_name UiParts
 ## 本番UIの右の枠で共通に使う小さな部品の書き込み（見出しの帯・予算の3つ）。
 ## 部品のノードは各シーン（pane_*.tscn）が持ち、ここは文字を入れるだけ。
 
+## 最終日（Day7）の市場に出す1行（UI準備I。表示だけ）。
+const FINAL_DAY_NOTE := "今夜が最後の営業。残った材料は持ち越せない"
+
 
 ## 見出しの帯：左に画面名、右に補足。
 static func set_header(header: Control, title: String, sub: String = "") -> void:

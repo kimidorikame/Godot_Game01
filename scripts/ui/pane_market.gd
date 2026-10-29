@@ -12,6 +12,7 @@ var tally: UiShopTally = null
 @onready var _budget: Control = %Budget
 @onready var _stalls: VBoxContainer = %Stalls
 @onready var _exit: Button = %ExitButton
+@onready var _final_note: Label = %FinalNote
 
 
 func _ready() -> void:
@@ -53,6 +54,8 @@ func refresh() -> void:
 		if not enabled and state == "":
 			state = "今日は閉まっている"
 		(row.get_node("State") as Label).text = state
+	_final_note.visible = GameState.is_final_day()
+	_final_note.text = UiParts.FINAL_DAY_NOTE
 	_exit.disabled = not session.can_exit_market()
 
 

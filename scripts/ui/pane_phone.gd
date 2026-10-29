@@ -140,13 +140,6 @@ func _add_dm_row(item: Dictionary, unread: bool) -> void:
 	from_label.position = Vector2(62, 4)
 	from_label.size = Vector2(190, 26)
 	row.add_child(from_label)
-	if str(item["from_kind"]) == "customer":   # 常連の印は名前あり客の差出人だけ（客でない差出人・モブの組には付けない）
-		var mark := Label.new()
-		mark.text = "常連"
-		mark.theme_type_variation = &"LabelTag"
-		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		mark.position = Vector2(62 + minf(from_label.get_minimum_size().x, 190.0) + 6.0, 8)
-		row.add_child(mark)
 	var time := Label.new()
 	time.text = Calendar.stamp(int(item.get("day", GameState.day_count)), str(item["time"]))   # 「Day3 05:40」（日付は届いた日。形は Calendar）
 	time.theme_type_variation = &"LabelCaption"

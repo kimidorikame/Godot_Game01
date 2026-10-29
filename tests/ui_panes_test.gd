@@ -97,7 +97,7 @@ func run(t: SceneTree) -> int:
 			and morning.get_node("%CostLabel").text == "水と炭（運営費） ¥%d　市場を出るときに払う" % GameState.DAILY_OPERATING_COST
 			and morning.get_node("%UsableLabel").text == "使える現金 ¥%d" % int(s.budget()["usable"]))
 	var boxes := { "SalesBox": Rect2(852, 86, 388, 71), "GradesBox": Rect2(852, 167, 388, 96), "ShortBox": Rect2(852, 273, 388, 95),
-		"MoneyBox": Rect2(852, 378, 388, 123) }
+		"BalanceBox": Rect2(852, 378, 388, 88), "MoneyBox": Rect2(852, 476, 388, 123) }
 	for box_name in boxes:
 		c.check("朝：%s の位置と大きさ（寸法表どおり）" % box_name, _near(morning.get_node("%RecordBoxes/" + box_name).get_global_rect(), boxes[box_name]),
 			str(morning.get_node("%RecordBoxes/" + box_name).get_global_rect()))

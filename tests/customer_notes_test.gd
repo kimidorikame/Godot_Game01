@@ -2,7 +2,7 @@ extends RefCounted
 ## 客ノート（スマホの「客」タブ。UI準備G）。出会った客の好みを見返す。
 ## 対象：載る条件（会っていない客・種類は載せない／名前あり客は注文を言う行を見てから）／並び（名前あり客が先・モブが後・それぞれ出会った順）／
 ## 来た日・好物（知った客だけ）・札2枚／モブは断った団体も載る（日次ログの mob_types_met）・旧セーブは mob_types_served で代用／
-## 画面（札は言葉・内部名なし）／再挑戦・続きから（朝の封筒）／市場でスマホを開いて閉じてもかごが消えない／来店予告の差出人（モブ）に「常連」の印を付けない。
+## 画面（札は言葉・内部名なし）／再挑戦・続きから（朝の封筒）／市場でスマホを開いて閉じてもかごが消えない／DMの行は差出人の種類によらず同じ見た目（UI準備I。「常連」の印なし）。
 
 
 func _label_texts(node: Node, out: Array = []) -> Array:
@@ -135,7 +135,8 @@ func run(t: SceneTree) -> int:
 		"mob_instances": { "mob#0": { "type": "inn_clerk", "count": 2 } }, "demand_center": 9 }
 	phone.tab = "sns"
 	phone.refresh()
-	var mark_ok := true
+	var shapes := {}
+	var mark_seen := false
 	var rows_seen := 0
 	for row in phone.get_node("%Content").get_children():
 		var row_texts := _label_texts(row)
@@ -149,9 +150,18 @@ func run(t: SceneTree) -> int:
 		if kind == "":
 			continue
 		rows_seen += 1
-		var has_mark := row_texts.has("常連")
-		mark_ok = mark_ok and (has_mark == (kind == "customer"))
-	c.check("「常連」の印は名前あり客の差出人だけ（モブの組・客でない差出人には付けない）", mark_ok and rows_seen >= 3, "rows %d" % rows_seen)
+		mark_seen = mark_seen or row_texts.has("常連")
+		# 見た目の構成（子の数・ラベルの数・色つきの部品の数）が、差出人の種類によらず同じ
+		var labels := 0
+		var colored := 0
+		for child in row.get_children():
+			labels += 1 if child is Label else 0
+			colored += 1 if child is ColorRect else 0
+		shapes[kind] = "%d/%d/%d" % [row.get_child_count(), labels, colored]
+	var same_shape := true
+	for kind in shapes:
+		same_shape = same_shape and shapes[kind] == shapes.values()[0]
+	c.check("DMの行は、差出人が名前あり客・モブの組・市場の顔なじみのどれでも同じ見た目（「常連」の印なし・構成が同じ）", not mark_seen and same_shape and rows_seen >= 3, "%s rows %d" % [str(shapes), rows_seen])
 	ReadState.reset(ReadState.path)
 	root.queue_free()
 	GameState.reset_for_new_game()

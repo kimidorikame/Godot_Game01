@@ -260,12 +260,54 @@ text = "廃棄 なし"
 vertical_alignment = 1
 text_overrun_behavior = 3
 
-[node name="MoneyBox" type="Panel" parent="RecordBoxes"]
+[node name="BalanceBox" type="Panel" parent="RecordBoxes"]
 layout_mode = 0
 offset_left = 16.0
 offset_top = 354.0
 offset_right = 404.0
-offset_bottom = 477.0
+offset_bottom = 442.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="Caption" type="Label" parent="RecordBoxes/BalanceBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 4.0
+offset_right = 376.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "昨日のお金の出入り"
+vertical_alignment = 1
+
+[node name="PurchaseLabel" type="Label" parent="RecordBoxes/BalanceBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 26.0
+offset_right = 376.0
+offset_bottom = 54.0
+theme_type_variation = &"LabelBody"
+text = "昨日の仕入れ ¥0"
+vertical_alignment = 1
+
+[node name="BalanceLabel" type="Label" parent="RecordBoxes/BalanceBox"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 12.0
+offset_top = 56.0
+offset_right = 376.0
+offset_bottom = 84.0
+theme_type_variation = &"LabelBody"
+text = "昨日の収支 ¥0"
+vertical_alignment = 1
+
+[node name="MoneyBox" type="Panel" parent="RecordBoxes"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 452.0
+offset_right = 404.0
+offset_bottom = 575.0
 mouse_filter = 2
 theme_type_variation = &"PanelBox"
 

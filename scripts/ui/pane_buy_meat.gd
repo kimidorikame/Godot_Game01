@@ -22,6 +22,7 @@ var cart: UiShopCart = null
 @onready var _goods_scroll: Control = %GoodsScroll
 @onready var _goods: UiGoodsList = %Goods
 @onready var _warn: Label = %WarnNote
+@onready var _final_note: Label = %FinalNote
 @onready var _back: Button = %BackButton
 @onready var _cart_box: UiCartBox = %CartBox
 @onready var _reason: Label = %ReasonLabel
@@ -72,6 +73,8 @@ func refresh() -> void:
 			var picked := choosing and cart != null and cart.selected_tier == str(tier["id"])
 			card.show_tier(tier, bool(base["paid"]) and str(base["tier_id"]) == str(tier["id"]),
 				choosing and int(tier["price"]) <= limit, picked)
+	_final_note.visible = GameState.is_final_day()
+	_final_note.text = UiParts.FINAL_DAY_NOTE
 	var paid := session.prep_tier_paid()
 	var goods_open := GameState.day_count >= Rules.market_open_from_day()
 	_goods_scroll.visible = goods_open
