@@ -120,6 +120,25 @@ func run(t: SceneTree) -> int:
 	c.check("買い物の最中にスマホ（客タブ）を開ける・閉じると同じ店に戻り、かごは消えない",
 		opened and shop.visible and s.market_shop == "tofu_noodles" and in_cart == 2 and root.cart.count(s.market_shop) == 2, "%s %s %d" % [str(opened), s.market_shop, root.cart.count(s.market_shop)])
 
+	# 張記（食肉仲卸）の中からでも、スマホを開いて閉じると同じ店の画面に戻る（店選びに戻らない）。かごは今のまま
+	_press(shop.get_node("%BackButton"))
+	_press(stalls.get_child(0))
+	var meat: UiPaneBuyMeat = root.pane_buy_meat
+	var meat_goods: UiGoodsList = meat.get_node("%Goods")
+	_press(meat_goods.get_child(0).get_node("BuyButton"))
+	var meat_cart: int = root.cart.count("meat_wholesale")
+	var in_meat_before: bool = meat.visible and s.market_shop == "meat_wholesale"
+	root.open_phone("inventory")
+	var meat_phone_open := phone.visible and not meat.visible
+	root.close_overlay()
+	c.check("張記の中でスマホを開いて閉じると、同じ張記の画面に戻る（店選びに戻らない）・かごはそのまま",
+		in_meat_before and meat_phone_open and meat.visible and not root.pane_market.visible and s.market_shop == "meat_wholesale"
+			and meat_cart == 1 and root.cart.count("meat_wholesale") == 1, "%s %s %s" % [str(meat.visible), s.market_shop, str(root.pane_market.visible)])
+	# 店選びの画面から開いて閉じても、店選びのまま
+	_press(meat.get_node("%BackButton"))
+	root.open_phone("notes")
+	root.close_overlay()
+	c.check("店選びの画面で開いて閉じると、店選びのまま", root.pane_market.visible and s.market_shop == "")
 	# --- 5. 再挑戦・続きから ---
 	var before := JSON.stringify(s.phone_notes())
 	var envelope: Dictionary = MorningSave.capture("")
@@ -162,6 +181,24 @@ func run(t: SceneTree) -> int:
 	for kind in shapes:
 		same_shape = same_shape and shapes[kind] == shapes.values()[0]
 	c.check("DMの行は、差出人が名前あり客・モブの組・市場の顔なじみのどれでも同じ見た目（「常連」の印なし・構成が同じ）", not mark_seen and same_shape and rows_seen >= 3, "%s rows %d" % [str(shapes), rows_seen])
+	root.queue_free()
+
+	# --- 7. 鍋の素を選んでいる途中（Day2の張記）でスマホを開いて閉じても、同じ画面・選びはそのまま ---
+	GameState.reset_for_new_game()
+	root = load("res://scenes/game_root.tscn").instantiate()
+	t.root.add_child(root)
+	s = root.session
+	play = load("res://tests/ui_autoplay.gd").new(root)
+	guard = 0
+	while not (GameState.day_count == 2 and root.pane_buy_meat.visible and s.is_in_prep_tier()) and guard < 3000:
+		guard += 1
+		play.step()
+	_press(root.pane_buy_meat.get_node("%Tiers").get_child(1))
+	var picked_tier: String = root.cart.selected_tier
+	root.open_phone("inventory")
+	root.close_overlay()
+	c.check("鍋の素を選んでいる途中でスマホを開いて閉じても、同じ張記の画面・選んだ鍋の素はそのまま", root.pane_buy_meat.visible and s.is_in_prep_tier()
+		and picked_tier != "" and root.cart.selected_tier == picked_tier, "%s %s" % [picked_tier, root.cart.selected_tier])
 	ReadState.reset(ReadState.path)
 	root.queue_free()
 	GameState.reset_for_new_game()
