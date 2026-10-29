@@ -100,6 +100,9 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 		cash_by_day.append(int(rec.get("closing_money", 0)))
 	var repair := repair_paid(ledger)
 	var first: Dictionary = day_records[0] if not day_records.is_empty() else {}
+	var leftover := 0   # 余り在庫の評価額（最終日の閉店時。目標には含めない。UI準備I2）
+	if not day_records.is_empty() and day_records[day_records.size() - 1] is Dictionary:
+		leftover = PlaySession.stock_value_of((day_records[day_records.size() - 1] as Dictionary).get("closing_stock", {}))
 	var last: Dictionary = day_records[day_records.size() - 1] if not day_records.is_empty() else {}
 	return {
 		"days": day_records.size(),
@@ -108,7 +111,7 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 		"judged_cups": judged, "good_plus_cups": good_plus,
 		"good_rate": float(good_plus) / float(judged) if judged > 0 else 0.0,
 		"regular_cups": reg_cups, "regular_great": reg_great, "regular_good_plus": reg_good_plus,
-		"spoiled_value": spoiled_value, "spoiled_units": spoiled_units, "tips": tips, "purchases": purchases,
+		"spoiled_value": spoiled_value, "spoiled_units": spoiled_units, "tips": tips, "purchases": purchases, "closing_stock_value": leftover,
 		"early_close_days": early_close,
 		"reputation_start": int(first.get("opening_reputation", 0)),
 		"reputation_end": int(last.get("closing_reputation", 0)),
@@ -131,6 +134,7 @@ static func format_report(s: Dictionary) -> String:
 		"未提供: %d杯（計画 %d杯・提供 %d杯）" % [
 			int(s.get("unserved_cups", 0)), int(s.get("planned_cups", 0)), int(s.get("served_cups", 0))],
 		"チップ合計: ¥%d　仕入れ合計: ¥%d" % [int(s.get("tips", 0)), int(s.get("purchases", 0))],
+		"余り在庫 ¥%d（評価額。目標には含めない）" % int(s.get("closing_stock_value", 0)),
 		"廃棄: ¥%d（%d個）　早期閉店: %d夜" % [
 			int(s.get("spoiled_value", 0)), int(s.get("spoiled_units", 0)),
 			int(s.get("early_close_days", 0))],

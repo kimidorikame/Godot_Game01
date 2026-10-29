@@ -1890,13 +1890,16 @@ func on_day_ending() -> void:
 	log_entry["mob_types_met"] = mob_types_met_tonight()
 	# UI準備I：その日の仕入れ（鍋の素・材料・追加のだし・Day1の初日セット。運営費・場所代・水道代は含めない。追加のみ）
 	log_entry["purchases"] = purchases_from(log_entry["spend_by_category"])
+	# UI準備I2：その日に買った品目ごとの個数と額・閉店時の在庫（個数・新鮮と傷の内訳・評価額＝単価×個数）。追加のみ
+	log_entry["purchase_items"] = purchase_items_today()
+	log_entry["closing_stock"] = closing_stock_now()
 	# UI準備E：その夜に来る予定だった名前あり客・モブの種類（来店予告DMを過去の日も同じ内容で出すため。計画は翌朝に作り直されて残らない。追加のみ）
 	log_entry["planned_regulars"] = Dm.plan_regulars(GameState.today_plan)
 	log_entry["planned_mob_types"] = Dm.plan_mob_types(GameState.today_plan)
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d) 仕入れ=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d) 仕入れ=%d 在庫評価額=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
-		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), int(log_entry["purchases"]), spoiled_value,
+		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), int(log_entry["purchases"]), stock_value_of(log_entry["closing_stock"]), spoiled_value,
 		log_water_used, log_dashi_used, str(log_closed_early), str(log_quality_counts)])
 	BalanceLog.append(log_entry)
 	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
@@ -1913,6 +1916,98 @@ static func purchases_from(spend: Dictionary) -> int:
 	for key in ["market", "prep", "dashi", "kit"]:
 		total += int(spend.get(key, 0))
 	return total
+
+
+## 品目の単価（円/個）＝市場でいちばん大きい袋の 値段÷個数。濃縮だしは1回分の値段。市場に無い品目は 0。
+static func unit_price_of(item: String) -> float:
+	if item == "dashi":
+		return float(GameState.DASHI_PRICE)
+	var best_count := 0
+	var best_unit := 0.0
+	for shop_id in ["produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps"]:
+		for good in shop_goods(shop_id):
+			if str(good.get("item", "")) == item and int(good.get("count", 1)) > best_count:
+				best_count = int(good.get("count", 1))
+				best_unit = float(good.get("price", 0)) / float(maxi(best_count, 1))
+	return best_unit
+
+
+## いまの在庫（閉店時の値）：{ 品目id: { fresh, damaged, value（評価額＝単価×（新鮮＋傷んだ個数）。円） } }。濃縮だしも（残りの回数を fresh に）。
+func closing_stock_now() -> Dictionary:
+	var out := {}
+	for id in GameState.inventory:
+		var fresh := GameState.fresh_count(str(id))
+		var damaged := GameState.damaged_count(str(id))
+		if fresh + damaged > 0:
+			out[str(id)] = { "fresh": fresh, "damaged": damaged, "value": roundi(unit_price_of(str(id)) * (fresh + damaged)) }
+	if GameState.dashi_units > 0:
+		out["dashi"] = { "fresh": GameState.dashi_units, "damaged": 0, "value": roundi(unit_price_of("dashi") * GameState.dashi_units) }
+	return out
+
+
+## 在庫（closing_stock の形）の評価額の合計。
+static func stock_value_of(stock: Dictionary) -> int:
+	var total := 0
+	for id in stock:
+		total += int((stock[id] as Dictionary).get("value", 0))
+	return total
+
+
+## その日に買った品目ごとの個数と額：{ 品目id: { count, amount } }。市場・追加のだし（"dashi"）・初日セット（キットの品目）・
+## 鍋の素（"prep:<段階id>"。個数1）。帳簿（Ledger）とキットのデータから読む。
+func purchase_items_today() -> Dictionary:
+	var out := {}
+	var add := func(key: String, count: int, amount: int):
+		var entry: Dictionary = out.get(key, { "count": 0, "amount": 0 })
+		entry["count"] = int(entry["count"]) + count
+		entry["amount"] = int(entry["amount"]) + amount
+		out[key] = entry
+	for entry in GameState.ledger:
+		if int(entry.get("day", -1)) != GameState.day_count:
+			continue
+		match str(entry.get("category", "")):
+			"market", "dashi":
+				add.call(str(entry.get("item", "")), int(entry.get("count", 0)), -int(entry.get("amount", 0)))
+			"prep":
+				add.call("prep:%s" % str(entry.get("item", "")), 1, -int(entry.get("amount", 0)))
+	if int(Ledger.spend_by_category_today().get("kit", 0)) > 0:
+		var kit := ScheduleData.kit_data(str(Rules.day_overrides(GameState.day_count).get("kit", "")))
+		for good in kit.get("items", []):
+			add.call(str(good.get("item", "")), int(good.get("count", 1)), int(good.get("price", 0)))
+	return out
+
+
+## 持ち物パネル（朝・市場・準備。UI準備I2）：在庫が1つ以上の材料と、10の性質（札）の点灯。表示だけ。
+## { flavors:[{ id, name, tags, fresh, damaged }]（味・調味料）, toppings:[…]（具）, traits:[{ tag, state }]（state：lit＝新鮮が1つ以上／half＝傷んだ分だけ／dark）,
+##   final_day }。かごに入れた分は含めない。並びは品目の定義順（UiLabels.item_order）。
+func inventory_view() -> Dictionary:
+	var flavors := []
+	var toppings := []
+	var fresh_tags := {}
+	var damaged_tags := {}
+	var ids := GameState.inventory.keys()
+	ids.sort_custom(func(a, b): return UiLabels.item_order(str(a)) < UiLabels.item_order(str(b)))
+	for id in ids:
+		var item := str(id)
+		var fresh := GameState.fresh_count(item)
+		var damaged := GameState.damaged_count(item)
+		if fresh + damaged <= 0:
+			continue
+		var tags: Array = Ingredients.tags_for(item)
+		if tags.is_empty():
+			continue   # 鍋の素（soup_base）など、椀に入れる材料でないものは出さない
+		for tag in tags:
+			if fresh > 0:
+				fresh_tags[str(tag)] = true
+			else:
+				damaged_tags[str(tag)] = true
+		var row := { "id": item, "name": UiLabels.short_name(item), "tags": tags, "fresh": fresh, "damaged": damaged }
+		(toppings if Ingredients.is_topping(item) else flavors).append(row)
+	var traits := []
+	for tag in TagWords.all_tags():
+		var state := "lit" if fresh_tags.has(tag) else ("half" if damaged_tags.has(tag) else "dark")
+		traits.append({ "tag": tag, "state": state })
+	return { "flavors": flavors, "toppings": toppings, "traits": traits, "final_day": GameState.is_final_day() }
 
 
 ## 日次の成績表示（③）：on_day_ending()が組み立てたlog_entry（opening/closingの所持金・評判、
@@ -2806,8 +2901,11 @@ func phone_notes() -> Dictionary:
 		days.sort()
 		var known := GameState.knows_favorite(id)
 		var favorite := str(profile.get("favorite", ""))
+		var usual_names := []
+		for ingredient in RecipeBook.usual_for(id):
+			usual_names.append(Ingredients.name_for(str(ingredient)))
 		regulars.append({ "id": id, "name": ScheduleData.customer_display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
-			"days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "" })
+			"usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "" })
 	var types := []
 	for record in GameState.day_records:
 		if record is Dictionary:

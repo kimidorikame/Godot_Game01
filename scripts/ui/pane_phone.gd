@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
-## タブは SNS／ニュース／レシピ／客。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
+## タブは SNS／ニュース／客（レシピタブは無くした。UI準備I2）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
 ## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
 ## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
@@ -12,7 +12,7 @@ signal close_requested()
 ## SNS・ニュースのタブを表示して、未読を読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
 signal unread_cleared()
 
-const TABS := ["sns", "news", "recipe", "notes"]
+const TABS := ["sns", "news", "notes"]
 
 var session: PlaySession = null
 ## 表示だけの状態：開いているタブ。
@@ -70,8 +70,6 @@ func refresh() -> void:
 			_fill_sns()
 		"news":
 			_fill_news()
-		"recipe":
-			_fill_recipes()
 		"notes":
 			_fill_notes()
 
@@ -182,21 +180,6 @@ func _fill_news() -> void:
 		unread_cleared.emit()
 
 
-func _fill_recipes() -> void:
-	var recipes := session.phone_recipes()
-	_add("保存したレシピ", &"LabelSub")
-	for slot in recipes["slots"]:
-		if str(slot["name"]) == "":
-			_add("枠%d（空き）" % (int(slot["index"]) + 1), &"LabelDim")
-		else:
-			_add("枠%d %s：%s" % [int(slot["index"]) + 1, str(slot["name"]), _names(slot["ingredients"])], &"LabelPhoneBody")
-	_add("いつもの", &"LabelSub")
-	if (recipes["usual"] as Array).is_empty():
-		_add("まだありません", &"LabelDim")
-	for item in recipes["usual"]:
-		_add("%s：%s" % [session.log_speaker(str(item["customer"])), _names(item["ingredients"])], &"LabelPhoneBody")
-
-
 ## 客ノート（UI準備G）：出会った客の好み。名前あり客を先、モブを後（それぞれ出会った順）。札は客側・材料側で同じ部品（UiTagChips）。
 func _fill_notes() -> void:
 	var notes := session.phone_notes()
@@ -207,19 +190,21 @@ func _fill_notes() -> void:
 		_add("名前あり客", &"LabelSub")
 		for item in notes["regulars"]:
 			_add_note_row(str(item["name"]), "・".join(PackedStringArray((item["days"] as Array).map(func(d): return Calendar.label(int(d))))),
-				"いつもの", item["tags"], ("好物　" + str(item["favorite"])) if bool(item["favorite_known"]) else "")
+				"いつもの", item["tags"], ("好物　" + str(item["favorite"])) if bool(item["favorite_known"]) else "",
+				("前回　" + "・".join(PackedStringArray(item["usual_ingredients"]))) if not (item["usual_ingredients"] as Array).is_empty() else "")
 	if not (notes["mobs"] as Array).is_empty():
 		_add("モブ", &"LabelSub")
 		for item in notes["mobs"]:
-			_add_note_row(str(item["name"]), "", "好み", item["tags"], "")
+			_add_note_row(str(item["name"]), "", "好み", item["tags"], "", "")
 
 
 ## 客ノートの1行（388幅）：名前・来た日（右）・札2枚・好物（知った客だけ）。
-func _add_note_row(title: String, days: String, tag_caption: String, tags: Array, favorite: String) -> void:
+func _add_note_row(title: String, days: String, tag_caption: String, tags: Array, favorite: String, previous: String) -> void:
 	var row := Panel.new()
 	row.theme_type_variation = &"PanelBox"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.custom_minimum_size = Vector2(388, 70 if favorite != "" else 52)
+	var extra_lines := (1 if favorite != "" else 0) + (1 if previous != "" else 0)
+	row.custom_minimum_size = Vector2(388, 52 + 20 * extra_lines)
 	_content.add_child(row)
 	var name_label := Label.new()
 	name_label.text = title
@@ -259,13 +244,16 @@ func _add_note_row(title: String, days: String, tag_caption: String, tags: Array
 		fav.position = Vector2(12, 48)
 		fav.size = Vector2(364, 20)
 		row.add_child(fav)
-
-
-static func _names(ids: Array) -> String:
-	var names: Array = []
-	for id in ids:
-		names.append(Ingredients.name_for(str(id)))
-	return "・".join(names)
+	if previous != "":
+		var prev := Label.new()
+		prev.text = previous
+		prev.theme_type_variation = &"LabelSub"
+		prev.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		prev.position = Vector2(12, 48 + (20 if favorite != "" else 0))
+		prev.size = Vector2(364, 20)
+		prev.clip_text = true
+		prev.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		row.add_child(prev)
 
 
 ## SNSタブ・ニュースタブの未読の数（注意色の丸）。そのタブを表示しているあいだは読んだ扱いなので出さない。

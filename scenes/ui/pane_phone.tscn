@@ -49,7 +49,7 @@ mouse_filter = 2
 
 [node name="Tab1" type="Button" parent="Tabs"]
 layout_mode = 0
-offset_right = 104.0
+offset_right = 139.0
 offset_bottom = 46.0
 focus_mode = 0
 theme_type_variation = &"ButtonTab"
@@ -58,8 +58,8 @@ text = "SNS"
 
 [node name="Tab2" type="Button" parent="Tabs"]
 layout_mode = 0
-offset_left = 104.0
-offset_right = 208.0
+offset_left = 139.0
+offset_right = 278.0
 offset_bottom = 46.0
 focus_mode = 0
 theme_type_variation = &"ButtonTab"
@@ -68,17 +68,7 @@ text = "ニュース"
 
 [node name="Tab3" type="Button" parent="Tabs"]
 layout_mode = 0
-offset_left = 208.0
-offset_right = 312.0
-offset_bottom = 46.0
-focus_mode = 0
-theme_type_variation = &"ButtonTab"
-theme_override_font_sizes/font_size = 17
-text = "レシピ"
-
-[node name="Tab4" type="Button" parent="Tabs"]
-layout_mode = 0
-offset_left = 312.0
+offset_left = 278.0
 offset_right = 417.0
 offset_bottom = 46.0
 focus_mode = 0
@@ -89,9 +79,9 @@ text = "客"
 [node name="SnsBadge" type="Label" parent="Tabs"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 62.0
+offset_left = 98.0
 offset_top = 8.0
-offset_right = 100.0
+offset_right = 134.0
 offset_bottom = 28.0
 mouse_filter = 2
 theme_type_variation = &"LabelWarnSmall"
@@ -100,9 +90,9 @@ horizontal_alignment = 1
 [node name="NewsBadge" type="Label" parent="Tabs"]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 166.0
+offset_left = 237.0
 offset_top = 8.0
-offset_right = 204.0
+offset_right = 273.0
 offset_bottom = 28.0
 mouse_filter = 2
 theme_type_variation = &"LabelWarnSmall"
@@ -112,7 +102,7 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 layout_mode = 0
 offset_top = 73.0
-offset_right = 104.0
+offset_right = 139.0
 offset_bottom = 76.0
 mouse_filter = 2
 color = Color(0.909804, 0.639216, 0.239216, 1)

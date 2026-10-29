@@ -1,0 +1,103 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/inventory_panel.gd" id="1_invpnl"]
+
+[node name="InventoryPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 72.0
+offset_right = 796.0
+offset_bottom = 492.0
+mouse_filter = 2
+script = ExtResource("1_invpnl")
+
+[node name="ListPanel" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 572.0
+offset_bottom = 420.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="ListTitle" type="Label" parent="ListPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 10.0
+offset_top = 4.0
+offset_right = 160.0
+offset_bottom = 22.0
+mouse_filter = 2
+theme_type_variation = &"LabelCaption"
+text = "持ち物"
+vertical_alignment = 1
+
+[node name="ListNote" type="Label" parent="ListPanel"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 10.0
+offset_top = 22.0
+offset_right = 560.0
+offset_bottom = 40.0
+mouse_filter = 2
+theme_type_variation = &"LabelWarnSmall"
+text = "残った分は持ち越せない"
+vertical_alignment = 1
+
+[node name="ListScroll" type="ScrollContainer" parent="ListPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 4.0
+offset_top = 26.0
+offset_right = 568.0
+offset_bottom = 416.0
+mouse_filter = 2
+horizontal_scroll_mode = 0
+
+[node name="ListContent" type="HBoxContainer" parent="ListPanel/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="TraitsPanel" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 580.0
+offset_right = 772.0
+offset_bottom = 420.0
+mouse_filter = 2
+theme_type_variation = &"PanelBox"
+
+[node name="TraitsTitle" type="Label" parent="TraitsPanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 4.0
+offset_right = 180.0
+offset_bottom = 22.0
+mouse_filter = 2
+theme_type_variation = &"LabelCaption"
+text = "性質チェック"
+vertical_alignment = 1
+
+[node name="TraitsContent" type="VBoxContainer" parent="TraitsPanel"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 8.0
+offset_top = 26.0
+offset_right = 184.0
+offset_bottom = 340.0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="TraitsLegend" type="Label" parent="TraitsPanel"]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 344.0
+offset_right = 182.0
+offset_bottom = 414.0
+mouse_filter = 2
+theme_type_variation = &"LabelCaption"
+text = "明るい＝新鮮なものがある／半分＝傷んだ分だけ／暗い＝無い"
+autowrap_mode = 3
