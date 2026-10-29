@@ -91,7 +91,7 @@ func run(t: SceneTree) -> int:
 	phone.refresh()
 	var texts := _label_texts(phone.get_node("%Content"))
 	var tabs: Control = phone.get_node("%Tabs")
-	c.check("タブは3つ（SNS／ニュース／客）・客タブを開いた", tabs.get_child_count() >= 3 and (tabs.get_child(2) as Button).text == "客" and texts.has("名前あり客") and texts.has("モブ"), str(texts.slice(0, 6)))
+	c.check("タブは4つ（SNS／ニュース／持ち物／客）・客タブを開いた", tabs.get_child_count() >= 4 and (tabs.get_child(3) as Button).text == "客" and texts.has("名前あり客") and texts.has("モブ"), str(texts.slice(0, 6)))
 	c.check("画面：名前・来た日（Day1）・札は言葉（辛い・スタミナ）・内部名は出ない", texts.has("配達員") and texts.has("Day1") and texts.has("辛い") and texts.has("スタミナ")
 		and not texts.any(func(x): return str(x).contains("HOT") or str(x).contains("POWER")), str(texts))
 	c.check("並び：名前あり客の見出し→名前あり客→モブの見出し→モブ", texts.find("名前あり客") < texts.find("配達員") and texts.find("配達員") < texts.find("モブ") and texts.find("モブ") < texts.find("港湾労働者"))

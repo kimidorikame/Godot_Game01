@@ -1,7 +1,6 @@
 extends RefCounted
-## 持ち物パネル・日次ログの在庫と仕入れ・余り在庫・客ノートの前回の材料（UI準備I2）。表示とログだけ（判定・乱数・評判の式・チップは変えない）。
-## 対象：inventory_view（在庫が1つ以上の材料・味と具の分け・新鮮／傷・性質の点灯／半点灯／暗い・最終日）／パネルの表示（朝・市場・準備に出る・ログで隠れる・営業中は出ない・
-## 立ち絵が出ない場面は広く／出る場面は左右2列・内部名なし）／日次ログの purchase_items・closing_stock・BALANCE_LOG／結果画面の「余り在庫」／
+## 持ち物（スマホのタブ）・日次ログの在庫と仕入れ・余り在庫・客ノートの前回の材料（UI準備I2）。表示とログだけ（判定・乱数・評判の式・チップは変えない）。
+## 対象：inventory_view（在庫が1つ以上の材料・味と具の分け・新鮮／傷・性質の点灯／半点灯／暗い・最終日）／スマホの「持ち物」タブ（レシピの代わり。市場でも開ける・内部名なし・最終日の注意・縦に送れる）／日次ログの purchase_items・closing_stock・BALANCE_LOG／結果画面の「余り在庫」／
 ## 客ノートの「前回の材料」／スマホのタブは3つ。
 
 
@@ -11,6 +10,20 @@ func _label_texts(node: Node, out: Array = []) -> Array:
 	for child in node.get_children():
 		_label_texts(child, out)
 	return out
+
+
+func TabsHas(tabs: Control, text: String) -> bool:
+	for child in tabs.get_children():
+		if child is Button and (child as Button).text == text:
+			return true
+	return false
+
+
+func _sort(node: Node) -> void:
+	for child in node.get_children():
+		_sort(child)
+	if node is Container:
+		node.notification(Container.NOTIFICATION_SORT_CHILDREN)
 
 
 func _add_damaged(item: String, count: int) -> void:
@@ -77,68 +90,63 @@ func run(t: SceneTree) -> int:
 	c.check("前回の材料：前回の記録がある客だけ（来たが出さなかった客は空）", by_id["thug"]["usual_ingredients"] == ["ココナッツミルク", "豆腐"] and (by_id["officer"]["usual_ingredients"] as Array).is_empty(), str(by_id))
 	s0.free()
 
-	# --- 3. 通しで遊ぶ：パネルの表示・日次ログ ---
+	# --- 3. 通しで遊ぶ：スマホの「持ち物」タブ・日次ログ ---
 	GameState.reset_for_new_game()
 	var root: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
 	t.root.add_child(root)
 	var s: PlaySession = root.session
 	var play = load("res://tests/ui_autoplay.gd").new(root)
 	var guard := 0
-	var shown_phases := {}
-	var shown_in_open := false
 	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
 		guard += 1
 		play.step()
-		var panel: UiInventoryPanel = root.left.get_node("%InventoryPanel")
-		if GameState.phase == GameState.Phase.OPEN and panel.visible:
-			shown_in_open = true
-		if panel.visible:
-			shown_phases[GameState.phase] = true
-	c.check("持ち物パネルは朝・準備（市場を含む）に出て、営業中は出ない", shown_phases.has(GameState.Phase.WAKE) and shown_phases.has(GameState.Phase.PREP) and not shown_in_open, str(shown_phases))
-	var panel: UiInventoryPanel = root.left.get_node("%InventoryPanel")
+	var phone: UiPanePhone = root.pane_phone
+	var tabs: Control = phone.get_node("%Tabs")
+	c.check("スマホのタブは SNS／ニュース／持ち物／客 の4つ（レシピの代わりに持ち物）", tabs.get_child(2).text == "持ち物" and tabs.get_child(3).text == "客" and not TabsHas(tabs, "レシピ"))
 	GameState.money = 1000
-	s.notify_changed()
-	root.left.refresh()
-	var in_market_visible := panel.visible
-	var wide_layout: bool = (panel.get_node("%ListPanel") as Control).size.x > 500.0 and (panel.get_node("%TraitsPanel") as Control).position.x < 600.0
-	var texts := _label_texts(panel)
-	c.check("市場（立ち絵が出ない場面）：左の領域を広く使う（材料の一覧と性質チェックが横に並ぶ）・見出しと札は言葉・内部名なし",
-		in_market_visible and wide_layout and texts.has("持ち物") and texts.has("性質チェック") and texts.has("味（調味料）") and texts.has("具")
-			and not texts.any(func(x): return str(x).contains("HOT") or str(x).contains("POWER") or str(x).contains("GENTLE")), str(texts.slice(0, 12)))
+	root.open_phone("inventory")
+	phone.refresh()
+	var content: Control = phone.get_node("%Content")
+	var texts := _label_texts(content)
+	c.check("市場でスマホを開いて持ち物タブ：性質チェック・味（調味料）・具の見出しと材料（短い名前）が出る・札は言葉で内部名なし",
+		phone.tab == "inventory" and texts.has("性質チェック") and texts.has("味（調味料）") and texts.has("具")
+			and not texts.any(func(x): return str(x).contains("HOT") or str(x).contains("POWER") or str(x).contains("GENTLE")), str(texts.slice(0, 14)))
 	var chips := 0
-	for node in panel.get_node("%TraitsContent").get_children():
+	var lit := 0
+	for node in content.get_children():
 		for chip in node.get_children():
 			if chip.has_meta("state"):
 				chips += 1
-	c.check("性質チェック：10の札が並ぶ", chips == 10, str(chips))
-	root.left.toggle_log()
-	c.check("ログを開いたら隠す", not panel.visible)
-	root.left.close_log()
-	root.left.refresh()
-	panel.refresh(s, false)
-	c.check("立ち絵が出る場面（狭い配置）：材料は左の列（幅180）・性質チェックは右の列（立ち絵を避ける）",
-		is_equal_approx((panel.get_node("%ListPanel") as Control).size.x, 180.0) and (panel.get_node("%TraitsPanel") as Control).position.x >= 590.0 and (panel.get_node("%TraitsPanel") as Control).size.x <= 190.0)
-	GameState.inventory.clear()
-	GameState.perishable_batches.clear()
-	GameState.add_inventory("nam_prik_pao", 1)
-	GameState.add_inventory("meat_ball", 2)
-	panel.refresh(s, false)
-	var narrow_texts := _label_texts(panel.get_node("%ListPanel"))
-	c.check("狭い配置も、味と具の両方の行が出る（1つの列に見出しつきで並ぶ）", narrow_texts.has("味（調味料）") and narrow_texts.has("具") and narrow_texts.has(UiLabels.short_name("nam_prik_pao"))
-		and narrow_texts.has(UiLabels.short_name("meat_ball")) and narrow_texts.has("×2"), str(narrow_texts))
-	# 品数が多いと縦に送れる（あふれるときだけホイールを受ける）
+				lit += 1 if chip.get_meta("state") == "lit" else 0
+	var stocked: Array = (s.inventory_view()["flavors"] as Array) + (s.inventory_view()["toppings"] as Array)
+	c.check("性質チェック：10の札が並ぶ・在庫のある性質が点灯", chips == 10 and lit > 0 and stocked.all(func(r): return texts.has(str(r["name"]))), "%d %d" % [chips, lit])
+	root.close_overlay()
+	c.check("閉じると市場に戻る（かごは別に持っているので消えない）", root.overlay == "" and root.pane_market.visible)
+	# 最終日は見出しに注意
+	GameState.day_count = GameState.FINAL_DAY
+	phone.tab = "inventory"
+	phone.refresh()
+	c.check("最終日は先頭に「残った分は持ち越せない」", _label_texts(phone.get_node("%Content")).has("残った分は持ち越せない"))
+	GameState.day_count = 2
+	_add_damaged("tofu", 2)
+	phone.refresh()
+	var tofu_row: Dictionary = {}
+	for r in (s.inventory_view()["toppings"] as Array):
+		if str(r["id"]) == "tofu":
+			tofu_row = r
+	var damaged_texts := _label_texts(phone.get_node("%Content"))
+	c.check("傷んだ在庫がある材料は「新鮮n・傷m」と個数（×合計）が両方出る（行からはみ出さない）", int(tofu_row.get("damaged", 0)) == 2
+		and damaged_texts.has("新鮮%d・傷2" % int(tofu_row["fresh"])) and damaged_texts.has("×%d" % (int(tofu_row["fresh"]) + 2)), str(damaged_texts))
+	# 17品ぜんぶ持っていても、スマホの一覧は縦に送れる（スクロール枠の中）
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
 	for id in Ingredients._TAGS:
 		GameState.add_inventory(str(id), 2)
-	panel.refresh(s, false)
-	var many_scrolls: bool = (panel.get_node("%ListScroll") as ScrollContainer).mouse_filter == Control.MOUSE_FILTER_STOP
-	GameState.inventory.clear()
-	GameState.perishable_batches.clear()
-	GameState.add_inventory("nam_prik_pao", 1)
-	panel.refresh(s, false)
-	c.check("17品ぜんぶ持っていると縦に送れる（ホイールを受ける）／少ないときは受けない（会話を進めるクリックを塞がない）",
-		many_scrolls and (panel.get_node("%ListScroll") as ScrollContainer).mouse_filter == Control.MOUSE_FILTER_IGNORE)
+	phone.refresh()
+	_sort(root)
+	var scroll: ScrollContainer = phone.get_node("%Scroll")
+	c.check("17品ぜんぶ持っていると、中身が枠より高く、縦に送れる", scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+		and phone.get_node("%Content").get_combined_minimum_size().y > scroll.size.y, "%s > %s" % [str(phone.get_node("%Content").get_combined_minimum_size().y), str(scroll.size.y)])
 
 	var rec: Dictionary = GameState.day_records[0] if not GameState.day_records.is_empty() else {}
 	var items: Dictionary = rec.get("purchase_items", {})

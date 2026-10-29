@@ -31,7 +31,6 @@ var _log_open := false
 @onready var _money_label: Label = %MoneyLabel
 @onready var _reputation_label: Label = %ReputationLabel
 @onready var _portrait: Control = %Portrait
-@onready var _inventory: UiInventoryPanel = %InventoryPanel
 @onready var _choices: VBoxContainer = %Choices
 @onready var _phone_icon: Button = %PhoneIcon
 @onready var _phone_badge: Label = %PhoneBadge
@@ -139,11 +138,6 @@ func refresh() -> void:
 	# 既読スキップは会話枠の右下に重なる。押せないあいだはクリックを受けず、下の会話枠に通す（押せない枠が会話のクリックを塞がない）
 	_skip_button.mouse_filter = Control.MOUSE_FILTER_IGNORE if _skip_button.disabled else Control.MOUSE_FILTER_STOP
 	_log_box.visible = _log_open
-	# 持ち物パネル（UI準備I2）：朝・市場・準備のあいだだけ。ログを開いたら隠す。立ち絵が出ないときは左の領域全体を使う
-	var show_inventory := (GameState.phase == GameState.Phase.WAKE or GameState.phase == GameState.Phase.PREP) and not _log_open
-	_inventory.visible = show_inventory
-	if show_inventory:
-		_inventory.refresh(session, not _portrait.visible)
 	if _log_open:
 		_log_box.refresh(session)
 		# ログは会話枠が上へ伸びた形：下の会話枠と名前の札は隠す（ログの背面から透けない）

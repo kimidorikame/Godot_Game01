@@ -71,9 +71,9 @@ func run(t: SceneTree) -> int:
 	var phone: UiPanePhone = root.pane_phone
 	c.check("右の枠と同じ位置 (836,24) 420×672", phone.get_global_rect().is_equal_approx(Rect2(836, 24, 420, 672)))
 	var tabs: Control = phone.get_node("%Tabs")
-	c.check("タブ SNS／ニュース／客（レシピは無くした。UI準備I2）：(838,54) から1つ幅139",
-		tabs.get_child(0).get_global_position().is_equal_approx(Vector2(838, 54)) and absf(tabs.get_child(0).size.x - 139.0) < 0.5
-			and tabs.get_child(1).get_global_position().is_equal_approx(Vector2(977, 54)) and tabs.get_child(2).text == "客")
+	c.check("タブ SNS／ニュース／持ち物／客（レシピの代わりに持ち物。UI準備I3）：(838,54) から1つ幅104",
+		tabs.get_child(0).get_global_position().is_equal_approx(Vector2(838, 54)) and absf(tabs.get_child(0).size.x - 104.0) < 0.5
+			and tabs.get_child(1).get_global_position().is_equal_approx(Vector2(942, 54)) and tabs.get_child(2).text == "持ち物" and tabs.get_child(3).text == "客")
 	c.check("「閉じる」(852,640)・幅388", phone.get_node("%CloseButton").get_global_position().is_equal_approx(Vector2(852, 640))
 		and absf(phone.get_node("%CloseButton").size.x - 388.0) < 0.5)
 	# SNSタブ＝DM（UI準備C③）。Day2：条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
@@ -110,7 +110,7 @@ func run(t: SceneTree) -> int:
 		"%s > %s" % [str(phone.get_node("%Content").get_combined_minimum_size().y), str(scroll.size.y)])
 	Dm.clear_cache()
 	s.mark_dms_read()
-	AutoplayPress.press(tabs.get_child(2))
+	AutoplayPress.press(tabs.get_child(3))
 	var note_texts: Array = []
 	for label in phone.get_node("%Content").get_children():
 		if label is Label:

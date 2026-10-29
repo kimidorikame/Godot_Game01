@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
-## タブは SNS／ニュース／客（レシピタブは無くした。UI準備I2）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
+## タブは SNS／ニュース／持ち物／客（レシピタブは無くして、持ち物に置き換えた。UI準備I2・I3）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
 ## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
 ## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
@@ -12,7 +12,7 @@ signal close_requested()
 ## SNS・ニュースのタブを表示して、未読を読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
 signal unread_cleared()
 
-const TABS := ["sns", "news", "notes"]
+const TABS := ["sns", "news", "inventory", "notes"]
 
 var session: PlaySession = null
 ## 表示だけの状態：開いているタブ。
@@ -70,6 +70,8 @@ func refresh() -> void:
 			_fill_sns()
 		"news":
 			_fill_news()
+		"inventory":
+			UiInventoryList.fill(_content, session.inventory_view())
 		"notes":
 			_fill_notes()
 
