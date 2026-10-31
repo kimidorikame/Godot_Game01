@@ -1113,5 +1113,3 @@ func _format_sale_hint() -> String:
 	if not penalty_reasons.is_empty():
 		return "（このままだと1段階下がります：%s）" % "・".join(penalty_reasons)
 	return ""
-
-
