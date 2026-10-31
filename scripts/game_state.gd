@@ -34,6 +34,17 @@ static var TIPS := Rules.tips()
 static func tip_for(result: String, servings: int) -> int:
 	return int(TIPS.get(result, 0)) * maxi(servings, 0)
 
+# 具だくさんのチップ（UI準備L）：具の材料が2種類（違う材料）で、評価（減点で下がったあとの評価）が GOOD 以上の丼に、1杯ごとにチップへ足す額。
+# 値は data/campaigns/week7.json の economy.hearty_tip（Rules.hearty_tip()）。0 で無効。自動試遊（harness）は、既定ではここを 0 に差し替えて測る。
+static var HEARTY_TIP := Rules.hearty_tip()
+
+
+## 評価 result の杯を servings 杯出したときの、具だくさんの上乗せ（additions＝椀の具材）。具が2種類未満・GOOD 未満・評価なしは 0。
+static func hearty_tip_for(result: String, servings: int, additions: Array) -> int:
+	if HEARTY_TIP <= 0 or not (result == "GOOD" or result == "GREAT") or Ingredients.topping_kinds(additions) < 2:
+		return 0
+	return HEARTY_TIP * maxi(servings, 0)
+
 # 場所代（みかじめ・PRICING_SPEC.md 4章 → 場所代・水道代の再編で150→90）。徴収日のみ。
 # チンピラのPAY Eventの金額と、未払いのまま閉店したときの特別請求（CURRENT_SPEC.md
 # §11「未解決」の直し方）の両方で使う（別々の数字にならないよう1箇所に置く）。

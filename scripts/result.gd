@@ -70,6 +70,8 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 	var spoiled_value := 0
 	var spoiled_units := 0
 	var tips := 0
+	var hearty_tips := 0
+	var hearty_cups := 0
 	var purchases := 0
 	var early_close := 0
 	var visit_days := {}
@@ -88,6 +90,8 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 		reg_good_plus += int(rec.get("regular_good_plus", 0))
 		spoiled_value += int(rec.get("spoiled_value", 0))
 		tips += int(rec.get("tips", 0))
+		hearty_tips += int(rec.get("hearty_tips", 0))
+		hearty_cups += int(rec.get("hearty_cups", 0))
 		purchases += int(rec.get("purchases", PlaySession.purchases_from(rec.get("spend_by_category", {}))))
 		var items: Dictionary = rec.get("spoiled_items", {})
 		for id in items:
@@ -111,7 +115,7 @@ static func summarize(day_records: Array, ledger: Array, money: int) -> Dictiona
 		"judged_cups": judged, "good_plus_cups": good_plus,
 		"good_rate": float(good_plus) / float(judged) if judged > 0 else 0.0,
 		"regular_cups": reg_cups, "regular_great": reg_great, "regular_good_plus": reg_good_plus,
-		"spoiled_value": spoiled_value, "spoiled_units": spoiled_units, "tips": tips, "purchases": purchases, "closing_stock_value": leftover,
+		"spoiled_value": spoiled_value, "spoiled_units": spoiled_units, "tips": tips, "hearty_tips": hearty_tips, "hearty_cups": hearty_cups, "purchases": purchases, "closing_stock_value": leftover,
 		"early_close_days": early_close,
 		"reputation_start": int(first.get("opening_reputation", 0)),
 		"reputation_end": int(last.get("closing_reputation", 0)),
@@ -134,6 +138,7 @@ static func format_report(s: Dictionary) -> String:
 		"未提供: %d杯（計画 %d杯・提供 %d杯）" % [
 			int(s.get("unserved_cups", 0)), int(s.get("planned_cups", 0)), int(s.get("served_cups", 0))],
 		"チップ合計: ¥%d　仕入れ合計: ¥%d" % [int(s.get("tips", 0)), int(s.get("purchases", 0))],
+		"　うち具だくさん ¥%d（%d杯）" % [int(s.get("hearty_tips", 0)), int(s.get("hearty_cups", 0))],
 		"余り在庫 ¥%d（評価額。目標には含めない）" % int(s.get("closing_stock_value", 0)),
 		"廃棄: ¥%d（%d個）　早期閉店: %d夜" % [
 			int(s.get("spoiled_value", 0)), int(s.get("spoiled_units", 0)),

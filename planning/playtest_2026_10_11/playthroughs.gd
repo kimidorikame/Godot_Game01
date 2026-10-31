@@ -193,6 +193,9 @@ func run(t: SceneTree) -> void:
 	# 引数 [10]（GOODのチップ）・[11]（GREATのチップ）を渡したときだけ、その値を本体のチップとして使う。終わったら戻す。
 	var data_tips: Dictionary = GameState.TIPS.duplicate()
 	GameState.TIPS = { "GOOD": tip_good, "GREAT": tip_great }
+	# 具だくさんの上乗せ（UI準備L）も、チップと同じく既定では 0 に差し替えて測る（v2 と全キー一致）。終わったら戻す。
+	var data_hearty: int = GameState.HEARTY_TIP
+	GameState.HEARTY_TIP = 0
 	if price_override > 0:
 		GameState.PRICE_PER_SERVING = price_override
 	var policies: Array = []
@@ -228,6 +231,7 @@ func run(t: SceneTree) -> void:
 			"price_data": data_price }
 	GameState.PRICE_PER_SERVING = data_price
 	GameState.TIPS = data_tips
+	GameState.HEARTY_TIP = data_hearty
 	output["daily_operating_cost_overridden"] = cost_override >= 0
 	GameState.DAILY_OPERATING_COST = data_cost
 	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
@@ -345,6 +349,8 @@ func play(p: String, run_seed: int) -> Dictionary:
 				result_summary = Result.summarize(GameState.day_records, GameState.ledger, GameState.money)
 				if not tip_gu_on:
 					result_summary.erase("tips")   # UI準備H2で足した項目。v2 の形（全キー一致）を保つため、チップの測定でないときは出さない
+				result_summary.erase("hearty_tips")   # UI準備Lで足した項目。同じく v2 の形を保つため出さない
+				result_summary.erase("hearty_cups")
 				result_summary.erase("closing_stock_value")   # UI準備I2で足した項目。同じく v2 の形を保つため出さない
 				result_summary.erase("purchases")   # UI準備Iで足した項目。同じく v2 の形を保つため出さない（各日の仕入れは rows の spend にある）
 				done = true

@@ -87,6 +87,12 @@ static func tips() -> Dictionary:
 	return out
 
 
+## 具だくさんのチップ（UI準備L）：具の材料が2種類（違う材料）入っていて、評価が GOOD 以上の丼に、1杯ごとにチップへ足す額。
+## 0（または書かない）なら無効。評判の増減・判定には使わない。
+static func hearty_tip() -> int:
+	return maxi(int(_economy().get("hearty_tip", 0)), 0)
+
+
 static func daily_operating_cost() -> int:
 	return int(_economy().get("daily_operating_cost", 80))
 

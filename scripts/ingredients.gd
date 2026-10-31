@@ -84,6 +84,16 @@ static func is_topping(id: String) -> bool:
 	return false
 
 
+## 椀の具材（additions）のうち、具の材料が何種類か（違う材料の数。同じ材料を2つ入れても1種類。
+## 札が2つある材料（牛すじ＝POWER・BITE）も1つの材料なので1種類）。具だくさんのチップ（UI準備L）に使う。
+static func topping_kinds(additions: Array) -> int:
+	var seen := {}
+	for id in additions:
+		if is_topping(str(id)):
+			seen[str(id)] = true
+	return seen.size()
+
+
 ## id が「調味料」（味の軸のタグを1つでも持つ品目）かどうか。is_topping()の対（F3 SaleRule
 ## 「味の素材が1つ以上」の判定に使う。DESIGN.md 10.3.1）。
 static func is_flavor(id: String) -> bool:

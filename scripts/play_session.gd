@@ -989,7 +989,11 @@ func _serve_customer(ev: Dictionary) -> void:
 	GameState.consume_soup(servings)
 	# チップ（UI準備H2）：評価した杯だけ、評価に応じて定価に足す。売上（record の sale）にはチップも含め、うちチップを tip に残す
 	var tip: int = GameState.tip_for(result, servings) if judged else 0
+	# 具だくさん（UI準備L）：具の材料が2種類で GOOD 以上なら、チップに上乗せ（tip に含め、うち具だくさんを hearty_tip に残す）
+	var hearty: int = GameState.hearty_tip_for(result, servings, open.current_bowl.get("additions", [])) if judged and open != null else 0
+	tip += hearty
 	last_serve_tip = tip
+	last_serve_hearty = hearty
 	sale += tip
 	GameState.apply_money(sale)
 	# 来店記録（4-4b-1）：この杯の提供（評価・入れた具材）を、その日の来店へ追記する
@@ -1009,15 +1013,20 @@ func _serve_customer(ev: Dictionary) -> void:
 		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
 		# flush_visit_tally() が退店の瞬間に1回だけ確定させる。
-		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite, -1, tip)
+		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite, -1, tip, hearty)
 		return
 	if judged and raw_favorite != "":
 		GameState.mark_favorite_known(customer_id)
 	# 日次ログ：判定結果ごとに集計する。judged=falseの杯（配達員の持ち帰り等）は
 	# result=""のまま（判定なしと分かる値。指示文どおり）。
 	log_quality_counts[result] = int(log_quality_counts.get(result, 0)) + servings
-	GameState.record_served({ "customer": customer_id, "sale": sale, "tip": tip,
-		"servings": servings, "result": result })
+	var record := { "customer": customer_id, "sale": sale, "tip": tip,
+		"servings": servings, "result": result }
+	if hearty > 0:
+		# 具だくさん（UI準備L）：上乗せがあった提供だけキーを足す（追加のみ）
+		record["hearty_tip"] = hearty
+		record["hearty_cups"] = servings
+	GameState.record_served(record)
 	if sale > 0:
 		Ledger.record("sale", sale, customer_id, servings)
 	_insert_after_serve_events(ev, true, result)
@@ -1194,7 +1203,7 @@ func choose_story_option(choice_id: String, option_id: String) -> void:
 ## 4フィールド（customer/sale/servings/results）のまま変わらない。
 func _add_to_visit_tally(customer: String, judged: bool, sale: int,
 		servings: int, result: String = "", raw_favorite: String = "",
-		ordered_servings: int = -1, tip: int = 0) -> void:
+		ordered_servings: int = -1, tip: int = 0, hearty: int = 0) -> void:
 	if visit_tally.is_empty():
 		visit_tally = { "customer": customer,
 			"sale": 0, "tip": 0, "servings": 0, "results": {}, "pending_favorite": "" }
@@ -1202,6 +1211,10 @@ func _add_to_visit_tally(customer: String, judged: bool, sale: int,
 			visit_tally["ordered_servings"] = ordered_servings
 	visit_tally["sale"] = int(visit_tally["sale"]) + sale
 	visit_tally["tip"] = int(visit_tally.get("tip", 0)) + tip   # sale のうちチップ（UI準備H2）
+	if hearty > 0:
+		# tip のうち具だくさん（UI準備L）と、その杯数
+		visit_tally["hearty_tip"] = int(visit_tally.get("hearty_tip", 0)) + hearty
+		visit_tally["hearty_cups"] = int(visit_tally.get("hearty_cups", 0)) + servings
 	visit_tally["servings"] = int(visit_tally["servings"]) + servings
 	var results: Dictionary = visit_tally["results"]
 	results[result] = int(results.get(result, 0)) + servings
@@ -1230,6 +1243,9 @@ func flush_visit_tally() -> void:
 	var record := { "customer": visit_tally["customer"],
 		"sale": int(visit_tally["sale"]), "tip": int(visit_tally.get("tip", 0)), "servings": int(visit_tally["servings"]),
 		"results": results }
+	if visit_tally.has("hearty_tip"):
+		record["hearty_tip"] = int(visit_tally["hearty_tip"])
+		record["hearty_cups"] = int(visit_tally["hearty_cups"])
 	if visit_tally.has("ordered_servings"):
 		var ordered: int = int(visit_tally["ordered_servings"])
 		var served: int = int(visit_tally["servings"])
@@ -1522,11 +1538,14 @@ func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 			GameState.remove_inventory_fresh(str(pick["id"]), actual)
 	GameState.consume_soup(actual)
 	var tip: int = GameState.tip_for(result, actual)   # UI準備H2：チップ（評価した杯だけ）
+	var hearty: int = GameState.hearty_tip_for(result, actual, open.current_bowl.get("additions", [])) if open != null else 0   # UI準備L：具だくさん
+	tip += hearty
 	last_serve_tip = tip
+	last_serve_hearty = hearty
 	var sale: int = actual * GameState.PRICE_PER_SERVING + tip
 	GameState.apply_money(sale)
 	_add_to_visit_tally(customer, true, sale, actual, result, str(ev.get("favorite", "")),
-		mob_original_ordered, tip)
+		mob_original_ordered, tip, hearty)
 
 
 ## この団体客への最後（または唯一）のレシピを確定し、その場で退店集計として確定させる
@@ -1866,6 +1885,8 @@ func on_day_ending() -> void:
 		"opening_reputation": log_opening_reputation, "closing_reputation": GameState.reputation,
 		"planned_cups": log_planned_cups, "served_cups": served_cups,
 		"unserved_cups": unserved_cups, "sale_total": sale_total, "tips": int(totals["tip_total"]),
+		# UI準備L：チップのうち具だくさんの額と杯数（追加のみ）
+		"hearty_tips": int(totals["hearty_total"]), "hearty_cups": int(totals["hearty_cups"]),
 		"quality_counts": log_quality_counts.duplicate(),
 		"judged_planned_cups": log_judged_planned_cups, "quality": quality,
 		"spoiled_items": log_spoiled_items.duplicate(),
@@ -1896,10 +1917,10 @@ func on_day_ending() -> void:
 	# UI準備E：その夜に来る予定だった名前あり客・モブの種類（来店予告DMを過去の日も同じ内容で出すため。計画は翌朝に作り直されて残らない。追加のみ）
 	log_entry["planned_regulars"] = Dm.plan_regulars(GameState.today_plan)
 	log_entry["planned_mob_types"] = Dm.plan_mob_types(GameState.today_plan)
-	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d) 仕入れ=%d 在庫評価額=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
+	print("BALANCE_LOG: day=%d money=%d→%d rep=%d→%d(Q=%.1f) cups=%d/%d(計画%d) 売上=%d(うちチップ%d・具だくさん%d/%d杯) 仕入れ=%d 在庫評価額=%d 廃棄額=%d 水%d/だし%d 早期閉店=%s 評価=%s" % [
 		log_entry["day"], log_entry["opening_money"], log_entry["closing_money"],
 		log_entry["opening_reputation"], log_entry["closing_reputation"], quality,
-		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), int(log_entry["purchases"]), stock_value_of(log_entry["closing_stock"]), spoiled_value,
+		served_cups, unserved_cups, log_planned_cups, sale_total, int(log_entry["tips"]), int(log_entry["hearty_tips"]), int(log_entry["hearty_cups"]), int(log_entry["purchases"]), stock_value_of(log_entry["closing_stock"]), spoiled_value,
 		log_water_used, log_dashi_used, str(log_closed_early), str(log_quality_counts)])
 	BalanceLog.append(log_entry)
 	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
@@ -2121,18 +2142,24 @@ func fund_selected() -> String:
 
 # --- 閉店・日次ログ・基金の問い（UI準備A④。R3：閉店・朝・修繕基金） ---
 
-## 今夜ここまでの提供の合計：{ served_cups（提供した杯数）, sale_total（売上。チップを含む）, tip_total（うちチップ。UI準備H2） }。
+## 今夜ここまでの提供の合計：{ served_cups（提供した杯数）, sale_total（売上。チップを含む）, tip_total（うちチップ。UI準備H2）,
+## hearty_total（チップのうち具だくさん）, hearty_cups（その杯数。UI準備L） }。
 ## 廃棄した杯（discarded）は数えない。日の終わりの集計（on_day_ending）と閉店の画面が同じ値を使う。
 func tonight_totals() -> Dictionary:
 	var served_cups := 0
 	var sale_total := 0
 	var tip_total := 0
+	var hearty_total := 0
+	var hearty_cups := 0
 	for record in GameState.served:
 		if record is Dictionary and not bool(record.get("discarded", false)):
 			served_cups += int(record.get("servings", 0))
 			sale_total += int(record.get("sale", 0))
 			tip_total += int(record.get("tip", 0))
-	return { "served_cups": served_cups, "sale_total": sale_total, "tip_total": tip_total }
+			hearty_total += int(record.get("hearty_tip", 0))
+			hearty_cups += int(record.get("hearty_cups", 0))
+	return { "served_cups": served_cups, "sale_total": sale_total, "tip_total": tip_total,
+		"hearty_total": hearty_total, "hearty_cups": hearty_cups }
 
 
 ## 閉店の「今夜の結果」：{ ordered_cups（朝に確定した注文杯数）, served_cups, unserved_cups, grades（評価の内訳）, sales }。
@@ -2561,8 +2588,10 @@ func continue_game() -> void:
 # 既読スキップ（4-7③。ReadState）：直近に新しく見えた行が、それまで未読だったか（スキップの停止条件）。
 # [既読スキップ]の仮ボタンは _ready でコードから足す（.tscn は変えない）。
 var last_shown_unread := false
-## 直近の提供（今の反応の行）でもらったチップ。実行時だけの表示用（保存しない。UI準備H2）。
+## 直近の提供（今の反応の行）でもらったチップ。実行時だけの表示用（保存しない。UI準備H2）。具だくさんの上乗せを含む。
 var last_serve_tip := 0
+## そのうち具だくさんの上乗せ（UI準備L。表示用・保存しない）。
+var last_serve_hearty := 0
 
 var recipe_save_slot := -1
 
@@ -2961,7 +2990,11 @@ func current_line() -> Dictionary:
 	if type == "REACT":
 		text = current_reaction_text()
 		if text != "" and last_serve_tip > 0 and not declined_now:
-			text += "　+¥%d" % last_serve_tip   # チップ（UI準備H2）。反応の文に添える
+			# チップ（UI準備H2）。反応の文に添える。具だくさんの上乗せ（UI準備L）は分けて出す
+			if last_serve_tip - last_serve_hearty > 0:
+				text += "　+¥%d" % (last_serve_tip - last_serve_hearty)
+			if last_serve_hearty > 0:
+				text += "　具だくさん +¥%d" % last_serve_hearty
 	return { "type": type, "speaker": speaker, "text": text, "part": str(ev.get("part", "")) }
 
 
