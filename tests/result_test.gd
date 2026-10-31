@@ -78,29 +78,35 @@ func run(_t: SceneTree) -> int:
 	c.check("記録が空でも落ちない（日数0・率0・現金600）",
 		int(none["days"]) == 0 and float(none["good_rate"]) == 0.0 and int(none["cash_plus_repair"]) == 600)
 
-	# --- 4. 目標判定の境界（ちょうど達成／1足りない） ---
-	var goals := { "cash_standard": 1500, "cash_challenge": 1600, "good_rate": 0.85, "regular_great": 8 }
-	var base := { "days": 7, "cash_plus_repair": 1500, "good_plus_cups": 85, "judged_cups": 100,
-		"good_rate": 0.85, "regular_great": 8 }
+	# --- 4. 目標判定の境界（ちょうど達成／1足りない）。値は規則データ（UI準備J：標準1200・挑戦1500・料理70%・常連GREAT 4杯） ---
+	var goals := Rules.goals()
+	c.check("目標の値（データ）：標準1200・挑戦1500・料理70%・常連GREAT 4杯（UI準備Jで 1500・1600・85%・8杯 から変更）",
+		int(goals.get("cash_standard", 0)) == 1200 and int(goals.get("cash_challenge", 0)) == 1500
+			and is_equal_approx(float(goals.get("good_rate", 0.0)), 0.70) and int(goals.get("regular_great", 0)) == 4, str(goals))
+	var base := { "days": 7, "cash_plus_repair": 1200, "good_plus_cups": 70, "judged_cups": 100,
+		"good_rate": 0.70, "regular_great": 4 }
 	var r := Result.judge_goals(base, goals, 7)
 	c.check("目標は5項目（完走・標準・挑戦・料理・常連）の順",
 		r.size() == 5 and r.map(func(x): return x["id"]) == ["complete", "cash_standard",
 			"cash_challenge", "good_rate", "regular_great"])
-	c.check("ちょうど：完走・標準・料理・常連は達成、挑戦（1600）は未達",
+	c.check("目標の文言はデータの数字から出る",
+		r.map(func(x): return x["label"]) == ["完走（7日営業）", "標準：現金＋修繕額 1200以上", "挑戦：現金＋修繕額 1500以上",
+			"料理：全需要の70%以上にGOOD以上", "常連：GREAT 4杯以上"], str(r.map(func(x): return x["label"])))
+	c.check("ちょうど：完走・標準・料理・常連は達成、挑戦（1500）は未達",
 		r[0]["achieved"] and r[1]["achieved"] and not r[2]["achieved"] and r[3]["achieved"] and r[4]["achieved"])
 	var just := base.duplicate()
-	just["cash_plus_repair"] = 1600
-	c.check("現金1600ちょうどで挑戦も達成", Result.judge_goals(just, goals, 7)[2]["achieved"])
+	just["cash_plus_repair"] = 1500
+	c.check("現金1500ちょうどで挑戦も達成", Result.judge_goals(just, goals, 7)[2]["achieved"])
 	var short := base.duplicate()
-	short["cash_plus_repair"] = 1499
-	short["good_plus_cups"] = 84
-	short["regular_great"] = 7
+	short["cash_plus_repair"] = 1199
+	short["good_plus_cups"] = 69
+	short["regular_great"] = 3
 	short["days"] = 6
 	var rs := Result.judge_goals(short, goals, 7)
 	c.check("1足りない：完走・標準・料理・常連がすべて未達",
 		not rs[0]["achieved"] and not rs[1]["achieved"] and not rs[3]["achieved"] and not rs[4]["achieved"])
 	var repaired := base.duplicate()
-	repaired["cash_plus_repair"] = 1500   # 現金1400＋修繕額100でも合計で判定する
+	repaired["cash_plus_repair"] = 1200   # 現金1100＋修繕額100でも合計で判定する
 	c.check("修繕額が加わった合計でも標準は達成", Result.judge_goals(repaired, goals, 7)[1]["achieved"])
 	var no_judged := base.duplicate()
 	no_judged["judged_cups"] = 0

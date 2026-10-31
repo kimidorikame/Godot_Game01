@@ -226,7 +226,7 @@ static func judge_goals(summary: Dictionary, goals: Dictionary, final_day: int) 
 		{ "id": "cash_challenge", "label": "挑戦：現金＋修繕額 %d以上" % cash_challenge,
 			"achieved": cash_total >= cash_challenge, "value": cash_total, "target": cash_challenge },
 		{ "id": "good_rate", "label": "料理：全需要の%d%%以上にGOOD以上" % roundi(rate_target * 100.0),
-			# 浮動小数の境界（ちょうど85%）を取りこぼさないよう、杯数同士で比べる。
+			# 浮動小数の境界（ちょうど70%など）を取りこぼさないよう、杯数同士で比べる。
 			"achieved": judged > 0 and float(good_plus) >= rate_target * float(judged) - 0.000001,
 			"value": good_rate, "target": rate_target },
 		{ "id": "regular_great", "label": "常連：GREAT %d杯以上" % great_target,

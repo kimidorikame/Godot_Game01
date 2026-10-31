@@ -36,8 +36,8 @@
                     { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
   },
   "forecast": { "regulars": "base_order", "total": "range", "range_width": 1 },
-  "goals": { "cash_standard": 1500, "cash_challenge": 1600,
-             "good_rate": 0.85, "regular_great": 8 },
+  "goals": { "cash_standard": 1200, "cash_challenge": 1500,
+             "good_rate": 0.70, "regular_great": 4 },
   "regular_schedule": "week7_regulars",
   "news": "week7",
   "dm": "week7"

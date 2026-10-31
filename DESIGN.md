@@ -1420,7 +1420,7 @@ reputation・rumors は状態として予約するだけでよく、まだ使わ
 - **結果画面**：`Phase.RESULT` を追加する。`FlowController.advance_phase()` の「最終日なら `reset_for_new_game()`」を「最終日ならRESULTへ」に変える。表示は「街で起きたこと」「客との間に残ったこと」「店の成績（現金＋修繕額・GOOD以上率・常連GREAT回数・未提供・廃棄）」。選択肢は「もう一度（同じ周をDay1から）／新しい周／終わる」。料理成績を人間関係の善悪や真エンド条件にしない。
 - **同じ朝からの再挑戦**：GAME_OVERと結果画面から、その日の朝（同じDayPlan＝同じ抽選）へ戻って仕入れからやり直せる。抽選を引き直す手段にはしない。
 - **1枠セーブ**（既存の決定・フェーズ4）：朝の保存（10.8.6）と同じ辞書をファイルに書く。調理中・会話途中は保存しない。
-- **目標の表示**：完走（7日営業）／標準：現金＋修繕額1500／挑戦：1600／料理：全需要の85%以上にGOOD以上／常連：GREAT 8回以上。未達でも物語や続きのプレイを失わない。
+- **目標の表示**：完走（7日営業）／標準：現金＋修繕額1200／挑戦：1500／料理：全需要の70%以上にGOOD以上／常連：GREAT 4回以上（UI準備Jで 1500／1600／85%／8回 から変更）。未達でも物語や続きのプレイを失わない。
 
 ### 10.7 修繕基金（確定・フェーズ4の後半。**MVP版は4-9④で次のとおりに見直した**）
 
@@ -1477,8 +1477,8 @@ reputation・rumors は状態として予約するだけでよく、まだ使わ
                     { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
   },
   "forecast": { "regulars": "base_order", "total": "range", "range_width": 1 },
-  "goals": { "cash_standard": 1500, "cash_challenge": 1600,
-             "good_rate": 0.85, "regular_great": 8 },
+  "goals": { "cash_standard": 1200, "cash_challenge": 1500,
+             "good_rate": 0.70, "regular_great": 4 },
   "regular_schedule": "week7_regulars",
   "news": "week7"
 }
