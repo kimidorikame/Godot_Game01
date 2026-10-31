@@ -41,7 +41,8 @@ if (process.argv[2] === 'merge') {
 const data = read(OUT);
 const v2 = read('playthrough_results_regulars_v2.json');
 const v3i = read('playthrough_results_regulars_v3_improvise.json');
-const goals = JSON.parse(fs.readFileSync(new URL('../../data/campaigns/week7.json', dir), 'utf8')).goals;
+// 目標の基準は計測した当時の値に固定する（データの goals は UI準備J で 1200／1500／70%／4杯 に変わった。過去の表を作り直しても当時と同じ数字が出るように）
+const goals = { cash_standard: 1500, cash_challenge: 1600, good_rate: 0.85, regular_great: 8 };
 const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
 const f0 = x => Math.round(x).toString();
 const f1 = x => x.toFixed(1);

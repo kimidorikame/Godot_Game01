@@ -7,7 +7,8 @@
 import fs from 'node:fs';
 const dir = new URL('./', import.meta.url);
 const load = n => JSON.parse(fs.readFileSync(new URL(n, dir), 'utf8'));
-const goals = JSON.parse(fs.readFileSync(new URL('../../data/campaigns/week7.json', dir), 'utf8')).goals;
+// 目標の基準は計測した当時の値に固定する（データの goals は UI準備J で 1200／1500／70%／4杯 に変わった。過去の表を作り直しても当時と同じ数字が出るように）
+const goals = { cash_standard: 1500, cash_challenge: 1600, good_rate: 0.85, regular_great: 8 };
 const rt65 = load('playthrough_results_reach_true.json');
 const c75a = load('playthrough_results_reach_true_cost75.json');
 const c75b = load('playthrough_results_reach_true_cost75_rest.json');

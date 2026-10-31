@@ -12,7 +12,8 @@ const c80 = load('playthrough_results_reach_true_cost80.json');
 const c70 = load('playthrough_results_reach_true_cost70.json');
 const c75 = load('playthrough_results_reach_true_cost75.json');
 const defLog = load('playthrough_tier_log_default.json').tier_log;
-const goals = JSON.parse(fs.readFileSync(new URL('../../data/campaigns/week7.json', dir), 'utf8')).goals;
+// 目標の基準は計測した当時の値に固定する（データの goals は UI準備J で 1200／1500／70%／4杯 に変わった。過去の表を作り直しても当時と同じ数字が出るように）
+const goals = { cash_standard: 1500, cash_challenge: 1600, good_rate: 0.85, regular_great: 8 };
 
 const NAMES = { forecast_good: '予報＋基本GOOD', forecast_favorites: '予報＋既知好物', always_small: '小仕込み固定',
   always_large: '大仕込み固定', cheap_valid: '安い完成料理だけ', bare_broth: '空の椀', forecast_mistakes: 'Day3・5に取り違え',
