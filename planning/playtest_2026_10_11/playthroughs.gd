@@ -82,6 +82,23 @@ var price_override := -1
 ## 注文に合う具が最安の具と同じになる杯のために、2番目に安い具も同じ要領で（FILLING の必要数／備蓄型は k 個）買う。2つ目の具が手持ちに無いときだけ減点を受ける。
 var two_gu_buy := false
 const SECOND_GU := ["winter_melon", "rice_noodle", "dried_wood_ear", "fish_maw"]
+## 計測K（具2種類の「ごちそう」チップ案）：案Gの減点（具1種類は−1段階）は使わない。具が2種類で GOOD 以上の丼（1杯ごと）にだけ gu_bonus を足す。
+##   gu_mode＝2つ目の具の買い方：
+##     "one"    … 買わない・足さない（味1具1。注文のタグが具2つのときの偶然の2種類だけが上乗せの対象になる）
+##     "afford" … 注文に合う分の仕入れを済ませたあと、残った現金で2つ目の具を買う（買えない日は具1つの椀になる）
+##     "always" … 2つ目の具を先に買う（注文に合う分より優先。現金が足りなければ注文に合う分が減る）
+##   2つ目の具の椀への足し方：日持ちする具（SECOND_GU）のうち手持ちがあるもの。注文のタグでまだ合っていないものに合う具を優先し、無ければ一番安い具。
+##   上乗せは提供のあとに所持金へ足す（案Tのチップと同じ扱い。帳簿・売上の欄には入れない）。ゲーム本体の判定・売上・評判の処理には触れない。
+var gu_mode := ""
+var gu_bonus := 0
+var gu_bonus_today := 0
+var gu_bonus_total := 0
+var topping_spend := 0         # 具（Ingredients.is_topping）の仕入れ額の合計（市場）
+var second_gu_spend := 0       # うち、2つ目の具の候補（SECOND_GU）の仕入れ額
+var cups_two := 0              # 具が2種類以上の椀の杯数（評価は問わない）
+var cups_two_good := 0         # うち GOOD 以上
+var cups_one := 0
+var cups_one_good := 0
 var tip_gu_on := false      # 上のどれかが有効（このときだけ、結果に tips・gu_penalized のキーを足す）
 var seen_counts: Dictionary = {}   # すでに反映した日の評価の杯数（日が変わると log_quality_counts は 0 に戻る）
 var tips_today := 0
@@ -173,7 +190,10 @@ func run(t: SceneTree) -> void:
 	two_gu_on = args.size() > 12 and int(args[12]) == 1
 	price_override = int(args[13]) if args.size() > 13 and int(args[13]) > 0 else -1
 	two_gu_buy = two_gu_on and args.size() > 14 and int(args[14]) == 1
-	tip_gu_on = tip_good != 0 or tip_great != 0 or two_gu_on or price_override > 0
+	# 計測K：[15]＝2つ目の具の買い方（one／afford／always）、[16]＝具2種類で GOOD 以上の丼への上乗せ（1杯あたり）。省略＝無効。
+	gu_mode = str(args[15]) if args.size() > 15 and ["one", "afford", "always"].has(str(args[15])) else ""
+	gu_bonus = int(args[16]) if args.size() > 16 else 0
+	tip_gu_on = tip_good != 0 or tip_great != 0 or two_gu_on or price_override > 0 or gu_mode != "" or gu_bonus != 0
 	reach_name = str(args[4]) if args.size() > 4 else "default"
 	if reach_name == "reach_true":
 		tier_reach = TIER_REACH_TRUE
@@ -225,7 +245,7 @@ func run(t: SceneTree) -> void:
 	output["daily_operating_cost_data"] = data_cost
 	if tip_gu_on:
 		output["tip_gu"] = { "tip_good": tip_good, "tip_great": tip_great, "two_gu": two_gu_on, "two_gu_buy": two_gu_buy, "price": GameState.PRICE_PER_SERVING,
-			"price_data": data_price }
+			"price_data": data_price, "gu_mode": gu_mode, "gu_bonus": gu_bonus }
 	GameState.PRICE_PER_SERVING = data_price
 	GameState.TIPS = data_tips
 	output["daily_operating_cost_overridden"] = cost_override >= 0
@@ -285,6 +305,14 @@ func play(p: String, run_seed: int) -> Dictionary:
 	tips_total = 0
 	gu_pen_total = 0
 	gu_fallback_total = 0
+	gu_bonus_today = 0
+	gu_bonus_total = 0
+	topping_spend = 0
+	second_gu_spend = 0
+	cups_two = 0
+	cups_two_good = 0
+	cups_one = 0
+	cups_one_good = 0
 	GameState.reset_for_new_game()
 	seed(run_seed * 1000 + 1)
 	panel = load("res://scenes/debug_panel.tscn").instantiate()
@@ -325,6 +353,7 @@ func play(p: String, run_seed: int) -> Dictionary:
 			rows.append(day_row())
 			tips_today = 0
 			gu_pen_today = 0
+			gu_bonus_today = 0
 			seen_nights.append({ "tags": night_tags.duplicate(), "cups": night_cups })
 			night_tags = {}
 			night_cups = 0
@@ -429,6 +458,14 @@ func play(p: String, run_seed: int) -> Dictionary:
 		result["tips"] = tips_total
 		result["gu_penalized"] = gu_pen_total
 		result["gu_fallback"] = gu_fallback_total
+		if gu_mode != "" or gu_bonus != 0:
+			result["gu_bonus"] = gu_bonus_total
+			result["topping_spend"] = topping_spend
+			result["second_gu_spend"] = second_gu_spend
+			result["cups_two"] = cups_two
+			result["cups_two_good"] = cups_two_good
+			result["cups_one"] = cups_one
+			result["cups_one_good"] = cups_one_good
 	if POLICIES_FUND.has(policy):
 		result["fund_log"] = fund_log.duplicate(true)
 		result["stage_reached"] = RepairFund.repaired_ids().size()
@@ -830,6 +867,8 @@ func shop() -> void:
 	if policy == "cheap_valid":
 		var cups := target_cups()
 		need = { "SOUR": cups, "FILLING": cups }
+	if gu_mode == "always":
+		buy_second_gu(target_cups(), int(need.get("FILLING", 0)))   # 計測K：2つ目の具を先に（注文に合う分より優先）
 	for tag in Forecast.TAG_ORDER:
 		var n := int(need.get(tag, 0))
 		var guard := 0
@@ -852,7 +891,7 @@ func shop() -> void:
 			if best.is_empty() or cash() < int(best.price):
 				break
 			buy(str(best.shop), str(best.id))
-	if two_gu_buy:
+	if two_gu_buy or gu_mode == "afford":
 		buy_second_gu(target_cups(), int(need.get("FILLING", 0)))
 	if info_mode == "visible" and policy == "forecast_favorites":
 		# 今夜の客の並びは読まない（見えない）。好物を知っている客（来店記録）の分を、1つずつ多く持っておく
@@ -911,6 +950,15 @@ func buy(shop_id: String, id: String) -> void:
 	act("purchase")
 	panel.session.buy_item(shop_id, id)
 	purchases += before - GameState.money
+	if gu_mode != "" or gu_bonus != 0:
+		for good in PlaySession.shop_goods(shop_id):
+			if str(good.get("id", "")) == id:
+				var item := str(good.get("item", ""))
+				if Ingredients.is_topping(item):
+					topping_spend += before - GameState.money
+				if SECOND_GU.has(item):
+					second_gu_spend += before - GameState.money
+				break
 
 
 func cook(order: Dictionary) -> void:
@@ -964,6 +1012,8 @@ func cook(order: Dictionary) -> void:
 		add_favorite(order, added, n)
 	if two_gu_on:
 		add_cheap_topping(n)
+	elif gu_mode == "afford" or gu_mode == "always":
+		add_cheap_topping(n, wanted)
 	last_cook_toppings = 0
 	for id in panel.session.open.current_bowl.get("additions", []):
 		if Ingredients.is_topping(str(id)):
@@ -993,18 +1043,40 @@ func buy_second_gu(units: int, alt: int) -> void:
 
 ## 計測H・案G：具が1種類しか入っていない椀に、手持ちの一番安い具（単価の安い順。今ある新鮮な在庫が n 個以上）をもう1つ足す。
 ## 足せる具が無い・枠（3つ）がいっぱいなら、そのまま（減点を受ける）。単価は市場でいちばん大きい袋の 値段÷個数。
-func add_cheap_topping(n: int) -> void:
+func add_cheap_topping(n: int, wanted: Array = []) -> void:
 	var additions: Array = panel.session.open.current_bowl.get("additions", [])
 	if additions.size() >= OpenController.MAX_ADDITIONS:
 		return
 	var toppings := 0
+	var bowl_tags: Array = []
 	for id in additions:
+		bowl_tags.append_array(Ingredients.tags_for(str(id)))
 		if Ingredients.is_topping(str(id)):
 			toppings += 1
 	if toppings >= 2:
 		return
 	var best := ""
 	var best_unit := 1.0e9
+	if gu_mode != "":
+		# 計測K：日持ちする具のうち手持ちがあるもの。注文のタグでまだ合っていないものに合う具を先に、無ければ安い順
+		var fallback := ""
+		for id in second_gu_order():
+			if additions.has(str(id)) or GameState.fresh_count(str(id)) < n:
+				continue
+			if fallback == "":
+				fallback = str(id)
+			for tag in Ingredients.tags_for(str(id)):
+				if wanted.has(tag) and not bowl_tags.has(tag):
+					best = str(id)
+					break
+			if best != "":
+				break
+		if best == "":
+			best = fallback
+		if best != "":
+			act("ingredient")
+			panel.session.select_ingredient(best)
+		return
 	if two_gu_buy:
 		# 仕入れまで入れる版：2つ目の具は、日持ちする具を安い順に見て、手持ちにあるもの（注文に合う具と同じ材料は不可）。無ければ減点を受ける
 		for id in second_gu_order():
@@ -1055,9 +1127,22 @@ func settle_serves() -> void:
 		if added <= 0:
 			continue
 		var final_grade: String = grade
-		if two_gu_on and additions.is_empty():
+		if (two_gu_on or gu_mode != "") and additions.is_empty():
 			gu_fallback_total += added
 			toppings = last_cook_toppings
+		if gu_mode != "" or gu_bonus != 0:
+			# 計測K：椀の具の数別の杯数と、具2種類で GOOD 以上の丼への上乗せ（案Gの減点は使わない＝評価は変えない）
+			var is_good: bool = grade == "GOOD" or grade == "GREAT"
+			if toppings >= 2:
+				cups_two += added
+				cups_two_good += added if is_good else 0
+				if is_good and gu_bonus != 0:
+					GameState.apply_money(gu_bonus * added)
+					gu_bonus_today += gu_bonus * added
+					gu_bonus_total += gu_bonus * added
+			else:
+				cups_one += added
+				cups_one_good += added if is_good else 0
 		if two_gu_on and toppings < 2 and not already_penalized:
 			final_grade = GRADE_DOWN[grade]
 			if final_grade != grade:
@@ -1258,6 +1343,15 @@ func day_row() -> Dictionary:
 				game_tips += int(rec.get("tip", 0))
 		row["tips"] = game_tips + tips_today
 		row["gu_penalized"] = gu_pen_today
+		if gu_mode != "" or gu_bonus != 0:
+			row["gu_bonus"] = gu_bonus_today
+			var closing: Dictionary = panel.session.closing_stock_now()
+			var closing_topping := 0
+			for id in closing:
+				if Ingredients.is_topping(str(id)):
+					closing_topping += int((closing[id] as Dictionary).get("value", 0))
+			row["closing_stock_value"] = PlaySession.stock_value_of(closing)
+			row["closing_topping_value"] = closing_topping
 		tips_total += game_tips
 	return row
 
