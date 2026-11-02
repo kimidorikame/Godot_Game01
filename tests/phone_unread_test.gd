@@ -50,18 +50,14 @@ func run(t: SceneTree) -> int:
 	var dm_left := session.dm_unread_count()
 	c.check("ボタンの●は、残りのDMの数だけになる", badge.text == ("●%d" % dm_left if dm_left > 0 else ""), badge.text)
 	c.check("SNSタブの●（未読のDM）が出ている", dm_left == 0 or sns_badge.text == "●%d" % dm_left, sns_badge.text)
-	var headline_marked := false
-	for label in phone.get_node("%Content").get_children():
-		headline_marked = headline_marked or (label as Label).text.begins_with("● ")
+	var headline_marked := _headline_marked(phone.get_node("%Content"))
 	c.check("開いた時点で未読だったニュースの見出しには ● が付く（スマホを閉じるまで）", headline_marked)
 	load("res://tests/ui_autoplay.gd").press(tabs.get_child(0))
 	c.check("SNSタブを表示した時点で、DMも既読（ボタンの●が消える）", session.dm_unread_count() == 0 and badge.text == "")
 	load("res://tests/ui_autoplay.gd").press(phone.get_node("%CloseButton"))
 	load("res://tests/ui_autoplay.gd").press(root.left.get_node("%PhoneIcon"))
 	load("res://tests/ui_autoplay.gd").press(tabs.get_child(1))
-	var marked_again := false
-	for label in phone.get_node("%Content").get_children():
-		marked_again = marked_again or (label as Label).text.begins_with("● ")
+	var marked_again := _headline_marked(phone.get_node("%Content"))
 	c.check("スマホを開き直すと、見出しの ● は消えている（もう既読）", not marked_again)
 	root.queue_free()
 
@@ -92,3 +88,12 @@ func run(t: SceneTree) -> int:
 	ReadState.reset("user://test_read_state.json")
 	GameState.reset_for_new_game()
 	return c.finish()
+
+
+## ニュースの一覧に、頭に ● の付いた見出しがあるか（一覧の行はボタンで、見出しはその中のラベル。UI準備O）。
+func _headline_marked(content: Node) -> bool:
+	for row in content.get_children():
+		for label in row.get_children():
+			if label is Label and (label as Label).text.begins_with("● "):
+				return true
+	return false

@@ -20,6 +20,9 @@ class_name Dm
 ## 「寄る予定」の形で、来ると約束しない。数字と「客足」は本文に入れない。データは同じファイルの previews：
 ##   previews … { max_per_morning, mob_max, first_day, pools:{ <客id|モブの種類>:{ from, from_kind, time, texts[], tag_hint, provisional } } }
 ##   本文の {hint} は、tag_hint（その種類の好みの2つのうち1つ。モブだけ。名前あり客は ""）の言葉（data/tag_words.json）に置き換える。
+##   日ごとの文（UI準備O。省略可）：pools.<客>.texts_by_day … [ { days:[日…], texts:[…] }, … ]。その日を含む組があればその texts から、
+##   無ければ texts（既定の文）から選ぶ。同じ日が2つの組に入るのは不可（検査で弾く）。予告は first_day からなので、それより前の日の組は
+##   使われない（preview_warnings で注意を出す）。
 ## 選び方（乱数なし。日付で回す）：モブの種類を先に最大 mob_max 件→名前あり客で上限（max_per_morning）まで。モブが mob_max に満たない日は、空いた分を名前あり客で埋める。
 ##   ・モブ：その夜の計画の並び（重複なし）から (日番号＋件目) % 候補数。
 ##   ・名前あり客：今日より前に来たことがある客（好みが分かっている客）を先に、同じ条件の中では日付で回す。
@@ -208,9 +211,25 @@ static func _rotated(list: Array, offset: int) -> Array:
 	return out
 
 
+## その日に使う本文の候補：texts_by_day にその日を含む組があればその texts、無ければ texts（既定の文。UI準備O）。
+static func preview_texts_for_day(pool: Dictionary, day: int) -> Array:
+	var groups = pool.get("texts_by_day", [])
+	if groups is Array:
+		for group in groups:
+			if not (group is Dictionary) or not ((group as Dictionary).get("days") is Array) or not ((group as Dictionary).get("texts") is Array):
+				continue
+			if (group["texts"] as Array).is_empty():
+				continue
+			for d in group["days"]:
+				if (d is int or d is float) and int(d) == day:
+					return group["texts"]
+	var texts = pool.get("texts", [])
+	return texts if texts is Array else []
+
+
 ## 予告1通の本文（同じ客・種類に複数の言い回しがあるときは、日番号と主語idで決める。乱数なし）。
 static func preview_text(pool: Dictionary, subject: String, day: int) -> String:
-	var texts: Array = pool.get("texts", [])
+	var texts: Array = preview_texts_for_day(pool, day)
 	if texts.is_empty():
 		return ""
 	var text := str(texts[absi(("%d|%s" % [day, subject]).hash()) % texts.size()])
@@ -387,16 +406,76 @@ static func preview_problems(d: Dictionary) -> Array:
 		if not (texts is Array) or (texts as Array).is_empty():
 			found.append(where + " の texts が空")
 			continue
-		for text in texts:
-			if not (text is String) or str(text) == "":
-				found.append(where + " の本文が空")
+		found.append_array(_preview_text_problems(where, texts, hint, digits))
+		# 日ごとの文（UI準備O）：形・日の範囲・重なり・本文の検査（texts と同じ）
+		if not pool.has("texts_by_day"):
+			continue
+		var groups = pool["texts_by_day"]
+		if not (groups is Array):
+			found.append(where + ".texts_by_day が配列でない")
+			continue
+		var day_owner := {}
+		for i in range((groups as Array).size()):
+			var group = groups[i]
+			var gwhere := "%s.texts_by_day[%d]" % [where, i]
+			if not (group is Dictionary):
+				found.append(gwhere + " が辞書でない")
 				continue
-			if digits.search(str(text)) != null:
-				found.append("%s：本文に数字がある「%s」" % [where, str(text)])
-			if str(text).contains("客足"):
-				found.append("%s：本文に「客足」がある「%s」" % [where, str(text)])
-			if str(text).contains("{hint}") != (hint != ""):
-				found.append("%s：{hint} と tag_hint の有無が合わない「%s」" % [where, str(text)])
+			var days = (group as Dictionary).get("days", [])
+			if not (days is Array) or (days as Array).is_empty():
+				found.append(gwhere + " の days が空")
+			else:
+				for day_value in days:
+					if not (day_value is int or day_value is float) or float(day_value) != float(int(day_value)) or int(day_value) < 1 or int(day_value) > Rules.final_day():
+						found.append("%s：days に 1〜%d の日でない値がある（%s）" % [gwhere, Rules.final_day(), str(day_value)])
+						continue
+					if day_owner.has(int(day_value)):
+						found.append("%s：Day%d が texts_by_day[%d] と重なっている" % [gwhere, int(day_value), int(day_owner[int(day_value)])])
+					else:
+						day_owner[int(day_value)] = i
+			var gtexts = (group as Dictionary).get("texts", [])
+			if not (gtexts is Array) or (gtexts as Array).is_empty():
+				found.append(gwhere + " の texts が空")
+				continue
+			found.append_array(_preview_text_problems(gwhere, gtexts, hint, digits))
+	return found
+
+
+## 予告の本文の検査（texts・texts_by_day の texts で共通）：空・数字・「客足」・{hint} と tag_hint の有無。
+static func _preview_text_problems(where: String, texts: Array, hint: String, digits: RegEx) -> Array:
+	var found := []
+	for text in texts:
+		if not (text is String) or str(text) == "":
+			found.append(where + " の本文が空")
+			continue
+		if digits.search(str(text)) != null:
+			found.append("%s：本文に数字がある「%s」" % [where, str(text)])
+		if str(text).contains("客足"):
+			found.append("%s：本文に「客足」がある「%s」" % [where, str(text)])
+		if str(text).contains("{hint}") != (hint != ""):
+			found.append("%s：{hint} と tag_hint の有無が合わない「%s」" % [where, str(text)])
+	return found
+
+
+## 予告のデータの注意（弾かないが、直したほうがよいもの。UI準備O）：予告の始まる日（first_day）より前の日の texts_by_day の組は使われない。
+static func preview_warnings(source: Dictionary = {}) -> Array:
+	var cfg := previews_config(source)
+	var found := []
+	var first_day := int(cfg.get("first_day", 2))
+	var pools = cfg.get("pools", {})
+	if not (pools is Dictionary):
+		return found
+	for id in pools:
+		var pool = pools[id]
+		if not (pool is Dictionary) or not ((pool as Dictionary).get("texts_by_day") is Array):
+			continue
+		for i in range((pool["texts_by_day"] as Array).size()):
+			var group = pool["texts_by_day"][i]
+			if not (group is Dictionary) or not ((group as Dictionary).get("days") is Array):
+				continue
+			for d in group["days"]:
+				if (d is int or d is float) and int(d) < first_day:
+					found.append("previews.pools.%s.texts_by_day[%d]：Day%d の文は使われない（予告は Day%d から）" % [str(id), i, int(d), first_day])
 	return found
 
 

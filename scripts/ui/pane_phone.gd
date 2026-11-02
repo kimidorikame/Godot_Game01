@@ -5,7 +5,7 @@ class_name UiPanePhone
 ## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
 ## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
-## ニュース＝phone_news() のニュース（日付・見出し・本文）、レシピ＝phone_recipes()（保存したレシピと、客ごとの「いつもの」）。
+## ニュース＝phone_news() のニュース。一覧（日付と見出し。新しい日が上）→行を押すと詳細（見出し・日付・本文の全部）→「戻る」で一覧（UI準備O）。
 ## 品名は本名（短縮名は開店の操作エリアだけ）。「閉じる」で元の画面に戻る（開店中は「閉じる(鍋・トッピングに戻る)」）。
 
 signal close_requested()
@@ -31,6 +31,8 @@ var tab := "news"
 var _fresh := {}
 ## このスマホを開いてから、未読として見せたニュースのid（見出しの頭に●を残す）。
 var _fresh_news := {}
+## 表示だけの状態：詳細を開いているニュースのid（"" なら一覧。UI準備O）。タブを替える・閉じる・区切りで一覧に戻す。
+var news_open := ""
 
 
 func _ready() -> void:
@@ -47,6 +49,7 @@ func bind_session(s: PlaySession) -> void:
 func reset_ui_state() -> void:
 	_fresh = {}
 	_fresh_news = {}
+	news_open = ""
 
 
 func refresh() -> void:
@@ -158,28 +161,98 @@ func _add_dm_row(item: Dictionary, unread: bool) -> void:
 
 
 func _fill_news() -> void:
-	var count := 0
 	var unread_before := session.news_unread_count()
-	for section in session.phone_news():
-		if (section["news"] as Array).is_empty():
-			continue
+	var sections := session.phone_news()
+	for section in sections:
 		for item in section["news"]:
 			if bool(item["unread"]):
 				_fresh_news[str(item["id"])] = true
-	for section in session.phone_news():
-		if (section["news"] as Array).is_empty():
-			continue
-		_add("%s%s" % [Calendar.label(int(section["day"])), "（今日）" if bool(section["is_today"]) else ""], &"LabelSub")
+			if str(item["id"]) == news_open:
+				_fill_news_detail(item, section)
+				return
+	news_open = ""
+	var count := 0
+	for section in sections:
 		for item in section["news"]:
-			_add(("● " if _fresh_news.has(str(item["id"])) else "") + str(item["headline"]), &"LabelPhoneHeadline")
-			for line in item["body"]:
-				_add(str(line), &"LabelPhoneBody")
+			_add_news_row(item, section)
 			count += 1
 	if count == 0:
 		_add("ニュースはまだありません", &"LabelDim")
 	session.mark_news_read()   # 表示した時点で既読にする
 	if unread_before > 0:
 		unread_cleared.emit()
+
+
+## ニュースの日付（「Day3（今日）」。形は Calendar）。
+func _news_date(section: Dictionary) -> String:
+	return "%s%s" % [Calendar.label(int(section["day"])), "（今日）" if bool(section["is_today"]) else ""]
+
+
+## ニュースの一覧の1行（388幅のボタン）：日付・見出し（折り返す）。押すと詳細へ。未読だった行は見出しの頭に●。
+func _add_news_row(item: Dictionary, section: Dictionary) -> void:
+	var row := Button.new()
+	row.name = "NewsRow_%s" % str(item["id"])
+	row.theme_type_variation = &"ButtonRow"
+	row.focus_mode = Control.FOCUS_NONE
+	_content.add_child(row)   # 先に木へ入れる（見出しの高さを、テーマのフォントで測るため）
+	var date := Label.new()
+	date.text = _news_date(section)
+	date.theme_type_variation = &"LabelCaption"
+	date.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	date.position = Vector2(12, 4)
+	date.size = Vector2(340, 20)
+	row.add_child(date)
+	var headline := Label.new()
+	headline.text = ("● " if _fresh_news.has(str(item["id"])) else "") + str(item["headline"])
+	headline.theme_type_variation = &"LabelPhoneHeadline"
+	headline.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	headline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	headline.position = Vector2(12, 26)
+	row.add_child(headline)
+	var font := headline.get_theme_font(&"font")
+	var height := font.get_multiline_string_size(headline.text, HORIZONTAL_ALIGNMENT_LEFT, 340.0, headline.get_theme_font_size(&"font_size"),
+		-1, TextServer.BREAK_GRAPHEME_BOUND | TextServer.BREAK_MANDATORY).y
+	headline.custom_minimum_size = Vector2(340, height)
+	headline.size = Vector2(340, height)
+	var arrow := Label.new()
+	arrow.text = "›"
+	arrow.theme_type_variation = &"LabelSub"
+	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow.position = Vector2(364, 4)
+	arrow.size = Vector2(16, 20)
+	row.add_child(arrow)
+	row.custom_minimum_size = Vector2(388, maxf(56.0, 34.0 + height))
+	row.pressed.connect(open_news.bind(str(item["id"])))
+
+
+## ニュースの詳細：「戻る」・見出し・日付・本文（body の全部。長ければ縦に送れる）。
+func _fill_news_detail(item: Dictionary, section: Dictionary) -> void:
+	var back := Button.new()
+	back.name = "NewsBack"
+	back.text = "‹ 戻る"
+	back.theme_type_variation = &"ButtonSmall"
+	back.focus_mode = Control.FOCUS_NONE
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(close_news)
+	_content.add_child(back)
+	_add(str(item["headline"]), &"LabelPhoneHeadline").name = "NewsHeadline"
+	_add(_news_date(section), &"LabelCaption").name = "NewsDate"
+	for line in item["body"]:
+		_add(str(line), &"LabelPhoneBody")
+
+
+## ニュースの詳細を開く（一覧の行を押したとき）。表示だけの状態。
+func open_news(id: String) -> void:
+	news_open = id
+	_scroll.scroll_vertical = 0
+	refresh()
+
+
+## ニュースの詳細から一覧へ戻る。
+func close_news() -> void:
+	news_open = ""
+	_scroll.scroll_vertical = 0
+	refresh()
 
 
 ## 客ノート（UI準備G）：出会った客の好み。名前あり客を先、モブを後（それぞれ出会った順）。札は客側・材料側で同じ部品（UiTagChips）。
@@ -268,5 +341,6 @@ func _refresh_badge() -> void:
 
 func _on_tab_pressed(next_tab: String) -> void:
 	tab = next_tab
+	news_open = ""
 	_scroll.scroll_vertical = 0
 	refresh()
