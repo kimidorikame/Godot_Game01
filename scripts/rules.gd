@@ -205,6 +205,14 @@ static func market_open_from_day() -> int:
 
 
 ## 保存レシピの枠数（フェーズ4・4-7①。RecipeBook／朝の保存の検証が読む）。
+## 好物を「知る」時刻（UI準備O2）："first_serve"＝その客に初めて提供したとき（今までどおり）／"memo"＝場面データに
+## reveals_favorite: true がある来店のメモを足したとき（閉店のあと）。判定（好物を入れると GREAT）は、どちらでも初回から効く。
+static func favorite_reveal() -> String:
+	_ensure_loaded()
+	var value := str(_cache.get("favorite_reveal", "first_serve"))
+	return value if value in ["first_serve", "memo"] else "first_serve"
+
+
 static func recipe_slots() -> int:
 	_ensure_loaded()
 	return int(_cache.get("recipe_slots", 3))

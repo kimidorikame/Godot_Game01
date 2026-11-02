@@ -1,7 +1,7 @@
 extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
-## タブは SNS／ニュース／持ち物／客（レシピタブは無くして、持ち物に置き換えた。UI準備I2・I3）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
+## タブは SNS／ニュース／持ち物／客（レシピタブは無くして、持ち物に置き換えた。UI準備I2・I3）。客タブは店主のメモ帳（一覧→詳細。UI準備O2）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
 ## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
 ## （mark_dms_read・mark_news_read）。
 ## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
@@ -26,6 +26,7 @@ var tab := "news"
 @onready var _close: Button = %CloseButton
 @onready var _badge: Label = %SnsBadge
 @onready var _news_badge: Label = %NewsBadge
+@onready var _notes_badge: Label = %NotesBadge
 
 ## このスマホを開いてから、未読として見せたDMのid（行の左に線を残す）。閉じる・区切りで捨てる。
 var _fresh := {}
@@ -33,6 +34,10 @@ var _fresh := {}
 var _fresh_news := {}
 ## 表示だけの状態：詳細を開いているニュースのid（"" なら一覧。UI準備O）。タブを替える・閉じる・区切りで一覧に戻す。
 var news_open := ""
+## 表示だけの状態：詳細を開いている客（名前あり客の id／モブは "mob:<種類>"。"" なら一覧。UI準備O2）。ニュースと同じく一覧に戻す。
+var notes_open := ""
+## 詳細を開いた時点で「新」だったメモの行の id（その詳細を開いているあいだ、描き直しても印を残す。開き直す・閉じる・区切りで捨てる）。
+var _fresh_memo := {}
 
 
 func _ready() -> void:
@@ -50,6 +55,8 @@ func reset_ui_state() -> void:
 	_fresh = {}
 	_fresh_news = {}
 	news_open = ""
+	notes_open = ""
+	_fresh_memo = {}
 
 
 func refresh() -> void:
@@ -255,80 +262,179 @@ func close_news() -> void:
 	refresh()
 
 
-## 客ノート（UI準備G）：出会った客の好み。名前あり客を先、モブを後（それぞれ出会った順）。札は客側・材料側で同じ部品（UiTagChips）。
+## 客タブ＝店主のメモ帳（UI準備G・O2）。一覧は名前だけ（名前あり客を先、モブを後。それぞれ出会った順）→行を押すと詳細→「戻る」で一覧。
+## 一覧を表示した時点で、新しいメモの●を消す（mark_memos_seen）。まだ詳細で見ていないメモがある客の行には「新」。
 func _fill_notes() -> void:
 	var notes := session.phone_notes()
+	if notes_open != "":
+		for item in notes["regulars"]:
+			if str(item["id"]) == notes_open:
+				_fill_regular_detail(item)
+				return
+		for item in notes["mobs"]:
+			if "mob:" + str(item["type"]) == notes_open:
+				_fill_mob_detail(item)
+				return
+		notes_open = ""
 	if (notes["regulars"] as Array).is_empty() and (notes["mobs"] as Array).is_empty():
 		_add("まだ会った客はいません", &"LabelDim")
-		return
 	if not (notes["regulars"] as Array).is_empty():
 		_add("名前あり客", &"LabelSub")
 		for item in notes["regulars"]:
-			_add_note_row(str(item["name"]), "・".join(PackedStringArray((item["days"] as Array).map(func(d): return Calendar.label(int(d))))),
-				"いつもの", item["tags"], ("好物　" + str(item["favorite"])) if bool(item["favorite_known"]) else "",
-				("前回　" + "・".join(PackedStringArray(item["usual_ingredients"]))) if not (item["usual_ingredients"] as Array).is_empty() else "")
+			_add_name_row(str(item["id"]), str(item["name"]), not (item["memo_new"] as Array).is_empty())
 	if not (notes["mobs"] as Array).is_empty():
 		_add("モブ", &"LabelSub")
 		for item in notes["mobs"]:
-			_add_note_row(str(item["name"]), "", "好み", item["tags"], "", "")
+			_add_name_row("mob:" + str(item["type"]), str(item["name"]), false)
+	var unread_before := session.memo_unread_count()
+	session.mark_memos_seen()   # 客タブを表示した時点で●を消す（ニュースと同じ）
+	if unread_before > 0:
+		unread_cleared.emit()
 
 
-## 客ノートの1行（388幅）：名前・来た日（右）・札2枚・好物（知った客だけ）。
-func _add_note_row(title: String, days: String, tag_caption: String, tags: Array, favorite: String, previous: String) -> void:
-	var row := Panel.new()
-	row.theme_type_variation = &"PanelBox"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var extra_lines := (1 if favorite != "" else 0) + (1 if previous != "" else 0)
-	row.custom_minimum_size = Vector2(388, 52 + 20 * extra_lines)
+## 一覧の1行（388幅のボタン）：名前（と、まだ見ていないメモがあれば「新」）。押すと詳細へ。
+func _add_name_row(key: String, title: String, has_new: bool) -> void:
+	var row := Button.new()
+	row.name = "NoteRow_%s" % key.replace(":", "_")
+	row.theme_type_variation = &"ButtonRow"
+	row.focus_mode = Control.FOCUS_NONE
+	row.custom_minimum_size = Vector2(388, 40)
 	_content.add_child(row)
 	var name_label := Label.new()
 	name_label.text = title
 	name_label.theme_type_variation = &"LabelShop"
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_label.position = Vector2(12, 3)
-	name_label.size = Vector2(170, 26)
+	name_label.position = Vector2(12, 6)
+	name_label.size = Vector2(290, 28)
 	row.add_child(name_label)
-	if days != "":
-		var days_label := Label.new()
-		days_label.text = days
-		days_label.theme_type_variation = &"LabelCaption"
-		days_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		days_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		days_label.position = Vector2(150, 7)
-		days_label.size = Vector2(226, 22)
-		row.add_child(days_label)
-	var caption := Label.new()
-	caption.text = tag_caption
-	caption.theme_type_variation = &"LabelCaption"
-	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	caption.position = Vector2(12, 28)
-	caption.size = Vector2(60, 20)
-	row.add_child(caption)
+	if has_new:
+		var mark := Label.new()
+		mark.name = "NewMark"
+		mark.text = "新"
+		mark.theme_type_variation = &"LabelWarnSmall"
+		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		mark.position = Vector2(320, 10)
+		mark.size = Vector2(36, 20)
+		mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(mark)
+	var arrow := Label.new()
+	arrow.text = "›"
+	arrow.theme_type_variation = &"LabelSub"
+	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arrow.position = Vector2(364, 8)
+	arrow.size = Vector2(16, 24)
+	row.add_child(arrow)
+	row.pressed.connect(open_note.bind(key))
+
+
+## 詳細の頭：「‹ 戻る」と名前。
+func _add_detail_head(title: String) -> void:
+	var back := Button.new()
+	back.name = "NoteBack"
+	back.text = "‹ 戻る"
+	back.theme_type_variation = &"ButtonSmall"
+	back.focus_mode = Control.FOCUS_NONE
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(close_note)
+	_content.add_child(back)
+	_add(title, &"LabelPhoneHeadline").name = "NoteName"
+
+
+## 見出し（「いつもの」など）と札の1行。
+func _add_tag_line(caption: String, tags: Array) -> void:
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", 8)
+	_content.add_child(line)
+	var head := Label.new()
+	head.text = caption
+	head.theme_type_variation = &"LabelCaption"
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.custom_minimum_size = Vector2(60, 0)
+	line.add_child(head)
 	var chips := HBoxContainer.new()
 	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chips.add_theme_constant_override("separation", 4)
-	chips.position = Vector2(76, 28)
-	chips.size = Vector2(290, 20)
-	row.add_child(chips)
+	line.add_child(chips)
 	UiTagChips.fill(chips, tags)
-	if favorite != "":
-		var fav := Label.new()
-		fav.text = favorite
-		fav.theme_type_variation = &"LabelSub"
-		fav.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		fav.position = Vector2(12, 48)
-		fav.size = Vector2(364, 20)
-		row.add_child(fav)
-	if previous != "":
-		var prev := Label.new()
-		prev.text = previous
-		prev.theme_type_variation = &"LabelSub"
-		prev.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		prev.position = Vector2(12, 48 + (20 if favorite != "" else 0))
-		prev.size = Vector2(364, 20)
-		prev.clip_text = true
-		prev.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		row.add_child(prev)
+
+
+## 名前あり客の詳細：上＝いつもの（基本の注文の札）・来た日・好物（知った客だけ）・前回の材料／下＝足したメモ（日付付き・古い順。「新」の印）。
+func _fill_regular_detail(item: Dictionary) -> void:
+	_add_detail_head(str(item["name"]))
+	_add_tag_line("いつもの", item["tags"])
+	_add("来た日　" + "・".join(PackedStringArray((item["days"] as Array).map(func(d): return Calendar.label(int(d))))), &"LabelSub")
+	if bool(item["favorite_known"]):
+		_add("好物　" + str(item["favorite"]), &"LabelSub")
+	if not (item["usual_ingredients"] as Array).is_empty():
+		_add("前回　" + "・".join(PackedStringArray(item["usual_ingredients"])), &"LabelSub")
+	var rule := ColorRect.new()
+	rule.color = get_theme_color(&"line", &"UiPalette")
+	rule.custom_minimum_size = Vector2(380, 1)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_content.add_child(rule)
+	_add("メモ", &"LabelCaption")
+	var memo: Array = item["memo"]
+	if memo.is_empty():
+		_add("まだ何も書いていない", &"LabelDim")
+	for line in memo:
+		_add_memo_line(line, _fresh_memo.has(str(line["id"])))
+
+
+## メモの1行：日付・（新）・文（長ければ折り返す）。
+func _add_memo_line(line: Dictionary, is_new: bool) -> void:
+	var row := HBoxContainer.new()
+	row.name = "Memo_%d" % _content.get_child_count()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 6)
+	_content.add_child(row)
+	var date := Label.new()
+	date.text = Calendar.label(int(line["day"]))
+	date.theme_type_variation = &"LabelCaption"
+	date.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	date.custom_minimum_size = Vector2(44, 0)
+	row.add_child(date)
+	var mark := Label.new()
+	mark.name = "NewMark"
+	mark.text = "新" if is_new else ""
+	mark.theme_type_variation = &"LabelWarnSmall"
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.custom_minimum_size = Vector2(20, 0)
+	row.add_child(mark)
+	var text := Label.new()
+	text.name = "Text"
+	text.text = str(line["text"])
+	text.theme_type_variation = &"LabelPhoneBody"
+	text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.custom_minimum_size = Vector2(304, 0)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+
+
+## モブの詳細：好みの札だけ（モブのメモは今は無い）。
+func _fill_mob_detail(item: Dictionary) -> void:
+	_add_detail_head(str(item["name"]))
+	_add_tag_line("好み", item["tags"])
+
+
+## 客の詳細を開く（一覧の行を押したとき）。名前あり客は、開いた時点で「新」だった行を覚えてから既読にする。
+func open_note(key: String) -> void:
+	notes_open = key
+	_fresh_memo = {}   # 開くたびに取り直す（前に見た行には付けない）
+	if not key.begins_with("mob:"):
+		for id in session.memo_new_ids(key):
+			_fresh_memo[str(id)] = true
+		session.mark_memos_read(key)
+	_scroll.scroll_vertical = 0
+	refresh()
+
+
+## 客の詳細から一覧へ戻る。
+func close_note() -> void:
+	notes_open = ""
+	_scroll.scroll_vertical = 0
+	refresh()
 
 
 ## SNSタブ・ニュースタブの未読の数（注意色の丸）。そのタブを表示しているあいだは読んだ扱いなので出さない。
@@ -337,10 +443,13 @@ func _refresh_badge() -> void:
 	_badge.text = "●%d" % dm_unread if dm_unread > 0 else ""
 	var news_unread := session.news_unread_count() if tab != "news" else 0
 	_news_badge.text = "●%d" % news_unread if news_unread > 0 else ""
+	var notes_unread := session.memo_unread_count() if tab != "notes" else 0
+	_notes_badge.text = "●%d" % notes_unread if notes_unread > 0 else ""
 
 
 func _on_tab_pressed(next_tab: String) -> void:
 	tab = next_tab
 	news_open = ""
+	notes_open = ""
 	_scroll.scroll_vertical = 0
 	refresh()

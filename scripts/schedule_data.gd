@@ -208,6 +208,16 @@ static func episode_body(customer_id: String, episode_id: String) -> Array:
 
 
 ## 提供しなかったときの本文（must_info を持つ場面だけが使う未提供版）。無ければ空配列。
+## 来店のメモ（UI準備O2）：その来店で1杯以上出したら、閉店のあと店主のメモ帳（客タブ）に足す行。無ければ空配列。
+static func episode_memo(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("memo", []))
+
+
+## この来店のメモを足したときに好物を知るか（UI準備O2。favorite_reveal が "memo" のときだけ使う）。
+static func episode_reveals_favorite(customer_id: String, episode_id: String) -> bool:
+	return episode_data(customer_id, episode_id).get("reveals_favorite", false) == true
+
+
 static func episode_body_unserved(customer_id: String, episode_id: String) -> Array:
 	return _string_lines(episode_data(customer_id, episode_id).get("body_unserved", []))
 
@@ -374,8 +384,26 @@ static func _is_lines(value) -> bool:
 ##   sets_facts … 辞書。選択肢の set と合わせた事実のキーが重複を除いて2個まで。両方に同じキーは不可
 ##   closing … { default: 行の配列, <選択id>:<選択肢id> | request_honored:true|false: 行の配列 }
 ##   must_info … 空でない文字列の配列。must_info と body の両方があれば body_unserved が必須
+##   memo … 文字列の配列（空の文は不可。内部の札の名前〔HOT など〕は不可。数字は可。UI準備O2）
+##   reveals_favorite … true／false。名前あり客の場面だけ。true なら memo が必要（メモを足したときに好物を知るため）
 static func scene_problems(ep: Dictionary) -> Array:
 	var problems := []
+	if ep.has("memo"):
+		if not _is_lines(ep["memo"]):
+			problems.append("memo が空でない文字列の配列でない")
+		else:
+			for line in ep["memo"]:
+				for tag in TagWords.all_tags():
+					if str(line).contains(str(tag)):
+						problems.append("memo に内部の札の名前 %s がある「%s」" % [str(tag), str(line)])
+	if ep.has("reveals_favorite"):
+		var customer := str(ep.get("customer", ""))
+		if not (ep["reveals_favorite"] is bool):
+			problems.append("reveals_favorite が true／false でない")
+		elif customer_profile(customer).is_empty() or bool(customer_profile(customer).get("is_mob", false)):
+			problems.append("reveals_favorite は名前あり客の場面だけ（%s）" % customer)
+		elif bool(ep["reveals_favorite"]) and (not _is_lines(ep.get("memo", [])) or (ep.get("memo", []) as Array).is_empty()):
+			problems.append("reveals_favorite があるのに memo が無い")
 	if ep.has("cups"):
 		problems.append_array(_cups_problems(ep))
 	if ep.has("reactions") and not ep.has("cups"):

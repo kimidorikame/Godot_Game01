@@ -1021,8 +1021,8 @@ func _serve_customer(ev: Dictionary) -> void:
 		# flush_visit_tally() が退店の瞬間に1回だけ確定させる。
 		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite, -1, tip, hearty)
 		return
-	if judged and raw_favorite != "":
-		GameState.mark_favorite_known(customer_id)
+	if judged and raw_favorite != "" and GameState.FAVORITE_REVEAL == "first_serve":
+		GameState.mark_favorite_known(customer_id)   # 好物を知る（favorite_reveal が "memo" なら、閉店のあとメモを足したとき。UI準備O2）
 	# 日次ログ：判定結果ごとに集計する。judged=falseの杯（配達員の持ち帰り等）は
 	# result=""のまま（判定なしと分かる値。指示文どおり）。
 	log_quality_counts[result] = int(log_quality_counts.get(result, 0)) + servings
@@ -1246,7 +1246,7 @@ func flush_visit_tally() -> void:
 	# ③初回好物の開示：退店するこの瞬間に1回だけ「知った」扱いにする（配達員は
 	# これで1・2杯目の途中では判明せず、3杯すべて終えた退店時に判明する）。
 	var pending_favorite := str(visit_tally.get("pending_favorite", ""))
-	if pending_favorite != "":
+	if pending_favorite != "" and GameState.FAVORITE_REVEAL == "first_serve":
 		GameState.mark_favorite_known(str(visit_tally["customer"]))
 	var record := { "customer": visit_tally["customer"],
 		"sale": int(visit_tally["sale"]), "tip": int(visit_tally.get("tip", 0)), "servings": int(visit_tally["servings"]),
@@ -1939,6 +1939,8 @@ func on_day_ending() -> void:
 	# 4-2：1日の記録を周回の累計へ足す（結果画面の集計元。朝の辞書に入るので、再挑戦・
 	# 続きからで戻した朝より後の日は持たない）。
 	GameState.record_day(log_entry)
+	# 店主のメモ帳（UI準備O2）：今夜1杯以上出した名前あり客の来店のメモを足す（翌朝から客タブで見える）。朝の保存に入る
+	add_tonight_memos()
 	# 日次の成績表示（③）：今日作ったlog_entryをそのまま人間向けの文にして、次のWAKE（別日）の先頭で一度だけ見せる。ここでのdebug_panel.gd内のローカル変数ではなくlog_entryの値だけを使うのは、日次ログファイルJSONと完全に同じ内容にして、二重の集計ロジックを作らないため。
 	last_day_summary_text = format_day_summary(log_entry)
 
@@ -2913,9 +2915,80 @@ func mark_news_read() -> void:
 			ReadState.mark(_news_read_key(str(item["id"])))
 
 
-## スマホのボタンの未読の数：DMとニュースの合計。
+## スマホのボタンの未読の数：DMとニュースと、客タブの新しいメモ（UI準備O2）の合計。
 func phone_unread_count() -> int:
-	return dm_unread_count() + news_unread_count()
+	return dm_unread_count() + news_unread_count() + memo_unread_count()
+
+
+# --- 店主のメモ帳（客タブ。UI準備O2） ---
+
+## 今夜1杯以上出した名前あり客の来店について、場面の memo を来店記録の facts["memo"] へ足す（{ day, key＝場面id }。文は表示のときに
+## データから引く）。同じ場面のメモは1回だけ。全部断った・来なかった・出せなかった来店は足さない。favorite_reveal が "memo" なら、
+## reveals_favorite のある場面のメモを足したときに好物を知る。日の終わり（on_day_ending）に呼ぶ。
+func add_tonight_memos() -> void:
+	for customer_id in GameState.customer_memory.keys():
+		var id := str(customer_id)
+		for visit in CustomerMemory.visits_of(id):
+			var v: Dictionary = visit
+			var episode := str(v.get("episode_id", ""))
+			if int(v.get("day", 0)) != GameState.day_count or int(v.get("served", 0)) <= 0 or ScheduleData.episode_memo(id, episode).is_empty():
+				continue
+			var memo: Array = CustomerMemory.fact(id, "memo", [])
+			if memo.any(func(m): return str((m as Dictionary).get("key", "")) == episode):
+				continue
+			memo.append({ "day": GameState.day_count, "key": episode })
+			CustomerMemory.set_fact(id, "memo", memo)
+			if GameState.FAVORITE_REVEAL == "memo" and ScheduleData.episode_reveals_favorite(id, episode):
+				GameState.mark_favorite_known(id)
+
+
+## 客のメモの行（足した順＝古い順）：[{ id, day, text }]。id は既読（ReadState）に使う。
+func memo_lines(customer_id: String) -> Array:
+	var out := []
+	for m in CustomerMemory.fact(customer_id, "memo", []):
+		var day := int((m as Dictionary).get("day", 0))
+		var key := str((m as Dictionary).get("key", ""))
+		var lines := ScheduleData.episode_memo(customer_id, key)
+		for i in range(lines.size()):
+			out.append({ "id": "%s|%s|%d|%d" % [customer_id, key, day, i], "day": day, "text": str(lines[i]) })
+	return out
+
+
+## 客タブの未読（●）：客タブを開く前に足されたメモの行の数。客タブを開いたら消える（mark_memos_seen）。
+func memo_unread_count() -> int:
+	var n := 0
+	for customer_id in GameState.customer_memory:
+		for line in memo_lines(str(customer_id)):
+			if not ReadState.is_read(_memo_read_key("memo_tab", str(line["id"]))):
+				n += 1
+	return n
+
+
+## 客タブを開いた：●を消す（「新」の印は、その客の詳細を見るまで残る）。
+func mark_memos_seen() -> void:
+	for customer_id in GameState.customer_memory:
+		for line in memo_lines(str(customer_id)):
+			ReadState.mark(_memo_read_key("memo_tab", str(line["id"])))
+
+
+## その客の詳細でまだ見ていないメモの行の id（「新」の印）。
+func memo_new_ids(customer_id: String) -> Array:
+	var out := []
+	for line in memo_lines(customer_id):
+		if not ReadState.is_read(_memo_read_key("memo", str(line["id"]))):
+			out.append(str(line["id"]))
+	return out
+
+
+## その客の詳細を見た：「新」の印を消す（いま表示している詳細には、開いた時点の印を残す）。
+func mark_memos_read(customer_id: String) -> void:
+	for line in memo_lines(customer_id):
+		ReadState.mark(_memo_read_key("memo", str(line["id"])))
+		ReadState.mark(_memo_read_key("memo_tab", str(line["id"])))
+
+
+func _memo_read_key(kind: String, id: String) -> String:
+	return ReadState.line_key(kind, "", id, id)   # 文が差し替わっても既読は変えない（idで持つ）
 
 
 func _news_read_key(id: String) -> String:
@@ -2927,7 +3000,8 @@ func _dm_read_key(item: Dictionary) -> String:
 
 
 ## スマホの「客」タブ（客ノート。UI準備G）：出会った客の好みを見返す。見せるのは分かっていることだけ（会っていない客・種類は載せない）。
-## { regulars:[{ id, name, tags（いつもの）, days（来た日）, favorite_known, favorite（好物の材料名。知った客だけ）}]（出会った順）,
+## { regulars:[{ id, name, tags（いつもの）, days（来た日）, favorite_known, favorite（好物の材料名。知った客だけ）, usual_ingredients（前回の材料）,
+##   memo（店主のメモの行 [{ id, day, text }]。古い順。UI準備O2）, memo_new（詳細でまだ見ていない行の id）}]（出会った順）,
 ##   mobs:[{ type, name, tags（好み。その種類の注文）}]（出会った順）}。新しい保存項目なし：名前あり客は来店記録（customer_memory）、
 ## モブは日次ログの mob_types_met（旧セーブは提供した種類 mob_types_served で代用）と今夜の分から読む。
 ## 名前あり客：今日より前の来店がある客、または今日の来店で「いつもの」が分かっている客（注文を言う行を見たあと）。
@@ -2959,7 +3033,8 @@ func phone_notes() -> Dictionary:
 		for ingredient in RecipeBook.usual_for(id):
 			usual_names.append(Ingredients.name_for(str(ingredient)))
 		regulars.append({ "id": id, "name": ScheduleData.customer_display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
-			"usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "" })
+			"usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "",
+			"memo": memo_lines(id), "memo_new": memo_new_ids(id) })
 	var types := []
 	for record in GameState.day_records:
 		if record is Dictionary:

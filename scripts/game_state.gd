@@ -49,6 +49,10 @@ static var HEARTY_TIP := Rules.hearty_tip()
 
 
 ## 評価 result の杯を servings 杯出したときの、具だくさんの上乗せ（additions＝椀の具材）。具が2種類未満・GOOD 未満・評価なしは 0。
+# 好物を「知る」時刻（UI準備O2。week7.json の favorite_reveal＝Rules.favorite_reveal()）。"first_serve"（今までどおり）か "memo"。
+static var FAVORITE_REVEAL := Rules.favorite_reveal()
+
+
 static func hearty_tip_for(result: String, servings: int, additions: Array) -> int:
 	if HEARTY_TIP <= 0 or not (result == "GOOD" or result == "GREAT") or Ingredients.topping_kinds(additions) < 2:
 		return 0

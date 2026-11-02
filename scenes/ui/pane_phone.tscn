@@ -108,6 +108,17 @@ mouse_filter = 2
 theme_type_variation = &"LabelWarnSmall"
 horizontal_alignment = 1
 
+[node name="NotesBadge" type="Label" parent="Tabs"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 374.0
+offset_top = 8.0
+offset_right = 412.0
+offset_bottom = 28.0
+mouse_filter = 2
+theme_type_variation = &"LabelWarnSmall"
+horizontal_alignment = 1
+
 [node name="Underline" type="ColorRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
