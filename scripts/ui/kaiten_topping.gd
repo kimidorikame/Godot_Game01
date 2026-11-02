@@ -1,7 +1,7 @@
 extends Control
 class_name UiKaitenTopping
 ## 開店の操作エリア：トッピング。寸法表 KAITEN_UI_LAYOUT §4・§5。
-## 注文カード（order_card_view）と[聞き直す]（reask）、いまの椀（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、
+## 注文カード（order_card_view。「前回」「今日」）と[聞き直す]（reask）、いまの椀（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、
 ## 減点の予告（sale_hint）、分類タブ（具材が先・調味料が後。1タブ12個まで）、具材ボタン（本体＝新鮮、右端＝傷んだ側。
 ## select_ingredient）、鍋の小表示、提供（complete_input）、いつもの／保存／廃棄／断る。
 ## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置（16,418）に出す（plan Q14）。
@@ -109,28 +109,25 @@ func refresh() -> void:
 	_refresh_overlay(group, recipes, save_view)
 
 
-## 「いつもの」「今日」の欄は常に出す（空白の隙間を作らない）。まだ分からないうちは「？」を薄い色で出し、会話で注文を言う行を出した時点で
-## 中身が入る（order_card_view の usual_known・today_known）。[聞き直す]は、聞き直せる会話があるとき（名前あり客・1杯の場面のADJUST中）だけ出す。
+## 「前回」「今日」の欄は常に出す（空白の隙間を作らない。UI準備O2で「いつもの」を「前回」に替えた）。「前回」は来店の最初から入る（初来店・モブは空白）。
+## 「今日」は来店の会話が終わった時点（その杯の ADJUST）で入り、それまでは「？」を薄い色で出す（order_card_view の last_known・today_known）。
+## [聞き直す]は、聞き直せる会話があるとき（名前あり客・1杯の場面のADJUST中）だけ出す。
 func _refresh_order_card() -> void:
 	var card := session.order_card_view()
 	_usual_row.visible = true
 	_today_row.visible = true
-	var usual_known := bool(card.get("usual_known", false))
 	var today_known := bool(card.get("today_known", false))
-	# 文字（_usual_tags・_today_tags）は、タグの言葉をつないだ形で持つ（札が出ていないときの「？」「いつもどおり」もここ）。
+	# 文字（_usual_tags・_today_tags）は、タグの言葉をつないだ形で持つ（札が出ていないときの「？」・空白もここ）。
 	# タグがあるときは文字を隠して、言葉の札（UiTagChips。材料側と同じ見た目）を出す。
-	var usual_tags: Array = card["base"] if usual_known else []
+	var last_tags: Array = card["last"] if bool(card.get("last_known", false)) else []
 	var today_tags: Array = card["today"] if today_known else []
-	_usual_tags.text = TagWords.joined(usual_tags) if not usual_tags.is_empty() else "？"
-	if today_known:
-		_today_tags.text = TagWords.joined(today_tags) if not today_tags.is_empty() else "いつもどおり"
-	else:
-		_today_tags.text = "？"
-	UiTagChips.fill(_usual_chips, usual_tags)
+	_usual_tags.text = TagWords.joined(last_tags)
+	_today_tags.text = TagWords.joined(today_tags) if today_known else "？"
+	UiTagChips.fill(_usual_chips, last_tags)
 	UiTagChips.fill(_today_chips, today_tags)
-	_usual_tags.visible = usual_tags.is_empty()
+	_usual_tags.visible = last_tags.is_empty()
 	_today_tags.visible = today_tags.is_empty()
-	_usual_tags.modulate = Color(1, 1, 1, 1.0) if _usual_tags.text != "？" else Color(1, 1, 1, 0.4)
+	_usual_tags.modulate = Color(1, 1, 1, 1.0)
 	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
 	_reask.visible = session.can_reask()
 	_reask.disabled = not session.can_reask()

@@ -191,11 +191,11 @@ func run(t: SceneTree) -> int:
 				order_chips.append((ch as Label).text)
 		var card: Dictionary = s.order_card_view()
 		var expect: Array = []
-		if bool(card.get("usual_known", false)):
-			expect.append_array(TagWords.words(card["base"]))
+		if bool(card.get("last_known", false)):
+			expect.append_array(TagWords.words(card["last"]))
 		if bool(card.get("today_known", false)):
 			expect.append_array(TagWords.words(card["today"]))
-		c.check("「いつもの」「今日」の欄：札は言葉（card の base・today と同じ並び）・内部名は出ない",
+		c.check("「前回」「今日」の欄：札は言葉（card の last・today と同じ並び）・内部名は出ない",
 			order_chips == expect and _has_internal(_all_texts(top)) == "", "%s / %s" % [str(order_chips), str(expect)])
 		# 椀に入れて、枠の札を見る
 		var pressed := false

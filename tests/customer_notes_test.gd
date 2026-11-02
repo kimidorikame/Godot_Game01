@@ -60,12 +60,12 @@ func run(t: SceneTree) -> int:
 		var card := s.order_card_view()
 		var current := str(card.get("customer", ""))
 		for item in notes["regulars"]:
-			if str(item["id"]) == current and not bool(card.get("usual_known", false)):
+			if str(item["id"]) == current and not bool(card.get("today_known", false)):
 				invariant_ok = false
 				detail = "%s が注文を言う前に載った" % current
 			if first_regular_step < 0:
 				first_regular_step = guard
-	c.check("名前あり客は、注文を言う行を見る前には載らない（見るまで「いつもの」は分からない）", invariant_ok and first_regular_step > 0, detail)
+	c.check("名前あり客は、来店の会話が終わる前には載らない（注文カードの「今日」が出るまで、注文は分からない）", invariant_ok and first_regular_step > 0, detail)
 	var notes := s.phone_notes()
 	var ids: Array = (notes["regulars"] as Array).map(func(r): return str(r["id"]))
 	c.check("Day1のあと：名前あり客は出会った順（配達員→チンピラ→老婆）・モブも出会った順（港湾労働者→安宿の夜勤受付）",

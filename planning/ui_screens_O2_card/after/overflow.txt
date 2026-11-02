@@ -1,0 +1,10 @@
+# 本番UI（UI準備O2）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_O2_card.gd が書き出す（手で直さない）
+
+## スクリーンショット
+01_first_visit_talk.png  初来店（新人警官）・来店の会話の途中：前回は空白・今日は「？」
+02_first_visit_adjust.png  初来店・来店の会話が終わった（ADJUST）：今日に注文の札
+03_return_talk.png  2回目の来店（配達員）・会話の途中：前回は最初から入っている・今日は「？」
+04_return_adjust.png  2回目の来店・ADJUST：前回・今日とも入る
+
+## 入りきらない箇所（0件）

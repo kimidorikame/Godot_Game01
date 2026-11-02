@@ -593,7 +593,7 @@ func mob_types_met_tonight() -> Array:
 			types.append(type_id)
 	if open != null and open.has_more() and GameState.phase == GameState.Phase.OPEN:
 		var current := str(open.current_customer())
-		if Day1Events.is_mob_customer(current) and bool(order_card_view().get("usual_known", false)):
+		if Day1Events.is_mob_customer(current) and bool(order_card_view().get("today_known", false)):
 			var current_type := str((instances.get(current, {}) as Dictionary).get("type", ""))
 			if current_type != "" and not types.has(current_type):
 				types.append(current_type)
@@ -3005,14 +3005,14 @@ func _dm_read_key(item: Dictionary) -> String:
 ##   memo（店主のメモの行 [{ id, day, text }]。古い順。UI準備O2）, memo_new（詳細でまだ見ていない行の id）}]（出会った順）,
 ##   mobs:[{ type, name, tags（好み。その種類の注文）}]（出会った順）}。新しい保存項目なし：名前あり客は来店記録（customer_memory）、
 ## モブは日次ログの mob_types_met（旧セーブは提供した種類 mob_types_served で代用）と今夜の分から読む。
-## 名前あり客：今日より前の来店がある客、または今日の来店で「いつもの」が分かっている客（注文を言う行を見たあと）。
+## 名前あり客：今日より前の来店がある客、または今日の来店で注文が分かっている客（来店の会話が終わって、注文カードの「今日」が出たあと）。
 func phone_notes() -> Dictionary:
 	var today := GameState.day_count
 	var current := ""
 	var current_known := false
 	if open != null and open.has_more() and GameState.phase == GameState.Phase.OPEN:
 		current = str(open.current_customer())
-		current_known = bool(order_card_view().get("usual_known", false))
+		current_known = bool(order_card_view().get("today_known", false))
 	var regulars := []
 	for customer_id in GameState.customer_memory:
 		var id := str(customer_id)
@@ -3030,10 +3030,7 @@ func phone_notes() -> Dictionary:
 		if days.is_empty():
 			continue
 		days.sort()
-		# 前回頼んだ注文（客タブの「前回」）：その来店の場面に今日の頼みがあればその札、無ければ基本の注文（いつもの）
-		var last_order: Array = (Day1Events.today_request_of(id, last_episode).get("tags", []) as Array).duplicate()
-		if last_order.is_empty():
-			last_order = (profile.get("wanted_tags", []) as Array).duplicate()
+		var last_order := last_order_of(id, last_episode)   # 前回頼んだ注文（客タブの「前回」）
 		var known := GameState.knows_favorite(id)
 		var favorite := str(profile.get("favorite", ""))
 		var usual_names := []
@@ -3139,15 +3136,15 @@ func pot_view() -> Dictionary:
 		"locked_until_water": pot_locked_until_water(), "locked_until_dashi": pot_locked_until_dashi() }
 
 
-## 注文カード（その客の『いつもの』と『今日の頼み』）。開店中は常に出す（客がいなければ空）。表示だけで、判定・乱数・保存には触れない。
-## { customer, base[タグ]（いつもの）, today[タグ]（今日の頼み。無い＝いつもどおりは空）, label,
-##   usual_known（「いつもの」が分かっているか）, today_known（今日の頼みが分かっているか）, can_reask }
-## 分かる時点（UI準備D・D-5）：客が注文を言う会話の最後の行（その杯の ADJUST の直前の GREET。無ければ ADJUST）を表示した時点。
-##   ・「今日」：その行を出した時点で、頼み（無ければ「いつもどおり」）が分かる。提供のあとではない。
-##   ・「いつもの」：同じ時点で分かる。名前あり客は、前の日に来たことがあれば（今日より前の来店記録がある）最初から分かっている
-##     ＝次に同じ客が来たときは埋まった状態で出る。保存する状態は増やさない（来店記録から読む）。好物を知った状態（favorite_known）は使わない。
-##   ・それより前（前回への一言など）と、客がいないあいだは、分かっていない（画面は「？」）。
-## 複数杯の場面（配達員の3杯）は杯ごと（持ち帰りの頼みは、2杯目のあとの会話の最後の行で分かる）。モブの団体も同じ形（いつもの＝モブの注文のタグ。今日はいつもどおり）。
+## 注文カード（その客の『前回』と『今日』。UI準備O2で「いつもの」を「前回」に替えた）。開店中は常に出す（客がいなければ空）。表示だけで、判定・乱数・保存には触れない。
+## { customer, last[タグ]（前回）, last_known（前回の欄を出すか）, today[タグ]（今日の注文）, today_known（今日の欄を出すか）,
+##   base[タグ]（基本の注文。参考）, label, can_reask }
+##   ・「前回」：名前あり客の、前回の来店で頼んだ注文（その来店の場面に今日の頼みがあればその札、無ければ基本の注文。last_order_of）。
+##     来店の最初から出る。初来店（今日より前の来店が無い）は空白。モブは空白。場面データの card_last があれば、それを出す
+##     （ゲームの始まる前から通っている客の初来店など。[] なら空白）。
+##   ・「今日」：その杯の注文（実効注文＝今日の頼みがあればその札）。来店の会話が終わった時点（その杯の ADJUST）から出る。それより前は「？」。
+##     場面データの card_today があれば、それを出す（会話に合わせて札を減らすなど。実効注文の札の中から。1杯の場面だけ）。
+## 複数杯の場面（配達員の3杯）は杯ごと（持ち帰りの頼みは、その杯の ADJUST で出る）。モブの団体も同じ形（前回は空白・今日＝団体の注文）。
 func order_card_view() -> Dictionary:
 	if open == null or flow.runner == null or GameState.phase != GameState.Phase.OPEN or not open.has_more():
 		return {}
@@ -3171,7 +3168,7 @@ func order_card_view() -> Dictionary:
 			if events[i] is Dictionary and str(events[i].get("type", "")) == "ADJUST":
 				adjust_index = i
 				break
-	var card := { "customer": customer_id, "base": [], "today": [], "label": "", "usual_known": false, "today_known": false,
+	var card := { "customer": customer_id, "base": [], "last": [], "last_known": false, "today": [], "today_known": false, "label": "",
 		"can_reask": can_reask() }
 	if adjust_index < 0:
 		return card
@@ -3183,17 +3180,34 @@ func order_card_view() -> Dictionary:
 	var is_mob := Day1Events.is_mob_customer(customer_id)
 	var profile := {} if is_mob else ScheduleData.customer_profile(customer_id)   # モブのインスタンスidにはプロフィールが無い
 	var named := not profile.is_empty() and not bool(profile.get("is_mob", false))
-	var base: Array = (profile.get("wanted_tags", []) as Array).duplicate() if named else effective.duplicate()
-	card["base"] = base
-	card["today"] = effective.duplicate() if named and effective != base else []
-	if named and not Day1Events.is_multi_cup_scene(customer_id, Day1Events.episode_id_of(customer_id)):
-		card["label"] = str(Day1Events.order_card(customer_id).get("label", ""))
-	var order_line := adjust_index
-	if adjust_index > 0 and events[adjust_index - 1] is Dictionary and str(events[adjust_index - 1].get("type", "")) == "GREET":
-		order_line = adjust_index - 1
-	card["today_known"] = index >= order_line
-	card["usual_known"] = bool(card["today_known"]) or (named and not CustomerMemory.previous_visit(customer_id).is_empty())
+	card["base"] = (profile.get("wanted_tags", []) as Array).duplicate() if named else effective.duplicate()
+	card["today"] = effective
+	if named:
+		var episode := Day1Events.episode_id_of(customer_id)
+		var multi := Day1Events.is_multi_cup_scene(customer_id, episode)
+		if not multi:
+			card["label"] = str(Day1Events.order_card(customer_id).get("label", ""))
+			var today_override = ScheduleData.episode_data(customer_id, episode).get("card_today")
+			if today_override is Array:
+				card["today"] = (today_override as Array).duplicate()
+		var last_override = ScheduleData.episode_data(customer_id, episode).get("card_last")
+		var previous := CustomerMemory.previous_visit(customer_id)
+		if last_override is Array:
+			card["last"] = (last_override as Array).duplicate()
+			card["last_known"] = true
+		elif not previous.is_empty():
+			card["last"] = last_order_of(customer_id, str(previous.get("episode_id", "")))
+			card["last_known"] = true
+	card["today_known"] = index >= adjust_index   # 来店の会話（注文を言う行まで）が終わって、その杯の ADJUST に入った時点
 	return card
+
+
+## 名前あり客がその来店（場面）で頼んだ注文：場面に今日の頼みがあればその札、無ければ基本の注文（いつもの）。
+func last_order_of(customer_id: String, episode_id: String) -> Array:
+	var tags: Array = (Day1Events.today_request_of(customer_id, episode_id).get("tags", []) as Array).duplicate()
+	if tags.is_empty():
+		tags = (ScheduleData.customer_profile(customer_id).get("wanted_tags", []) as Array).duplicate()
+	return tags
 
 
 ## 椀の中身：{ customer, additions[品目id], additions_damaged[additions と同じ並びで、傷んだ側から入れたか],

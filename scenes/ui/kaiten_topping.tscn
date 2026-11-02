@@ -28,7 +28,7 @@ offset_left = 8.0
 offset_right = 78.0
 offset_bottom = 28.0
 theme_type_variation = &"LabelCaption"
-text = "いつもの"
+text = "前回"
 vertical_alignment = 1
 
 [node name="UsualChips" type="HBoxContainer" parent="UsualRow"]

@@ -125,6 +125,13 @@ static func customer_profile(id: String) -> Dictionary:
 	return result
 
 
+## 名前あり客か（客プロフィールのファイルがあり、モブでない）。無いidでも読み込みのエラーを出さない（場面データの検査用）。
+static func _is_named_customer(id: String) -> bool:
+	if id == "" or not FileAccess.file_exists(_CUSTOMERS_DIR + id + ".json"):
+		return false
+	return not customer_profile(id).is_empty() and not bool(customer_profile(id).get("is_mob", false))
+
+
 ## 客の表示名（data/customers/<id>.json の "name"）。システムが組み立てる文面（結果画面・
 ## 予告メモ）で使う。未知の客・"name"の無い／空のプロフィールはid自体を返す（クラッシュしない）。
 ## 場面データの文言（greet・reactions）は対象外。モブはDay1Events.mob_display_name()。
@@ -292,7 +299,7 @@ static func episode_sets_facts(customer_id: String, episode_id: String) -> Dicti
 const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk"]
 ## 複数杯の場面で使えない場面のキー（黙って無視される書き間違いを作らないため scene_problems が弾く）。
 const _CUPS_FORBIDDEN_KEYS := ["reactions", "order", "callback", "pre_order", "body", "body_unserved",
-	"choices", "closing", "sets_facts"]
+	"choices", "closing", "sets_facts", "card_today"]
 
 
 ## 複数杯の場面の杯の配列。形の整った場合だけ（2杯以上で、どの杯も辞書で、キーと型が正しい）読み、
@@ -386,8 +393,30 @@ static func _is_lines(value) -> bool:
 ##   must_info … 空でない文字列の配列。must_info と body の両方があれば body_unserved が必須
 ##   memo … 文字列の配列（空の文は不可。内部の札の名前〔HOT など〕は不可。数字は可。UI準備O2）
 ##   reveals_favorite … true／false。名前あり客の場面だけ。true なら memo が必要（メモを足したときに好物を知るため）
+##   card_last … 注文カードの「前回」に出す札（[] なら空白。ゲームの始まる前から通っている客の初来店など。名前あり客の場面だけ。UI準備O2）
+##   card_today … 注文カードの「今日」に出す札（会話に合わせる。実効注文＝今日の頼み、無ければ基本の注文の札の中から。1杯の場面だけ）
 static func scene_problems(ep: Dictionary) -> Array:
 	var problems := []
+	for key in ["card_last", "card_today"]:
+		if not ep.has(key):
+			continue
+		var customer := str(ep.get("customer", ""))
+		var tags = ep[key]
+		if not _is_named_customer(customer):
+			problems.append("%s は名前あり客の場面だけ（%s）" % [key, customer])
+		elif not (tags is Array) or (tags as Array).size() > 2:
+			problems.append("%s が札2つまでの配列でない" % key)
+		else:
+			var effective: Array = customer_profile(customer).get("wanted_tags", [])
+			var order = ep.get("order", {})
+			if order is Dictionary and (order as Dictionary).get("today_request") is Dictionary \
+					and ((order["today_request"] as Dictionary).get("tags", []) is Array) and not (order["today_request"]["tags"] as Array).is_empty():
+				effective = order["today_request"]["tags"]
+			for tag in tags:
+				if not TagWords.all_tags().has(str(tag)):
+					problems.append("%s に札でない値 %s" % [key, str(tag)])
+				elif key == "card_today" and not effective.has(str(tag)):
+					problems.append("card_today の札 %s が、その日の注文 %s に無い（本当のことだけ出す）" % [str(tag), str(effective)])
 	if ep.has("memo"):
 		if not _is_lines(ep["memo"]):
 			problems.append("memo が空でない文字列の配列でない")
@@ -400,7 +429,7 @@ static func scene_problems(ep: Dictionary) -> Array:
 		var customer := str(ep.get("customer", ""))
 		if not (ep["reveals_favorite"] is bool):
 			problems.append("reveals_favorite が true／false でない")
-		elif customer_profile(customer).is_empty() or bool(customer_profile(customer).get("is_mob", false)):
+		elif not _is_named_customer(customer):
 			problems.append("reveals_favorite は名前あり客の場面だけ（%s）" % customer)
 		elif bool(ep["reveals_favorite"]) and (not _is_lines(ep.get("memo", [])) or (ep.get("memo", []) as Array).is_empty()):
 			problems.append("reveals_favorite があるのに memo が無い")
