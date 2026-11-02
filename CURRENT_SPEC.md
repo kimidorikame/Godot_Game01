@@ -190,7 +190,10 @@ today_plan  : Dictionary = {} # 今日の客組み（F2・実装済み・2026-09
 
 ### ゲーム共通の定数（GameState に置く）
 - `PRICE_PER_SERVING = 45`（**2026-09-26改訂：差分表最後の3項目で50→45**）…
-  一杯の売価（内容にかかわらず固定）。**チップ（UI準備H2）**：評価した杯だけ、定価に加えて`GameState.tip_for(評価, 杯数)`ぶんを受け取る
+  一杯の売価（GREAT・GOOD・OK・評価なしは同じ）。**BAD の杯（UI準備N）**は`GameState.BAD_PRICE`（20。`economy.bad_price`＝`Rules.bad_price()`。
+  45 にすると今までと同じ）で、`GameState.price_for(評価, 杯数)`が売価を返す。材料・鍋は今までどおり減り、チップは0。BAD を出したときの反応の文に「売上 ¥20」を添える
+  （日の売上・夜の結果・昨夜の成績は BAD を20円で数えた合計）。自動試遊は既定で BAD も定価に差し替える（v2と全キー一致）。確認：`tests/bad_price_decline_test.gd`。
+  **チップ（UI準備H2）**：評価した杯だけ、定価に加えて`GameState.tip_for(評価, 杯数)`ぶんを受け取る
   （GREAT +10・GOOD +5・OK／BAD・評価なしは 0。値は`data/campaigns/week7.json`の`economy.tips`＝`Rules.tips()`。定価は全評価で同じで、BADも受け取る。
   評判の式・判定・SaleRuleは変えない）。売上（提供記録の`sale`・日次ログの`sale_total`・帳簿の`sale`）はチップを含み、うちチップを提供記録の`tip`・日次ログの`tips`・
   `Result.summarize`の`tips`に持つ（追加のみ。保存版は上げない）。表示：夜の結果・昨夜の成績の売上の横に「うちチップ ¥xx」、結果画面の成績に「チップ合計」の1行、
@@ -889,7 +892,8 @@ favorite    : 持たない（GREATは出ない）
 
 ```
 1杯の評点：BAD 0、OK 35、GOOD 75、GREAT 100（名前あり客・モブの区別なし・共通）
-当夜品質 Q ＝ 評点の合計 ÷ 朝に確定した判定対象杯数
+          プレイヤーが断った杯 5（UI準備N。economy.declined_score。鍋切れ・素材不足・来られなかった杯は 0）
+当夜品質 Q ＝ （評点の合計 ＋ 断った杯 × 5）÷ 朝に確定した判定対象杯数
 翌日の評判 ＝ round(現在の評判 × 0.7 ＋ Q × 0.3)
 ```
 
@@ -901,6 +905,9 @@ favorite    : 持たない（GREATは出ない）
 - 分母`_log_judged_planned_cups`は「OPEN突入時に先読みした全REACT杯数
   （`_log_planned_cups`）のうち、`judge:false`（配達員の持ち帰り等・評価対象外の杯）を
   除いたもの」。**未提供の杯（部分提供の残り・断られた分）は得点0のまま分母には残る**
+  （**【UI準備N】プレイヤーが「断る」を選んだ杯（日次ログの`unserved_declined`。判定しない杯は除く＝`PlaySession.declined_judged_cups()`）は
+  1杯`GameState.DECLINED_SCORE`点（5。`economy.declined_score`＝`Rules.declined_score()`、0で今までどおり）を足す。`quality_score(counts, 予定杯数, 断った杯数)`。
+  鍋切れ・素材不足で出せなかった杯・来られなかった客の杯は0点のまま。評判の式そのものは変えない。自動試遊は既定で0点に差し替える（v2と全キー一致）**）
   （`_log_quality_counts`に積まれないだけで、先読み時点の杯数からは引かれない。
   「未提供への別の固定減点は重ねない」という§5原文どおり）。
 - 分母が0（判定対象の杯が1日も無い、実際には起こらない想定）のときはQ=0として扱う
@@ -1798,7 +1805,7 @@ Event」パターンを流用）。
 各客: GREET → ADJUST（3枠を選ぶ・入力待ち）→ SERVE → REACT（判定＋売上確定）
       ※delivery_man だけは、会話の合間に ADJUST→SERVE→REACT を3回くり返す
         （3杯目は持ち帰り・評価なし。§5「1杯ずつ接客する客」）
-売上: PRICE_PER_SERVING(45) × servings（判定結果にかかわらず固定。2026-09-26改訂：50→45）＋チップ（UI準備H2：GREAT +10／杯・GOOD +5／杯。UI準備L：具の材料が2種類で GOOD 以上なら、さらに +10／杯）
+売上: PRICE_PER_SERVING(45) × servings（2026-09-26改訂：50→45。UI準備N：BAD の杯は BAD_PRICE(20) × servings）＋チップ（UI準備H2：GREAT +10／杯・GOOD +5／杯。UI準備L：具の材料が2種類で GOOD 以上なら、さらに +10／杯）
       delivery_man +135 / dock_workers +180 / thug +45 / granny +45
 thug のみ REACT 後に場所代 -90（PAY・try_pay経由・2026-09-26改訂：150→90）※徴収日のみ
 ```

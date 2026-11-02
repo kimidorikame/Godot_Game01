@@ -56,10 +56,12 @@ func run(t: SceneTree) -> int:
 				if single != "":
 					results = { single: servings }
 				var want_tip := 0
+				var want_price := 0
 				for grade in results:
 					want_tip += GameState.tip_for(str(grade), int(results[grade]))
+					want_price += GameState.price_for(str(grade), int(results[grade]))   # BAD は BAD_PRICE（UI準備N）
 					bad_or_ok_seen = bad_or_ok_seen or grade == "BAD" or grade == "OK"
-				if int(served.get("sale", 0)) - int(served.get("tip", 0)) != servings * 45 or int(served.get("tip", 0)) != want_tip:
+				if int(served.get("sale", 0)) - int(served.get("tip", 0)) != want_price or int(served.get("tip", 0)) != want_tip:
 					records_ok = false
 		if GameState.phase == GameState.Phase.CLOSE and root.pane_close.visible and not close_label_ok:
 			var shown_tips: int = int(s.tonight_result()["tips"])
@@ -71,9 +73,10 @@ func run(t: SceneTree) -> int:
 	var expected_tips: int = int(counts.get("GREAT", 0)) * 10 + int(counts.get("GOOD", 0)) * 5
 	c.check("Day1を遊べた（評価のある杯がある）", not rec.is_empty() and int(counts.get("GREAT", 0)) + int(counts.get("GOOD", 0)) + int(counts.get("OK", 0)) + int(counts.get("BAD", 0)) > 0, str(counts))
 	c.check("日の合計：チップ＝GREAT×10＋GOOD×5（日次ログ day_records の tips）", int(rec.get("tips", -1)) == expected_tips and expected_tips > 0, "%s / %s" % [str(rec.get("tips")), str(expected_tips)])
-	c.check("売上（sale_total）は定価×提供杯数＋チップ（チップを含む）", int(rec.get("sale_total", 0)) == int(rec.get("served_cups", 0)) * 45 + expected_tips,
-		"%s / %s" % [str(rec.get("sale_total")), str(int(rec.get("served_cups", 0)) * 45 + expected_tips)])
-	c.check("どの提供記録も、売上－チップ＝定価×杯数（BAD・OK も定価は受け取る。チップは GREAT・GOOD の杯だけ）", records_ok and records_seen > 0 and bad_or_ok_seen, "%d件" % records_seen)
+	var expected_price: int = (int(rec.get("served_cups", 0)) - int(counts.get("BAD", 0))) * 45 + int(counts.get("BAD", 0)) * GameState.BAD_PRICE
+	c.check("売上（sale_total）は売価×提供杯数（BAD は BAD_PRICE。UI準備N）＋チップ（チップを含む）", int(rec.get("sale_total", 0)) == expected_price + expected_tips,
+		"%s / %s" % [str(rec.get("sale_total")), str(expected_price + expected_tips)])
+	c.check("どの提供記録も、売上－チップ＝売価×杯数（OK は定価・BAD は BAD_PRICE。チップは GREAT・GOOD の杯だけ）", records_ok and records_seen > 0 and bad_or_ok_seen, "%d件" % records_seen)
 	c.check("夜の結果の画面：売上の横に「うちチップ ¥xx」（チップがあるときだけ）・売上はチップ込み", close_label_ok)
 	c.check("提供の直後の文に「+¥5」「+¥10」を添える（チップが出たときだけ）", shown_tip_line.ends_with("+¥%d" % tip_seen) and tip_seen in [5, 10], shown_tip_line)
 	# 日次ログ（BALANCE_LOG の jsonl）にも tips

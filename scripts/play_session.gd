@@ -479,6 +479,8 @@ var log_spoiled_items := {}        # PREP突入時のdiscard_spoiled_inventory()
 # "declined"＝出せたのに断った。閉店のあと来られなかった客の分は積まず、日の終わりに「出せなかった合計−この3つ」
 # として unserved_not_arrived に出す（unserved_breakdown）。WAKE・OPEN突入でリセット。
 var log_unserved := { "ingredients": 0, "pot": 0, "declined": 0 }
+# そのうち、判定しない杯（judge:false）を断った杯数。断った杯の評判の点（UI準備N）は判定する杯だけに付ける（Q の分母と揃える）。
+var log_declined_unjudged := 0
 ## [客を断る]を押した時点の理由（pending_decline と同じ寿命。_serve_customer_decline が積む）。
 var pending_decline_reason := "declined"
 
@@ -987,6 +989,10 @@ func _serve_customer(ev: Dictionary) -> void:
 	if judged and open != null:
 		result = open.judge_bowl(ev.get("wanted_tags", []), raw_favorite)
 	GameState.consume_soup(servings)
+	# 売価（UI準備N）：BAD の杯は BAD_PRICE（材料・鍋は今までどおり減る）。ほかの評価は定価のまま（イベントの sale）
+	if result == "BAD":
+		sale = GameState.price_for(result, servings)
+	last_serve_bad_sale = sale if result == "BAD" else 0
 	# チップ（UI準備H2）：評価した杯だけ、評価に応じて定価に足す。売上（record の sale）にはチップも含め、うちチップを tip に残す
 	var tip: int = GameState.tip_for(result, servings) if judged else 0
 	# 具だくさん（UI準備L）：具の材料が2種類で GOOD 以上なら、チップに上乗せ（tip に含め、うち具だくさんを hearty_tip に残す）
@@ -1042,6 +1048,8 @@ func _serve_customer_decline(ev: Dictionary) -> void:
 	var customer_id := str(ev.get("customer", ""))
 	declined_now = true   # 反応文はreactions.UNSERVEDから引く（current_reaction_text）
 	_add_unserved(pending_decline_reason, int(ev.get("servings", 1)))
+	if pending_decline_reason == "declined" and not bool(ev.get("judge", true)):
+		log_declined_unjudged += int(ev.get("servings", 1))
 	pending_decline_reason = "declined"
 	# 来店記録（4-4b-1）：断りも「来た」事実として残す（served=0のまま）。
 	if open != null and CustomerMemory.is_recordable(customer_id):
@@ -1526,6 +1534,10 @@ func reset_mob_group_state() -> void:
 func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 	var customer := str(ev.get("customer", ""))
 	if actual <= 0:
+		# 出さなかった団体：直前の客の提供の表示（チップ・BAD の売価）を残さない
+		last_serve_tip = 0
+		last_serve_hearty = 0
+		last_serve_bad_sale = 0
 		_add_to_visit_tally(customer, false, 0, 0, "", "", mob_original_ordered)
 		return
 	var result := ""
@@ -1542,7 +1554,8 @@ func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 	tip += hearty
 	last_serve_tip = tip
 	last_serve_hearty = hearty
-	var sale: int = actual * GameState.PRICE_PER_SERVING + tip
+	last_serve_bad_sale = GameState.price_for(result, actual) if result == "BAD" else 0   # UI準備N：BAD の杯の売価
+	var sale: int = GameState.price_for(result, actual) + tip
 	GameState.apply_money(sale)
 	_add_to_visit_tally(customer, true, sale, actual, result, str(ev.get("favorite", "")),
 		mob_original_ordered, tip, hearty)
@@ -1874,7 +1887,7 @@ func on_day_ending() -> void:
 	var sale_total := int(totals["sale_total"])
 	var unserved_cups: int = maxi(log_planned_cups - served_cups, 0)
 	var spoiled_value := spoiled_value(log_spoiled_items)
-	var quality := quality_score(log_quality_counts, log_judged_planned_cups)
+	var quality := quality_score(log_quality_counts, log_judged_planned_cups, declined_judged_cups())
 	# 4-2：常連（名前あり客）への提供の杯数・GREAT・GOOD以上と、その日に来た常連のid。
 	# 結果画面の「常連GREAT」「客との間に残ったこと」の元になる（Result.regular_stats）。
 	var regulars := Result.regular_stats(GameState.served)
@@ -2102,13 +2115,21 @@ func spoiled_value(spoiled_items: Dictionary) -> int:
 ## 得点0のまま分母にだけ残る（quality_countsに積まれないため。指示文どおり、未提供への
 ## 別の固定減点は重ねない）。judged_plannedが0（判定対象の杯が1つも無い日。実際には
 ## 起こらない想定だがガードする）ならQは0とみなす。
-func quality_score(counts: Dictionary, judged_planned: int) -> float:
+## declined（UI準備N）：プレイヤーが「断る」を選んだ判定対象の杯数。1杯につき GameState.DECLINED_SCORE 点を足す
+## （鍋切れ・素材不足・来られなかった杯は 0 点のまま。評判の式そのものは変えない）。
+func quality_score(counts: Dictionary, judged_planned: int, declined: int = 0) -> float:
 	if judged_planned <= 0:
 		return 0.0
 	var total := 0
 	for key in REPUTATION_SCORE:
 		total += int(REPUTATION_SCORE[key]) * int(counts.get(key, 0))
+	total += GameState.DECLINED_SCORE * maxi(declined, 0)
 	return float(total) / float(judged_planned)
+
+
+## 今夜、プレイヤーが「断る」を選んだ判定対象の杯数（unserved_declined のうち、judge:false の杯を除いた分）。
+func declined_judged_cups() -> int:
+	return maxi(int(log_unserved["declined"]) - log_declined_unjudged, 0)
 
 
 ## 積む先を切り替える（実行時のみ。保存しない）。修繕済み・未解放・存在しない対象は選べない。
@@ -2303,6 +2324,7 @@ func set_runner_for_phase(phase: int) -> void:
 		log_planned_cups = 0
 		log_judged_planned_cups = 0
 		log_unserved = { "ingredients": 0, "pot": 0, "declined": 0 }
+		log_declined_unjudged = 0
 		log_water_used = 0
 		log_dashi_used = 0
 		log_closed_early = false
@@ -2403,6 +2425,7 @@ func set_runner_for_phase(phase: int) -> void:
 		log_planned_cups = 0
 		log_judged_planned_cups = 0
 		log_unserved = { "ingredients": 0, "pot": 0, "declined": 0 }
+		log_declined_unjudged = 0
 		for slot in open.schedule:
 			for customer_id in slot.get("customers", []):
 				for ev in Day1Events.customer_events(str(customer_id)):
@@ -2592,6 +2615,8 @@ var last_shown_unread := false
 var last_serve_tip := 0
 ## そのうち具だくさんの上乗せ（UI準備L。表示用・保存しない）。
 var last_serve_hearty := 0
+## 直近の提供が BAD だったときの売価（チップを除く。UI準備N。表示用・保存しない）。BAD でなければ 0。
+var last_serve_bad_sale := 0
 
 var recipe_save_slot := -1
 
@@ -2989,6 +3014,8 @@ func current_line() -> Dictionary:
 		speaker = str(ev.get("customer", ""))
 	if type == "REACT":
 		text = current_reaction_text()
+		if text != "" and last_serve_bad_sale > 0 and not declined_now:
+			text += "　売上 ¥%d" % last_serve_bad_sale   # BAD の杯は売価が下がる（UI準備N）。反応の文に添える
 		if text != "" and last_serve_tip > 0 and not declined_now:
 			# チップ（UI準備H2）。反応の文に添える。具だくさんの上乗せ（UI準備L）は分けて出す
 			if last_serve_tip - last_serve_hearty > 0:

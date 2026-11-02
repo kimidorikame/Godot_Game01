@@ -76,6 +76,17 @@ static func price_per_serving() -> int:
 	return int(_economy().get("price_per_serving", 45))
 
 
+## 評価が BAD の杯の売価（UI準備N）。GREAT・GOOD・OK は price_per_serving のまま。書かなければ price_per_serving と同じ（今までどおり）。
+static func bad_price() -> int:
+	return maxi(int(_economy().get("bad_price", price_per_serving())), 0)
+
+
+## プレイヤーが「断る」を選んだ杯の評判の点（UI準備N。当夜品質Qの平均に入る1杯の点。BAD は 0）。
+## 鍋切れ・素材不足で出せなかった杯・来られなかった客の杯は 0 点のまま。書かなければ 0（今までどおり）。
+static func declined_score() -> int:
+	return maxi(int(_economy().get("declined_score", 0)), 0)
+
+
 ## チップ（UI準備H2）：評価ごとに、定価（price_per_serving）に加えて受け取る額。{ "GREAT": 10, "GOOD": 5 }。
 ## 書かれていない評価（OK・BAD）は 0。定価は全評価で同じ。評判の増減・判定には使わない。
 static func tips() -> Dictionary:

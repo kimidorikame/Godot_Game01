@@ -22,6 +22,10 @@ func run(t: SceneTree) -> int:
 
 	# --- 1. Day1の朝 → 最終日の結果（UIだけ）---
 	GameState.reset_for_new_game()
+	# このテストは画面の流れを見る。台本（最初に見えた材料を入れるだけ）は BAD が多く、BAD の売価（UI準備N）だと
+	# 最終日の前にお金が尽きるので、ここだけ BAD も定価にする（売価は tests/bad_price_decline_test.gd）。
+	var data_bad_price: int = GameState.BAD_PRICE
+	GameState.BAD_PRICE = GameState.PRICE_PER_SERVING
 	var root: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
 	t.root.add_child(root)
 	var s: PlaySession = root.session
@@ -160,6 +164,7 @@ func run(t: SceneTree) -> int:
 	s.flow.force_phase(GameState.Phase.CLOSE)
 	c.check("区切り（フェーズが替わる）で、スマホの開閉は捨てる", root.overlay == "" and root.pane_close.visible)
 	root.queue_free()
+	GameState.BAD_PRICE = data_bad_price
 	return c.finish()
 
 

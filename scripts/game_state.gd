@@ -24,6 +24,15 @@ enum Phase { WAKE, PREP, OPEN, CLOSE, NEXT_DAY, GAME_OVER, RESULT }
 # F1キャンペーン設定（DESIGN.md 10.8.1）：値そのものはdata/campaigns/week7.jsonへ移し、
 # ここはRules経由の読み取り口として残す（既存の参照側は無改修のまま動く）。
 static var PRICE_PER_SERVING := Rules.price_per_serving()
+# 評価が BAD の杯の売価（UI準備N。値は economy.bad_price）。材料は減り、チップは 0。自動試遊（harness）は、既定ではここを定価に差し替えて測る。
+static var BAD_PRICE := Rules.bad_price()
+# プレイヤーが「断る」を選んだ杯の評判の点（UI準備N。値は economy.declined_score）。自動試遊（harness）は、既定ではここを 0 に差し替えて測る。
+static var DECLINED_SCORE := Rules.declined_score()
+
+
+## 評価 result の杯を servings 杯出したときの売価（チップを含まない）。BAD は BAD_PRICE、それ以外（評価なしを含む）は定価。
+static func price_for(result: String, servings: int) -> int:
+	return (BAD_PRICE if result == "BAD" else PRICE_PER_SERVING) * maxi(servings, 0)
 
 # チップ（UI準備H2）：評価ごとの追加の受け取り額（GREAT・GOOD。OK・BAD は 0）。定価は全評価で同じで、評判・判定には関係しない。
 # 値は data/campaigns/week7.json の economy.tips（Rules.tips()）。自動試遊（harness）は、既定ではここを空に差し替えて測る。

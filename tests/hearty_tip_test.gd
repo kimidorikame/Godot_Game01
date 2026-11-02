@@ -92,11 +92,11 @@ func run(t: SceneTree) -> int:
 		for grade in results:
 			base_tip += GameState.tip_for(str(grade), int(results[grade]))
 		if h != 10 * int(served.get("hearty_cups", 0)) or int(served.get("tip", 0)) != base_tip + h \
-				or int(served.get("sale", 0)) - int(served.get("tip", 0)) != int(served["servings"]) * GameState.PRICE_PER_SERVING:
+				or int(served.get("sale", 0)) - int(served.get("tip", 0)) != _price_of(results):
 			records_ok = false
 	c.check("Day1を遊べた（具2種類で GOOD 以上の杯がある）", reacts > 0 and not served_seen.is_empty() and hearty_sum > 0, "反応%d回・具だくさん ¥%d" % [reacts, hearty_sum])
 	c.check("提供ごと：具2種類で GOOD 以上のときだけ上乗せ（1杯 10）", rule_ok)
-	c.check("提供の記録：チップ＝評価のチップ＋具だくさん・売上－チップ＝定価×杯数", records_ok)
+	c.check("提供の記録：チップ＝評価のチップ＋具だくさん・売上－チップ＝売価×杯数（BAD は BAD_PRICE）", records_ok)
 	c.check("提供の直後の文に「具だくさん +¥10」を分けて出す", hearty_line.contains("具だくさん +¥") and hearty_line.contains("　+¥"), hearty_line)
 	c.check("日次ログ（day_records）：hearty_tips・hearty_cups＝提供の記録の合計（チップ tips に含む）", int(rec.get("hearty_tips", -1)) == hearty_sum
 		and int(rec.get("hearty_cups", -1)) == hearty_cups and int(rec.get("tips", 0)) >= hearty_sum, "%s / %d" % [str(rec.get("hearty_tips")), hearty_sum])
@@ -137,3 +137,11 @@ func _add_second_topping(s: PlaySession) -> void:
 		if Ingredients.is_topping(str(id)) and not additions.has(id) and GameState.fresh_count(str(id)) >= s.current_servings():
 			s.select_ingredient(str(id))
 			return
+
+
+## 評価ごとの杯数から、チップを除いた売価の合計（BAD は BAD_PRICE。UI準備N）。
+func _price_of(results: Dictionary) -> int:
+	var total := 0
+	for grade in results:
+		total += GameState.price_for(str(grade), int(results[grade]))
+	return total

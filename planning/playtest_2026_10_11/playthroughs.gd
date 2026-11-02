@@ -198,6 +198,11 @@ func run(t: SceneTree) -> void:
 	GameState.HEARTY_TIP = 0
 	if price_override > 0:
 		GameState.PRICE_PER_SERVING = price_override
+	# BAD の売価・断った杯の評判の点（UI準備N）も、既定では今までどおり（BAD は定価・断った杯は 0 点）に差し替えて測る（v2 と全キー一致）。終わったら戻す。
+	var data_bad_price: int = GameState.BAD_PRICE
+	var data_declined_score: int = GameState.DECLINED_SCORE
+	GameState.BAD_PRICE = GameState.PRICE_PER_SERVING
+	GameState.DECLINED_SCORE = 0
 	var policies: Array = []
 	for p in POLICIES_OLD + POLICIES_NEW:
 		if only.is_empty() or only.has(p):
@@ -232,6 +237,8 @@ func run(t: SceneTree) -> void:
 	GameState.PRICE_PER_SERVING = data_price
 	GameState.TIPS = data_tips
 	GameState.HEARTY_TIP = data_hearty
+	GameState.BAD_PRICE = data_bad_price
+	GameState.DECLINED_SCORE = data_declined_score
 	output["daily_operating_cost_overridden"] = cost_override >= 0
 	GameState.DAILY_OPERATING_COST = data_cost
 	# 基金の方針が選ばれた実行にだけ、最上位に検査と目標の判定を足す（既定の出力の形・各周のキーは変えない）。
@@ -1255,7 +1262,7 @@ func day_row() -> Dictionary:
 				reg_good_plus += int(grades.get("GREAT", 0)) + int(grades.get("GOOD", 0))
 		if bool(rec.get("declined", false)):
 			declined += 1
-	var quality: float = panel.session.quality_score(panel.session.log_quality_counts, panel.session.log_judged_planned_cups)
+	var quality: float = panel.session.quality_score(panel.session.log_quality_counts, panel.session.log_judged_planned_cups, panel.session.declined_judged_cups())
 	var row := _day_row_base(served, sale, declined, reg_cups, reg_good_plus, reg_great, quality)
 	if tip_gu_on:
 		var game_tips := 0
