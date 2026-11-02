@@ -340,7 +340,7 @@ func _add_detail_head(title: String) -> void:
 	_add(title, &"LabelPhoneHeadline").name = "NoteName"
 
 
-## 見出し（「いつもの」など）と札の1行。
+## 見出し（「前回」「好み」）と札の1行。
 func _add_tag_line(caption: String, tags: Array) -> void:
 	var line := HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -359,15 +359,13 @@ func _add_tag_line(caption: String, tags: Array) -> void:
 	UiTagChips.fill(chips, tags)
 
 
-## 名前あり客の詳細：上＝いつもの（基本の注文の札）・来た日・好物（知った客だけ）・前回の材料／下＝足したメモ（日付付き・古い順。「新」の印）。
+## 名前あり客の詳細：上＝前回（前回頼んだ注文の札）・来た日・好物（知った客だけ）／下＝足したメモ（日付付き・古い順。「新」の印）。
 func _fill_regular_detail(item: Dictionary) -> void:
 	_add_detail_head(str(item["name"]))
-	_add_tag_line("いつもの", item["tags"])
+	_add_tag_line("前回", item["last_order"])
 	_add("来た日　" + "・".join(PackedStringArray((item["days"] as Array).map(func(d): return Calendar.label(int(d))))), &"LabelSub")
 	if bool(item["favorite_known"]):
 		_add("好物　" + str(item["favorite"]), &"LabelSub")
-	if not (item["usual_ingredients"] as Array).is_empty():
-		_add("前回　" + "・".join(PackedStringArray(item["usual_ingredients"])), &"LabelSub")
 	var rule := ColorRect.new()
 	rule.color = get_theme_color(&"line", &"UiPalette")
 	rule.custom_minimum_size = Vector2(380, 1)

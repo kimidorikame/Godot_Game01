@@ -1,6 +1,6 @@
 extends RefCounted
 ## 店主のメモ帳（客タブ。UI準備O2）。場面データの memo（省略可）を、その来店で1杯以上出したら日の終わり（閉店のあと）に来店記録の
-## facts["memo"]（{ day, key＝場面id }）へ足し、翌朝から客タブで見える。客タブは一覧（名前だけ）→詳細（いつもの・来た日・好物・前回・メモ）。
+## facts["memo"]（{ day, key＝場面id }）へ足し、翌朝から客タブで見える。客タブは一覧（名前だけ）→詳細（前回頼んだ注文の札・来た日・好物・メモ）。
 ## 新しいメモは客タブとスマホのボタンに●（客タブを開いたら消える）、詳細では「新」（見たら消える）。好物を知る時刻は favorite_reveal
 ## （"first_serve"＝今までどおり／"memo"＝reveals_favorite のある来店のメモを足したとき）。今の場面データには memo を入れていないので、
 ## このテストは読み込んだ場面データに一時的に memo を足して確かめる（終わったら外す）。
@@ -84,6 +84,13 @@ func run(t: SceneTree) -> int:
 	var dm_note: Dictionary = notes["regulars"][0]
 	c.check("客ノートの行にメモ（日付付き。文は表示のときにデータから引く）", str(dm_note["id"]) == "delivery_man" and (dm_note["memo"] as Array).size() == 1
 		and str(dm_note["memo"][0]["text"]) == "%sのメモ" % dm_ep and int(dm_note["memo"][0]["day"]) == 1, str(dm_note["memo"]))
+	c.check("前回：基本の注文の客は、いつもの札（配達員＝辛い・スタミナ）", dm_note["last_order"] == ["HOT", "POWER"], str(dm_note["last_order"]))
+	var granny_ep := str(CustomerMemory.visits_of("granny")[0]["episode_id"])
+	ScheduleData.episode_data("granny", granny_ep)["order"] = { "today_request": { "tags": ["MELLOW", "GENTLE"], "label": "" } }
+	var granny_note: Dictionary = (s.phone_notes()["regulars"] as Array).filter(func(r): return str(r["id"]) == "granny")[0]
+	c.check("前回：その来店に今日の頼みがあれば、頼んだ札（いつもの札ではない）", granny_note["last_order"] == ["MELLOW", "GENTLE"] and granny_note["tags"] != granny_note["last_order"],
+		str(granny_note["last_order"]))
+	ScheduleData.episode_data("granny", granny_ep).erase("order")
 	var lines_total := 0
 	for r in notes["regulars"]:
 		lines_total += (r["memo"] as Array).size()
@@ -100,7 +107,8 @@ func run(t: SceneTree) -> int:
 	c.check("一覧：名前だけ・まだ詳細で見ていないメモのある客の行に「新」", row.has_node("NewMark") and _texts(row).has("配達員") and not content.has_node("NoteRow_thug/NewMark"))
 	_press(row)
 	var detail := _texts(content)
-	c.check("詳細：いつもの・来た日・メモ（日付と「新」）", phone.notes_open == "delivery_man" and detail.has("いつもの") and detail.has("来た日　Day1")
+	c.check("詳細：前回（頼んだ注文の札）・来た日・メモ（日付と「新」）。入れた材料の行は出さない", phone.notes_open == "delivery_man" and detail.has("前回") and detail.has("辛い")
+		and detail.has("スタミナ") and not detail.has("いつもの") and not detail.any(func(x): return str(x).begins_with("前回　")) and detail.has("来た日　Day1")
 		and detail.has("%sのメモ" % dm_ep) and detail.has("新") and detail.has(Calendar.label(1)), str(detail))
 	_press(content.get_node("NoteBack"))
 	c.check("「戻る」で一覧・見たあとは「新」が消える", phone.notes_open == "" and content.has_node("NoteRow_delivery_man") and not content.has_node("NoteRow_delivery_man/NewMark")

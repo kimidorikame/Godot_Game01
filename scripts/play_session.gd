@@ -3000,7 +3000,8 @@ func _dm_read_key(item: Dictionary) -> String:
 
 
 ## スマホの「客」タブ（客ノート。UI準備G）：出会った客の好みを見返す。見せるのは分かっていることだけ（会っていない客・種類は載せない）。
-## { regulars:[{ id, name, tags（いつもの）, days（来た日）, favorite_known, favorite（好物の材料名。知った客だけ）, usual_ingredients（前回の材料）,
+## { regulars:[{ id, name, tags（いつもの）, last_order（前回頼んだ注文の札。今日の頼みがあった来店はその札）, days（来た日）, favorite_known,
+##   favorite（好物の材料名。知った客だけ）, usual_ingredients（前回の材料）,
 ##   memo（店主のメモの行 [{ id, day, text }]。古い順。UI準備O2）, memo_new（詳細でまだ見ていない行の id）}]（出会った順）,
 ##   mobs:[{ type, name, tags（好み。その種類の注文）}]（出会った順）}。新しい保存項目なし：名前あり客は来店記録（customer_memory）、
 ## モブは日次ログの mob_types_met（旧セーブは提供した種類 mob_types_served で代用）と今夜の分から読む。
@@ -3019,21 +3020,27 @@ func phone_notes() -> Dictionary:
 		if profile.is_empty() or bool(profile.get("is_mob", false)):
 			continue
 		var days := []
+		var last_episode := ""
 		for visit in CustomerMemory.visits_of(id):
 			var day := int((visit as Dictionary).get("day", 0))
 			if day < today or (day == today and (id != current or current_known)):
 				if not days.has(day):
 					days.append(day)
+				last_episode = str((visit as Dictionary).get("episode_id", ""))   # 来店記録は日付順
 		if days.is_empty():
 			continue
 		days.sort()
+		# 前回頼んだ注文（客タブの「前回」）：その来店の場面に今日の頼みがあればその札、無ければ基本の注文（いつもの）
+		var last_order: Array = (Day1Events.today_request_of(id, last_episode).get("tags", []) as Array).duplicate()
+		if last_order.is_empty():
+			last_order = (profile.get("wanted_tags", []) as Array).duplicate()
 		var known := GameState.knows_favorite(id)
 		var favorite := str(profile.get("favorite", ""))
 		var usual_names := []
 		for ingredient in RecipeBook.usual_for(id):
 			usual_names.append(Ingredients.name_for(str(ingredient)))
 		regulars.append({ "id": id, "name": ScheduleData.customer_display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
-			"usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "",
+			"last_order": last_order, "usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "",
 			"memo": memo_lines(id), "memo_new": memo_new_ids(id) })
 	var types := []
 	for record in GameState.day_records:
