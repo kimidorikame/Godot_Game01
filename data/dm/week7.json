@@ -2,75 +2,75 @@
   "id": "week7",
   "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。",
   "hints": {
-    "many": { "demand_word": "多め" },
-    "few": { "demand_word": "少ない" }
+	"many": { "demand_word": "多め" },
+	"few": { "demand_word": "少ない" }
   },
   "days": {
-    "2": [
-      { "id": "d2_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:40",
-        "text": "今日は入荷が遅れてる。早めに来な", "hint": "none", "provisional": true },
-      { "id": "d2_delivery_man", "from": "配達員", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
-        "text": "昨日のスープ、体にしみた。また夜に寄るよ", "hint": "none", "provisional": true }
-    ],
-    "3": [
-      { "id": "d3_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:30",
-        "text": "魚がしばらく入らないかもしれない", "hint": "none", "provisional": true },
-      { "id": "d3_market_quiet", "from": "市場の顔なじみ", "from_kind": "npc", "time": "7:10",
-        "text": "今日は人通りが少ないな。夜も静かかもしれない", "hint": "few", "provisional": true },
-      { "id": "d3_officer", "from": "新人警官", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "6:05",
-        "text": "昨夜のこと、同僚にも話しました。今夜は何人か連れて行くかもしれません", "hint": "many", "provisional": true }
-    ],
-    "4": [
-      { "id": "d4_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:35",
-        "text": "うちの店が映り込んでる。勘弁してくれ", "hint": "none", "provisional": true },
-      { "id": "d4_dock_workers", "from": "港湾労働者の組", "from_kind": "mob", "requires": { "mob_type": "dock_workers", "nights": 2 }, "time": "5:20",
-        "text": "港の連中が噂してる。今夜は覗きに行くやつが増えそうだ", "hint": "many", "provisional": true }
-    ],
-    "5": [
-      { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
-        "text": "明日は現場に近づくな", "hint": "none", "provisional": true },
-      { "id": "d5_thug", "from": "チンピラ", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
-        "text": "この前の味、悪くなかった。……それだけだ", "hint": "none", "provisional": true }
-    ],
-    "6": [
-      { "id": "d6_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:20",
-        "text": "今日は早仕舞いも考えな", "hint": "none", "provisional": true }
-    ],
-    "7": [
-      { "id": "d7_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:50",
-        "text": "第八码頭は当面封鎖。魚は入らない", "hint": "none", "provisional": true }
-    ]
+	"2": [
+	  { "id": "d2_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:40",
+		"text": "今日は入荷が遅れてる。早めに来な", "hint": "none", "provisional": true },
+	  { "id": "d2_delivery_man", "from": "配達員", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
+		"text": "昨日のスープ、体にしみた。また夜に寄るよ", "hint": "none", "provisional": true }
+	],
+	"3": [
+	  { "id": "d3_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:30",
+		"text": "魚がしばらく入らないかもしれない", "hint": "none", "provisional": true },
+	  { "id": "d3_market_quiet", "from": "市場の顔なじみ", "from_kind": "npc", "time": "7:10",
+		"text": "今日は人通りが少ないな。夜も静かかもしれない", "hint": "few", "provisional": true },
+	  { "id": "d3_officer", "from": "新人警官", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "6:05",
+		"text": "昨夜のこと、同僚にも話しました。今夜は何人か連れて行くかもしれません", "hint": "many", "provisional": true }
+	],
+	"4": [
+	  { "id": "d4_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:35",
+		"text": "うちの店が映り込んでる。勘弁してくれ", "hint": "none", "provisional": true },
+	  { "id": "d4_dock_workers", "from": "港湾労働者の組", "from_kind": "mob", "requires": { "mob_type": "dock_workers", "nights": 2 }, "time": "5:20",
+		"text": "港の連中が噂してる。今夜は覗きに行くやつが増えそうだ", "hint": "many", "provisional": true }
+	],
+	"5": [
+	  { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
+		"text": "明日は現場に近づくな", "hint": "none", "provisional": true },
+	  { "id": "d5_thug", "from": "チンピラ", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
+		"text": "この前の味、悪くなかった。……それだけだ", "hint": "none", "provisional": true }
+	],
+	"6": [
+	  { "id": "d6_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:20",
+		"text": "今日は早仕舞いも考えな", "hint": "none", "provisional": true }
+	],
+	"7": [
+	  { "id": "d7_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:50",
+		"text": "第八码頭は当面封鎖。魚は入らない", "hint": "none", "provisional": true }
+	]
   },
   "previews": {
-    "_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。本文に数字と「客足」は入れない。",
-    "max_per_morning": 3, "mob_max": 2, "first_day": 2,
-    "pools": {
-      "delivery_man": { "from": "配達員", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
-        "texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
-      "thug": { "from": "チンピラ", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
-        "texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
-      "granny": { "from": "老婆", "from_kind": "customer", "time": "4:30", "tag_hint": "", "provisional": false,
-        "texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
-      "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
-        "texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
-      "hooker": { "from": "夜の女", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false,
-        "texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
-      "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
-        "texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },
-      "dock_workers": { "from": "港湾労働者の組", "from_kind": "mob", "time": "4:20", "tag_hint": "POWER", "provisional": false,
-        "texts": ["港の連中、夜に寄る予定だ。{hint}のつくもんを頼むぞ", "仕事のあと、顔を出すかもしれん。{hint}がつくやつを頼む"] },
-      "general_store_clerk": { "from": "雑貨屋の夜番", "from_kind": "mob", "time": "4:25", "tag_hint": "BITTER", "provisional": false,
-        "texts": ["店番の合間に寄る予定。{hint}のが好きでね", "夜、覗きに行くかもしれん。{hint}ものが食いたい気分だ"] },
-      "inn_clerk": { "from": "安宿の夜勤受付", "from_kind": "mob", "time": "4:15", "tag_hint": "MELLOW", "provisional": false,
-        "texts": ["受付が空いたら寄る予定です。{hint}なものが飲みたいです", "夜、顔を出すかもしれません。{hint}なのをお願いします"] },
-      "long_haul_driver": { "from": "長距離運転手の仲間", "from_kind": "mob", "time": "4:10", "tag_hint": "TREAT", "provisional": false,
-        "texts": ["走り終えたら寄る予定だ。たまには{hint}っぽいのが食いたい", "夜に顔を出すかもな。{hint}を頼むかもしれん"] },
-      "market_porter": { "from": "市場の荷捌き仲間", "from_kind": "mob", "time": "4:05", "tag_hint": "FILLING", "provisional": false,
-        "texts": ["荷が片付いたら寄る予定だ。{hint}のいいやつ頼む", "俺たち、夜に顔を出すぜ。{hint}がいいもんを頼む"] },
-      "security_guard": { "from": "夜勤警備員の詰所", "from_kind": "mob", "time": "4:00", "tag_hint": "BITE", "provisional": false,
-        "texts": ["交代の合間に寄る予定です。{hint}のあるものを", "夜、顔を出すかもしれません。{hint}があると嬉しいです"] },
-      "street_cleaners": { "from": "清掃員の組", "from_kind": "mob", "time": "3:55", "tag_hint": "SOUR", "provisional": false,
-        "texts": ["掃除のあと寄る予定よ。{hint}ものでさっぱりしたいわ", "夜に顔を出すかも。{hint}のが食べたいねえ"] }
-    }
+	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。本文に数字と「客足」は入れない。",
+	"max_per_morning": 3, "mob_max": 2, "first_day": 2,
+	"pools": {
+	  "delivery_man": { "from": "配達員", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
+		"texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
+	  "thug": { "from": "チンピラ", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
+		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
+	  "granny": { "from": "老婆", "from_kind": "customer", "time": "4:30", "tag_hint": "", "provisional": false,
+		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
+	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
+		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
+	  "hooker": { "from": "夜の女", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false,
+		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
+	  "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
+		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },
+	  "dock_workers": { "from": "港湾労働者の組", "from_kind": "mob", "time": "4:20", "tag_hint": "POWER", "provisional": false,
+		"texts": ["港の連中、夜に寄る予定だ。{hint}のつくもんを頼むぞ", "仕事のあと、顔を出すかもしれん。{hint}がつくやつを頼む"] },
+	  "general_store_clerk": { "from": "雑貨屋の夜番", "from_kind": "mob", "time": "4:25", "tag_hint": "BITTER", "provisional": false,
+		"texts": ["店番の合間に寄る予定。{hint}のが好きでね", "夜、覗きに行くかもしれん。{hint}ものが食いたい気分だ"] },
+	  "inn_clerk": { "from": "安宿の夜勤受付", "from_kind": "mob", "time": "4:15", "tag_hint": "MELLOW", "provisional": false,
+		"texts": ["受付が空いたら寄る予定です。{hint}なものが飲みたいです", "夜、顔を出すかもしれません。{hint}なのをお願いします"] },
+	  "long_haul_driver": { "from": "長距離運転手の仲間", "from_kind": "mob", "time": "4:10", "tag_hint": "TREAT", "provisional": false,
+		"texts": ["走り終えたら寄る予定だ。たまには{hint}っぽいのが食いたい", "夜に顔を出すかもな。{hint}を頼むかもしれん"] },
+	  "market_porter": { "from": "市場の荷捌き仲間", "from_kind": "mob", "time": "4:05", "tag_hint": "FILLING", "provisional": false,
+		"texts": ["荷が片付いたら寄る予定だ。{hint}のいいやつ頼む", "俺たち、夜に顔を出すぜ。{hint}がいいもんを頼む"] },
+	  "security_guard": { "from": "夜勤警備員の詰所", "from_kind": "mob", "time": "4:00", "tag_hint": "BITE", "provisional": false,
+		"texts": ["交代の合間に寄る予定です。{hint}のあるものを", "夜、顔を出すかもしれません。{hint}があると嬉しいです"] },
+	  "street_cleaners": { "from": "清掃員の組", "from_kind": "mob", "time": "3:55", "tag_hint": "SOUR", "provisional": false,
+		"texts": ["掃除のあと寄る予定よ。{hint}ものでさっぱりしたいわ", "夜に顔を出すかも。{hint}のが食べたいねえ"] }
+	}
   }
 }
