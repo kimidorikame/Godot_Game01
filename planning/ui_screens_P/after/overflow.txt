@@ -8,6 +8,8 @@
 04_phone_inventory_cart.png  スマホの持ち物（豆腐麺房でかごに入れたまま開いた）
 05_buy_shop_bought.png  市場の商品一覧（豆腐麺房。購入確定のあと）
 06_phone_inventory_bought.png  スマホの持ち物（購入確定のあと＝かごは空）
+06b_buy_seafood_cart.png  市場の商品一覧（海隆鮮貨。海老をかごに入れたところ。海老とその小口の行は同じ品目なので、どちらも購入後が出る）
+06c_phone_inventory_cart_only.png  スマホの持ち物（海老をかごに入れたまま。手持ちに無い「ごちそう」は、かごの分でだけ点く＝「＋」付き・半分の明るさ）
 07_topping_empty.png  夜の具材選び（空の椀。仮の在庫：具材12品・傷んだ豆腐2）
 08_topping_page2.png  夜の具材選び（具材の2ページ目）
 09_topping_one.png  夜の具材選び（具を1つ入れた＝味付けがまだ）

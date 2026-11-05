@@ -2,6 +2,7 @@ extends VBoxContainer
 class_name UiGoodsList
 ## 購入画面の商品の行を、shop_view() の件数だけ並べる（行の形は scenes/ui/goods_row.tscn）。
 ## 押された行の商品（そのときの shop_view() の1件）を buy で知らせる。
+## cart_units：かごに入れた分の個数（UiShopCart.units_by_item。手持ちの鍵ごと）。行の「手持ちN → 購入後」に使う（UI準備P）。
 
 signal buy(good: Dictionary)
 
@@ -10,7 +11,7 @@ const ROW_PATH := "res://scenes/ui/goods_row.tscn"
 var _goods: Array = []
 
 
-func show_goods(goods: Array, can_buy: bool) -> void:
+func show_goods(goods: Array, can_buy: bool, cart_units: Dictionary = {}) -> void:
 	_goods = goods
 	while get_child_count() < goods.size():
 		var row: UiGoodsRow = (load(ROW_PATH) as PackedScene).instantiate()
@@ -20,7 +21,7 @@ func show_goods(goods: Array, can_buy: bool) -> void:
 		var row: UiGoodsRow = get_child(i)
 		row.visible = i < goods.size()
 		if i < goods.size():
-			row.show_good(goods[i], can_buy)
+			row.show_good(goods[i], can_buy, int(cart_units.get(UiShopCart.stock_key(goods[i]), 0)))
 
 
 func _on_row_buy(index: int) -> void:

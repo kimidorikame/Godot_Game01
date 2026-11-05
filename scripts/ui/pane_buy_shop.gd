@@ -55,7 +55,7 @@ func refresh() -> void:
 	var remaining := session.purchase_limit() - pending
 	for good in goods:
 		good["affordable"] = int(good["price"]) <= remaining   # かごの分を引いた「使える」で決める
-	_goods.show_goods(goods, true)
+	_goods.show_goods(goods, true, cart.units_by_item(shop) if cart != null else {})
 	var entries: Array = tally.entries(shop) if tally != null else []
 	_bought_box.visible = not entries.is_empty()
 	var parts: Array = []

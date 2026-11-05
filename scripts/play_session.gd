@@ -2014,34 +2014,44 @@ func purchase_items_today() -> Dictionary:
 
 
 ## 持ち物パネル（朝・市場・準備。UI準備I2）：在庫が1つ以上の材料と、10の性質（札）の点灯。表示だけ。
-## { flavors:[{ id, name, tags, fresh, damaged }]（味・調味料）, toppings:[…]（具）, traits:[{ tag, state }]（state：lit＝新鮮が1つ以上／half＝傷んだ分だけ／dark）,
-##   final_day }。かごに入れた分は含めない。並びは品目の定義順（UiLabels.item_order）。
-func inventory_view() -> Dictionary:
+## { flavors:[{ id, name, tags, fresh, damaged, cart }]（味・調味料）, toppings:[…]（具）, traits:[{ tag, state }]
+##   （state：lit＝新鮮が1つ以上／cart＝かごに入れた分でだけ点く／half＝傷んだ分だけ／dark）, final_day }。並びは品目の定義順（UiLabels.item_order）。
+## cart：かごに入れた分の個数（品目id → 個数。UiShopCart.units_by_item。UI準備P）。渡したときだけ、行の cart に足し、
+##   手持ちが0でもかごにある材料の行を出し、その札を cart にする（市場にいるあいだのスマホの持ち物）。椀に入れない商品（濃縮だしなど）は出さない。
+##   在庫・判定には触れない（かごは買うまで在庫ではない）。
+func inventory_view(cart: Dictionary = {}) -> Dictionary:
 	var flavors := []
 	var toppings := []
 	var fresh_tags := {}
 	var damaged_tags := {}
+	var cart_tags := {}
 	var ids := GameState.inventory.keys()
+	for id in cart:
+		if not ids.has(id) and int(cart[id]) > 0:
+			ids.append(id)
 	ids.sort_custom(func(a, b): return UiLabels.item_order(str(a)) < UiLabels.item_order(str(b)))
 	for id in ids:
 		var item := str(id)
 		var fresh := GameState.fresh_count(item)
 		var damaged := GameState.damaged_count(item)
-		if fresh + damaged <= 0:
+		var in_cart := int(cart.get(item, 0))
+		if fresh + damaged + in_cart <= 0:
 			continue
 		var tags: Array = Ingredients.tags_for(item)
 		if tags.is_empty():
-			continue   # 鍋の素（soup_base）など、椀に入れる材料でないものは出さない
+			continue   # 鍋の素（soup_base）・濃縮だしなど、椀に入れる材料でないものは出さない
 		for tag in tags:
 			if fresh > 0:
 				fresh_tags[str(tag)] = true
-			else:
+			elif damaged > 0:
 				damaged_tags[str(tag)] = true
-		var row := { "id": item, "name": UiLabels.short_name(item), "tags": tags, "fresh": fresh, "damaged": damaged }
+			if in_cart > 0:
+				cart_tags[str(tag)] = true
+		var row := { "id": item, "name": UiLabels.short_name(item), "tags": tags, "fresh": fresh, "damaged": damaged, "cart": in_cart }
 		(toppings if Ingredients.is_topping(item) else flavors).append(row)
 	var traits := []
 	for tag in TagWords.all_tags():
-		var state := "lit" if fresh_tags.has(tag) else ("half" if damaged_tags.has(tag) else "dark")
+		var state := "lit" if fresh_tags.has(tag) else ("cart" if cart_tags.has(tag) else ("half" if damaged_tags.has(tag) else "dark"))
 		traits.append({ "tag": tag, "state": state })
 	return { "flavors": flavors, "toppings": toppings, "traits": traits, "final_day": GameState.is_final_day() }
 

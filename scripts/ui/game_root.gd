@@ -48,6 +48,7 @@ func _ready() -> void:
 	pane_buy_shop.tally = tally
 	pane_buy_meat.cart = cart
 	pane_buy_shop.cart = cart
+	pane_phone.cart = cart
 	pane_buy_meat.advance_requested.connect(left.advance)
 	full_prep.advance_requested.connect(left.advance)
 	left.phone_requested.connect(_on_phone_icon)

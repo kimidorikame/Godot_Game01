@@ -83,7 +83,7 @@ func refresh() -> void:
 	for good in goods:
 		good["affordable"] = int(good["price"]) <= remaining
 	if goods_open:
-		_goods.show_goods(goods, paid)
+		_goods.show_goods(goods, paid, cart.units_by_item(SHOP) if cart != null else {})
 	_warn.visible = not paid and not (choosing and cart != null and cart.selected_tier != "")
 	_cart_box.visible = goods_open or choosing
 	var count := cart.count(SHOP) if cart != null else 0

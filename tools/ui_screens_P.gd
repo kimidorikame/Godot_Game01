@@ -71,6 +71,19 @@ func _initialize() -> void:
 	await _shot("06_phone_inventory_bought", "スマホの持ち物（購入確定のあと＝かごは空）")
 	play.press(ui.pane_phone.get_node("%CloseButton"))
 	play.press(ui.pane_buy_shop.get_node("%BackButton"))
+	# 海隆鮮貨：海老をかごへ（手持ちに無い「ごちそう」が、かごの分でだけ点く）。撮ったら買わずに店を出る
+	for stall in ui.pane_market.get_node("%Stalls").get_children():
+		if stall.has_node("Name") and stall.get_node("Name").text == "海隆鮮貨":
+			play.press(stall)
+			break
+	if s.market_shop == "seafood":
+		play.press(ui.pane_buy_shop.get_node("%Goods").get_child(0).get_node("BuyButton"))
+		await _shot("06b_buy_seafood_cart", "市場の商品一覧（海隆鮮貨。海老をかごに入れたところ。海老とその小口の行は同じ品目なので、どちらも購入後が出る）")
+		play.click(ui.left.get_node("%PhoneIcon"))
+		ui.pane_phone._on_tab_pressed("inventory")
+		await _shot("06c_phone_inventory_cart_only", "スマホの持ち物（海老をかごに入れたまま。手持ちに無い「ごちそう」は、かごの分でだけ点く＝「＋」付き・半分の明るさ）")
+		play.press(ui.pane_phone.get_node("%CloseButton"))
+		play.press(ui.pane_buy_shop.get_node("%BackButton"))
 	# 撮るための仮の在庫（市場を出る前に足す＝椀の選択肢は注文の時点の在庫で決まる）：具材12品すべて（ページ送りを見る）・傷んだ豆腐2
 	for id in ["offal", "meat_ball", "tofu", "broken_wrapper", "winter_melon", "cartilage", "tendon_meat", "dried_wood_ear",
 			"rice_noodle", "shrimp", "clam", "fish_maw", "nam_prik_pao", "coconut_milk", "pickled_lime", "bitter_melon", "herbal_sauce"]:

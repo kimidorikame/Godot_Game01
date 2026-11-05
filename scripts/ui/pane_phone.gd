@@ -15,6 +15,8 @@ signal unread_cleared()
 const TABS := ["sns", "news", "inventory", "notes"]
 
 var session: PlaySession = null
+## 市場の「かご」（ルートが持つ。市場にいるあいだ、持ち物タブにかごの分を足して見せる。UI準備P）。
+var cart: UiShopCart = null
 ## 表示だけの状態：開いているタブ。
 var tab := "news"
 
@@ -81,7 +83,9 @@ func refresh() -> void:
 		"news":
 			_fill_news()
 		"inventory":
-			UiInventoryList.fill(_content, session.inventory_view())
+			# 市場にいるあいだは、かごに入れた分（まだ買っていない）を足して見せる（UI準備P）
+			var in_cart: Dictionary = cart.units_by_item() if cart != null and session.is_in_market() else {}
+			UiInventoryList.fill(_content, session.inventory_view(in_cart))
 		"notes":
 			_fill_notes()
 

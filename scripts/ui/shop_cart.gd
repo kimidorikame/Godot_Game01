@@ -5,7 +5,7 @@ class_name UiShopCart
 ## 店ごとに持ち、買う順番は入れた順（束の並び＝使う順が、1つずつ買ったときと同じになる）。
 ## 張記の鍋の素（小・中・大）は、選ぶだけ（selected_tier）で、「購入確定」で買う。ルートが1つ持ち、仕込み（PREP）に入るたびに clear_all() する。
 
-var _lines: Dictionary = {}   # 店のid → [{ id, label, price }]（入れた順）
+var _lines: Dictionary = {}   # 店のid → [{ id, label, price, item, units }]（入れた順。item／units は表示用：購入後の手持ちを出す。UI準備P）
 ## 選んだ鍋の素の段階id（""＝選んでいない）。まだ買っていない。
 var selected_tier := ""
 var selected_tier_price := 0
@@ -24,7 +24,32 @@ func clear(shop: String) -> void:
 func add(shop: String, good: Dictionary) -> void:
 	if not _lines.has(shop):
 		_lines[shop] = []
-	(_lines[shop] as Array).append({ "id": str(good["id"]), "label": str(good["label"]), "price": int(good["price"]) })
+	(_lines[shop] as Array).append({ "id": str(good["id"]), "label": str(good["label"]), "price": int(good["price"]),
+		"item": stock_key(good), "units": units_of(good) })
+
+
+## 手持ちの数え方の鍵：品目（item）。品目を持たない商品（濃縮だし）は商品のid。
+static func stock_key(good: Dictionary) -> String:
+	var item := str(good.get("item", ""))
+	return item if item != "" else str(good.get("id", ""))
+
+
+## 1回かごに入れると増える個数（個数を持たない商品＝だしは1）。
+static func units_of(good: Dictionary) -> int:
+	var count := int(good.get("count", 0))
+	return count if count > 0 else 1
+
+
+## かごに入れた分の個数を、手持ちの鍵（stock_key）ごとに合わせる。shop を渡せばその店だけ、"" なら全部の店（UI準備P）。
+func units_by_item(shop: String = "") -> Dictionary:
+	var out := {}
+	for key in _lines:
+		if shop != "" and str(key) != shop:
+			continue
+		for line in _lines[key]:
+			var item := str(line.get("item", line["id"]))
+			out[item] = int(out.get(item, 0)) + int(line.get("units", 1))
+	return out
 
 
 ## 1つ戻す（最後に入れたもの）。

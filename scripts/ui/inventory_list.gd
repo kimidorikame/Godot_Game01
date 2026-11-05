@@ -2,7 +2,9 @@ extends RefCounted
 class_name UiInventoryList
 ## 持ち物の一覧（スマホの「持ち物」タブの中身。UI準備I3）。中身は PlaySession.inventory_view()（読むだけ）。
 ## 上から：最終日の注意（最終日だけ）・性質チェック（10の札。新鮮が1つ以上＝点灯・傷んだ分だけ＝半点灯・無い＝暗く）・味（調味料）の材料・具の材料。
-## 材料は在庫が1つ以上のものだけ（名前・札（言葉）・個数・新鮮／傷の内訳）。かごに入れた分は含めない。
+## 材料は在庫が1つ以上のものだけ（名前・札（言葉）・個数・新鮮／傷の内訳）。
+## 市場にいるあいだ（view に かごの分がある＝inventory_view(かご)）は、行の個数の左に「＋N（かご）」（強調色）を足し、
+## かごの分でだけ点く札は「＋」を付けて半分の明るさにする（傷んだ分だけの半点灯とは「＋」で見分ける。UI準備P）。
 
 const WIDTH := 380.0
 
@@ -12,6 +14,9 @@ static func fill(content: VBoxContainer, view: Dictionary) -> void:
 	if bool(view["final_day"]):
 		content.add_child(_label("残った分は持ち越せない", &"LabelWarnSmall"))
 	content.add_child(_label("性質チェック", &"LabelSub"))
+	var has_cart := false
+	for row in (view["flavors"] as Array) + (view["toppings"] as Array):
+		has_cart = has_cart or int(row.get("cart", 0)) > 0
 	for kind in ["flavor", "topping"]:
 		var flow := HFlowContainer.new()
 		flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -25,13 +30,19 @@ static func fill(content: VBoxContainer, view: Dictionary) -> void:
 			if TagWords.kind(str(entry["tag"])) != kind:
 				continue
 			var chip := UiTagChips.make(str(entry["tag"]))
-			chip.modulate = Color(1, 1, 1, 1.0) if entry["state"] == "lit" else (Color(1, 1, 1, 0.6) if entry["state"] == "half" else Color(1, 1, 1, 0.25))
+			var alpha: float = { "lit": 1.0, "cart": 0.6, "half": 0.6 }.get(str(entry["state"]), 0.25)
+			chip.modulate = Color(1, 1, 1, alpha)
+			if entry["state"] == "cart":
+				chip.text = "＋" + chip.text   # かごの分でだけ点く札（買えば点く）
 			chip.set_meta("state", entry["state"])
+			chip.set_meta("tag", str(entry["tag"]))
 			flow.add_child(chip)
 		content.add_child(flow)
 	var legend := _label("明るい＝新鮮なものがある　半分＝傷んだ分だけ　暗い＝無い", &"LabelCaption")
 	legend.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	content.add_child(legend)
+	if has_cart:
+		content.add_child(_label("＋付き＝かごの分で点く（まだ買っていない）", &"LabelCaption"))
 	var spacer := Control.new()
 	spacer.custom_minimum_size.y = 6.0
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -78,6 +89,8 @@ static func _row(item: Dictionary) -> Control:
 	line.add_child(spacer)
 	if damaged > 0:
 		line.add_child(_label("新鮮%d・傷%d" % [int(item["fresh"]), damaged], &"LabelWarnSmall", false))
+	if int(item.get("cart", 0)) > 0:
+		line.add_child(_label("＋%d（かご）" % int(item["cart"]), &"LabelSubAccent", false))
 	var count := _label("×%d" % (int(item["fresh"]) + damaged), &"LabelShop", false)
 	count.custom_minimum_size.x = 34.0
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
