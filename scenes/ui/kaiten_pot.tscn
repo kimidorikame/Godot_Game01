@@ -84,65 +84,150 @@ text = "3"
 horizontal_alignment = 2
 vertical_alignment = 1
 
-[node name="Scale" type="Control" parent="."]
+[node name="Gauge" type="Control" parent="."]
 unique_name_in_owner = true
 anchors_preset = 0
 offset_left = 16.0
 offset_top = 154.0
-offset_right = 210.0
-offset_bottom = 168.0
+offset_right = 404.0
+offset_bottom = 194.0
 mouse_filter = 2
 
-[node name="Cell1" type="ColorRect" parent="Scale"]
+[node name="Cell0" type="ColorRect" parent="Gauge"]
 layout_mode = 0
-offset_right = 34.0
-offset_bottom = 14.0
+offset_left = 0.0
+offset_right = 63.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.239216, 0.282353, 0.352941, 1)
 
-[node name="Cell2" type="ColorRect" parent="Scale"]
+[node name="Cell1" type="ColorRect" parent="Gauge"]
 layout_mode = 0
-offset_left = 40.0
-offset_right = 74.0
-offset_bottom = 14.0
+offset_left = 65.0
+offset_right = 128.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.239216, 0.282353, 0.352941, 1)
 
-[node name="Cell3" type="ColorRect" parent="Scale"]
+[node name="Cell2" type="ColorRect" parent="Gauge"]
 layout_mode = 0
-offset_left = 80.0
-offset_right = 114.0
-offset_bottom = 14.0
+offset_left = 130.0
+offset_right = 193.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.239216, 0.282353, 0.352941, 1)
 
-[node name="Cell4" type="ColorRect" parent="Scale"]
+[node name="Cell3" type="ColorRect" parent="Gauge"]
 layout_mode = 0
-offset_left = 120.0
-offset_right = 154.0
-offset_bottom = 14.0
+offset_left = 195.0
+offset_right = 258.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.239216, 0.282353, 0.352941, 1)
 
-[node name="Cell5" type="ColorRect" parent="Scale"]
+[node name="Cell4" type="ColorRect" parent="Gauge"]
 layout_mode = 0
-offset_left = 160.0
-offset_right = 194.0
-offset_bottom = 14.0
+offset_left = 260.0
+offset_right = 323.0
+offset_bottom = 22.0
 mouse_filter = 2
 color = Color(0.239216, 0.282353, 0.352941, 1)
+
+[node name="Cell5" type="ColorRect" parent="Gauge"]
+layout_mode = 0
+offset_left = 325.0
+offset_right = 388.0
+offset_bottom = 22.0
+mouse_filter = 2
+color = Color(0.239216, 0.282353, 0.352941, 1)
+
+[node name="FitFrame" type="ReferenceRect" parent="Gauge"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 129.0
+offset_top = -1.0
+offset_right = 324.0
+offset_bottom = 23.0
+mouse_filter = 2
+border_color = Color(0.435294, 0.831373, 0.603922, 1)
+editor_only = false
+
+[node name="WordZero" type="Label" parent="Gauge"]
+layout_mode = 0
+offset_left = 0.0
+offset_right = 63.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "出せない"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WordThin" type="Label" parent="Gauge"]
+layout_mode = 0
+offset_left = 65.0
+offset_right = 128.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "薄い"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WordFit" type="Label" parent="Gauge"]
+layout_mode = 0
+offset_left = 130.0
+offset_right = 323.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "適正"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WordThick" type="Label" parent="Gauge"]
+layout_mode = 0
+offset_left = 325.0
+offset_right = 388.0
+offset_bottom = 22.0
+theme_type_variation = &"LabelCaption"
+text = "濃い"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Preview" type="Label" parent="Gauge"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 21.0
+offset_top = 21.0
+offset_right = 42.0
+offset_bottom = 40.0
+theme_type_variation = &"LabelSlot"
+text = "△"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Marker" type="Label" parent="Gauge"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 216.0
+offset_top = 21.0
+offset_right = 237.0
+offset_bottom = 40.0
+theme_type_variation = &"LabelSlot"
+text = "▲"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="StrengthNote" type="Label" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 offset_left = 16.0
-offset_top = 172.0
-offset_right = 404.0
-offset_bottom = 191.0
+offset_top = 203.0
+offset_right = 216.0
+offset_bottom = 247.0
 theme_type_variation = &"LabelWarnSmall"
 text = "濃さ1は評価が1段階下がります"
-vertical_alignment = 1
+autowrap_mode = 1
 
 [node name="DashiButton" type="Button" parent="."]
 unique_name_in_owner = true
@@ -156,9 +241,9 @@ theme_type_variation = &"ButtonPot"
 
 [node name="Name" type="Label" parent="DashiButton"]
 layout_mode = 0
-offset_top = 8.0
+offset_top = 4.0
 offset_right = 86.0
-offset_bottom = 36.0
+offset_bottom = 32.0
 theme_type_variation = &"LabelPotName"
 text = "だし"
 horizontal_alignment = 1
@@ -166,9 +251,9 @@ vertical_alignment = 1
 
 [node name="Count" type="Label" parent="DashiButton"]
 layout_mode = 0
-offset_top = 38.0
+offset_top = 32.0
 offset_right = 86.0
-offset_bottom = 58.0
+offset_bottom = 52.0
 theme_type_variation = &"LabelPotCount"
 text = "残り0"
 horizontal_alignment = 1
@@ -176,9 +261,9 @@ vertical_alignment = 1
 
 [node name="Effect" type="Label" parent="DashiButton"]
 layout_mode = 0
-offset_top = 60.0
+offset_top = 54.0
 offset_right = 86.0
-offset_bottom = 78.0
+offset_bottom = 73.0
 theme_type_variation = &"LabelSub"
 text = "濃さ +2"
 horizontal_alignment = 1
@@ -196,9 +281,9 @@ theme_type_variation = &"ButtonPot"
 
 [node name="Name" type="Label" parent="WaterButton"]
 layout_mode = 0
-offset_top = 8.0
+offset_top = 4.0
 offset_right = 86.0
-offset_bottom = 36.0
+offset_bottom = 32.0
 theme_type_variation = &"LabelPotName"
 text = "水"
 horizontal_alignment = 1
@@ -206,9 +291,9 @@ vertical_alignment = 1
 
 [node name="Count" type="Label" parent="WaterButton"]
 layout_mode = 0
-offset_top = 38.0
+offset_top = 32.0
 offset_right = 86.0
-offset_bottom = 58.0
+offset_bottom = 52.0
 theme_type_variation = &"LabelPotCount"
 text = "残り0"
 horizontal_alignment = 1
@@ -216,9 +301,9 @@ vertical_alignment = 1
 
 [node name="Effect" type="Label" parent="WaterButton"]
 layout_mode = 0
-offset_top = 58.0
+offset_top = 54.0
 offset_right = 86.0
-offset_bottom = 76.0
+offset_bottom = 73.0
 theme_type_variation = &"LabelSub"
 text = "濃さ −2"
 horizontal_alignment = 1
@@ -226,9 +311,9 @@ vertical_alignment = 1
 
 [node name="Effect2" type="Label" parent="WaterButton"]
 layout_mode = 0
-offset_top = 75.0
+offset_top = 73.0
 offset_right = 86.0
-offset_bottom = 93.0
+offset_bottom = 92.0
 theme_type_variation = &"LabelSub"
 text = "+2杯"
 horizontal_alignment = 1

@@ -3133,13 +3133,21 @@ func current_choices() -> Dictionary:
 
 ## 開店の鍋：{ exists, remaining（残り杯数）, capacity（鍋の上限）, strength（濃さ）, strength_min, strength_max,
 ##   can_add_water, water_doses_left（今夜あと何回水を足せるか）, can_add_dashi, dashi_units（だしの残り数）,
-##   can_touch（鍋を触れるか）, pot_open, shortage_pending, locked_until_water, locked_until_dashi }
+##   can_touch（鍋を触れるか）, pot_open, shortage_pending, locked_until_water, locked_until_dashi,
+##   strength_floor（濃さの下限＝0。提供できない）, after_dashi（{ strength }＝だしを1回足した後）, after_water（{ strength, remaining }＝水を1回足した後） }
+## after_* は押せるかに関わらず GameState の定数（DASHI_STRENGTH_DELTA・WATER_STRENGTH_DELTA・WATER_SERVINGS）から計算する
+## （画面の「濃さ3→5」「残り8→10杯」と目盛りの予告。UI準備P-5。表示だけ）。
 ## 鍋がまだ無い（仕込み前）ときは exists だけ false。
 func pot_view() -> Dictionary:
 	if GameState.soup == null:
 		return { "exists": false }
-	return { "exists": true, "remaining": int(GameState.soup.get("remaining_servings", 0)), "capacity": Rules.pot_capacity(),
-		"strength": int(GameState.soup.get("strength", 3)), "strength_min": GameState.STRENGTH_MIN, "strength_max": GameState.STRENGTH_MAX,
+	var strength := int(GameState.soup.get("strength", 3))
+	var remaining := int(GameState.soup.get("remaining_servings", 0))
+	return { "exists": true, "remaining": remaining, "capacity": Rules.pot_capacity(),
+		"strength": strength, "strength_min": GameState.STRENGTH_MIN, "strength_max": GameState.STRENGTH_MAX,
+		"strength_floor": GameState.STRENGTH_HARD_FLOOR,
+		"after_dashi": { "strength": strength + GameState.DASHI_STRENGTH_DELTA },
+		"after_water": { "strength": strength - GameState.WATER_STRENGTH_DELTA, "remaining": remaining + GameState.WATER_SERVINGS },
 		"can_add_water": GameState.can_add_water(), "water_doses_left": int(GameState.soup.get("water_doses", 0)),
 		"can_add_dashi": GameState.can_add_dashi(), "dashi_units": GameState.dashi_units,
 		"can_touch": can_touch_pot(), "pot_open": pot_open, "shortage_pending": is_shortage_pending(),
