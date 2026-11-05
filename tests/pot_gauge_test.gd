@@ -137,6 +137,27 @@ func run(t: SceneTree) -> int:
 	_set_pot(s, 1, 8)
 	c.check("水（濃さ1。0を下回るので押せない）：説明を出さない", water.disabled and not water.get_node("Effect").visible)
 
+	# --- 4b. ボタンの文の色：押した後が適正の外（0・1・5）なら注意色（UI準備P2。タッチ操作でも分かるように）---
+	var dashi_fx: Label = dashi.get_node("Effect")
+	var water_fx: Label = water.get_node("Effect")
+	_set_pot(s, 3, 8)
+	c.check("濃さ3：だし「濃さ3→5」は注意色（5＝濃い）・水「濃さ3→1」も注意色（1＝薄い）",
+		dashi_fx.text == "濃さ3→5" and dashi_fx.get_theme_color(&"font_color").is_equal_approx(warn)
+			and water_fx.text == "濃さ3→1" and water_fx.get_theme_color(&"font_color").is_equal_approx(warn))
+	c.check("水の「残り8→10杯」は色を変えない（濃さの文だけ）", not (water.get_node("Effect2") as Label).has_theme_color_override(&"font_color"))
+	_set_pot(s, 1, 8)
+	c.check("濃さ1：だし「濃さ1→3」は適正の内なので型の色のまま（注意色にしない）",
+		dashi_fx.text == "濃さ1→3" and not dashi_fx.has_theme_color_override(&"font_color")
+			and not dashi_fx.get_theme_color(&"font_color").is_equal_approx(warn))
+	_set_pot(s, 4, 8)
+	c.check("濃さ4：水「濃さ4→2」は適正の内なので型の色のまま",
+		water_fx.text == "濃さ4→2" and not water_fx.has_theme_color_override(&"font_color"))
+	_set_pot(s, 2, 8)
+	c.check("濃さ2：水「濃さ2→0」（出せない）は注意色", water_fx.text == "濃さ2→0" and water_fx.get_theme_color(&"font_color").is_equal_approx(warn))
+	_set_pot(s, 4, 8)
+	c.check("押せないだし（濃さ4）は固定の「濃さ +2」で、注意色にしない", dashi.disabled and dashi_fx.text == "濃さ +2"
+		and not dashi_fx.has_theme_color_override(&"font_color"))
+
 	# --- 5. マウスを乗せた間だけ、押した後の位置の△ ---
 	_set_pot(s, 3, 8)
 	dashi.mouse_entered.emit()

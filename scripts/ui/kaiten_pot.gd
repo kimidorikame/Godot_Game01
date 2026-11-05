@@ -4,6 +4,7 @@ class_name UiKaitenPot
 ## 残り杯数・濃さ（1・5は注意色と注意文。0は「提供できません」）、だし（add_dashi）・水（add_water）。水を使えないときは説明を出さずにグレーにする。
 ## 濃さの目盛り（UI準備P-5）：「出せない（0）｜薄い（1）｜適正（2〜4）｜濃い（5）」の6区画と、今の位置の▲（塗りつぶしの棒はやめた）。
 ## だし・水のボタンの中は、押せるとき「濃さ3→5」「濃さ3→1」「残り8→10杯」（押した後の値。pot_view の after_dashi・after_water）。
+## 押した後の濃さが適正の外（0・1・5）になるときは「濃さ3→5」を注意色にする（マウスを乗せた△と同じ考え。タッチ操作でも分かるように。UI準備P2）。
 ## ボタンにマウスを乗せている間は、目盛りに押した後の位置を△で出す（減点の側に入るなら注意色）。どれも表示だけ。
 ## 鍋が尽きた保留（is_shortage_pending）：「営業を続ける」→ resume_after_shortage()（残りが今の注文以上・濃さが0でないとき。
 ## UIの条件）、「閉店」→ close_shop()（can_close_now）。椀を作っている最中に鍋が足りず足せるものも無いときも「閉店」を出す。
@@ -79,6 +80,8 @@ func refresh() -> void:
 	(_water.get_node("Effect2") as Label).text = "残り%d→%d杯" % [remaining, int(after_water["remaining"])]
 	(_water.get_node("Effect") as Control).visible = not _water.disabled
 	(_water.get_node("Effect2") as Control).visible = not _water.disabled
+	_tint_effect(_dashi.get_node("Effect"), not _dashi.disabled, int(after_dashi["strength"]), pot)
+	_tint_effect(_water.get_node("Effect"), not _water.disabled, int(after_water["strength"]), pot)
 	_refresh_gauge(pot)
 	var pending := session.is_shortage_pending()
 	var can_close := session.can_close_now()
@@ -123,10 +126,22 @@ func _refresh_gauge(pot: Dictionary) -> void:
 		_preview_mark.modulate = Color(1, 1, 1, 0.75)
 
 
+## ボタンの中の「濃さ3→5」の色：押せて、押した後が適正の外（0・1・5）なら注意色。それ以外は型（LabelSub）の色のまま。
+func _tint_effect(label: Label, enabled: bool, after: int, pot: Dictionary) -> void:
+	if enabled and _outside_fit(after, pot):
+		label.add_theme_color_override(&"font_color", get_theme_color(&"warn", &"UiPalette"))
+	else:
+		label.remove_theme_color_override(&"font_color")
+
+
+## 適正の外か（0以下・1・5。提供できない・減点の側）。
+func _outside_fit(value: int, pot: Dictionary) -> bool:
+	return value <= int(pot["strength_floor"]) or value == int(pot["strength_min"]) or value == int(pot["strength_max"])
+
+
 ## 印の色：0・1・5（提供できない・減点の側）は注意色、2〜4は強調色。
 func _mark_color(value: int, pot: Dictionary) -> Color:
-	var bad := value <= int(pot["strength_floor"]) or value == int(pot["strength_min"]) or value == int(pot["strength_max"])
-	return get_theme_color(&"warn" if bad else &"accent", &"UiPalette")
+	return get_theme_color(&"warn" if _outside_fit(value, pot) else &"accent", &"UiPalette")
 
 
 ## 印を、濃さ value の区画の真ん中の下に置く（範囲の外は端の区画）。

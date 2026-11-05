@@ -3,8 +3,9 @@ class_name UiInventoryList
 ## 持ち物の一覧（スマホの「持ち物」タブの中身。UI準備I3）。中身は PlaySession.inventory_view()（読むだけ）。
 ## 上から：最終日の注意（最終日だけ）・性質チェック（10の札。新鮮が1つ以上＝点灯・傷んだ分だけ＝半点灯・無い＝暗く）・味（調味料）の材料・具の材料。
 ## 材料は在庫が1つ以上のものだけ（名前・札（言葉）・個数・新鮮／傷の内訳）。
-## 市場にいるあいだ（view に かごの分がある＝inventory_view(かご)）は、行の個数の左に「＋N（かご）」（強調色）を足し、
-## かごの分でだけ点く札は「＋」を付けて半分の明るさにする（傷んだ分だけの半点灯とは「＋」で見分ける。UI準備P）。
+## 市場にいるあいだ（view に かごの分がある＝inventory_view(かご)）は、かごの分がある行の個数の右に「→ 購入後」（強調色。
+## 市場の商品の行と同じ形の「×3 → 9」。UI準備P2。以前は個数の左の「＋6（かご）」）を出し、そのあいだは全部の行に「→」の列をとって
+## 「×数」の位置をそろえる。かごの分でだけ点く札は「＋」を付けて半分の明るさにする（傷んだ分だけの半点灯とは「＋」で見分ける。UI準備P）。
 
 const WIDTH := 380.0
 
@@ -42,21 +43,21 @@ static func fill(content: VBoxContainer, view: Dictionary) -> void:
 	legend.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	content.add_child(legend)
 	if has_cart:
-		content.add_child(_label("＋付き＝かごの分で点く（まだ買っていない）", &"LabelCaption"))
+		content.add_child(_label("＋付きの札・→ の数＝かごに入れた分を含む（まだ買っていない）", &"LabelCaption"))
 	var spacer := Control.new()
 	spacer.custom_minimum_size.y = 6.0
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(spacer)
-	_add_section(content, "味（調味料）", view["flavors"])
-	_add_section(content, "具", view["toppings"])
+	_add_section(content, "味（調味料）", view["flavors"], has_cart)
+	_add_section(content, "具", view["toppings"], has_cart)
 
 
-static func _add_section(content: VBoxContainer, title: String, items: Array) -> void:
+static func _add_section(content: VBoxContainer, title: String, items: Array, has_cart: bool) -> void:
 	content.add_child(_label(title, &"LabelSub"))
 	if items.is_empty():
 		content.add_child(_label("なし", &"LabelDim"))
 	for item in items:
-		content.add_child(_row(item))
+		content.add_child(_row(item, has_cart))
 
 
 static func _label(text: String, variation: StringName, full_width: bool = true) -> Label:
@@ -68,8 +69,8 @@ static func _label(text: String, variation: StringName, full_width: bool = true)
 	return label
 
 
-## 材料1つの行（1行）：名前・札・（傷があれば新鮮／傷）・個数。
-static func _row(item: Dictionary) -> Control:
+## 材料1つの行（1行）：名前・札・（傷があれば新鮮／傷）・個数・（市場でかごがあるときは「→ 購入後」の列）。
+static func _row(item: Dictionary, has_cart: bool = false) -> Control:
 	var damaged := int(item["damaged"])
 	var line := HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -89,10 +90,16 @@ static func _row(item: Dictionary) -> Control:
 	line.add_child(spacer)
 	if damaged > 0:
 		line.add_child(_label("新鮮%d・傷%d" % [int(item["fresh"]), damaged], &"LabelWarnSmall", false))
-	if int(item.get("cart", 0)) > 0:
-		line.add_child(_label("＋%d（かご）" % int(item["cart"]), &"LabelSubAccent", false))
-	var count := _label("×%d" % (int(item["fresh"]) + damaged), &"LabelShop", false)
+	var have := int(item["fresh"]) + damaged
+	var count := _label("×%d" % have, &"LabelShop", false)
 	count.custom_minimum_size.x = 34.0
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	line.add_child(count)
+	if has_cart:
+		# 「×3 → 9」：かごの分がある行だけ「→ 購入後」（強調色）。無い行も同じ幅をとって「×数」の位置をそろえる
+		var in_cart := int(item.get("cart", 0))
+		var after := _label("→ %d" % (have + in_cart) if in_cart > 0 else "", &"LabelStockAfter", false)
+		after.name = "After"
+		after.custom_minimum_size.x = 44.0
+		line.add_child(after)
 	return line

@@ -1,8 +1,8 @@
 extends RefCounted
 ## UI準備P-4：仕入れの在庫を、かごを含めて見せる（表示だけ。判定・評判・乱数・経済は変えない）。
 ## 対象：市場の商品の行の「手持ちN → 購入後」（購入後＝手持ち〔新鮮＋傷〕＋かごに入れた分。かごが空なら「手持ちN」だけ）、
-## 同じ品目の2つの商品（モツのパックと小口）はかごの分を合わせる、購入確定の前後の表示、
-## スマホの持ち物（市場にいるあいだ、かごの分を「＋N（かご）」で足す・かごの分で点く札は「＋」付きの半分の明るさ）、
+## 同じ品目の2つの商品（モツのパックと小口）はかごの分を合わせる、傷んだ分があるときの「手持ち3（傷1）→ 9」（UI準備P2）、購入確定の前後の表示、
+## スマホの持ち物（市場にいるあいだ、市場の行と同じ形の「×3 → 9」〔UI準備P2。以前は「＋N（かご）」〕・かごの分で点く札は「＋」付きの半分の明るさ）、
 ## PlaySession.inventory_view(かご) の形。どれもボタンの pressed だけで操作する（押せないボタンは押さない）。
 
 
@@ -29,10 +29,43 @@ func _trait_chips(content: Node) -> Dictionary:
 	return out
 
 
-## 行の「手持ち」「→ 購入後」の文字（購入後が出ていなければ ""）。
+## 行の「手持ち」「→ 購入後」の文字（購入後が出ていなければ ""。前後の空白は除く）。
 func _row_stock(row: UiGoodsRow) -> Array:
 	var after: Label = row.get_node("Stock/After")
-	return [row.get_node("Stock/Have").text, after.text if after.visible else ""]
+	return [row.get_node("Stock/Have").text, after.text.strip_edges() if after.visible else ""]
+
+
+## 行の2行目を、見えている文字をつないだ形で（「手持ち3（傷1）→ 9」。2行目へ回した「腐る」は除く）。UI準備P2。
+func _row_line(row: UiGoodsRow) -> String:
+	var out := ""
+	for name in ["Have", "Damaged", "After"]:
+		var label: Label = row.get_node("Stock/" + name)
+		if label.visible:
+			out += label.text
+	return out
+
+
+## 傷んだ在庫を足す（購入日を2日前にしたバッチ＝3日目で傷み）。tests/ui_kaiten_test.gd と同じ。
+func _add_damaged(item: String, count: int) -> void:
+	GameState.inventory[item] = int(GameState.inventory.get(item, 0)) + count
+	var batches: Array = GameState.perishable_batches.get(item, [])
+	batches.push_front({ "day": GameState.day_count - 2, "count": count, "unit_price": 8 })
+	GameState.perishable_batches[item] = batches
+
+
+## 持ち物の材料の行（名前のラベルが name の行）の [「×数」, 「→ 購入後」（列が無ければ null・空なら ""）, 「×数」の右端]。
+func _inv_row(content: Node, name: String) -> Array:
+	for line in content.get_children():
+		if line is HBoxContainer and line.get_child_count() > 0 and line.get_child(0) is Label and (line.get_child(0) as Label).text == name:
+			var count: Label = null
+			var after = null
+			for child in line.get_children():
+				if child is Label and (child as Label).text.begins_with("×"):
+					count = child
+				if child.name == "After":
+					after = (child as Label).text
+			return [count.text if count != null else "", after, count.get_global_rect().end.x if count != null else -1.0]
+	return []
 
 
 func run(t: SceneTree) -> int:
@@ -63,6 +96,36 @@ func run(t: SceneTree) -> int:
 		states["GENTLE"] == "lit" and states["TREAT"] == "cart" and states["HOT"] == "dark", str(states))
 	s.free()
 
+	# --- 1b. 商品の行：全部の店の全商品（実際の品名・値段・個数）で、傷あり・かごありの重い2行目（「手持ち10（傷2）→ 16」）でも
+	#         1行目・2行目が、それぞれ価格・「3個 / 単価8」の文字にかからない（UI準備P2）---
+	var theme: Theme = load("res://resources/ui_theme.tres")
+	var worst := ""
+	for shop in ["produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps"]:
+		for good in PlaySession.shop_goods(shop):
+			var id := str(good.get("item", ""))
+			if id == "":
+				continue
+			var row: UiGoodsRow = load("res://scenes/ui/goods_row.tscn").instantiate()
+			row.theme = theme
+			t.root.add_child(row)
+			var count := int(good.get("count", 1))
+			row.show_good({ "item": id, "label": str(good["label"]), "count": count, "unit_price": int(good["price"]) / count, "fresh": 8,
+				"damaged": 2, "price": int(good["price"]), "affordable": true }, true, 6)
+			var tags_box: HBoxContainer = row.get_node("Tags")
+			var stock_box: HBoxContainer = row.get_node("Stock")
+			var price: Label = row.get_node("Price")
+			var detail: Label = row.get_node("Detail")
+			var line1_room: float = price.offset_right - price.get_minimum_size().x - 4.0 - tags_box.offset_left
+			var line2_room: float = detail.offset_right - detail.get_minimum_size().x - 4.0 - stock_box.offset_left
+			var rot: Label = row.find_child("Rot", true, false)
+			if tags_box.get_combined_minimum_size().x > line1_room or stock_box.get_combined_minimum_size().x > line2_room:
+				worst = "%s: 1行目 %d（%d まで）・2行目 %d（%d まで）" % [str(good["label"]), tags_box.get_combined_minimum_size().x, line1_room,
+					stock_box.get_combined_minimum_size().x, line2_room]
+			elif rot.visible and rot.get_parent() == tags_box and tags_box.get_child(tags_box.get_child_count() - 1) != rot:
+				worst = "%s: 1行目の「腐る」が札の後ろにない" % str(good["label"])
+			row.queue_free()
+	c.check("商品の行：全商品で、傷あり・かごありの2行目と1行目がおさまる・「腐る」は1行目なら札の後ろ", worst == "", worst)
+
 	# --- 2. 画面：Day2 の市場（豆腐麺房）---
 	GameState.reset_for_new_game()
 	var root: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
@@ -75,6 +138,7 @@ func run(t: SceneTree) -> int:
 		play.step()
 	c.check("Day2の市場（店選び）まで進んだ", GameState.day_count == 2 and session.is_in_market() and root.pane_market.visible)
 	GameState.money += 300   # かごに何品も入れるため
+	_add_damaged("tofu", 1)   # 傷んだ豆腐1（市場の行の「（傷1）」を見る。UI準備P2）
 	_press(root.pane_market.get_node("%Stalls").get_child(3))   # 福生豆腐麺房（豆腐3個・米麺5個）
 	var shop: UiPaneBuyShop = root.pane_buy_shop
 	var goods: UiGoodsList = shop.get_node("%Goods")
@@ -86,11 +150,17 @@ func run(t: SceneTree) -> int:
 	var noodle_count := int(session.shop_view("tofu_noodles")[1]["count"])
 	c.check("かごが空：「手持ちN」だけ（→ は出さない）", _row_stock(tofu_row) == ["手持ち%d" % tofu_have, ""]
 		and _row_stock(noodle_row) == ["手持ち%d" % noodle_have, ""], str(_row_stock(tofu_row)))
+	c.check("傷んだ分がある行（豆腐）：「手持ち%d（傷1）」（手持ちは新鮮＋傷・傷は注意色。UI準備P2）" % tofu_have,
+		GameState.damaged_count("tofu") == 1 and _row_line(tofu_row) == "手持ち%d（傷1）" % tofu_have
+			and (tofu_row.get_node("Stock/Damaged") as Label).theme_type_variation == &"LabelWarnSmall", _row_line(tofu_row))
+	c.check("傷の無い行（米麺）：「手持ちN」だけ", _row_line(noodle_row) == "手持ち%d" % noodle_have, _row_line(noodle_row))
 	_press(tofu_row.get_node("BuyButton"))
 	_press(tofu_row.get_node("BuyButton"))
 	c.check("豆腐を2回かごへ：「手持ち%d → %d」（購入後＝手持ち＋かごの分）" % [tofu_have, tofu_have + 2 * tofu_count],
 		_row_stock(tofu_row) == ["手持ち%d" % tofu_have, "→ %d" % (tofu_have + 2 * tofu_count)]
 			and _row_stock(noodle_row) == ["手持ち%d" % noodle_have, ""], str(_row_stock(tofu_row)))
+	c.check("傷ありの行にかご：「手持ち%d（傷1）→ %d」" % [tofu_have, tofu_have + 2 * tofu_count],
+		_row_line(tofu_row) == "手持ち%d（傷1）→ %d" % [tofu_have, tofu_have + 2 * tofu_count], _row_line(tofu_row))
 	c.check("「→ 購入後」は強調色の型（LabelStockAfter）", (tofu_row.get_node("Stock/After") as Label).theme_type_variation == &"LabelStockAfter")
 	c.check("かごに入れただけでは在庫は変わらない", GameState.fresh_count("tofu") + GameState.damaged_count("tofu") == tofu_have)
 
@@ -100,8 +170,26 @@ func run(t: SceneTree) -> int:
 	var phone: UiPanePhone = root.pane_phone
 	var content: Control = phone.get_node("%Content")
 	var texts := _label_texts(content)
-	c.check("持ち物：かごの分を「＋N（かご）」で足す（豆腐＋%d・米麺＋%d）" % [2 * tofu_count, noodle_count],
-		texts.has("＋%d（かご）" % (2 * tofu_count)) and texts.has("＋%d（かご）" % noodle_count), str(texts))
+	c.check("市場の行も傷なしは「手持ち0 → %d」（間に空白）" % noodle_count, _row_line(noodle_row) == "手持ち%d → %d" % [noodle_have, noodle_have + noodle_count],
+		_row_line(noodle_row))
+	var tofu_inv := _inv_row(content, UiLabels.short_name("tofu"))
+	var noodle_inv := _inv_row(content, UiLabels.short_name("rice_noodle"))
+	var offal_inv: Array = []   # かごの分の無い行（手持ちのどれか。名前はその日の在庫しだい）
+	for line in content.get_children():
+		if line is HBoxContainer and line.has_node("After") and (line.get_node("After") as Label).text == "" and offal_inv.is_empty():
+			offal_inv = _inv_row(content, (line.get_child(0) as Label).text)
+	c.check("持ち物：市場の行と同じ形「×%d → %d」（豆腐）・「×%d → %d」（米麺。手持ち0でも行が出る）" % [tofu_have, tofu_have + 2 * tofu_count,
+		noodle_have, noodle_have + noodle_count],
+		tofu_inv.slice(0, 2) == ["×%d" % tofu_have, "→ %d" % (tofu_have + 2 * tofu_count)]
+			and noodle_inv.slice(0, 2) == ["×%d" % noodle_have, "→ %d" % (noodle_have + noodle_count)], "%s / %s" % [str(tofu_inv), str(noodle_inv)])
+	c.check("持ち物：かごの分の無い行は「×数」だけ。「×数」の右端は、かごのある行とそろう",
+		not offal_inv.is_empty() and offal_inv[1] == "" and absf(float(offal_inv[2]) - float(tofu_inv[2])) < 0.5, str(offal_inv))
+	c.check("持ち物：「＋N（かご）」の形はもう出さない", not texts.any(func(x): return str(x).contains("（かご）")), str(texts))
+	var after_label: Label = null
+	for line in content.get_children():
+		if line is HBoxContainer and line.has_node("After") and (line.get_node("After") as Label).text != "":
+			after_label = line.get_node("After")
+	c.check("持ち物の「→ 購入後」は、かごの色（強調色の LabelStockAfter）", after_label != null and after_label.theme_type_variation == &"LabelStockAfter")
 	var chips := _trait_chips(content)
 	var filling_by_stock := false
 	for id in GameState.inventory:
@@ -115,7 +203,7 @@ func run(t: SceneTree) -> int:
 			if chip.has_meta("state") and chip.get_meta("state") == "cart":
 				cart_chip_alpha = (chip as Label).modulate.a
 	c.check("かごの分の札は、点灯（1.0）と暗い（0.25）の間の明るさ", filling_by_stock or (cart_chip_alpha > 0.25 and cart_chip_alpha < 1.0), str(cart_chip_alpha))
-	c.check("説明の行に「＋付き＝かごの分」", texts.any(func(x): return str(x).contains("＋付き＝かごの分")), str(texts))
+	c.check("説明の行に「＋付きの札・→ の数＝かごに入れた分を含む」", texts.any(func(x): return str(x).contains("＋付きの札・→ の数＝かごに入れた分を含む")), str(texts))
 	root.close_overlay()
 
 	# 購入確定 → 手持ちに入る
@@ -126,8 +214,8 @@ func run(t: SceneTree) -> int:
 			and _row_stock(noodle_row) == ["手持ち%d" % (noodle_have + noodle_count), ""], str(_row_stock(tofu_row)))
 	root.open_phone("inventory")
 	texts = _label_texts(phone.get_node("%Content"))
-	c.check("購入確定のあとの持ち物：かごの印は無く、個数が増えている",
-		not texts.any(func(x): return str(x).contains("（かご）")) and texts.has("×%d" % (tofu_have + 2 * tofu_count)), str(texts))
+	c.check("購入確定のあとの持ち物：「→」の列は無く（かごが空）、個数が増えている",
+		_inv_row(phone.get_node("%Content"), UiLabels.short_name("tofu"))[1] == null and texts.has("×%d" % (tofu_have + 2 * tofu_count)), str(texts))
 	root.close_overlay()
 	_press(shop.get_node("%BackButton"))
 
