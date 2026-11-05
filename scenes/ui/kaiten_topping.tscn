@@ -127,18 +127,18 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot1"]
 layout_mode = 0
-offset_top = 2.0
+offset_top = 1.0
 offset_right = 125.0
-offset_bottom = 28.0
+offset_bottom = 25.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Chips" type="HBoxContainer" parent="Slots/Slot1"]
 layout_mode = 0
-offset_left = 2.0
-offset_top = 29.0
-offset_right = 123.0
+offset_left = 1.0
+offset_top = 26.0
+offset_right = 124.0
 offset_bottom = 46.0
 mouse_filter = 2
 alignment = 1
@@ -154,18 +154,18 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot2"]
 layout_mode = 0
-offset_top = 2.0
+offset_top = 1.0
 offset_right = 125.0
-offset_bottom = 28.0
+offset_bottom = 25.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Chips" type="HBoxContainer" parent="Slots/Slot2"]
 layout_mode = 0
-offset_left = 2.0
-offset_top = 29.0
-offset_right = 123.0
+offset_left = 1.0
+offset_top = 26.0
+offset_right = 124.0
 offset_bottom = 46.0
 mouse_filter = 2
 alignment = 1
@@ -181,18 +181,18 @@ theme_type_variation = &"PanelSlotEmpty"
 
 [node name="Label" type="Label" parent="Slots/Slot3"]
 layout_mode = 0
-offset_top = 2.0
+offset_top = 1.0
 offset_right = 125.0
-offset_bottom = 28.0
+offset_bottom = 25.0
 theme_type_variation = &"LabelSlot"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Chips" type="HBoxContainer" parent="Slots/Slot3"]
 layout_mode = 0
-offset_left = 2.0
-offset_top = 29.0
-offset_right = 123.0
+offset_left = 1.0
+offset_top = 26.0
+offset_right = 124.0
 offset_bottom = 46.0
 mouse_filter = 2
 alignment = 1
@@ -229,76 +229,40 @@ offset_right = 406.0
 offset_bottom = 410.0
 theme_override_constants/h_separation = 6
 theme_override_constants/v_separation = 6
-columns = 4
+columns = 3
 
 [node name="Item1" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item2" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item3" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item4" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item5" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
 
 [node name="Item6" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item7" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item8" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item9" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item10" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item11" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
-layout_mode = 2
-mouse_filter = 2
-script = ExtResource("3_tb0ai")
-
-[node name="Item12" type="Control" parent="Grid" instance=ExtResource("2_pk7ms")]
-custom_minimum_size = Vector2(93, 58)
+custom_minimum_size = Vector2(126, 66)
 layout_mode = 2
 mouse_filter = 2
 script = ExtResource("3_tb0ai")
@@ -439,7 +403,7 @@ unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
 offset_top = 622.0
-offset_right = 109.0
+offset_right = 100.0
 offset_bottom = 656.0
 focus_mode = 0
 theme_type_variation = &"ButtonSmall"
@@ -448,31 +412,41 @@ text = "いつもの"
 [node name="SaveButton" type="Button" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 115.0
+offset_left = 106.0
 offset_top = 622.0
-offset_right = 208.0
+offset_right = 198.0
 offset_bottom = 656.0
 focus_mode = 0
 theme_type_variation = &"ButtonSmall"
-text = "保存"
+text = "レシピ保存"
+
+[node name="BottomDivider" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 205.0
+offset_top = 626.0
+offset_right = 206.0
+offset_bottom = 652.0
+mouse_filter = 2
+color = Color(0.239216, 0.282353, 0.352941, 1)
 
 [node name="DiscardButton" type="Button" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 214.0
+offset_left = 212.0
 offset_top = 622.0
-offset_right = 307.0
+offset_right = 318.0
 offset_bottom = 656.0
 focus_mode = 0
 theme_type_variation = &"ButtonSmall"
-text = "廃棄"
+text = "一杯を捨てる"
 
 [node name="DeclineButton" type="Button" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 313.0
+offset_left = 324.0
 offset_top = 622.0
-offset_right = 406.0
+offset_right = 404.0
 offset_bottom = 656.0
 focus_mode = 0
 theme_type_variation = &"ButtonSmall"

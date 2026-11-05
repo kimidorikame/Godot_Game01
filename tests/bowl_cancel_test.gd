@@ -1,7 +1,7 @@
 extends RefCounted
 ## 椀の追加のキャンセル（UI準備D・D-3）。具材ボタンを同じ品目で2回押すと、2個目を入れるのではなく、取り消す（椀から外し、在庫を戻す）。
 ## 対象：toggle_ingredient（入れる→取り消す）、在庫が元の束（日・単価・順）のまま戻ること、傷んだ具材を外すと傷みの減点（used_spoiled）も消えること、
-## 傷んだ側・新鮮な側のどちらのボタンでも取り消すこと（同じ具材は2個入らない）、団体客（モブ）の選びの記録、画面（✓と、在庫0でも押せること）、
+## 傷んだ側・新鮮な側のどちらのボタンでも取り消すこと（同じ具材は2個入らない）、団体客（モブ）の選びの記録、画面（「×」の印と、在庫0でも押せること）、
 ## select_ingredient（レシピ・自動試遊が使う入れるだけの入口）は今までどおりで、重複を許すこと。
 
 
@@ -108,7 +108,7 @@ func run(t: SceneTree) -> int:
 	c.check("cancel_ingredient(index)：指定の1個だけ取り消せる", s.open.current_bowl["additions"] == ["tofu"] and GameState.fresh_count("tofu") == 2)
 	root.queue_free()
 
-	# --- 4. 画面：✓・在庫0でも取り消せる・2回押して取り消し ---
+	# --- 4. 画面：「×」の印（UI準備P。以前は「✓」）・在庫0でも取り消せる・2回押して取り消し ---
 	root = _open(t, ["officer"], func(): GameState.add_inventory("tofu", 1, 8))   # 1個だけ：入れると在庫0
 	s = root.session
 	var top = root.pane_kaiten.topping
@@ -120,11 +120,12 @@ func run(t: SceneTree) -> int:
 	c.check("具材ボタン（豆腐）が出ている", button != null)
 	if button != null:
 		load("res://tests/ui_autoplay.gd").press(button.get_node("MainButton"))
-		c.check("押す → 椀に入る：在庫0になるが、ボタンには「✓」が付き、押せる（取り消せる）", s.open.current_bowl["additions"] == ["tofu"] and GameState.fresh_count("tofu") == 0
-			and str(button.get_node("MainButton/Name").text).begins_with("✓") and not (button.get_node("MainButton") as Button).disabled)
+		c.check("押す → 椀に入る：在庫0になるが、ボタンには「×」の印が付き、押せる（取り消せる）。名前はそのまま", s.open.current_bowl["additions"] == ["tofu"] and GameState.fresh_count("tofu") == 0
+			and (button.get_node("MainButton/RemoveMark") as Label).visible and (button.get_node("MainButton/RemoveMark") as Label).text == "×"
+			and str(button.get_node("MainButton/Name").text) == UiLabels.short_name("tofu") and not (button.get_node("MainButton") as Button).disabled)
 		load("res://tests/ui_autoplay.gd").press(button.get_node("MainButton"))
-		c.check("もう一度押す → 取り消し：椀から外れ、在庫が戻り、「✓」が消える", s.open.current_bowl["additions"].is_empty() and GameState.fresh_count("tofu") == 1
-			and not str(button.get_node("MainButton/Name").text).begins_with("✓"))
+		c.check("もう一度押す → 取り消し：椀から外れ、在庫が戻り、「×」の印が消える", s.open.current_bowl["additions"].is_empty() and GameState.fresh_count("tofu") == 1
+			and not (button.get_node("MainButton/RemoveMark") as Label).visible)
 	root.queue_free()
 
 	# --- 5. 団体客（モブ）：在庫は確定まで引かない。選びの記録だけ外す ---

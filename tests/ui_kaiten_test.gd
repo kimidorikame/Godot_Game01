@@ -2,7 +2,7 @@ extends RefCounted
 ## 本番UI（UI準備B③）：開店の操作エリア（鍋／トッピングのタブ・団体の確認・鍋が尽きた保留）の検証。
 ## 対象：シーンの寸法（寸法表 KAITEN_UI_LAYOUT §2〜§4、4px以内。ボタンは始点と幅）、鍋⇄トッピングの自動・手の切り替え、
 ## 椀の枠の傷んだ印（bowl_view の additions_damaged）・減点の予告・短縮名、具材ボタン（本体＝新鮮・右端＝傷んだ側）、
-## 提供・廃棄・断る・聞き直す・いつもの・保存、モブの団体の確認、鍋が尽きた保留（営業を続ける・閉店）、閉店する。
+## 提供・一杯を捨てる・断る・聞き直す・いつもの・レシピ保存、モブの団体の確認、鍋が尽きた保留（営業を続ける・閉店）、閉店する。
 ## どれもボタンの pressed だけで操作する（押せないボタンは押さない）。
 
 const TOL := 4.0
@@ -108,16 +108,22 @@ func run(t: SceneTree) -> int:
 		c.check("トッピング：%s の位置と大きさ（寸法表どおり）" % path, _near(top.get_node(path).get_global_rect(), rects[path]),
 			str(top.get_node(path).get_global_rect()))
 	var grid: GridContainer = top.get_node("%Grid")
-	c.check("具材ボタン：(852,296) 93×58、間隔6で4列",
-		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 93, 58)) and _near(grid.get_child(1).get_global_rect(), Rect2(951, 296, 93, 58))
-			and grid.columns == 4, str(grid.get_child(1).get_global_rect()))
+	c.check("具材ボタン：(852,296) 126×66、間隔6で3列・1ページ6個（UI準備P：文字を大きくして4列→3列）",
+		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 126, 66)) and _near(grid.get_child(1).get_global_rect(), Rect2(984, 296, 126, 66))
+			and grid.columns == 3 and grid.get_child_count() == UiKaitenTopping.PER_TAB, str(grid.get_child(1).get_global_rect()))
 	c.check("聞き直す (1165,86)・幅75／提供 (852,595)・幅388", _at(top.get_node("%ReaskButton"), Vector2(1165, 86), 75)
 		and _at(top.get_node("%ServeButton"), Vector2(852, 595), 388))
-	var bottoms := ["%UsualButton", "%SaveButton", "%DiscardButton", "%DeclineButton"]
+	# UI準備P：「保存」→「レシピ保存」、「廃棄」→「一杯を捨てる」。捨てる・断るは区切り線の右（いつもの・レシピ保存から離す）
+	var bottoms := { "%UsualButton": [852, 84, "いつもの"], "%SaveButton": [942, 92, "レシピ保存"], "%DiscardButton": [1048, 106, "一杯を捨てる"],
+		"%DeclineButton": [1160, 80, "断る"] }
 	var bottoms_ok := true
-	for i in range(bottoms.size()):
-		bottoms_ok = bottoms_ok and _at(top.get_node(bottoms[i]), Vector2(852 + i * 99, 646), 93)
-	c.check("いつもの／保存／廃棄／断る：(852,646) から 93幅・間隔6", bottoms_ok)
+	for path in bottoms:
+		var spec: Array = bottoms[path]
+		bottoms_ok = bottoms_ok and _at(top.get_node(path), Vector2(spec[0], 646), spec[1]) and (top.get_node(path) as Button).text == spec[2]
+	var divider: Control = top.get_node("%BottomDivider")
+	c.check("いつもの／レシピ保存｜一杯を捨てる／断る：(852,646) から。区切り線はレシピ保存と一杯を捨てるの間",
+		bottoms_ok and divider.visible and divider.get_global_rect().position.x > top.get_node("%SaveButton").get_global_rect().end.x
+			and divider.get_global_rect().end.x < top.get_node("%DiscardButton").get_global_rect().position.x)
 	c.check("注文カード：いつもの・今日（名前あり客）、聞き直せる", top.get_node("%UsualRow").visible and top.get_node("%TodayRow").visible
 		and not (top.get_node("%ReaskButton") as Button).disabled)
 	var tabs: HBoxContainer = top.get_node("%Tabs")
@@ -131,9 +137,9 @@ func run(t: SceneTree) -> int:
 	c.check("豆腐：「×9」と右端の「傷 2」（押せる）", tofu.get_node("MainButton/Name").text == "豆腐"
 		and tofu.get_node("DamagedButton").visible and tofu.get_node("DamagedButton").text == "傷\n2"
 		and not (tofu.get_node("DamagedButton") as Button).disabled)
-	c.check("空の椀：減点の予告は「提供できない（味・具）」（注意色）、提供は押せない",
-		top.get_node("%Penalty").get_parsed_text() == "このままでは提供できません: 味の素材が無い・具が無い"
-			and top.get_node("%Penalty").text.begins_with("[color=#ff8a7a]")
+	c.check("空の椀：案内文は「味付けと具を選んでください」（ふつうの文字色。UI準備P）、提供は押せない",
+		top.get_node("%Penalty").get_parsed_text() == "味付けと具を選んでください"
+			and top.get_node("%Penalty").text.begins_with("[color=#e8ebf0]")
 			and (top.get_node("%ServeButton") as Button).disabled, top.get_node("%Penalty").text)
 
 	# 具材：本体＝新鮮、右端＝傷んだ側
@@ -149,8 +155,9 @@ func run(t: SceneTree) -> int:
 	_press(grid.get_child(0).get_node("MainButton"))
 	bowl = s.bowl_view()
 	c.check("本体を押す → 新鮮な側（印は false）", bowl["additions"] == ["tofu", "nam_prik_pao"] and bowl["additions_damaged"] == [true, false])
-	c.check("減点の予告：「傷んだ豆腐で1段階下がります。」", top.get_node("%Penalty").get_parsed_text() == "減点の予告: 傷んだ豆腐で1段階下がります。",
-		top.get_node("%Penalty").text)
+	c.check("傷んだ具材だけ：「傷んだ豆腐を使用中：評価が1段階下がります」（注意色。UI準備P）",
+		top.get_node("%Penalty").get_parsed_text() == "傷んだ豆腐を使用中：評価が1段階下がります"
+			and top.get_node("%Penalty").text.begins_with("[color=#ff8a7a]"), top.get_node("%Penalty").text)
 	c.check("提供できる椀になったら、提供を押せる", not (top.get_node("%ServeButton") as Button).disabled)
 	GameState.soup["strength"] = GameState.STRENGTH_MIN
 	s.notify_changed()
@@ -187,7 +194,7 @@ func run(t: SceneTree) -> int:
 	_press(pane.get_node("%ToppingTab"))
 	c.check("トッピングタブで戻れる", top.visible and not pot.visible)
 	c.check("濃さが直ったので、減点の予告から濃さの理由と手当ては消える（傷んだ豆腐だけ）",
-		top.get_node("%Penalty").get_parsed_text() == "減点の予告: 傷んだ豆腐で1段階下がります。", top.get_node("%Penalty").text)
+		top.get_node("%Penalty").get_parsed_text() == "傷んだ豆腐を使用中：評価が1段階下がります", top.get_node("%Penalty").text)
 	GameState.soup["strength"] = 3
 	_press(top.get_node("%ServeButton"))
 	c.check("提供 → complete_input：判定へ進み、自動で鍋タブ", not top.is_adjusting() and pot.visible)
@@ -198,10 +205,10 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		root.left.advance()
 	_press(pane.get_node("%ToppingTab"))
-	c.check("判定後、トッピングに手で戻ると「保存」を押せる", s.can_save_recipe() and not (top.get_node("%SaveButton") as Button).disabled)
+	c.check("判定後、トッピングに手で戻ると「レシピ保存」を押せる", s.can_save_recipe() and not (top.get_node("%SaveButton") as Button).disabled)
 	_press(top.get_node("%SaveButton"))
 	var menu: GridContainer = top.get_node("%RecipeButtons")
-	c.check("保存 → 枠を選ぶメニュー（大きい椀の位置）", top.get_node("%RecipeMenu").visible and s.recipe_save_view()["stage"] == "slot"
+	c.check("レシピ保存 → 枠を選ぶメニュー（大きい椀の位置）", top.get_node("%RecipeMenu").visible and s.recipe_save_view()["stage"] == "slot"
 		and _near(top.get_node("%RecipeMenu").get_global_rect(), Rect2(852, 442, 388, 119)))
 	_press(menu.get_child(0))
 	c.check("枠1を押す → 名前を選ぶ", s.recipe_save_view()["stage"] == "name" and top.get_node("%RecipeCaption").text == "名前を選ぶ")
@@ -242,7 +249,7 @@ func run(t: SceneTree) -> int:
 	c.check("「閉店する」→ flow.advance_phase で閉店（CLOSE）へ", GameState.phase == GameState.Phase.CLOSE)
 	root.queue_free()
 
-	# --- 3. いつもの（保存レシピ）・廃棄・断る ---
+	# --- 3. いつもの（保存レシピ）・一杯を捨てる・断る ---
 	var saved_recipes := GameState.saved_recipes.duplicate(true)
 	root = _open_root(t, ["officer"], { "nam_prik_pao": 9, "offal": 9, "coconut_milk": 9, "tofu": 9 })
 	s = root.session
@@ -259,7 +266,7 @@ func run(t: SceneTree) -> int:
 		s.bowl_view()["additions"] == ["nam_prik_pao", "offal"] and not top.get_node("%RecipeMenu").visible)
 	var discards := s.bowl_discard_count
 	_press(top.get_node("%DiscardButton"))
-	c.check("廃棄 → discard_bowl：椀が空に戻る", s.bowl_view()["additions"].is_empty() and s.bowl_discard_count == discards + 1)
+	c.check("一杯を捨てる → discard_bowl：椀が空に戻る（動きは今までどおり。確認の窓は無い）", s.bowl_view()["additions"].is_empty() and s.bowl_discard_count == discards + 1)
 	_press(top.get_node("%DeclineButton"))
 	c.check("断る → decline_customer：判定せずに先へ進む（椀は作っていない）", not top.is_adjusting())
 	GameState.saved_recipes = saved_recipes

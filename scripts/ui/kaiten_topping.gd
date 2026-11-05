@@ -2,14 +2,14 @@ extends Control
 class_name UiKaitenTopping
 ## 開店の操作エリア：トッピング。寸法表 KAITEN_UI_LAYOUT §4・§5。
 ## 注文カード（order_card_view。「前回」「今日」）と[聞き直す]（reask）、いまの椀（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、
-## 減点の予告（sale_hint）、分類タブ（具材が先・調味料が後。1タブ12個まで）、具材ボタン（本体＝新鮮、右端＝傷んだ側。
-## select_ingredient）、鍋の小表示、提供（complete_input）、いつもの／保存／廃棄／断る。
+## 案内文と減点の予告（sale_hint）、分類タブ（具材が先・調味料が後。1タブ6個まで）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
+## select_ingredient）、鍋の小表示、提供（complete_input）、いつもの／レシピ保存｜一杯を捨てる／断る（捨てる・断るは区切り線の右。UI準備P）。
 ## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置（16,418）に出す（plan Q14）。
 ## 短縮名を使うのはこの画面だけ（UiLabels.short_name）。
 
-const PER_TAB := 8   # 1ページの具材ボタン（高さを58にして、タグの言葉の札を載せた。UI準備F）。超えたら「具材1」「具材2」…
-const BLOCKER_TEXT := { "NO_FLAVOR": "味の素材が無い", "NO_TOPPING": "具が無い", "STRENGTH_ZERO": "濃さ0",
-	"SHORT_SERVINGS": "鍋が足りない" }
+const PER_TAB := 6   # 1ページの具材ボタン（UI準備P：文字を大きくして3列×2段。以前は4列×2段の8個）。超えたら「具材1」「具材2」…
+## 味・具が欠ける以外の、提供できない理由（味・具の欠けは案内文で出す。UI準備P）。
+const BLOCKER_TEXT := { "STRENGTH_ZERO": "濃さ0", "SHORT_SERVINGS": "鍋が足りない" }
 
 var session: PlaySession = null
 
@@ -151,53 +151,98 @@ func _refresh_bowl(bowl: Dictionary) -> void:
 			slot.theme_type_variation = &"PanelSlotEmpty"
 
 
-## 減点の予告（寸法表 §5-3）：理由をつないで1行。濃さが理由なら続けて鍋タブでの手当て（強調色）。
-## 手当ては今すぐ足せるときだけ出す（依頼書 §3.2）：濃さが最小なら「鍋タブでだし +2」（can_touch_pot と can_add_dashi）、
-## 最大なら「鍋タブで水」（can_touch_pot と can_add_water）。足せないときは理由だけ。
-## 提供できない理由があるときは、それを注意色で出す。減点が無いときは薄い色で「いまのところ減点なし」。
+## 案内文と減点の予告（寸法表 §5-3。UI準備P で状態ごとに分けた）。文と色だけを決め、判定・減点の計算は sale_hint の理由コードのまま。
+##   味・具が欠けている：まだ選んでいない分類は「味付けと具を選んでください」「味付けを選んでください」「具を選んでください」（ふつうの文字色）。
+##     その分類の在庫が1つも無い（選べない）ときだけ「味付けの在庫がありません」「具の在庫がありません」（注意色）。
+##   ほかの提供できない理由（濃さ0・鍋が足りない）：「このままでは提供できません: …」（注意色）。
+##   傷んだ具材だけ：「傷んだ豆腐を使用中：評価が1段階下がります」（注意色）。濃さ（と傷み）：今までどおり「減点の予告: …で1段階下がります。」（注意色）。
+##   濃さが理由なら続けて鍋タブでの手当て（強調色）。手当ては今すぐ足せるときだけ出す（依頼書 §3.2）：濃さが最小なら「鍋タブでだし +2」
+##   （can_touch_pot と can_add_dashi）、最大なら「鍋タブで水」（can_touch_pot と can_add_water）。足せないときは理由だけ。
+##   減点が無いときは薄い色で「いまのところ減点なし」。注意色は、損や問題があるときだけ。
 func _refresh_penalty(bowl: Dictionary) -> void:
 	_penalty.text = penalty_bbcode(bowl, session.sale_hint())
 
 
-## 減点の予告の文（BBCode）。表示の文面だけを作る（判定は sale_hint の理由コード）。
+## 案内文と減点の予告の文（BBCode）。表示の文面だけを作る（判定は sale_hint の理由コード）。
 func penalty_bbcode(bowl: Dictionary, hint: Dictionary) -> String:
 	if bowl.is_empty():
 		return ""
 	var warn := "#" + get_theme_color(&"warn", &"UiPalette").to_html(false)
 	var accent := "#" + get_theme_color(&"accent", &"UiPalette").to_html(false)
+	var neutral := "#" + get_theme_color(&"text", &"UiPalette").to_html(false)
 	var pot := session.pot_view()
 	var can_dashi: bool = session.can_touch_pot() and bool(pot.get("can_add_dashi", false))
 	var can_water: bool = session.can_touch_pot() and bool(pot.get("can_add_water", false))
 	var blockers: Array = hint["blockers"]
-	var text := ""
+	var parts: Array = []   # 色付きの文をつなぐ（全角の空白で区切る）
 	var tip := ""
 	if not blockers.is_empty():
-		var parts: Array = []
+		var need_flavor := blockers.has(SaleRule.NO_FLAVOR)
+		var need_topping := blockers.has(SaleRule.NO_TOPPING)
+		if need_flavor or need_topping:
+			var no_flavor := need_flavor and not _has_stock(true)
+			var no_topping := need_topping and not _has_stock(false)
+			if no_flavor and no_topping:
+				parts.append("[color=%s]味付けと具の在庫がありません[/color]" % warn)
+			elif no_flavor:
+				parts.append("[color=%s]味付けの在庫がありません[/color]" % warn)
+			elif no_topping:
+				parts.append("[color=%s]具の在庫がありません[/color]" % warn)
+			var pick_flavor := need_flavor and not no_flavor
+			var pick_topping := need_topping and not no_topping
+			if pick_flavor and pick_topping:
+				parts.append("[color=%s]味付けと具を選んでください[/color]" % neutral)
+			elif pick_flavor:
+				parts.append("[color=%s]味付けを選んでください[/color]" % neutral)
+			elif pick_topping:
+				parts.append("[color=%s]具を選んでください[/color]" % neutral)
+		var other: Array = []
 		for code in blockers:
-			parts.append(str(BLOCKER_TEXT.get(str(code), str(code))))
-		text = "[color=%s]このままでは提供できません: %s[/color]" % [warn, "・".join(parts)]
-		if blockers.has("STRENGTH_ZERO") and can_dashi:
+			if BLOCKER_TEXT.has(str(code)):
+				other.append(str(BLOCKER_TEXT[str(code)]))
+		if not other.is_empty():
+			parts.append("[color=%s]このままでは提供できません: %s[/color]" % [warn, "・".join(other)])
+		if blockers.has(SaleRule.STRENGTH_ZERO) and can_dashi:
 			tip = "鍋タブでだし +2"
-		elif blockers.has("SHORT_SERVINGS") and can_water:
+		elif blockers.has(SaleRule.SHORT_SERVINGS) and can_water:
 			tip = "鍋タブで水 +2杯"
 	else:
-		var reasons: Array = []
+		var strength_value := -1
+		var spoiled := false
 		for penalty in hint["penalties"]:
 			match str(penalty["code"]):
 				"STRENGTH_EXTREME":
-					reasons.append("濃さ%d" % int(penalty["value"]))
-					if int(penalty["value"]) <= GameState.STRENGTH_MIN:
+					strength_value = int(penalty["value"])
+					if strength_value <= GameState.STRENGTH_MIN:
 						tip = "鍋タブでだし +2" if can_dashi else ""
 					else:
 						tip = "鍋タブで水" if can_water else ""
 				"SPOILED":
-					reasons.append_array(_spoiled_names(bowl))
-		if reasons.is_empty():
+					spoiled = true
+		if strength_value < 0 and not spoiled:
 			return "減点の予告: いまのところ減点なし"
-		text = "[color=%s]減点の予告: %sで1段階下がります。[/color]" % [warn, "・".join(reasons)]
+		if strength_value < 0:
+			parts.append("[color=%s]%sを使用中：評価が1段階下がります[/color]" % [warn, "・".join(_spoiled_names(bowl))])
+		else:
+			var reasons: Array = ["濃さ%d" % strength_value]
+			if spoiled:
+				reasons.append_array(_spoiled_names(bowl))
+			parts.append("[color=%s]減点の予告: %sで1段階下がります。[/color]" % [warn, "・".join(reasons)])
+	var text := "　".join(parts)
 	if tip != "":
 		text += "　[color=%s]%s[/color]" % [accent, tip]
 	return text
+
+
+## その分類（味付け＝true／具＝false）の材料を、いまの椀に入れられるか（選択肢に在庫が1つ以上あるか、もう椀に入っているもの）。
+## 「〇〇の在庫がありません」を出すかどうかだけに使う（表示だけ）。
+func _has_stock(flavor: bool) -> bool:
+	for option in session.ingredient_options():
+		var id := str(option["id"])
+		var match_kind := Ingredients.is_flavor(id) if flavor else Ingredients.is_topping(id)
+		if match_kind and (int(option["count"]) >= 1 or bool(option["in_bowl"])):
+			return true
+	return false
 
 
 ## 椀に入っている傷んだ具材の名前（「傷んだ豆腐」）。品目ごとの印が無い椀は「傷んだ具材」。
@@ -242,7 +287,7 @@ func _refresh_items(can_pick: bool) -> void:
 	ids.sort_custom(func(a, b): return UiLabels.item_order(str(a)) < UiLabels.item_order(str(b)))
 	for id in ids:
 		(groups[by_id[id]["kind"]] as Array).append(by_id[id])
-	# 分類タブ：具材が先、調味料が後。12個を超えたら「具材1」「具材2」…
+	# 分類タブ：具材が先、調味料が後。1ページ（PER_TAB）を超えたら「具材1」「具材2」…
 	var tabs: Array = []
 	for kind in ["topping", "seasoning"]:
 		var items: Array = groups[kind]

@@ -205,9 +205,10 @@ func run(t: SceneTree) -> int:
 		str(goods.get_child(0).get_global_rect()))
 	var first: Dictionary = s.shop_view("produce")[0]
 	var row0: UiGoodsRow = goods.get_child(0)
-	c.check("1行目：品名と「腐る」、2行目：個数・単価・在庫", row0.get_node("Tags/Name").text == str(first["label"])
-		and row0.get_node("Tags/Rot").visible == Ingredients.is_perishable(str(first["item"]))
-		and row0.get_node("Detail").text.begins_with("%d個 / 単価%d / 在庫" % [int(first["count"]), int(first["unit_price"])]))
+	c.check("1行目：品名と「腐る」、2行目：手持ち（新鮮＋傷）、価格の下：個数・単価（UI準備P）", row0.get_node("Tags/Name").text == str(first["label"])
+		and row0.find_child("Rot", true, false).visible == Ingredients.is_perishable(str(first["item"]))
+		and row0.get_node("Stock/Have").text == "手持ち%d" % (int(first["fresh"]) + int(first["damaged"]))
+		and row0.get_node("Detail").text == "%d個 / 単価%d" % [int(first["count"]), int(first["unit_price"])], row0.get_node("Detail").text)
 	c.check("まだ買っていない店では「この店で買った」を出さない", not shop.get_node("%BoughtBox").visible)
 	money_before = GameState.money
 	var stock_before := GameState.fresh_count(str(first["item"]))
