@@ -3047,7 +3047,7 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
     値は`PlaySession.pot_view()`に足した`after_dashi`（{strength}）・`after_water`（{strength, remaining}）・`strength_floor`から（GameState の定数で計算。押した結果と一致することをテストで確かめる）。
   - ボタンにマウスを乗せている間は、目盛りに押した後の位置の△（押せるときだけ。押した後が0・1・5なら注意色）。
   - 注意文（`StrengthNote`）は目盛りの下の左（200幅）へ。1・5は今の文のまま、**濃さ0のとき「濃さ0では提供できません」を足した**。
-  - 変えないもの：濃さの効き方・水とだしの量と値段・判定。トッピング側の案内文・鍋タブの「●」・鍋の小表示（「鍋 残11杯 / 濃さ3」）。
+  - 変えないもの：濃さの効き方・水とだしの量と値段・判定。トッピング側の案内文・鍋タブの「●」・鍋の小表示（「鍋 残11杯 / 濃さ3」。**【UI準備Qで3枠の上の見出しの位置へ移した】**）。
   - テスト：`tests/pot_gauge_test.gd`。画面：`planning/ui_screens_P5/`（before・after。`tools/ui_screens_P5.gd`）。
 - **小さな直し（UI準備P2。表示だけ）**：
   - 市場の商品の行の2行目：「手持ち4 傷1 → 10」（傷は離れた小さい文字）→ 傷んだ分があるときは続けて「手持ち3（傷1）→ 9」（傷は注意色）。傷が0なら「手持ち3 → 9」のまま。
@@ -3060,6 +3060,15 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   - テスト：`market_stock_test`（傷ありの行・全商品で2行目がおさまる・持ち物の「×3 → 9」）・`pot_gauge_test`（ボタンの文の色）。画面：`planning/ui_screens_P2/`（before・after。`tools/ui_screens_P2.gd`）。
 - テスト：`tests/topping_guidance_test.gd`（案内文の6つの状態の文と色・「×」・ボタンの文言と区切り）、`tests/market_stock_test.gd`（かごの「→ 購入後」・購入確定の前後・持ち物のかごの分）。`ui_kaiten_test`・`bowl_cancel_test`・`ui_panes_test`の寸法と文言を合わせた。
   画面：`planning/ui_screens_P/`（before・after。`tools/ui_screens_P.gd`。横並びのはみ出しも数える）。
+- **トッピング画面の鍋の行（UI準備Q。表示と配置だけ）**：
+  - 3枠の上の見出し「いまの椀(3枠)」の文字 → 鍋の行「鍋 残11杯 / 濃さ3」（同じ位置・同じ小さい文字`LabelSub`。`PotLine`＝`PotText`＋`PotStrength`）。3枠そのものは今のまま。
+  - 濃さが適正の外（0・1・5）のときは、濃さの数字だけ注意色（鍋タブの目盛りと同じ線引き。`UiKaitenTopping.strength_outside_fit`）。鍋が無いときは行ごと隠す。
+  - 提供ボタンの上にあった鍋の小表示（`PotMini`）は消した（2か所に出さない）。空いた分だけ大きい椀の絵（`BowlArt`）を下へ広げた（388×119 → 388×143。
+    重ねて出す「いつもの」・保存の段階（`RecipeMenu`）・モブの団体の確認（`GroupBox`）も同じ大きさ）。提供ボタンの位置は今のまま。
+  - 重ねて出すものが出ている間は大きい椀の絵を隠す（優先は 団体の確認＞保存の段階＞「いつもの」の中身＞椀の絵）。
+  - 案内文・入れる・取り消す・3枠の上限・判定は変えない。
+  - テスト：`tests/topping_pot_line_test.gd`（鍋の行が上の1か所だけ・濃さの色・3枠の文字が入れる／取り消すで変わる・重なりの優先）。`ui_kaiten_test`の寸法を合わせた。
+    画面：`planning/ui_screens_Q/`（before・after。`tools/ui_screens_Q.gd`）。
 
 ---
 

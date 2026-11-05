@@ -99,14 +99,28 @@ focus_mode = 0
 theme_type_variation = &"ButtonSmall"
 text = "聞き直す"
 
-[node name="BowlCaption" type="Label" parent="."]
+[node name="PotLine" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 0
 offset_left = 16.0
 offset_top = 132.0
 offset_right = 404.0
 offset_bottom = 151.0
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="PotText" type="Label" parent="PotLine"]
+unique_name_in_owner = true
+layout_mode = 2
 theme_type_variation = &"LabelSub"
-text = "いまの椀(3枠)"
+text = "鍋 残0杯 / 濃さ"
+vertical_alignment = 1
+
+[node name="PotStrength" type="Label" parent="PotLine"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LabelSub"
+text = "0"
 vertical_alignment = 1
 
 [node name="Slots" type="Control" parent="."]
@@ -272,14 +286,14 @@ layout_mode = 0
 offset_left = 16.0
 offset_top = 418.0
 offset_right = 404.0
-offset_bottom = 537.0
+offset_bottom = 561.0
 mouse_filter = 2
 theme_type_variation = &"PanelBox"
 
 [node name="Placeholder" type="Label" parent="BowlArt"]
 layout_mode = 0
 offset_right = 388.0
-offset_bottom = 119.0
+offset_bottom = 143.0
 theme_type_variation = &"LabelDim"
 text = "椀（仮）"
 horizontal_alignment = 1
@@ -292,7 +306,7 @@ layout_mode = 0
 offset_left = 16.0
 offset_top = 418.0
 offset_right = 404.0
-offset_bottom = 537.0
+offset_bottom = 561.0
 mouse_filter = 2
 theme_type_variation = &"PanelToday"
 
@@ -351,7 +365,7 @@ layout_mode = 0
 offset_left = 16.0
 offset_top = 418.0
 offset_right = 404.0
-offset_bottom = 537.0
+offset_bottom = 561.0
 mouse_filter = 2
 theme_type_variation = &"PanelToday"
 
@@ -375,17 +389,6 @@ offset_bottom = 112.0
 theme_override_constants/h_separation = 5
 theme_override_constants/v_separation = 5
 columns = 3
-
-[node name="PotMini" type="Label" parent="."]
-unique_name_in_owner = true
-layout_mode = 0
-offset_left = 16.0
-offset_top = 546.0
-offset_right = 404.0
-offset_bottom = 566.0
-theme_type_variation = &"LabelSub"
-text = "鍋 残0杯 / 濃さ0"
-vertical_alignment = 1
 
 [node name="ServeButton" type="Button" parent="."]
 unique_name_in_owner = true

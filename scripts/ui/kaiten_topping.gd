@@ -1,10 +1,13 @@
 extends Control
 class_name UiKaitenTopping
 ## 開店の操作エリア：トッピング。寸法表 KAITEN_UI_LAYOUT §4・§5。
-## 注文カード（order_card_view。「前回」「今日」）と[聞き直す]（reask）、いまの椀（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、
+## 注文カード（order_card_view。「前回」「今日」）と[聞き直す]（reask）、鍋の行（pot_view。「鍋 残11杯 / 濃さ3」。濃さ0・1・5は数字を注意色）、
 ## 案内文と減点の予告（sale_hint）、分類タブ（具材が先・調味料が後。1タブ6個まで）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
-## select_ingredient）、鍋の小表示、提供（complete_input）、いつもの／レシピ保存｜一杯を捨てる／断る（捨てる・断るは区切り線の右。UI準備P）。
-## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置（16,418）に出す（plan Q14）。
+## select_ingredient）、いまの椀の3枠（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、提供（complete_input）、
+## いつもの／レシピ保存｜一杯を捨てる／断る（捨てる・断るは区切り線の右。UI準備P）。
+## UI準備Q：3枠の上の見出し「いまの椀(3枠)」の文字を鍋の行に替え、提供の上の鍋の小表示は消した（2か所に出さない）。
+## 空いた分だけ大きい椀の絵（16,418）を下へ広げた（提供ボタンの位置は今のまま）。
+## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置に重ねて出し、出ている間は椀の絵を隠す（plan Q14）。
 ## 短縮名を使うのはこの画面だけ（UiLabels.short_name）。
 
 const PER_TAB := 6   # 1ページの具材ボタン（UI準備P：文字を大きくして3列×2段。以前は4列×2段の8個）。超えたら「具材1」「具材2」…
@@ -26,6 +29,10 @@ var _tab_customer := ""
 @onready var _today_chips: HBoxContainer = %TodayChips
 @onready var _reask: Button = %ReaskButton
 @onready var _slots: Control = %Slots
+@onready var _bowl_art: Control = $BowlArt
+@onready var _pot_line: Control = %PotLine
+@onready var _pot_text: Label = %PotText
+@onready var _pot_strength: Label = %PotStrength
 @onready var _penalty: RichTextLabel = %Penalty
 @onready var _tabs: HBoxContainer = %Tabs
 @onready var _grid: GridContainer = %Grid
@@ -37,7 +44,6 @@ var _tab_customer := ""
 @onready var _menu: Control = %RecipeMenu
 @onready var _menu_caption: Label = %RecipeCaption
 @onready var _menu_buttons: GridContainer = %RecipeButtons
-@onready var _pot_mini: Label = %PotMini
 @onready var _serve: Button = %ServeButton
 @onready var _usual: Button = %UsualButton
 @onready var _save: Button = %SaveButton
@@ -94,8 +100,7 @@ func refresh() -> void:
 	_refresh_bowl(bowl)
 	_refresh_penalty(bowl)
 	_refresh_items(adjusting and group.is_empty())
-	var pot := session.pot_view()
-	_pot_mini.text = "鍋 残%d杯 / 濃さ%d" % [int(pot.get("remaining", 0)), int(pot.get("strength", 0))] if bool(pot["exists"]) else ""
+	_refresh_pot_line(session.pot_view())
 	_serve.disabled = not (adjusting and group.is_empty() and session.can_complete_input())
 	var empty_bowl := (bowl.get("additions", []) as Array).is_empty()
 	var recipes := session.recipe_adjust_buttons()
@@ -133,6 +138,27 @@ func _refresh_order_card() -> void:
 	_reask.disabled = not session.can_reask()
 
 
+## 鍋の行（UI準備Q）：「鍋 残11杯 / 濃さ3」。濃さが適正の外（0・1・5＝提供できない・減点の側）なら、濃さの数字だけ注意色（鍋タブの目盛りと同じ考え）。
+## 鍋が無いときは行ごと隠す。
+func _refresh_pot_line(pot: Dictionary) -> void:
+	_pot_line.visible = bool(pot.get("exists", false))
+	if not _pot_line.visible:
+		return
+	var strength := int(pot.get("strength", 0))
+	_pot_text.text = "鍋 残%d杯 / 濃さ" % int(pot.get("remaining", 0))
+	_pot_strength.text = str(strength)
+	if strength_outside_fit(strength, pot):
+		_pot_strength.add_theme_color_override(&"font_color", get_theme_color(&"warn", &"UiPalette"))
+	else:
+		_pot_strength.remove_theme_color_override(&"font_color")
+
+
+## 適正の外か（0以下・1・5）。鍋タブ（UiKaitenPot._outside_fit）と同じ線引き。
+static func strength_outside_fit(value: int, pot: Dictionary) -> bool:
+	return value <= int(pot.get("strength_floor", GameState.STRENGTH_HARD_FLOOR)) \
+		or value == int(pot.get("strength_min", GameState.STRENGTH_MIN)) or value == int(pot.get("strength_max", GameState.STRENGTH_MAX))
+
+
 func _refresh_bowl(bowl: Dictionary) -> void:
 	var additions: Array = bowl.get("additions", [])
 	var damaged: Array = bowl.get("additions_damaged", [])
@@ -149,6 +175,16 @@ func _refresh_bowl(bowl: Dictionary) -> void:
 			label.text = ""
 			UiTagChips.fill(slot.get_node("Chips"), [], true)
 			slot.theme_type_variation = &"PanelSlotEmpty"
+
+
+## いまの椀の文（テスト・確認用）：3枠に入っている順に「短縮名(傷)」を「・」でつなぐ。空なら ""。
+func bowl_text() -> String:
+	var names: Array = []
+	for slot in _slots.get_children():
+		var text := str((slot.get_node("Label") as Label).text)
+		if text != "":
+			names.append(text)
+	return "・".join(names)
 
 
 ## 案内文と減点の予告（寸法表 §5-3。UI準備P で状態ごとに分けた）。文と色だけを決め、判定・減点の計算は sale_hint の理由コードのまま。
@@ -332,7 +368,7 @@ func _refresh_tab_buttons(tabs: Array, current: int) -> void:
 			button.theme_type_variation = &"ButtonCategoryOn" if i == current else &"ButtonCategory"
 
 
-## 大きい椀の絵の位置に重ねて出すもの：モブの団体の確認＞保存の段階＞「いつもの」の中身（どれか1つ）。
+## 大きい椀の絵の位置に重ねて出すもの：モブの団体の確認＞保存の段階＞「いつもの」の中身＞大きい椀の絵（どれか1つ。重ねたものが出ている間は椀の絵を隠す）。
 func _refresh_overlay(group: Dictionary, recipes: Array, save_view: Dictionary) -> void:
 	_group_box.visible = not group.is_empty()
 	if not group.is_empty():
@@ -346,6 +382,7 @@ func _refresh_overlay(group: Dictionary, recipes: Array, save_view: Dictionary) 
 	var show_save := group.is_empty() and bool(save_view.get("can_save", false)) and stage != ""
 	var show_menu := group.is_empty() and not show_save and _menu_open
 	_menu.visible = show_save or show_menu
+	_bowl_art.visible = not (_group_box.visible or _menu.visible)
 	if show_save:
 		_fill_save_menu(save_view)
 	elif show_menu:

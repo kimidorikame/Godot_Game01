@@ -103,10 +103,11 @@ func run(t: SceneTree) -> int:
 		_at(pane.get_node("%PotTab"), Vector2(838, 26), 208) and _at(pane.get_node("%ToppingTab"), Vector2(1046, 26), 208))
 	c.check("選ばれているタブ（トッピング）に下線", absf(pane.get_node("%Underline").position.x - 210.0) < 0.5)
 	var rects := { "%UsualRow": Rect2(852, 86, 303, 28), "%TodayRow": Rect2(852, 120, 303, 28), "%Slots/Slot1": Rect2(852, 179, 125, 48),
-		"%Slots/Slot3": Rect2(1114, 179, 125, 48), "BowlArt": Rect2(852, 442, 388, 119) }
+		"%Slots/Slot3": Rect2(1114, 179, 125, 48), "BowlArt": Rect2(852, 442, 388, 143) }
 	for path in rects:
 		c.check("トッピング：%s の位置と大きさ（寸法表どおり）" % path, _near(top.get_node(path).get_global_rect(), rects[path]),
 			str(top.get_node(path).get_global_rect()))
+	c.check("鍋の行（UI準備Q。3枠の上の見出し「いまの椀(3枠)」の位置）：(852,156)・幅388", _at(top.get_node("%PotLine"), Vector2(852, 156), 388))
 	var grid: GridContainer = top.get_node("%Grid")
 	c.check("具材ボタン：(852,296) 126×66、間隔6で3列・1ページ6個（UI準備P：文字を大きくして4列→3列）",
 		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 126, 66)) and _near(grid.get_child(1).get_global_rect(), Rect2(984, 296, 126, 66))
@@ -148,7 +149,7 @@ func run(t: SceneTree) -> int:
 	c.check("右端「傷」を押す → select_ingredient(豆腐, 傷んだ側)：傷んだ在庫が減り、椀の印が付く",
 		bowl["additions"] == ["tofu"] and bowl["additions_damaged"] == [true] and GameState.damaged_count("tofu") == 1)
 	c.check("椀の枠：「豆腐(傷)」・注意色の枠", top.get_node("%Slots/Slot1/Label").text == "豆腐(傷)"
-		and top.get_node("%Slots/Slot1").theme_type_variation == &"PanelSlotDamaged")
+		and top.get_node("%Slots/Slot1").theme_type_variation == &"PanelSlotDamaged" and top.bowl_text() == "豆腐(傷)")
 	_press(tabs.get_child(1))
 	c.check("分類タブを押すと調味料の一覧（ナムプリ・ココナツ）", grid.get_child(0).get_node("MainButton/Name").text == "ナムプリ"
 		and tabs.get_child(1).theme_type_variation == &"ButtonCategoryOn")
@@ -172,7 +173,7 @@ func run(t: SceneTree) -> int:
 			and top.get_node("%Penalty").get_parsed_text() == "減点の予告: 濃さ1・傷んだ豆腐で1段階下がります。　鍋タブでだし +2"
 			and top.get_node("%Penalty").text.ends_with("[color=#e8a33d]鍋タブでだし +2[/color]"), top.get_node("%Penalty").text)
 	c.check("トッピング中に鍋の手当てが要る（濃さ1）ので、鍋タブに「●」", pane.get_node("%PotDot").visible)
-	c.check("鍋の小表示：「鍋 残999杯 / 濃さ1」", top.get_node("%PotMini").text == "鍋 残999杯 / 濃さ1")
+	c.check("鍋の行（上の段。UI準備Q）：「鍋 残999杯 / 濃さ1」", top.get_node("%PotText").text + top.get_node("%PotStrength").text == "鍋 残999杯 / 濃さ1")
 
 	# 手でタブを切り替える（椀の中身は保持）
 	_press(pane.get_node("%PotTab"))
@@ -209,7 +210,7 @@ func run(t: SceneTree) -> int:
 	_press(top.get_node("%SaveButton"))
 	var menu: GridContainer = top.get_node("%RecipeButtons")
 	c.check("レシピ保存 → 枠を選ぶメニュー（大きい椀の位置）", top.get_node("%RecipeMenu").visible and s.recipe_save_view()["stage"] == "slot"
-		and _near(top.get_node("%RecipeMenu").get_global_rect(), Rect2(852, 442, 388, 119)))
+		and _near(top.get_node("%RecipeMenu").get_global_rect(), Rect2(852, 442, 388, 143)))
 	_press(menu.get_child(0))
 	c.check("枠1を押す → 名前を選ぶ", s.recipe_save_view()["stage"] == "name" and top.get_node("%RecipeCaption").text == "名前を選ぶ")
 	var picked_name: String = menu.get_child(0).text
@@ -306,7 +307,7 @@ func run(t: SceneTree) -> int:
 	var group_box: Control = top.get_node("%GroupBox")
 	c.check("モブの提供 → 団体の確認（大きい椀の位置）：注文4・出せる3", group_box.visible and s.pending_group_choice
 		and top.get_node("%GroupText").text == "注文は4人分。いまの鍋と具材で出せるのは3人分。"
-		and _near(group_box.get_global_rect(), Rect2(852, 442, 388, 119)), top.get_node("%GroupText").text)
+		and _near(group_box.get_global_rect(), Rect2(852, 442, 388, 143)), top.get_node("%GroupText").text)
 	c.check("「3人分を提供」「残り1人に挑戦」「注文を断る」", top.get_node("%GroupServe").text == "3人分を提供"
 		and top.get_node("%GroupRetry").visible and top.get_node("%GroupRetry").text == "残り1人に挑戦"
 		and not (top.get_node("%GroupDecline") as Button).disabled)
