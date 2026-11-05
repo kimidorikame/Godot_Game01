@@ -5,18 +5,18 @@
     "老婆（うましお・腹もち）"
   ],
   "reactions": {
-    "GREAT": [
+	"GREAT": [
       "GREAT"
-    ],
-    "GOOD": [
+	],
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "servings": 1
 }

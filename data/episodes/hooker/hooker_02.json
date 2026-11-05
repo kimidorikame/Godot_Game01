@@ -5,18 +5,18 @@
     "娼婦（苦い・ごちそう）"
   ],
   "reactions": {
-    "GREAT": [
+	"GREAT": [
       "GREAT"
-    ],
-    "GOOD": [
+	],
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "servings": 1
 }

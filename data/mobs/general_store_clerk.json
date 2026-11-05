@@ -5,18 +5,18 @@
     "市場横の雑貨屋の夜番 %d人（苦い・やさしい）"
   ],
   "reactions": {
-    "GOOD": [
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "wanted_tags": [
-    "BITTER",
+	"BITTER",
     "GENTLE"
   ]
 }

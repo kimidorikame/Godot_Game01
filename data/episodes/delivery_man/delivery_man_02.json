@@ -5,18 +5,18 @@
     "配達員（2日目以降・注文: 辛い・スタミナ）"
   ],
   "reactions": {
-    "GREAT": [
+	"GREAT": [
       "GREAT"
-    ],
-    "GOOD": [
+	],
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "servings": 1
 }

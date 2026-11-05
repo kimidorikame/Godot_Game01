@@ -5,18 +5,18 @@
     "安宿の夜勤受付 %d人（まろやか・やさしい）"
   ],
   "reactions": {
-    "GOOD": [
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "wanted_tags": [
-    "MELLOW",
+	"MELLOW",
     "GENTLE"
   ]
 }

@@ -5,18 +5,18 @@
     "港湾労働者 %d人（辛い・スタミナ）"
   ],
   "reactions": {
-    "GOOD": [
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "wanted_tags": [
-    "HOT",
+	"HOT",
     "POWER"
   ]
 }
