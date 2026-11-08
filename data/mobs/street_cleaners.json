@@ -2,21 +2,21 @@
   "is_mob": true,
   "name": "夜間清掃員",
   "greet": [
-    "夜間清掃員 %d人（酸っぱい・腹もち）"
+	"夜間清掃員 %d人（酸っぱい・腹もち）"
   ],
   "reactions": {
 	"GOOD": [
-      "GOOD"
+	  "GOOD"
 	],
 	"OK": [
-      "OK"
+	  "OK"
 	],
 	"BAD": [
-      "BAD"
+	  "BAD"
 	]
   },
   "wanted_tags": [
 	"SOUR",
-    "FILLING"
+	"FILLING"
   ]
 }

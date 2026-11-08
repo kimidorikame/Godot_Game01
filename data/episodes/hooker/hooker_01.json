@@ -2,20 +2,20 @@
   "id": "hooker_01",
   "customer": "hooker",
   "greet": [
-    "娼婦（苦い・ごちそう）"
+	"娼婦（苦い・ごちそう）"
   ],
   "reactions": {
 	"GREAT": [
-      "GREAT"
+	  "GREAT"
 	],
 	"GOOD": [
-      "GOOD"
+	  "GOOD"
 	],
 	"OK": [
-      "OK"
+	  "OK"
 	],
 	"BAD": [
-      "BAD"
+	  "BAD"
 	]
   },
   "servings": 1

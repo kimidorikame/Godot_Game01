@@ -2,20 +2,20 @@
   "id": "granny_01",
   "customer": "granny",
   "greet": [
-    "老婆（うましお・腹もち）"
+	"老婆（うましお・腹もち）"
   ],
   "reactions": {
 	"GREAT": [
-      "GREAT"
+	  "GREAT"
 	],
 	"GOOD": [
-      "GOOD"
+	  "GOOD"
 	],
 	"OK": [
-      "OK"
+	  "OK"
 	],
 	"BAD": [
-      "BAD"
+	  "BAD"
 	]
   },
   "servings": 1

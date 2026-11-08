@@ -2,21 +2,21 @@
   "is_mob": true,
   "name": "港湾労働者",
   "greet": [
-    "港湾労働者 %d人（辛い・スタミナ）"
+	"港湾労働者 %d人（辛い・スタミナ）"
   ],
   "reactions": {
 	"GOOD": [
-      "GOOD"
+	  "GOOD"
 	],
 	"OK": [
-      "OK"
+	  "OK"
 	],
 	"BAD": [
-      "BAD"
+	  "BAD"
 	]
   },
   "wanted_tags": [
 	"HOT",
-    "POWER"
+	"POWER"
   ]
 }
