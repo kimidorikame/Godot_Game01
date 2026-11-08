@@ -38,6 +38,7 @@ func _drive_after_tier(panel) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. PREP_TIERSの数値が目標表(小80/8・中110/11・大140/14)と一致 ---
 	c.check("PREP_TIERSは3段階", Day1Events.PREP_TIERS.size() == 3, str(Day1Events.PREP_TIERS))
@@ -173,4 +174,5 @@ func run(t: SceneTree) -> int:
 			and events.slice(2, events.size() - 1).all(func(e): return str(e.get("part", "")) == "prep_talk"),
 		str(events))
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

@@ -43,6 +43,7 @@ func _drive_to_adjust(panel) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. 濃さ2→水1回→濃さ0・残量+2。以後can_add_water()はfalse ---
 	var panel = _setup(t)
@@ -204,4 +205,5 @@ func run(t: SceneTree) -> int:
 	GameState.dashi_units = 0
 	GameState.reset_for_new_game()
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

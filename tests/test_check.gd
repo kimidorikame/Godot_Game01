@@ -27,3 +27,13 @@ func finish() -> int:
 	print("失敗数: ", fails, " / ", checks, "件")
 	completed_runs += 1
 	return fails
+
+
+## スイートが t.root に足した部品（before＝run() の最初の t.root の子に無かったもの）を片づける。
+## run_tests.gd が次のスイートへ進む前にフレームを1つ待つので queue_free で消えるが、念のため先にツリーから外す
+## （外さないと、消えるまでのあいだ当たり判定を塞ぐ。UI準備Tで分かった）。
+static func free_added(t: SceneTree, before: Array) -> void:
+	for child in t.root.get_children():
+		if not before.has(child):
+			t.root.remove_child(child)
+			child.queue_free()

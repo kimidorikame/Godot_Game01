@@ -20,6 +20,8 @@ extends SceneTree
 ##     が増えなかったスイートは、失敗1件として数える（以前は 0 件扱いで、途中で落ちた
 ##     スイートが成功に見えていた）。
 ##   - 引数で指定したスイートが無い場合も失敗として終了する。
+##   - スイートが t.root に足した部品を残したまま終わると、失敗1件として数える（スイートのあとにフレームを1つ待ち、
+##     queue_free したものが消えてから見る）。残った画面の部品が、後のスイートのクリックの当たり判定を塞いでいた。
 
 func _initialize() -> void:
 	await process_frame
@@ -77,6 +79,7 @@ func _initialize() -> void:
 			total_fails += 1
 			continue
 		var completed_before: int = TestCheck.completed_runs
+		var children_before := root.get_children()
 		var result = suite.run(self)
 		if TestCheck.completed_runs == completed_before:
 			# run()が最後（c.finish()）まで届かなかった＝実行中のエラーで打ち切られた
@@ -85,6 +88,16 @@ func _initialize() -> void:
 			total_fails += 1
 			continue
 		total_fails += int(result)
+		# スイートが作った部品の片づけを確かめる：queue_free したものが消えるようにフレームを1つ待ち、
+		# まだルートに残っている新しい子があれば失敗にする（残ると、後のスイートの当たり判定を塞ぐ。UI準備Tで分かった）。
+		await process_frame
+		var leftovers := []
+		for child in root.get_children():
+			if not children_before.has(child):
+				leftovers.append("%s（%s）" % [str(child.name), child.get_class()])
+		if not leftovers.is_empty():
+			print("  FAIL ", path, " が作った部品を片づけていない（終わりに queue_free か TestCheck.free_added）: ", ", ".join(leftovers))
+			total_fails += 1
 
 	morning_save.call("delete_file")
 	print("合計失敗数: ", total_fails)

@@ -54,6 +54,7 @@ func _add_fund(day: int, amount: int, ref: String) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 	# 運営費に連動する値は定数から計算する（運営費を変えても境目の検査が追従する）。
 	# r14＝見込み14杯の翌日の確保額＝運営費＋仕込み140＋材料費14×25、r11＝見込み11杯＝運営費＋仕込み110＋材料費11×25。
 	var op: int = GameState.DAILY_OPERATING_COST
@@ -274,4 +275,5 @@ func run(t: SceneTree) -> int:
 
 	Rules.set_campaign("week7")
 	GameState.reset_for_new_game()
+	TestCheck.free_added(t, root_before)
 	return c.finish()

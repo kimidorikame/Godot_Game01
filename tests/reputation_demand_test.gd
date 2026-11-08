@@ -39,6 +39,7 @@ func _drive_to_adjust(panel) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. 評判の確定式：GREAT/GOOD/OK/BAD混在+未提供混在で、閉店時に1回だけ動く ---
 	var panel = _setup(t)
@@ -218,4 +219,5 @@ func run(t: SceneTree) -> int:
 				override_ok = false
 	c.check("デバッグ上書きは総需要システムをバイパスし、全モブ枠に一律適用される", override_ok)
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

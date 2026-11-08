@@ -28,6 +28,7 @@ func _drive_to_adjust(panel) -> void:
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1〜2. 老婆（favorite: offal, 要求: SAVORY+FILLING）。F3 Judge v2（DESIGN.md 10.3.2）
 	#     で「判定には初回から好物を使う」に変更されたため、1回目からGREATになる
@@ -144,4 +145,5 @@ func run(t: SceneTree) -> int:
 	c.check("_format_game_stateに好物を知っている客（favorite_known）の一覧が出る",
 		panel3._format_game_state().contains("favorite_known"))
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

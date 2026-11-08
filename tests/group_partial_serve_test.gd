@@ -44,6 +44,7 @@ func _setup(t: SceneTree, mob_count: int, inventory: Dictionary, kettle_remainin
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 	var tips_saved: Dictionary = GameState.TIPS
 	GameState.TIPS = {}   # このテストは定価だけの売上を見る（チップは tests/tips_test.gd）
 
@@ -256,4 +257,5 @@ func run(t: SceneTree) -> int:
 		GameState.served.size() == served_before9 + 1)
 
 	GameState.TIPS = tips_saved
+	TestCheck.free_added(t, root_before)
 	return c.finish()

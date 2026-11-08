@@ -36,6 +36,7 @@ func _setup(t: SceneTree):
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	var panel = _setup(t)
 
@@ -79,4 +80,5 @@ func run(t: SceneTree) -> int:
 		seasoning_texts.has("苦瓜(2)"), str(seasoning_texts))
 	c.check("苦瓜は具材の行には入らない", not ingredient_texts.has("苦瓜(2)"), str(ingredient_texts))
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

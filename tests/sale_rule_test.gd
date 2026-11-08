@@ -26,6 +26,7 @@ func _setup(t: SceneTree, customers: Array, inventory: Dictionary):
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. 名前あり客(thug: MELLOW+GENTLE要求・好物meat_ball)：何も入れていない椀は
 	#         [入力完了]が無効かつハンドラを呼んでも進まない ---
@@ -102,4 +103,5 @@ func run(t: SceneTree) -> int:
 	var result_2match := open.judge_bowl(["HOT", "POWER"], "meat_ball")
 	c.check("一致2個+好物ありはGREAT(回帰)", result_2match == "GREAT", result_2match)
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

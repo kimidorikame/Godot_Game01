@@ -9,6 +9,7 @@ extends RefCounted
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. discard_spoiled_inventory(): 個数・実額付きDictionaryを返す ---
 	GameState.reset_for_new_game()
@@ -162,4 +163,5 @@ func run(t: SceneTree) -> int:
 	if is_instance_valid(panel2):
 		panel2.free()
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

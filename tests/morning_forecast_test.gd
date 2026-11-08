@@ -11,6 +11,7 @@ func _panel(t: SceneTree):
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. Day1は完全公開：9杯・配達員の3杯内訳・必要数がDESIGN.md 10.3.4の数と一致 ---
 	GameState.reset_for_new_game()
@@ -123,4 +124,5 @@ func run(t: SceneTree) -> int:
 	c.check("Day1の中心は固定需要9(day_overrides.fixed_demand)", GameState.demand_center_today() == 9
 		and GameState.total_demand_today() == 9)
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

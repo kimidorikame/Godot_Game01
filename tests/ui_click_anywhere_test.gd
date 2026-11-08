@@ -48,16 +48,7 @@ func _where(root: UiGameRoot) -> String:
 	return "%d|%s" % [root.session.flow.runner.index, str(root.left.get_node("%DialogueText").text)]
 
 
-## 前のテストが残した画面（ルート直下の見えている部品）があれば、当たり判定を塞がないように隠す（このテストの外の部品。印刷して分かるようにする）。
-func _hide_leftovers(t: SceneTree) -> void:
-	for child in t.root.get_children():
-		if child is CanvasItem and (child as CanvasItem).visible:
-			print("ui_click_anywhere_test: 前のテストの残りを隠す ", child.get_path(), " ", child.get_class())
-			(child as CanvasItem).visible = false
-
-
 func _open(t: SceneTree) -> UiGameRoot:
-	_hide_leftovers(t)
 	GameState.reset_for_new_game()
 	GameState.day_count = 2
 	GameState.reputation = 65

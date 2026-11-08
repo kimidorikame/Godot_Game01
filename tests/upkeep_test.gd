@@ -17,6 +17,7 @@ func _setup(t: SceneTree, money: int, day: int = 1):
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. 新しい定数の値そのもの ---
 	c.check("RENT_PRICEは90", GameState.RENT_PRICE == 90)
@@ -176,4 +177,5 @@ func run(t: SceneTree) -> int:
 	c.check("確保が0になっても行自体は残る(常時表示)", panel10._format_game_state().contains("/ 0 /"),
 		panel10._format_game_state())
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()

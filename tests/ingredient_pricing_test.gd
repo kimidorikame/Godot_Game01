@@ -40,6 +40,7 @@ func _setup(t: SceneTree):
 
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
+	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
 
 	# --- 1. 19ボタン(17品目+小口2件)すべてで価格・購入単位・所持金・在庫・単価が目標どおり ---
 	var panel = _setup(t)
@@ -110,4 +111,5 @@ func run(t: SceneTree) -> int:
 	var result := open.judge_bowl(["POWER", "BITE"])
 	c.check("すじ肉1つでPOWER+BITEの要求2つに一致してGOODになる", result == "GOOD", result)
 
+	TestCheck.free_added(t, root_before)
 	return c.finish()
