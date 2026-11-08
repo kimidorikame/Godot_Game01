@@ -1,6 +1,6 @@
 extends RefCounted
 ## DMの日付表示（UI準備G0。表示だけ）。「Day3 05:40」の形（日付＋2桁の時刻）。日付の文字列は Calendar の1か所で作る。
-## 対象：Calendar の形式（日・時刻・合わせた形）／スマホのDMの行（過去日のDMは届いた日の日付・来店予告も同じ形）／ニュースの日付の見出し／
+## 対象：Calendar の形式（日・時刻・合わせた形）／スマホのDM（相手の一覧の日時・やりとりの日時の区切り。過去日のDMは届いた日の日付・来店予告も同じ形。UI準備R）／ニュースの日付の見出し／
 ## 既読の印（id）と本文・差出人は変えない。
 
 
@@ -34,11 +34,17 @@ func run(t: SceneTree) -> int:
 	var items := s.phone_dm()
 	var before_ids: Array = items.map(func(x): return str(x["id"]))
 	var phone: UiPanePhone = root.pane_phone
+	# UI準備R：SNSタブの DM は相手ごとの一覧（最後のメッセージの日時）→相手を開くと、メッセージごとに日時の区切り
 	phone.tab = "sns"
-	phone.refresh()
+	phone.show_dm_list()
+	var threads := s.dm_threads()
 	var texts := _label_texts(phone.get_node("%Content"))
-	var stamps := texts.filter(func(x): return RegEx.create_from_string("^Day[0-9]+ [0-9]{2}:[0-9]{2}$").search(str(x)) != null)
-	c.check("DMの一覧：どの行も「Day3 05:40」の形（日付＋2桁の時刻）", stamps.size() == items.size() and not items.is_empty(), "%d/%d %s" % [stamps.size(), items.size(), str(texts.slice(0, 8))])
+	var stamp_re := RegEx.create_from_string("^Day[0-9]+ [0-9]{2}:[0-9]{2}$")
+	var stamps := texts.filter(func(x): return stamp_re.search(str(x)) != null)
+	c.check("DMの一覧：どの相手の行も「Day3 05:40」の形（日付＋2桁の時刻）", stamps.size() == threads.size() and not threads.is_empty(), "%d/%d %s" % [stamps.size(), threads.size(), str(texts.slice(0, 8))])
+	for thread in threads:
+		phone.open_dm_thread(str(thread["key"]))
+		texts.append_array(_label_texts(phone.get_node("%Content")))
 	var past_ok := true
 	var preview_ok := false
 	for item in items:
@@ -57,6 +63,6 @@ func run(t: SceneTree) -> int:
 	var news_texts := _label_texts(phone.get_node("%Content"))
 	c.check("ニュースの日付の見出しは「Day3（今日）」（Calendar の形。ニュースに時刻は出ない）", news_texts.has("Day3（今日）") or news_texts.has("Day2"), str(news_texts.slice(0, 5)))
 	root.queue_free()
-	ReadState.reset(ReadState.path)   # SNSタブを開いて既読にしたぶんを捨てる（後のスイートの未読の数に影響させない）
+	ReadState.reset(ReadState.path)   # DMの相手を開いて既読にしたぶんを捨てる（後のスイートの未読の数に影響させない）
 	GameState.reset_for_new_game()
 	return c.finish()

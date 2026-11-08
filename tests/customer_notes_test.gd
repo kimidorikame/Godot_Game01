@@ -91,7 +91,12 @@ func run(t: SceneTree) -> int:
 	phone.refresh()
 	var texts := _label_texts(phone.get_node("%Content"))
 	var tabs: Control = phone.get_node("%Tabs")
-	c.check("タブは4つ（SNS／ニュース／持ち物／客）・客タブを開いた", tabs.get_child_count() >= 4 and (tabs.get_child(3) as Button).text == "客" and texts.has("名前あり客") and texts.has("モブ"), str(texts.slice(0, 6)))
+	var tab_texts := []
+	for child in tabs.get_children():
+		if child is Button:
+			tab_texts.append((child as Button).text)
+	c.check("タブは3つ（SNS／ニュース／持ち物。UI準備R で客タブを画面から外した）。客ノートの描き方は残してあり、tab=\"notes\" なら描ける",
+		tab_texts == ["SNS", "ニュース", "持ち物"] and texts.has("名前あり客") and texts.has("モブ"), str(tab_texts) + str(texts.slice(0, 6)))
 	c.check("一覧は名前だけ（来た日・札は詳細で見る。UI準備O2）", texts.has("配達員") and not texts.has("Day1") and not texts.has("辛い"), str(texts))
 	phone.open_note("delivery_man")
 	var detail_texts := _label_texts(phone.get_node("%Content"))
@@ -119,7 +124,7 @@ func run(t: SceneTree) -> int:
 	_press(goods.get_child(0).get_node("BuyButton"))
 	_press(goods.get_child(1).get_node("BuyButton"))
 	var in_cart: int = root.cart.count(s.market_shop)
-	root.open_phone("notes")
+	root.open_phone("sns")
 	var opened := phone.visible and not shop.visible
 	root.close_overlay()
 	c.check("買い物の最中にスマホ（客タブ）を開ける・閉じると同じ店に戻り、かごは消えない",
@@ -141,7 +146,7 @@ func run(t: SceneTree) -> int:
 			and meat_cart == 1 and root.cart.count("meat_wholesale") == 1, "%s %s %s" % [str(meat.visible), s.market_shop, str(root.pane_market.visible)])
 	# 店選びの画面から開いて閉じても、店選びのまま
 	_press(meat.get_node("%BackButton"))
-	root.open_phone("notes")
+	root.open_phone("sns")
 	root.close_overlay()
 	c.check("店選びの画面で開いて閉じると、店選びのまま", root.pane_market.visible and s.market_shop == "")
 	# --- 5. 再挑戦・続きから ---
@@ -158,7 +163,7 @@ func run(t: SceneTree) -> int:
 	GameState.today_plan = { "day": 4, "slots": [{ "name": "宵の口", "customers": ["streamer", "mob#0"], "regular_id": "streamer", "episode_id": "", "today_request": {} }],
 		"mob_instances": { "mob#0": { "type": "inn_clerk", "count": 2 } }, "demand_center": 9 }
 	phone.tab = "sns"
-	phone.refresh()
+	phone.show_dm_list()   # UI準備R：SNSタブの DM は相手ごとの一覧
 	var shapes := {}
 	var mark_seen := false
 	var rows_seen := 0
@@ -167,7 +172,7 @@ func run(t: SceneTree) -> int:
 		var kind := ""
 		if row_texts.has("港湾労働者の組") or row_texts.has("安宿の夜勤受付"):
 			kind = "mob"
-		elif row_texts.has("配信者"):
+		elif row_texts.has(ScheduleData.customer_display_name("streamer")):
 			kind = "customer"
 		elif row_texts.has("市場の顔なじみ"):
 			kind = "npc"

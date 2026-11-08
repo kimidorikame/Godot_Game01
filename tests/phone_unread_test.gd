@@ -1,5 +1,6 @@
 extends RefCounted
-## スマホの未読（UI準備D）：ボタンの●は、DMとニュースの未読の合計。ニュースタブにも●。タブを表示した時点で既読。
+## スマホの未読（UI準備D・R）：ボタンの●は、DMとニュースとタイムラインの新しい投稿の未読の合計。ニュースタブにも●。ニュース・タイムラインはタブ（画面）を
+## 表示した時点で既読。DMは相手を開いた時点で、その相手の分だけ既読（UI準備R）。
 ## 朝の会話枠にはニュースとスマホの入力待ちを出さない（ニュースはスマホで読む）ので、必須情報（must_info）を持つニュースが
 ## 未読のまま「市場へ」に進める（ゲートは付けない）。この事実も確かめる。
 ## 既読は ReadState（保存とは別のファイル。idで持つ）。ここでは専用のパスで空から始め、終わったらテスト共通のパスへ戻す。
@@ -19,12 +20,12 @@ func run(t: SceneTree) -> int:
 		news_total += (section["news"] as Array).size()
 	c.check("Day3：今日までのニュースが3件（Day1・2・3の各1件）で、すべてid・未読つき", news_total == 3
 		and s.phone_news().all(func(sec): return (sec["news"] as Array).all(func(n): return str(n["id"]) != "" and bool(n["unread"]))))
-	c.check("ニュースの未読の数＝3、スマホの未読の合計＝DM＋ニュース", s.news_unread_count() == 3
-		and s.phone_unread_count() == s.dm_unread_count() + s.news_unread_count(), "%d/%d" % [s.news_unread_count(), s.dm_unread_count()])
+	c.check("ニュースの未読の数＝3、スマホの未読の合計＝DM＋ニュース＋タイムライン", s.news_unread_count() == 3
+		and s.phone_unread_count() == s.dm_unread_count() + s.news_unread_count() + s.timeline_unread_count(), "%d/%d" % [s.news_unread_count(), s.dm_unread_count()])
 	c.check("必須情報を持つ未読のニュース（3件）を数えられる", (s.unread_must_info_news() as Array).size() == 3, str(s.unread_must_info_news()))
 	s.mark_news_read()
-	c.check("mark_news_read() でニュースは全部既読（DMは変わらない）", s.news_unread_count() == 0 and s.unread_must_info_news().is_empty()
-		and s.phone_unread_count() == s.dm_unread_count())
+	c.check("mark_news_read() でニュースは全部既読（DM・タイムラインは変わらない）", s.news_unread_count() == 0 and s.unread_must_info_news().is_empty()
+		and s.phone_unread_count() == s.dm_unread_count() + s.timeline_unread_count())
 	c.check("既読はidで持つ（もう一度呼んでも増減しない・phone_news の unread が全部 false）",
 		s.phone_news().all(func(sec): return (sec["news"] as Array).all(func(n): return not bool(n["unread"]))))
 	s.free()
@@ -38,8 +39,8 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(root)
 	var session: PlaySession = root.session
 	var badge: Label = root.left.get_node("%PhoneBadge")
-	var expected_total := session.dm_unread_count() + session.news_unread_count()
-	c.check("スマホのボタンの●は、DMとニュースの未読の合計", expected_total >= 3 and badge.text == "●%d" % expected_total, badge.text)
+	var expected_total := session.dm_unread_count() + session.news_unread_count() + session.timeline_unread_count()
+	c.check("スマホのボタンの●は、DMとニュースとタイムラインの未読の合計", expected_total >= 3 and badge.text == "●%d" % expected_total, badge.text)
 	var phone: UiPanePhone = root.pane_phone
 	load("res://tests/ui_autoplay.gd").click(root.left.get_node("%PhoneIcon"))
 	c.check("スマホを開く（最初に見せるのはニュースのタブ）", root.overlay == "phone" and phone.visible and phone.tab == "news")
@@ -48,12 +49,17 @@ func run(t: SceneTree) -> int:
 	var sns_badge: Label = phone.get_node("%SnsBadge")
 	c.check("ニュースタブを表示した時点で、ニュースは既読（ニュースタブの●は出ない）", session.news_unread_count() == 0 and news_badge.text == "")
 	var dm_left := session.dm_unread_count()
-	c.check("ボタンの●は、残りのDMの数だけになる", badge.text == ("●%d" % dm_left if dm_left > 0 else ""), badge.text)
-	c.check("SNSタブの●（未読のDM）が出ている", dm_left == 0 or sns_badge.text == "●%d" % dm_left, sns_badge.text)
+	var sns_left := dm_left + session.timeline_unread_count()
+	c.check("ボタンの●は、残りのDMとタイムラインの数だけになる", badge.text == ("●%d" % sns_left if sns_left > 0 else ""), badge.text)
+	c.check("SNSタブの●（未読のDM＋タイムラインの新しい投稿）が出ている", sns_left == 0 or sns_badge.text == "●%d" % sns_left, sns_badge.text)
 	var headline_marked := _headline_marked(phone.get_node("%Content"))
 	c.check("開いた時点で未読だったニュースの見出しには ● が付く（スマホを閉じるまで）", headline_marked)
 	load("res://tests/ui_autoplay.gd").press(tabs.get_child(0))
-	c.check("SNSタブを表示した時点で、DMも既読（ボタンの●が消える）", session.dm_unread_count() == 0 and badge.text == "")
+	c.check("SNSタブ（タイムライン）を表示した時点で、タイムラインは既読。DMは読んでいないので、ボタンの●はDMの数だけ残る（UI準備R）",
+		session.timeline_unread_count() == 0 and session.dm_unread_count() == dm_left and badge.text == ("●%d" % dm_left if dm_left > 0 else ""), badge.text)
+	for thread in session.dm_threads():
+		phone.open_dm_thread(str(thread["key"]))
+	c.check("DMの相手を全部開くと、DMも既読（ボタンの●が消える）", session.dm_unread_count() == 0 and badge.text == "", badge.text)
 	load("res://tests/ui_autoplay.gd").press(phone.get_node("%CloseButton"))
 	load("res://tests/ui_autoplay.gd").press(root.left.get_node("%PhoneIcon"))
 	load("res://tests/ui_autoplay.gd").press(tabs.get_child(1))

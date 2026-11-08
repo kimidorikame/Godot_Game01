@@ -1,10 +1,12 @@
 extends Panel
 class_name UiPanePhone
 ## 右の枠：スマホ（右の枠・開店中は操作エリアと入れ替わる。重ね表示はしない）。寸法表 SCREENS_UI_LAYOUT §3。
-## タブは SNS／ニュース／持ち物／客（レシピタブは無くして、持ち物に置き換えた。UI準備I2・I3）。客タブは店主のメモ帳（一覧→詳細。UI準備O2）。SNS＝phone_dm()（常連・市場の顔なじみなどからのDM。新しい順。客足予報は出さない）。
-## 未読のDMがあれば SNS タブに数（注意色）を、未読のニュースがあればニュースタブに数を出し、そのタブを表示した時点で読んだ扱いにする
-## （mark_dms_read・mark_news_read）。
-## 表示中の一覧では、開いた時点で未読だった行に左の注意色の線を残す（スマホを閉じるまで）。
+## タブは SNS／ニュース／持ち物（UI準備R で客タブを画面から外した。客メモの仕組み〔_fill_notes など〕は消さずに残し、tab="notes" のときだけ描く）。
+## SNS＝上の切り替え「タイムライン｜DM」（UI準備R。中身は UiSnsView）。SNSタブを開いたときは、いつもタイムライン。
+##   タイムライン＝sns_timeline()（街の人や客の呟き。表示した時点で読んだ扱い＝mark_timeline_read）。
+##   DM＝dm_threads()（相手ごとの一覧→相手を押すとやりとりと連絡先のカード。相手を開いた時点でその相手のDMを読んだ扱い＝mark_dm_thread_read）。
+## 未読：SNSタブに「タイムラインの新しい投稿＋未読のDM」の数（注意色）、DMの切り替えにDMの未読の数、ニュースタブに未読のニュースの数。
+## 表示中の一覧では、開いた時点で未読だった投稿に左の注意色の線を残す（スマホを閉じるまで）。
 ## ニュース＝phone_news() のニュース。一覧（日付と見出し。新しい日が上）→行を押すと詳細（見出し・日付・本文の全部）→「戻る」で一覧（UI準備O）。
 ## 品名は本名（短縮名は開店の操作エリアだけ）。「閉じる」で元の画面に戻る（開店中は「閉じる(鍋・トッピングに戻る)」）。
 
@@ -12,7 +14,7 @@ signal close_requested()
 ## SNS・ニュースのタブを表示して、未読を読んだ扱いにしたとき（スマホのボタンの未読の印を消すため）。
 signal unread_cleared()
 
-const TABS := ["sns", "news", "inventory", "notes"]
+const TABS := ["sns", "news", "inventory"]
 
 var session: PlaySession = null
 ## 市場の「かご」（ルートが持つ。市場にいるあいだ、持ち物タブにかごの分を足して見せる。UI準備P）。
@@ -28,10 +30,12 @@ var tab := "news"
 @onready var _close: Button = %CloseButton
 @onready var _badge: Label = %SnsBadge
 @onready var _news_badge: Label = %NewsBadge
-@onready var _notes_badge: Label = %NotesBadge
 
-## このスマホを開いてから、未読として見せたDMのid（行の左に線を残す）。閉じる・区切りで捨てる。
-var _fresh := {}
+## このスマホを開いてから、未読として見せたタイムラインの投稿の id（左に線を残す）。閉じる・区切りで捨てる。
+var _fresh_posts := {}
+## 表示だけの状態：SNSタブの中の画面（"timeline"／"dm"）と、DMで開いている相手（dm_threads の key。"" なら相手の一覧）。UI準備R。
+var sns_mode := "timeline"
+var dm_open := ""
 ## このスマホを開いてから、未読として見せたニュースのid（見出しの頭に●を残す）。
 var _fresh_news := {}
 ## 表示だけの状態：詳細を開いているニュースのid（"" なら一覧。UI準備O）。タブを替える・閉じる・区切りで一覧に戻す。
@@ -54,7 +58,9 @@ func bind_session(s: PlaySession) -> void:
 
 ## 区切り・閉じるで、表示だけの状態を捨てる。
 func reset_ui_state() -> void:
-	_fresh = {}
+	_fresh_posts = {}
+	sns_mode = "timeline"
+	dm_open = ""
 	_fresh_news = {}
 	news_open = ""
 	notes_open = ""
@@ -70,8 +76,10 @@ func refresh() -> void:
 	var index := TABS.find(tab)
 	for i in range(TABS.size()):
 		(_tabs.get_child(i) as Button).theme_type_variation = &"ButtonTabOn" if i == index else &"ButtonTab"
-	_underline.position.x = (_tabs.get_child(index) as Control).position.x
-	_underline.size.x = (_tabs.get_child(index) as Control).size.x
+	_underline.visible = index >= 0   # 客メモ（tab="notes"）はタブの無い画面
+	if index >= 0:
+		_underline.position.x = (_tabs.get_child(index) as Control).position.x
+		_underline.size.x = (_tabs.get_child(index) as Control).size.x
 	_close.text = "閉じる(鍋・トッピングに戻る)" if GameState.phase == GameState.Phase.OPEN else "閉じる"
 	_refresh_badge()
 	for child in _content.get_children():
@@ -101,74 +109,71 @@ func _add(text: String, variation: StringName) -> Label:
 	return label
 
 
-## DMの一覧（新しい順）。1件 388×65：丸い顔・名前・常連の印・時刻・本文。未読は左に注意色の線。
+## SNSタブ：上の切り替え「タイムライン｜DM」と、その下の画面（UI準備R）。
 func _fill_sns() -> void:
-	var items := session.phone_dm()
-	if items.is_empty():
-		_add("まだ新着はありません", &"LabelDim")
-		return
-	for item in items:
-		if bool(item["unread"]):
-			_fresh[str(item["id"])] = true
-	for item in items:
-		_add_dm_row(item, _fresh.has(str(item["id"])))
-	var unread_before := session.dm_unread_count()
-	session.mark_dms_read()   # 表示した時点で既読にする
-	if unread_before > 0:
+	var unread_before := session.dm_unread_count() + session.timeline_unread_count()
+	if sns_mode == "dm" and dm_open != "":
+		session.mark_dm_thread_read(dm_open)   # 相手を開いた時点で、その相手のDMを読んだ扱い（切り替えの●にも反映してから描く）
+	if sns_mode == "timeline":
+		for section in session.sns_timeline():
+			for item in section["posts"]:
+				for post in [item] + (item["replies"] as Array):
+					if bool(post["unread"]):
+						_fresh_posts[str(post["id"])] = true
+		session.mark_timeline_read()   # 表示した時点で読んだ扱い
+	var threads := session.dm_threads()
+	var dm_unread := 0
+	for thread in threads:
+		dm_unread += int(thread["unread"])
+	UiSnsView.add_switch(_content, sns_mode, dm_unread, show_timeline, show_dm_list)
+	if sns_mode == "timeline":
+		UiSnsView.fill_timeline(_content, session.sns_timeline(), _fresh_posts, self)
+	elif dm_open != "":
+		var found := {}
+		for thread in threads:
+			if str(thread["key"]) == dm_open:
+				found = thread
+		if found.is_empty():
+			dm_open = ""
+			UiSnsView.fill_dm_list(_content, threads, open_dm_thread, self)
+		else:
+			UiSnsView.fill_dm_thread(_content, found, session.contact_card(dm_open), close_dm_thread, self)
+	else:
+		UiSnsView.fill_dm_list(_content, threads, open_dm_thread, self)
+	if session.dm_unread_count() + session.timeline_unread_count() < unread_before:
 		unread_cleared.emit()
 
 
-func _add_dm_row(item: Dictionary, unread: bool) -> void:
-	var row := Panel.new()
-	row.theme_type_variation = &"PanelBox"
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_content.add_child(row)   # 先に木へ入れる（文字の高さを、テーマのフォントで測るため）
-	var text := Label.new()
-	text.text = str(item["text"])
-	text.theme_type_variation = &"LabelPhoneBody"
-	text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	text.position = Vector2(62, 30)
-	text.size = Vector2(316, 0)
-	row.add_child(text)
-	# 本文が2行以上に折り返すときは、行を高くする（1行なら寸法表どおり 388×65）
-	var font := text.get_theme_font(&"font")
-	var text_height := font.get_multiline_string_size(text.text, HORIZONTAL_ALIGNMENT_LEFT, 316.0, text.get_theme_font_size(&"font_size"),
-		-1, TextServer.BREAK_GRAPHEME_BOUND | TextServer.BREAK_MANDATORY).y
-	text.custom_minimum_size = Vector2(316, text_height)
-	row.custom_minimum_size = Vector2(388, maxf(65.0, 36.0 + text_height))
-	# 丸い顔（仮の絵）
-	var face := Panel.new()
-	var face_style := StyleBoxFlat.new()
-	face_style.bg_color = get_theme_color(&"portrait", &"UiPalette")
-	face_style.set_corner_radius_all(20)
-	face.add_theme_stylebox_override("panel", face_style)
-	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	face.position = Vector2(14, 12)
-	face.size = Vector2(40, 40)
-	row.add_child(face)
-	var from_label := Label.new()
-	from_label.text = str(item["from"])
-	from_label.theme_type_variation = &"LabelShop"
-	from_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	from_label.position = Vector2(62, 4)
-	from_label.size = Vector2(190, 26)
-	row.add_child(from_label)
-	var time := Label.new()
-	time.text = Calendar.stamp(int(item.get("day", GameState.day_count)), str(item["time"]))   # 「Day3 05:40」（日付は届いた日。形は Calendar）
-	time.theme_type_variation = &"LabelCaption"
-	time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	time.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	time.position = Vector2(262, 6)
-	time.size = Vector2(114, 22)
-	row.add_child(time)
-	if unread:
-		var bar := ColorRect.new()
-		bar.color = get_theme_color(&"warn", &"UiPalette")
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bar.position = Vector2(0, 0)
-		bar.size = Vector2(4, row.custom_minimum_size.y)
-		row.add_child(bar)
+## SNSタブの切り替え：タイムラインへ。
+func show_timeline() -> void:
+	sns_mode = "timeline"
+	dm_open = ""
+	_scroll.scroll_vertical = 0
+	refresh()
+
+
+## SNSタブの切り替え：DMの相手の一覧へ。
+func show_dm_list() -> void:
+	sns_mode = "dm"
+	dm_open = ""
+	_scroll.scroll_vertical = 0
+	refresh()
+
+
+## DMの相手を開く（一覧の行を押したとき）。
+func open_dm_thread(key: String) -> void:
+	tab = "sns"
+	sns_mode = "dm"
+	dm_open = key
+	_scroll.scroll_vertical = 0
+	refresh()
+
+
+## DMのやりとりから相手の一覧へ戻る。
+func close_dm_thread() -> void:
+	dm_open = ""
+	_scroll.scroll_vertical = 0
+	refresh()
 
 
 func _fill_news() -> void:
@@ -441,16 +446,17 @@ func close_note() -> void:
 
 ## SNSタブ・ニュースタブの未読の数（注意色の丸）。そのタブを表示しているあいだは読んだ扱いなので出さない。
 func _refresh_badge() -> void:
-	var dm_unread := session.dm_unread_count() if tab != "sns" else 0
-	_badge.text = "●%d" % dm_unread if dm_unread > 0 else ""
+	# SNSタブ：タイムラインの新しい投稿と未読のDM（SNSタブを表示しているあいだは、DMの未読は切り替えの横に出す）
+	var sns_unread := session.dm_unread_count() + session.timeline_unread_count() if tab != "sns" else 0
+	_badge.text = "●%d" % sns_unread if sns_unread > 0 else ""
 	var news_unread := session.news_unread_count() if tab != "news" else 0
 	_news_badge.text = "●%d" % news_unread if news_unread > 0 else ""
-	var notes_unread := session.memo_unread_count() if tab != "notes" else 0
-	_notes_badge.text = "●%d" % notes_unread if notes_unread > 0 else ""
 
 
 func _on_tab_pressed(next_tab: String) -> void:
 	tab = next_tab
+	sns_mode = "timeline"   # SNSタブを開いたときは、いつもタイムライン（UI準備R）
+	dm_open = ""
 	news_open = ""
 	notes_open = ""
 	_scroll.scroll_vertical = 0

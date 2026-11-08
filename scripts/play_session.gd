@@ -2925,9 +2925,140 @@ func mark_news_read() -> void:
 			ReadState.mark(_news_read_key(str(item["id"])))
 
 
-## スマホのボタンの未読の数：DMとニュースと、客タブの新しいメモ（UI準備O2）の合計。
+## スマホのボタンの未読の数：DMとニュースとタイムラインの新しい投稿（UI準備R）の合計。客タブは画面に出さないので、メモの●は数えない。
 func phone_unread_count() -> int:
-	return dm_unread_count() + news_unread_count() + memo_unread_count()
+	return dm_unread_count() + news_unread_count() + timeline_unread_count()
+
+
+# --- SNS：タイムラインとDM（UI準備R・試しの実装） ---
+
+## 今日の閉店のあと（日の締めが済んだ）か。最終日の結果画面のときだけ true（ふだんの日は、翌朝に日が進む）。
+func _day_ended() -> bool:
+	return GameState.phase == GameState.Phase.RESULT
+
+
+## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
+func sns_timeline() -> Array:
+	var sections := Sns.timeline(GameState.day_count, _day_ended())
+	for section in sections:
+		for item in section["posts"]:
+			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
+			for reply in item["replies"]:
+				reply["unread"] = not ReadState.is_read(_post_read_key(str(reply["id"])))
+	return sections
+
+
+## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
+func timeline_unread_count() -> int:
+	var n := 0
+	for id in Sns.visible_ids(GameState.day_count, _day_ended()):
+		if not ReadState.is_read(_post_read_key(str(id))):
+			n += 1
+	return n
+
+
+## タイムラインを表示した：見えている投稿を読んだ扱いにする。
+func mark_timeline_read() -> void:
+	for id in Sns.visible_ids(GameState.day_count, _day_ended()):
+		ReadState.mark(_post_read_key(str(id)))
+
+
+func _post_read_key(id: String) -> String:
+	return ReadState.line_key("sns_post", "", id, id)   # 文が差し替わっても既読は変えない（idで持つ）
+
+
+## DMの相手のキー：名前あり客は "customer:<客id>"、モブの組は "mob:<種類>"、客でない差出人は "npc:<差出人名>"。
+## 差出人とSNSのアカウントは結びつけない。
+static func dm_thread_key(item: Dictionary) -> String:
+	var requires: Dictionary = item.get("requires", {}) if item.get("requires") is Dictionary else {}
+	match str(item.get("from_kind", "")):
+		"customer":
+			return "customer:" + str(requires.get("customer", item.get("subject", "")))
+		"mob":
+			return "mob:" + str(requires.get("mob_type", item.get("subject", "")))
+	return "npc:" + str(item.get("from", ""))
+
+
+## DMを相手ごとにまとめる：[{ key, name, customer（名前あり客の id。ほかは ""）, messages:[{ id, day, time, text, unread }（古い順）],
+## last（最後のメッセージ）, unread（未読の数）}]。最後のメッセージが新しい相手が上。名前あり客の名前は今の表示名（customer_display_name）。
+## 中身は Dm.inbox（DMの本文・来店予告の選び方・日付の出し方は変えない）。
+func dm_threads() -> Array:
+	var by_key := {}
+	for item in Dm.inbox(GameState.day_count):
+		var key := dm_thread_key(item)
+		var customer := key.trim_prefix("customer:") if key.begins_with("customer:") else ""
+		if not by_key.has(key):
+			by_key[key] = { "key": key, "customer": customer, "messages": [],
+				"name": ScheduleData.customer_display_name(customer) if customer != "" else str(item.get("from", "")) }
+		(by_key[key]["messages"] as Array).append({ "id": str(item.get("id", "")), "day": int(item.get("day", 0)), "time": str(item.get("time", "")),
+			"text": str(item.get("text", "")), "unread": not ReadState.is_read(_dm_read_key(item)) })
+	var out := []
+	for key in by_key:
+		var thread: Dictionary = by_key[key]
+		var messages: Array = thread["messages"]
+		messages.sort_custom(func(a, b): return _dm_order(a) < _dm_order(b))
+		thread["last"] = messages[messages.size() - 1]
+		thread["unread"] = messages.filter(func(m): return bool(m["unread"])).size()
+		out.append(thread)
+	out.sort_custom(func(a, b): return _dm_order(a["last"]) > _dm_order(b["last"]))
+	return out
+
+
+## DMの並びの値：日と時刻そのまま（DMの朝の時刻〔04:45 など〕はその日の朝。タイムラインの「夜中は24時以降」の数え方は使わない）。
+static func _dm_order(message: Dictionary) -> int:
+	return int(message["day"]) * 10000 + maxi(Sns.minutes(str(message["time"])), 0)
+
+
+## その相手とのやりとりを開いた：その相手のDMを読んだ扱いにする（相手ごとの未読）。
+func mark_dm_thread_read(key: String) -> void:
+	for item in Dm.inbox(GameState.day_count):
+		if dm_thread_key(item) == key:
+			ReadState.mark(_dm_read_key(item))
+
+
+## DMの相手の「連絡先のカード」（名前あり客だけ。ほかは名前だけ）：{ name, customer, last_order（前回の注文の札。分からなければ空）,
+##   days（来た日）, favorite_known, favorite（好物の材料名。知った客だけ）}。前回の注文は、注文カードの「前回」と同じ中身
+##   （今日もう来て注文が分かった客は今日の注文。まだなら、今夜来る場面に card_last があればそれ、無ければ前の来店の注文）。
+func contact_card(key: String) -> Dictionary:
+	var name := key.trim_prefix(key.get_slice(":", 0) + ":")
+	if not key.begins_with("customer:"):
+		for thread in dm_threads():
+			if str(thread["key"]) == key:
+				name = str(thread["name"])
+		return { "name": name, "customer": "" }
+	var id := key.trim_prefix("customer:")
+	var card := { "name": ScheduleData.customer_display_name(id), "customer": id, "last_order": [], "days": [], "favorite_known": false, "favorite": "" }
+	var note := {}
+	for item in phone_notes()["regulars"]:
+		if str(item["id"]) == id:
+			note = item
+	if not note.is_empty():
+		card["days"] = (note["days"] as Array).duplicate()
+		card["favorite_known"] = bool(note["favorite_known"])
+		card["favorite"] = str(note["favorite"])
+	var today_episode := _planned_episode_today(id)
+	var override = ScheduleData.episode_data(id, today_episode).get("card_last") if today_episode != "" else null
+	if not note.is_empty() and (note["days"] as Array).has(GameState.day_count):
+		card["last_order"] = (note["last_order"] as Array).duplicate()
+	elif override is Array:
+		card["last_order"] = (override as Array).duplicate()
+	elif not note.is_empty():
+		card["last_order"] = (note["last_order"] as Array).duplicate()
+	return card
+
+
+## 今日その客が来る予定の場面の id（予定に無ければ ""）。
+func _planned_episode_today(customer_id: String) -> String:
+	var plan: Dictionary = GameState.today_plan
+	if int(plan.get("day", -1)) == GameState.day_count:
+		for slot in plan.get("slots", []):
+			if str(slot.get("regular_id", "")) == customer_id:
+				return str(slot.get("episode_id", ""))
+		return ""
+	for entry in ScheduleData.regular_slots(GameState.day_count):
+		if str(entry.get("regular", "")) == customer_id:
+			return str(entry.get("episode_id", ""))
+	return ""
 
 
 # --- 店主のメモ帳（客タブ。UI準備O2） ---
@@ -3156,7 +3287,7 @@ func pot_view() -> Dictionary:
 
 ## 注文カード（その客の『前回』と『今日』。UI準備O2で「いつもの」を「前回」に替えた）。開店中は常に出す（客がいなければ空）。表示だけで、判定・乱数・保存には触れない。
 ## { customer, last[タグ]（前回）, last_known（前回の欄を出すか）, today[タグ]（今日の注文）, today_known（今日の欄を出すか）,
-##   base[タグ]（基本の注文。参考）, label, can_reask }
+##   base[タグ]（基本の注文。参考）, label, favorite（好物の材料名。知った名前あり客だけ。UI準備R）, can_reask }
 ##   ・「前回」：名前あり客の、前回の来店で頼んだ注文（その来店の場面に今日の頼みがあればその札、無ければ基本の注文。last_order_of）。
 ##     来店の最初から出る。初来店（今日より前の来店が無い）は空白。モブは空白。場面データの card_last があれば、それを出す
 ##     （ゲームの始まる前から通っている客の初来店など。[] なら空白）。
@@ -3187,7 +3318,7 @@ func order_card_view() -> Dictionary:
 				adjust_index = i
 				break
 	var card := { "customer": customer_id, "base": [], "last": [], "last_known": false, "today": [], "today_known": false, "label": "",
-		"can_reask": can_reask() }
+		"favorite": "", "can_reask": can_reask() }
 	if adjust_index < 0:
 		return card
 	var effective: Array = []
@@ -3201,6 +3332,10 @@ func order_card_view() -> Dictionary:
 	card["base"] = (profile.get("wanted_tags", []) as Array).duplicate() if named else effective.duplicate()
 	card["today"] = effective
 	if named:
+		# 好物（UI準備R）：知った客だけ材料名（知る時刻は favorite_reveal のまま）。知らない客・モブは ""
+		var favorite := str(profile.get("favorite", ""))
+		if favorite != "" and GameState.knows_favorite(customer_id):
+			card["favorite"] = Ingredients.name_for(favorite)
 		var episode := Day1Events.episode_id_of(customer_id)
 		var multi := Day1Events.is_multi_cup_scene(customer_id, episode)
 		if not multi:

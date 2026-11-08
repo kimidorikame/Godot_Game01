@@ -1,0 +1,9 @@
+# 本番UI（UI準備R）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_R.gd が書き出す（手で直さない）
+
+## スクリーンショット
+01_order_card.png  営業中の注文カード（Day2・配達員。前回・今日）
+02_day4_sns.png  Day4 の朝：SNSタブ（DMの一覧）
+05_day7_sns.png  Day7 の朝：SNSタブ（DMの一覧）
+
+## 入りきらない箇所（0件）

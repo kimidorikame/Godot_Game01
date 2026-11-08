@@ -102,7 +102,8 @@ func run(t: SceneTree) -> int:
 	c.check("タブ：鍋 (838,26)・トッピング (1046,26)、幅208",
 		_at(pane.get_node("%PotTab"), Vector2(838, 26), 208) and _at(pane.get_node("%ToppingTab"), Vector2(1046, 26), 208))
 	c.check("選ばれているタブ（トッピング）に下線", absf(pane.get_node("%Underline").position.x - 210.0) < 0.5)
-	var rects := { "%UsualRow": Rect2(852, 86, 303, 28), "%TodayRow": Rect2(852, 120, 303, 28), "%Slots/Slot1": Rect2(852, 179, 125, 48),
+	# UI準備R：前回・今日の行を高さ24にして、その下に好物の行（852+8,136）を入れた
+	var rects := { "%UsualRow": Rect2(852, 84, 303, 24), "%TodayRow": Rect2(852, 112, 303, 24), "%Slots/Slot1": Rect2(852, 179, 125, 48),
 		"%Slots/Slot3": Rect2(1114, 179, 125, 48), "BowlArt": Rect2(852, 442, 388, 143) }
 	for path in rects:
 		c.check("トッピング：%s の位置と大きさ（寸法表どおり）" % path, _near(top.get_node(path).get_global_rect(), rects[path]),
@@ -112,7 +113,7 @@ func run(t: SceneTree) -> int:
 	c.check("具材ボタン：(852,296) 126×66、間隔6で3列・1ページ6個（UI準備P：文字を大きくして4列→3列）",
 		_near(grid.get_child(0).get_global_rect(), Rect2(852, 296, 126, 66)) and _near(grid.get_child(1).get_global_rect(), Rect2(984, 296, 126, 66))
 			and grid.columns == 3 and grid.get_child_count() == UiKaitenTopping.PER_TAB, str(grid.get_child(1).get_global_rect()))
-	c.check("聞き直す (1165,86)・幅75／提供 (852,595)・幅388", _at(top.get_node("%ReaskButton"), Vector2(1165, 86), 75)
+	c.check("聞き直す (1165,84)・幅75／提供 (852,595)・幅388", _at(top.get_node("%ReaskButton"), Vector2(1165, 84), 75)
 		and _at(top.get_node("%ServeButton"), Vector2(852, 595), 388))
 	# UI準備P：「保存」→「レシピ保存」、「廃棄」→「一杯を捨てる」。捨てる・断るは区切り線の右（いつもの・レシピ保存から離す）
 	var bottoms := { "%UsualButton": [852, 84, "いつもの"], "%SaveButton": [942, 92, "レシピ保存"], "%DiscardButton": [1048, 106, "一杯を捨てる"],

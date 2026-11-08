@@ -28,6 +28,7 @@ var _tab_customer := ""
 @onready var _usual_chips: HBoxContainer = %UsualChips
 @onready var _today_chips: HBoxContainer = %TodayChips
 @onready var _reask: Button = %ReaskButton
+@onready var _favorite: Label = %FavoriteLabel
 @onready var _slots: Control = %Slots
 @onready var _bowl_art: Control = $BowlArt
 @onready var _pot_line: Control = %PotLine
@@ -114,7 +115,7 @@ func refresh() -> void:
 	_refresh_overlay(group, recipes, save_view)
 
 
-## 「前回」「今日」の欄は常に出す（空白の隙間を作らない。UI準備O2で「いつもの」を「前回」に替えた）。「前回」は来店の最初から入る（初来店・モブは空白）。
+## 「前回」「今日」の欄は常に出す（空白の隙間を作らない。UI準備O2で「いつもの」を「前回」に替えた）。その下に「好物」の1行（知った名前あり客だけ。UI準備R）。「前回」は来店の最初から入る（初来店・モブは空白）。
 ## 「今日」は来店の会話が終わった時点（その杯の ADJUST）で入り、それまでは「？」を薄い色で出す（order_card_view の last_known・today_known）。
 ## [聞き直す]は、聞き直せる会話があるとき（名前あり客・1杯の場面のADJUST中）だけ出す。
 func _refresh_order_card() -> void:
@@ -133,6 +134,9 @@ func _refresh_order_card() -> void:
 	_usual_tags.visible = last_tags.is_empty()
 	_today_tags.visible = today_tags.is_empty()
 	_usual_tags.modulate = Color(1, 1, 1, 1.0)
+	# 好物（UI準備R）：知った名前あり客だけ。知らない客・モブは行ごと出さない
+	_favorite.text = "好物　" + str(card.get("favorite", "")) if str(card.get("favorite", "")) != "" else ""
+	_favorite.visible = _favorite.text != ""
 	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
 	_reask.visible = session.can_reask()
 	_reask.disabled = not session.can_reask()

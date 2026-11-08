@@ -102,7 +102,8 @@ func run(t: SceneTree) -> int:
 		play.step()
 	var phone: UiPanePhone = root.pane_phone
 	var tabs: Control = phone.get_node("%Tabs")
-	c.check("スマホのタブは SNS／ニュース／持ち物／客 の4つ（レシピの代わりに持ち物）", tabs.get_child(2).text == "持ち物" and tabs.get_child(3).text == "客" and not TabsHas(tabs, "レシピ"))
+	c.check("スマホのタブは SNS／ニュース／持ち物 の3つ（レシピの代わりに持ち物。客タブは UI準備R で画面から外した）", tabs.get_child(2).text == "持ち物"
+		and not TabsHas(tabs, "客") and not TabsHas(tabs, "レシピ"))
 	GameState.money = 1000
 	root.open_phone("inventory")
 	phone.refresh()

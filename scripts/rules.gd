@@ -267,3 +267,9 @@ static func news() -> String:
 static func dm() -> String:
 	_ensure_loaded()
 	return str(_cache.get("dm", ""))
+
+
+## SNSのタイムラインのデータの id（data/sns/<id>.json。UI準備R）。無ければ ""。
+static func sns() -> String:
+	_ensure_loaded()
+	return str(_cache.get("sns", ""))

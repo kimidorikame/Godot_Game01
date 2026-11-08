@@ -189,5 +189,33 @@ func run(t: SceneTree) -> int:
 		"cups": [{ "adjust": "a" }, { "adjust": "b" }] }).any(func(x): return str(x).contains("card_today")), str(ScheduleData.scene_problems({ "customer": "delivery_man", "card_today": ["HOT"],
 		"cups": [{ "adjust": "a" }, { "adjust": "b" }] })))
 
+	# --- 7. 好物の行（UI準備R）：知った名前あり客だけ。知らない客・モブは行ごと出さない ---
+	var granny_favorite := Ingredients.name_for(str(ScheduleData.customer_profile("granny").get("favorite", "")))
+	root = _open(t, ["granny"])
+	s = root.session
+	top = root.pane_kaiten.topping
+	_advance_to_adjust(root)
+	top.refresh()
+	c.check("好物を知らない客：好物の行は出ない", not (top.get_node("%FavoriteLabel") as Label).visible and str(s.order_card_view()["favorite"]) == "")
+	root.queue_free()
+	root = _open(t, ["granny"], func(): GameState.mark_favorite_known("granny"))
+	s = root.session
+	top = root.pane_kaiten.topping
+	top.refresh()
+	c.check("好物を知った客：「前回」「今日」の下に「好物　<材料名>」（来店の最初から）", (top.get_node("%FavoriteLabel") as Label).visible
+		and (top.get_node("%FavoriteLabel") as Label).text == "好物　" + granny_favorite and granny_favorite != "", (top.get_node("%FavoriteLabel") as Label).text)
+	var fav: Label = top.get_node("%FavoriteLabel")
+	var today_row: Control = top.get_node("%TodayRow")
+	# 置き場所（枠）で見る：ヘッドレスでは文字が大きめに測られて、ラベルが枠より伸びることがある（見た目はスクリーンショットで確かめる）
+	c.check("好物の行の枠は今日の欄の下で、鍋の行（いまの椀の見出し）と重ならない", fav.offset_top >= today_row.offset_bottom - 0.5
+		and fav.offset_bottom <= (top.get_node("%PotLine") as Control).offset_top + 0.5, "%s-%s / %s" % [str(fav.offset_top), str(fav.offset_bottom), str((top.get_node("%PotLine") as Control).offset_top)])
+	root.queue_free()
+	root = _open(t, ["mob_card"], Callable(), { "mob_card": { "type": "dock_workers", "count": 4 } })
+	top = root.pane_kaiten.topping
+	_advance_to_adjust(root)
+	top.refresh()
+	c.check("モブ：好物の行は出ない", not (top.get_node("%FavoriteLabel") as Label).visible)
+	root.queue_free()
+
 	GameState.reset_for_new_game()
 	return c.finish()

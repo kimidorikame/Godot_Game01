@@ -1,5 +1,5 @@
 extends RefCounted
-## 店主のメモ帳（客タブ。UI準備O2）。場面データの memo（省略可）を、その来店で1杯以上出したら日の終わり（閉店のあと）に来店記録の
+## 店主のメモ帳（客タブ。UI準備O2。UI準備R で客タブは画面から外した＝ここでは画面を見ない仕組み〔足し方・保存・既読・データの検査・好物を知る時刻〕だけを確かめる）。場面データの memo（省略可）を、その来店で1杯以上出したら日の終わり（閉店のあと）に来店記録の
 ## facts["memo"]（{ day, key＝場面id }）へ足し、翌朝から客タブで見える。客タブは一覧（名前だけ）→詳細（前回頼んだ注文の札・来た日・好物・メモ）。
 ## 新しいメモは客タブとスマホのボタンに●（客タブを開いたら消える）、詳細では「新」（見たら消える）。好物を知る時刻は favorite_reveal
 ## （"first_serve"＝今までどおり／"memo"＝reveals_favorite のある来店のメモを足したとき）。今の場面データには memo を入れていないので、
@@ -95,30 +95,18 @@ func run(t: SceneTree) -> int:
 	for r in notes["regulars"]:
 		lines_total += (r["memo"] as Array).size()
 
-	# --- 3. ●（客タブ・スマホのボタン）と「新」---
-	var phone: UiPanePhone = root.pane_phone
-	var content: VBoxContainer = phone.get_node("%Content")
-	c.check("新しいメモがあると、スマホのボタンの未読に入る", s.memo_unread_count() == lines_total and lines_total >= 2 and s.phone_unread_count() >= lines_total)
-	root.open_phone("news")
-	c.check("客タブに●と数（ほかのタブを表示しているとき）", (phone.get_node("%NotesBadge") as Label).text == "●%d" % lines_total, (phone.get_node("%NotesBadge") as Label).text)
-	_press((phone.get_node("%Tabs") as Control).get_child(3))
-	c.check("客タブを開いたら●が消える", s.memo_unread_count() == 0 and (phone.get_node("%NotesBadge") as Label).text == "")
-	var row: Button = content.get_node("NoteRow_delivery_man")
-	c.check("一覧：名前だけ・まだ詳細で見ていないメモのある客の行に「新」", row.has_node("NewMark") and _texts(row).has("配達員") and not content.has_node("NoteRow_thug/NewMark"))
-	_press(row)
-	var detail := _texts(content)
-	c.check("詳細：前回（頼んだ注文の札）・来た日・メモ（日付と「新」）。入れた材料の行は出さない", phone.notes_open == "delivery_man" and detail.has("前回") and detail.has("辛い")
-		and detail.has("スタミナ") and not detail.has("いつもの") and not detail.any(func(x): return str(x).begins_with("前回　")) and detail.has("来た日　Day1")
-		and detail.has("%sのメモ" % dm_ep) and detail.has("新") and detail.has(Calendar.label(1)), str(detail))
-	_press(content.get_node("NoteBack"))
-	c.check("「戻る」で一覧・見たあとは「新」が消える", phone.notes_open == "" and content.has_node("NoteRow_delivery_man") and not content.has_node("NoteRow_delivery_man/NewMark")
-		and s.memo_new_ids("delivery_man").is_empty())
-	_press(content.get_node("NoteRow_delivery_man"))
-	c.check("もう一度開くと「新」は付かない", not _texts(content).has("新"))
-	_press(content.get_node("NoteBack"))
-	_press(content.get_node("NoteRow_mob_dock_workers"))
-	c.check("モブの詳細は好みの札だけ（メモは無い）", phone.notes_open == "mob:dock_workers" and _texts(content).has("好み") and not _texts(content).has("メモ"), str(_texts(content)))
-	root.close_overlay()
+	# --- 3. 既読（客タブは UI準備R で画面から外した。仕組み〔●・「新」の既読〕は残す。スマホのボタンの数には入れない）---
+	c.check("新しいメモの数（memo_unread_count）は残すが、スマホのボタンの未読には入れない（客タブが画面に無いため）",
+		s.memo_unread_count() == lines_total and lines_total >= 2 and s.phone_unread_count() == s.dm_unread_count() + s.news_unread_count() + s.timeline_unread_count())
+	var tab_texts := []
+	for child in (root.pane_phone.get_node("%Tabs") as Control).get_children():
+		if child is Button:
+			tab_texts.append((child as Button).text)
+	c.check("スマホのタブに「客」は無い", not tab_texts.has("客"), str(tab_texts))
+	s.mark_memos_seen()
+	c.check("mark_memos_seen で●の数は消え、「新」（memo_new_ids）は残る", s.memo_unread_count() == 0 and not s.memo_new_ids("delivery_man").is_empty())
+	s.mark_memos_read("delivery_man")
+	c.check("mark_memos_read で、その客の「新」が消える", s.memo_new_ids("delivery_man").is_empty())
 
 	# --- 4. 朝の保存から戻すとメモも戻る・再挑戦ではその日より後のメモは消える ---
 	var envelope: Dictionary = MorningSave.capture("")

@@ -75,51 +75,57 @@ func run(t: SceneTree) -> int:
 	var phone: UiPanePhone = root.pane_phone
 	c.check("右の枠と同じ位置 (836,24) 420×672", phone.get_global_rect().is_equal_approx(Rect2(836, 24, 420, 672)))
 	var tabs: Control = phone.get_node("%Tabs")
-	c.check("タブ SNS／ニュース／持ち物／客（レシピの代わりに持ち物。UI準備I3）：(838,54) から1つ幅104",
-		tabs.get_child(0).get_global_position().is_equal_approx(Vector2(838, 54)) and absf(tabs.get_child(0).size.x - 104.0) < 0.5
-			and tabs.get_child(1).get_global_position().is_equal_approx(Vector2(942, 54)) and tabs.get_child(2).text == "持ち物" and tabs.get_child(3).text == "客")
+	c.check("タブ SNS／ニュース／持ち物（客タブは UI準備R で画面から外した）：(838,54) から1つ幅139",
+		tabs.get_child(0).get_global_position().is_equal_approx(Vector2(838, 54)) and absf(tabs.get_child(0).size.x - 139.0) < 0.5
+			and tabs.get_child(1).get_global_position().is_equal_approx(Vector2(977, 54)) and tabs.get_child(2).text == "持ち物"
+			and not tabs.get_children().any(func(n): return n is Button and (n as Button).text == "客"))
 	c.check("「閉じる」(852,640)・幅388", phone.get_node("%CloseButton").get_global_position().is_equal_approx(Vector2(852, 640))
 		and absf(phone.get_node("%CloseButton").size.x - 388.0) < 0.5)
-	# SNSタブ＝DM（UI準備C③）。Day2：条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
-	c.check("スマホのボタンにも、SNSの未読の●と数が出る（数の取り方はSNSタブ内と同じ）", s.dm_unread_count() >= 1
-		and root.left.get_node("%PhoneBadge").text == "●%d" % s.dm_unread_count(), root.left.get_node("%PhoneBadge").text)
+	# SNSタブ＝タイムライン（最初に開く）とDM（UI準備R）。Day2：Day1 の夜の投稿と、条件なしの市場の顔なじみのDMが届いている。客足予報は出さない
+	var sns_unread := s.dm_unread_count() + s.timeline_unread_count()
+	c.check("スマホのボタンにも、未読の●と数が出る（DM・ニュース・タイムラインの合計）", s.dm_unread_count() >= 1 and s.timeline_unread_count() >= 1
+		and root.left.get_node("%PhoneBadge").text == "●%d" % s.phone_unread_count(), root.left.get_node("%PhoneBadge").text)
 	AutoplayPress.press(tabs.get_child(1))
-	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（●1）が出る", phone.get_node("%SnsBadge").text == "●%d" % s.dm_unread_count() and s.dm_unread_count() >= 1, phone.get_node("%SnsBadge").text)
+	c.check("まだSNSタブを開いていない間は、SNSタブに未読の数（DM＋タイムライン）が出る", phone.get_node("%SnsBadge").text == "●%d" % sns_unread, phone.get_node("%SnsBadge").text)
 	AutoplayPress.press(tabs.get_child(0))
-	var dm_rows: Array = phone.get_node("%Content").get_children()
-	c.check("SNS：届いているDM（Day2の市場の顔なじみ＋その夜の来店予告）。予報は出さない", phone.tab == "sns" and dm_rows.size() == s.phone_dm().size() and dm_rows.size() >= 1
-		and dm_rows[0] is Panel and dm_rows[0].get_child_count() >= 4, str(dm_rows))
+	var sns_content: VBoxContainer = phone.get_node("%Content")
+	c.check("SNS：最初はタイムライン（上に「タイムライン｜DM」・Day1 の夜の投稿）。予報は出さない", phone.tab == "sns" and phone.sns_mode == "timeline"
+		and sns_content.has_node("SnsSwitch") and sns_content.has_node("Post_d1_yoru_strike"))
+	c.check("タイムラインを表示したので、その分は既読（SNSタブの数は消え、DMの未読は「DM」の切り替えに出る）", phone.get_node("%SnsBadge").text == ""
+		and s.timeline_unread_count() == 0 and (sns_content.get_node("SnsSwitch/DmUnread") as Label).text == "●%d" % s.dm_unread_count())
+	AutoplayPress.press(sns_content.get_node("SnsSwitch/SwitchDm"))
+	var dm_row: Node = sns_content.get_node("DmRow_npc_市場の顔なじみ")
 	var dm_texts: Array = []
-	for node in dm_rows[0].get_children():
+	for node in dm_row.get_children():
 		if node is Label:
 			dm_texts.append(node.text)
-	c.check("DMの行：本文・差出人・日付と時刻（常連の印は客でない差出人には付けない）",
-		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("Day2 06:40") and not dm_texts.has("常連"), str(dm_texts))
-	c.check("開いた時点で未読だった行には、左に注意色の線を残す", dm_rows[0].get_children().any(func(n): return n is ColorRect))
-	c.check("SNSタブを表示したので既読になり、タブの数は消える", phone.get_node("%SnsBadge").text == "" and s.dm_unread_count() == 0)
-	c.check("既読になったので、スマホのボタンの未読の印も消える", root.left.get_node("%PhoneBadge").text == "")
-	# DMが多い日：一覧はスクロールできる（縦のスクロール枠で、中身が枠より高くなる）
+	c.check("DMの相手の行：名前・最後のメッセージの1行目・日付と時刻・未読の●（常連の印は付けない）",
+		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("Day2 06:40") and dm_row.has_node("UnreadMark")
+			and not dm_texts.has("常連"), str(dm_texts))
+	var market_unread := int(s.dm_threads().filter(func(th): return str(th["key"]) == "npc:市場の顔なじみ")[0]["unread"])
+	var dm_before := s.dm_unread_count()
+	AutoplayPress.press(dm_row)
+	var dm_after := s.dm_unread_count()
+	c.check("相手を開くと吹き出しで読める・その相手のDMだけ既読になり、スマホのボタンの数もその分減る", sns_content.has_node("DmBack") and market_unread >= 1
+		and dm_after == dm_before - market_unread and root.left.get_node("%PhoneBadge").text == ("●%d" % s.phone_unread_count() if s.phone_unread_count() > 0 else ""),
+		root.left.get_node("%PhoneBadge").text)
+	# DMが多い相手：やりとりはスクロールできる（縦のスクロール枠で、中身が枠より高くなる）
 	var many_items: Array = []
 	for i in range(12):
 		many_items.append({ "id": "dm_many_%d" % i, "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:%02d" % i,
 			"text": "多い日のテスト用のDM（%d）。" % i, "hint": "none", "provisional": true })
 	Dm._cache = { "id": Rules.dm(), "hints": Dm.data()["hints"], "days": { "2": many_items } }
 	Dm._loaded_id = Rules.dm()
-	phone.refresh()
+	phone.open_dm_thread("npc:市場の顔なじみ")
 	var scroll: ScrollContainer = phone.get_node("%Scroll")
 	_sort(root)
-	c.check("DMが多い日（12通）：一覧はスクロール枠に入っていて、中身が枠より高い（スクロールできる）",
-		scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED and phone.get_node("%Content").get_child_count() == 12
-			and phone.get_node("%Content").get_combined_minimum_size().y > scroll.size.y,
-		"%s > %s" % [str(phone.get_node("%Content").get_combined_minimum_size().y), str(scroll.size.y)])
+	var bubbles := sns_content.get_children().filter(func(n): return str(n.name).begins_with("Bubble_"))
+	c.check("DMが多い相手（12通）：やりとりはスクロール枠に入っていて、中身が枠より高い（スクロールできる）",
+		scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED and bubbles.size() == 12
+			and sns_content.get_combined_minimum_size().y > scroll.size.y,
+		"%s > %s" % [str(sns_content.get_combined_minimum_size().y), str(scroll.size.y)])
 	Dm.clear_cache()
 	s.mark_dms_read()
-	AutoplayPress.press(tabs.get_child(3))
-	var note_texts: Array = []
-	for label in phone.get_node("%Content").get_children():
-		if label is Label:
-			note_texts.append(label.text)
-	c.check("客：まだ会った客がいない朝は「まだ会った客はいません」", phone.tab == "notes" and note_texts.has("まだ会った客はいません"), str(note_texts))
 	AutoplayPress.press(tabs.get_child(1))
 	c.check("ニュース：phone_news() の見出しが出る（無ければ「まだありません」）", phone.tab == "news" and phone.get_node("%Content").get_child_count() >= 1)
 	AutoplayPress.press(phone.get_node("%CloseButton"))
