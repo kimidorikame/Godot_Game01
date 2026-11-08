@@ -196,16 +196,24 @@ func run(t: SceneTree) -> int:
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	top.refresh()
-	c.check("好物を知らない客：好物の行は出ない", not (top.get_node("%FavoriteLabel") as Label).visible and str(s.order_card_view()["favorite"]) == "")
+	c.check("好物を知らない客：好物の行は出ない", not (top.get_node("%FavoriteRow") as Control).visible and str(s.order_card_view()["favorite"]) == "")
 	root.queue_free()
 	root = _open(t, ["granny"], func(): GameState.mark_favorite_known("granny"))
 	s = root.session
 	top = root.pane_kaiten.topping
 	top.refresh()
-	c.check("好物を知った客：「前回」「今日」の下に「好物　<材料名>」（来店の最初から）", (top.get_node("%FavoriteLabel") as Label).visible
-		and (top.get_node("%FavoriteLabel") as Label).text == "好物　" + granny_favorite and granny_favorite != "", (top.get_node("%FavoriteLabel") as Label).text)
-	var fav: Label = top.get_node("%FavoriteLabel")
+	c.check("好物を知った客：「前回」「今日」の下に、見出し「好物」と材料名（来店の最初から）", (top.get_node("%FavoriteRow") as Control).visible
+		and (top.get_node("%FavoriteLabel") as Label).text == granny_favorite and (top.get_node("%FavoriteRow/Caption") as Label).text == "好物" and granny_favorite != "",
+		(top.get_node("%FavoriteLabel") as Label).text)
+	var fav: Control = top.get_node("%FavoriteRow")
 	var today_row: Control = top.get_node("%TodayRow")
+	var fav_label: Label = top.get_node("%FavoriteLabel")
+	c.check("好物の材料名は、前回・今日の札と同じくらいの大きさ（14。LabelOrder）",
+		fav_label.theme_type_variation == &"LabelOrder" and top.get_theme_font_size(&"font_size", &"LabelOrder") == 14)
+	c.check("見出し・材料名の位置を前回・今日の行にそろえる（見出し＝行の見出しと同じ左端・同じ種類、材料名＝札の左端）",
+		is_equal_approx(fav.offset_left, today_row.offset_left) and is_equal_approx((top.get_node("%FavoriteRow/Caption") as Control).offset_left, (top.get_node("%TodayRow/Caption") as Control).offset_left)
+			and (top.get_node("%FavoriteRow/Caption") as Label).theme_type_variation == (top.get_node("%UsualRow/Caption") as Label).theme_type_variation
+			and is_equal_approx(fav_label.offset_left, (top.get_node("%TodayTags") as Control).offset_left))
 	# 置き場所（枠）で見る：ヘッドレスでは文字が大きめに測られて、ラベルが枠より伸びることがある（見た目はスクリーンショットで確かめる）
 	c.check("好物の行の枠は今日の欄の下で、鍋の行（いまの椀の見出し）と重ならない", fav.offset_top >= today_row.offset_bottom - 0.5
 		and fav.offset_bottom <= (top.get_node("%PotLine") as Control).offset_top + 0.5, "%s-%s / %s" % [str(fav.offset_top), str(fav.offset_bottom), str((top.get_node("%PotLine") as Control).offset_top)])
@@ -214,7 +222,7 @@ func run(t: SceneTree) -> int:
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	top.refresh()
-	c.check("モブ：好物の行は出ない", not (top.get_node("%FavoriteLabel") as Label).visible)
+	c.check("モブ：好物の行は出ない", not (top.get_node("%FavoriteRow") as Control).visible)
 	root.queue_free()
 
 	GameState.reset_for_new_game()

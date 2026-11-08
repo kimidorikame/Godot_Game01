@@ -2932,14 +2932,28 @@ func phone_unread_count() -> int:
 
 # --- SNS：タイムラインとDM（UI準備R・試しの実装） ---
 
-## 今日の閉店のあと（日の締めが済んだ）か。最終日の結果画面のときだけ true（ふだんの日は、翌朝に日が進む）。
-func _day_ended() -> bool:
-	return GameState.phase == GameState.Phase.RESULT
+## 今日の投稿が見える時刻の上限（ゲームの中の今の時刻。UI準備R2）。目覚め〜朝の成績（WAKE）＝09:59／市場・準備（PREP）＝17:59／
+## 営業（OPEN）は今の時間帯で 宵の口＝21:59・夜半＝翌00:59・明け方＝翌04:59（時間帯が分からない・客が全部済んだ＝翌04:59）／
+## 閉店のあと（CLOSE・NEXT_DAY・結果画面・ゲームオーバー）＝その日の全部。
+func timeline_limit() -> int:
+	match GameState.phase:
+		GameState.Phase.WAKE:
+			return Sns.LIMIT_MORNING
+		GameState.Phase.PREP:
+			return Sns.LIMIT_MARKET
+		GameState.Phase.OPEN:
+			var slot := open.current_slot_name() if open != null else ""
+			match slot:
+				"宵の口":
+					return Sns.LIMIT_EVENING
+				"夜半":
+					return Sns.LIMIT_MIDNIGHT
+	return Sns.LIMIT_DAY_END
 
 
 ## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
 func sns_timeline() -> Array:
-	var sections := Sns.timeline(GameState.day_count, _day_ended())
+	var sections := Sns.timeline(GameState.day_count, timeline_limit())
 	for section in sections:
 		for item in section["posts"]:
 			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
@@ -2951,7 +2965,7 @@ func sns_timeline() -> Array:
 ## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
 func timeline_unread_count() -> int:
 	var n := 0
-	for id in Sns.visible_ids(GameState.day_count, _day_ended()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit()):
 		if not ReadState.is_read(_post_read_key(str(id))):
 			n += 1
 	return n
@@ -2959,7 +2973,7 @@ func timeline_unread_count() -> int:
 
 ## タイムラインを表示した：見えている投稿を読んだ扱いにする。
 func mark_timeline_read() -> void:
-	for id in Sns.visible_ids(GameState.day_count, _day_ended()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit()):
 		ReadState.mark(_post_read_key(str(id)))
 
 

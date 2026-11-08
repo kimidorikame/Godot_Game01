@@ -1,7 +1,7 @@
 extends RefCounted
 ## スマホのSNS（UI準備R・試しの実装）：タブは SNS／ニュース／持ち物（客タブは画面に出さない）。SNSタブはタイムライン（最初に開く）と DM（相手ごと）。
-## タイムラインのデータ（data/sns/week7.json）の検査・見える時刻（05:00〜17:59＝その日の朝から／18:00〜04:59＝その日の閉店のあとから）・
-## met（その客の初来店の日の閉店のあとから）・並び（新しい日が上・同じ日は新しい時刻が上・夜中はその日の24時以降・返信は元の投稿の下に古い順）・
+## タイムラインのデータ（data/sns/week7.json）の検査・見える時刻（UI準備R2：前の日までは全部。今日の分はゲームの中の時刻まで＝
+## 朝 09:59／市場・準備 17:59／宵の口 21:59／夜半 翌00:59／明け方・閉店のあと 翌04:59）・met（その客の初来店の日の閉店のあとから）・並び（新しい日が上・同じ日は新しい時刻が上・夜中はその日の24時以降・返信は元の投稿の下に古い順）・
 ## 未読の●（SNSタブとスマホのボタン。タイムラインを開くと消える）・DMの一覧／やりとり／戻る／相手ごとの未読・連絡先のカード・朝の保存から戻したとき。
 
 
@@ -62,29 +62,37 @@ func run(t: SceneTree) -> int:
 	# --- 2. 見える時刻・met・並び ---
 	GameState.reset_for_new_game()
 	var morning := { "day": 4, "time": "11:20" }
-	var night := { "day": 3, "time": "18:40" }
+	var dusk := { "day": 4, "time": "17:50" }
+	var evening := { "day": 2, "time": "19:30" }
+	var night := { "day": 2, "time": "22:30" }
 	var late := { "day": 2, "time": "02:15" }
-	c.check("05:00〜17:59 はその日の朝から（Day4 11:20 は Day4 に見える・Day3 には見えない）", Sns.is_visible(morning, 4) and not Sns.is_visible(morning, 3))
-	c.check("18:00〜04:59 はその日の閉店のあと＝翌朝から（Day3 18:40 は Day3 には見えず、Day4 に見える。日の締めが済めば同じ日にも）",
-		not Sns.is_visible(night, 3) and Sns.is_visible(night, 4) and Sns.is_visible(night, 3, true))
-	c.check("夜中（Day2 02:15）はその日の夜の続き：Day2 には見えず、Day3 に見える", not Sns.is_visible(late, 2) and Sns.is_visible(late, 3))
+	c.check("朝（09:59 まで）には、その日の 11:20・17:50 は見えない（未来の投稿）。市場・準備（17:59 まで）では見える",
+		not Sns.is_visible(morning, 4, Sns.LIMIT_MORNING) and not Sns.is_visible(dusk, 4, Sns.LIMIT_MORNING)
+			and Sns.is_visible(morning, 4, Sns.LIMIT_MARKET) and Sns.is_visible(dusk, 4, Sns.LIMIT_MARKET))
+	c.check("宵の口（21:59 まで）：19:30 は見え、22:30 は見えない。夜半（翌00:59 まで）で 22:30 も見える",
+		Sns.is_visible(evening, 2, Sns.LIMIT_EVENING) and not Sns.is_visible(night, 2, Sns.LIMIT_EVENING) and Sns.is_visible(night, 2, Sns.LIMIT_MIDNIGHT))
+	c.check("夜中（02:15）はその日の24時以降：夜半には見えず、明け方・閉店のあと（翌04:59 まで）で見える",
+		not Sns.is_visible(late, 2, Sns.LIMIT_MIDNIGHT) and Sns.is_visible(late, 2, Sns.LIMIT_DAY_END))
+	c.check("前の日までの投稿は全部見える（翌日の朝なら 22:30・02:15 も）・その日より先は見えない",
+		Sns.is_visible(night, 3, Sns.LIMIT_MORNING) and Sns.is_visible(late, 3, Sns.LIMIT_MORNING) and not Sns.is_visible(morning, 3, Sns.LIMIT_DAY_END))
 	var met := { "day": 4, "time": "22:30", "requires": { "met": "streamer" } }
-	c.check("met：会っていない客の条件の投稿は見えない", not Sns.is_visible(met, 6))
+	c.check("met：会っていない客の条件の投稿は見えない", not Sns.is_visible(met, 6, Sns.LIMIT_MORNING))
 	var day := GameState.day_count
 	GameState.day_count = 4
 	CustomerMemory.arrive("streamer", "宵の口", "streamer_01")
 	GameState.day_count = day
-	c.check("met：その客の初来店の日（Day4）の閉店のあとから（Day5 に見える・Day4 には見えない）", Sns.is_visible(met, 5) and not Sns.is_visible(met, 4))
-	var ids := _post_ids(Sns.timeline(7))
-	c.check("並び（Day7 の朝）：新しい日が上・同じ日は新しい時刻が上・夜中は24時以降・返信は元の投稿のすぐ下に古い順。Day7 の夜の投稿はまだ見えない",
+	c.check("met：その客の初来店の日（Day4）の閉店のあとから（Day4 の夜半には見えず、閉店のあと・翌朝に見える）",
+		not Sns.is_visible(met, 4, Sns.LIMIT_MIDNIGHT) and Sns.is_visible(met, 4, Sns.LIMIT_DAY_END) and Sns.is_visible(met, 5, Sns.LIMIT_MORNING))
+	var ids := _post_ids(Sns.timeline(7, Sns.LIMIT_MARKET))
+	c.check("並び（Day7 の市場）：新しい日が上・同じ日は新しい時刻が上・夜中は24時以降・返信は元の投稿のすぐ下に古い順。Day7 の夜の投稿はまだ見えない",
 		ids.find("d7_yoru_apology") == 0 and ids.find("  d7_passer1_reply") == 1 and ids.find("  d7_passer2_reply") == 2
 			and not ids.has("d7_yoru_tonight") and not ids.has("d7_noise_retract")
 			and ids.find("d6_noise_deleted") < ids.find("d6_yoru_fire") and ids.find("d6_yoru_fire") + 1 == ids.find("  d6_passer2_reply")
 			and ids.find("d5_yoru_stopped") < ids.find("d5_yoru_company") and ids.find("d5_yoru_company") < ids.find("d5_noise_shrimp")
 			and ids.find("d2_yoru_hungry") < ids.find("d2_yoru_checkpoint") and ids.has("d4_yoru_ate"), str(ids))
-	var sections := Sns.timeline(7)
+	var sections := Sns.timeline(7, Sns.LIMIT_MARKET)
 	c.check("日の区切り：Day7 から Day1 まで、新しい日が上", sections.map(func(s): return int(s["day"])) == [7, 6, 5, 4, 3, 2, 1], str(sections.map(func(s): return int(s["day"]))))
-	c.check("最終日の結果画面（日の締めのあと）なら Day7 の夜の投稿も見える", _post_ids(Sns.timeline(7, true)).has("d7_noise_retract"))
+	c.check("閉店のあと（最終日の結果画面も）なら Day7 の夜の投稿も見える", _post_ids(Sns.timeline(7, Sns.LIMIT_DAY_END)).has("d7_noise_retract"))
 	GameState.reset_for_new_game()
 
 	# --- 3. 画面：タブ・タイムライン・●（Day2 の朝まで遊ぶ） ---
@@ -159,7 +167,40 @@ func run(t: SceneTree) -> int:
 	# --- 5. 朝の保存から戻したとき（既読は保存とは別に持つ。見える投稿はその朝の日で決まる） ---
 	MorningSave.apply(envelope)
 	c.check("朝の保存から戻す：その朝に見える投稿だけ・一度読んだ投稿とDMは読んだまま（●は戻らない）", s.timeline_unread_count() == 0
-		and Sns.visible_ids(GameState.day_count) == ["d1_yoru_strike"] and s.dm_unread_count() == dm_total - int(dm_thread["unread"]) - npc_unread)
+		and Sns.visible_ids(GameState.day_count, s.timeline_limit()) == ["d1_yoru_strike"] and s.dm_unread_count() == dm_total - int(dm_thread["unread"]) - npc_unread)
+
+	# --- 6. ゲームの中の時刻で見える投稿が変わる（戻した Day2 の朝から、Day2 を通しで遊ぶ） ---
+	var seen := {}
+	var phone_in_open := false
+	guard = 0
+	while GameState.day_count == 2 and guard < 3000:
+		guard += 1
+		var key := ""
+		match GameState.phase:
+			GameState.Phase.WAKE:
+				key = "朝"
+			GameState.Phase.PREP:
+				key = "市場・準備"
+			GameState.Phase.OPEN:
+				key = s.open.current_slot_name() if s.open != null else ""
+			GameState.Phase.CLOSE:
+				key = "閉店のあと"
+		if key != "" and not seen.has(key):
+			seen[key] = Sns.visible_ids(2, s.timeline_limit())
+		if key == "宵の口" and not phone_in_open:
+			phone_in_open = true
+			root.open_phone("sns")
+			phone_in_open = phone.visible and phone.sns_mode == "timeline" and content.has_node("Post_d2_yoru_checkpoint") and not content.has_node("Post_d2_yoru_hungry")
+			c.check("営業中（宵の口）もスマホを開ける・タイムラインは 21:59 までの投稿", phone_in_open, str(_names(content, "Post_")))
+			root.close_overlay()
+			phone_in_open = true
+		play.step()
+	var has := func(k: String, id: String) -> bool: return (seen.get(k, []) as Array).has(id)
+	c.check("朝・市場・準備：Day2 の夜の投稿（19:30・02:15）はまだ見えない", seen.has("朝") and seen.has("市場・準備")
+		and not has.call("朝", "d2_yoru_checkpoint") and not has.call("市場・準備", "d2_yoru_checkpoint") and has.call("市場・準備", "d1_yoru_strike"), str(seen))
+	c.check("宵の口：19:30 は見え、02:15 は見えない／夜半：まだ 02:15 は見えない／明け方・閉店のあと：02:15 も見える",
+		has.call("宵の口", "d2_yoru_checkpoint") and not has.call("宵の口", "d2_yoru_hungry") and has.call("夜半", "d2_yoru_checkpoint")
+			and not has.call("夜半", "d2_yoru_hungry") and has.call("明け方", "d2_yoru_hungry") and has.call("閉店のあと", "d2_yoru_hungry"), str(seen))
 	root.queue_free()
 	GameState.reset_for_new_game()
 	ReadState.reset(ReadState.path)

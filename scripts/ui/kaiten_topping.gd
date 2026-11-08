@@ -28,6 +28,7 @@ var _tab_customer := ""
 @onready var _usual_chips: HBoxContainer = %UsualChips
 @onready var _today_chips: HBoxContainer = %TodayChips
 @onready var _reask: Button = %ReaskButton
+@onready var _favorite_row: Control = %FavoriteRow
 @onready var _favorite: Label = %FavoriteLabel
 @onready var _slots: Control = %Slots
 @onready var _bowl_art: Control = $BowlArt
@@ -135,8 +136,9 @@ func _refresh_order_card() -> void:
 	_today_tags.visible = today_tags.is_empty()
 	_usual_tags.modulate = Color(1, 1, 1, 1.0)
 	# 好物（UI準備R）：知った名前あり客だけ。知らない客・モブは行ごと出さない
-	_favorite.text = "好物　" + str(card.get("favorite", "")) if str(card.get("favorite", "")) != "" else ""
-	_favorite.visible = _favorite.text != ""
+	# 見出し「好物」は前回・今日の見出しと、材料名は札と同じ位置・同じくらいの大きさ（14。UI準備R2）
+	_favorite.text = str(card.get("favorite", ""))
+	_favorite_row.visible = _favorite.text != ""
 	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
 	_reask.visible = session.can_reask()
 	_reask.disabled = not session.can_reask()

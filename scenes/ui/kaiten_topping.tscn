@@ -88,15 +88,33 @@ offset_bottom = 24.0
 theme_type_variation = &"LabelOrder"
 vertical_alignment = 1
 
-[node name="FavoriteLabel" type="Label" parent="."]
+[node name="FavoriteRow" type="Control" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 24.0
+anchors_preset = 0
+offset_left = 16.0
 offset_top = 112.0
 offset_right = 319.0
-offset_bottom = 130.0
+offset_bottom = 132.0
 mouse_filter = 2
+
+[node name="Caption" type="Label" parent="FavoriteRow"]
+layout_mode = 0
+offset_left = 8.0
+offset_right = 78.0
+offset_bottom = 20.0
 theme_type_variation = &"LabelCaption"
+text = "好物"
+vertical_alignment = 1
+
+[node name="FavoriteLabel" type="Label" parent="FavoriteRow"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 78.0
+offset_right = 296.0
+offset_bottom = 20.0
+mouse_filter = 2
+theme_type_variation = &"LabelOrder"
 vertical_alignment = 1
 
 [node name="ReaskButton" type="Button" parent="."]

@@ -11,16 +11,22 @@ class_name Sns
 ## アカウントの持ち主は画面に出さない（どれが誰のアカウントかはプレイヤーが推理する）。DMの差出人とも結びつけない。
 ## いいね・拡散・表示回数などの数字は持たない。
 ##
-## 見える時刻：05:00〜17:59 の投稿は、その日の朝から見える。18:00〜04:59 の投稿は、その日の閉店のあと（翌朝）から見える
-## （夜中 00:00〜04:59 はその日の24時以降＝その日の夜の続き）。並びも同じ考え方：同じ日の中では 00:00〜04:59 を 23 時台より後に置く。
+## 見える時刻（UI準備R2）：前の日までの投稿は全部見える。今日の投稿は、ゲームの中の今の時刻（場面ごとの上限 limit）までのものだけ見える：
+##   朝（目覚め〜朝の成績）＝09:59／市場・準備＝17:59／営業の宵の口＝21:59・夜半＝翌00:59・明け方＝翌04:59／閉店のあと＝その日の全部（翌04:59まで）。
+## 夜中 00:00〜04:59 はその日の24時以降（その日の夜の続き）として数える（limit も同じ数え方。翌00:59＝24:59）。並びも同じ考え方。
 
 static var data_dir := "res://data/sns/"
 static var _cache: Dictionary = {}
 static var _loaded_id := ""
 
 const KINDS := ["main", "alt"]
-const MORNING_FROM := 5 * 60   # 05:00
-const NIGHT_FROM := 18 * 60    # 18:00
+const MORNING_FROM := 5 * 60   # 05:00（これより前は、その日の24時以降として数える）
+## 場面ごとの、今日の投稿が見える時刻の上限（その日の 00:00 からの分。夜中は24時以降）。UI準備R2。
+const LIMIT_MORNING := 9 * 60 + 59      # 朝（目覚め〜朝の成績）：09:59
+const LIMIT_MARKET := 17 * 60 + 59      # 市場・準備：17:59
+const LIMIT_EVENING := 21 * 60 + 59     # 営業の宵の口：21:59
+const LIMIT_MIDNIGHT := 24 * 60 + 59    # 営業の夜半：翌 00:59
+const LIMIT_DAY_END := 28 * 60 + 59     # 営業の明け方・閉店のあと：翌 04:59（その日の投稿すべて）
 
 
 static func clear_cache() -> void:
@@ -66,18 +72,15 @@ static func minutes(time: String) -> int:
 	return h * 60 + m
 
 
-## 夜の投稿か（18:00〜04:59。その日の閉店のあとから見える）。
-static func is_night(time: String) -> bool:
-	var t := minutes(time)
-	return t >= NIGHT_FROM or (t >= 0 and t < MORNING_FROM)
+## その日の中の時刻（分）。夜中 00:00〜04:59 はその日の24時以降として数える（02:15 → 26:15）。
+static func day_minutes(time: String) -> int:
+	var t := maxi(minutes(time), 0)
+	return t + 24 * 60 if t < MORNING_FROM else t
 
 
 ## 並びの値（大きいほど新しい）。夜中 00:00〜04:59 はその日の24時以降として数える。
 static func order_value(day: int, time: String) -> int:
-	var t := maxi(minutes(time), 0)
-	if t < MORNING_FROM:
-		t += 24 * 60
-	return day * 10000 + t
+	return day * 10000 + day_minutes(time)
 
 
 ## その客の初来店の日（来店記録。会っていなければ -1）。
@@ -86,30 +89,28 @@ static func first_met_day(customer_id: String) -> int:
 	return int((visits[0] as Dictionary).get("day", -1)) if not visits.is_empty() else -1
 
 
-## 投稿が見えるか。today＝今日、day_ended＝今日の閉店のあと（日の締めが済んだ。最終日の結果画面など）か。
-static func is_visible(post: Dictionary, today: int, day_ended: bool = false) -> bool:
+## 投稿が見えるか。today＝今日、limit＝今日の投稿が見える時刻の上限（場面ごと。LIMIT_*）。前の日までの投稿は全部見える。
+## met（その客に会ったあと）は、初来店の日の閉店のあと（limit が LIMIT_DAY_END）から。
+static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END) -> bool:
 	var day := int(post.get("day", 0))
-	if is_night(str(post.get("time", ""))):
-		if not (day < today or (day == today and day_ended)):
-			return false
-	elif day > today:
+	if day > today or (day == today and day_minutes(str(post.get("time", ""))) > limit):
 		return false
 	var requires = post.get("requires", {})
 	if requires is Dictionary and (requires as Dictionary).has("met"):
 		var met := first_met_day(str(requires["met"]))
-		if met < 0 or not (met < today or (met == today and day_ended)):
+		if met < 0 or not (met < today or (met == today and limit >= LIMIT_DAY_END)):
 			return false
 	return true
 
 
 ## 見えている投稿を、画面の形にまとめる：[{ day, posts:[ 投稿＋{ account（アカウントの辞書）, replies:[返信…] } ] }]。
 ## 新しい日が上。同じ日の中は新しい時刻が上。返信は元の投稿のすぐ下に古い順（元の投稿が見えていないときは出さない）。
-static func timeline(today: int, day_ended: bool = false, source: Dictionary = {}) -> Array:
+static func timeline(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}) -> Array:
 	var accts := accounts(source)
 	var tops := []
 	var replies := {}   # 元の投稿の id -> [返信]
 	for post in posts(source):
-		if not (post is Dictionary) or not is_visible(post, today, day_ended):
+		if not (post is Dictionary) or not is_visible(post, today, limit):
 			continue
 		var item: Dictionary = (post as Dictionary).duplicate(true)
 		item["account_data"] = (accts.get(str(item.get("account", "")), {}) as Dictionary).duplicate(true)
@@ -131,9 +132,9 @@ static func timeline(today: int, day_ended: bool = false, source: Dictionary = {
 
 
 ## 見えている投稿の id（返信を含む。未読の数・既読に使う）。
-static func visible_ids(today: int, day_ended: bool = false, source: Dictionary = {}) -> Array:
+static func visible_ids(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}) -> Array:
 	var out := []
-	for section in timeline(today, day_ended, source):
+	for section in timeline(today, limit, source):
 		for item in section["posts"]:
 			out.append(str(item["id"]))
 			for reply in item["replies"]:
