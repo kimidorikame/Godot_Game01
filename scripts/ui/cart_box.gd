@@ -22,6 +22,7 @@ const FOOT := 6.0
 
 
 func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_PASS   # 見た目の枠はクリックを通す（UI準備T。エディタの保存で消えないようにコードでも決める）
 	_undo.pressed.connect(func(): undo_pressed.emit())
 	_clear.pressed.connect(func(): clear_pressed.emit())
 

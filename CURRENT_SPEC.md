@@ -2980,6 +2980,8 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   ボタン・タブ・具材ボタン（押せないものも）・スクロールの一覧は自分でクリックを受けるので進まない。左の列のクリックは今までどおり`ClickArea`・会話枠が受ける。
   クリックを通すように直した部品（`mouse_filter`）：`GameRoot`（STOP→IGNORE）、右の枠の各画面の枠 `PaneMorning`・`PaneMarket`・`PaneBuyMeat`・
   `PaneBuyShop`・`PaneKaiten`・`PaneClose`（STOP→PASS）、市場の商品の行 `GoodsRow`・かご `CartBox`（STOP→PASS）。`PanePhone`・全面は止めたまま。
+  **【UI準備T2】**この設定はコードでも決める（`UiGameRoot._set_click_through`・`UiGoodsRow._ready`・`UiCartBox._ready`）。エディタで game_root.tscn を
+  保存し直したときにルートの`mouse_filter`が消えて STOP に戻り、右の枠の空き部分のクリックがルートに止められて進まなかったため（2026-11-08）。
   確認：`tests/ui_click_anywhere_test.gd`（本物のマウスイベント。開店・Day2・新人警官の来店の会話で、鍋とトッピングのタブの空き部分・隙間で進む／
   タブ・押せる／押せないボタン・押せない具材ボタン・提供の上で進まない／右クリック・ホイール・スマホ・ログ・選択肢・椀を作っている最中は進まない／
   会話枠のクリックは1回で1行）。

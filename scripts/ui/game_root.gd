@@ -40,6 +40,7 @@ func _fulls() -> Array:
 
 
 func _ready() -> void:
+	_set_click_through()
 	left.bind_session(session)
 	for pane in _panes() + _fulls():
 		pane.bind_session(session)
@@ -175,6 +176,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and can_click_advance():
 		left.advance()
 		get_viewport().set_input_as_handled()
+
+
+## 当たり判定の設定（UI準備T）：ルートと左の列の入れ物はクリックを受けない（IGNORE）、右の各画面の枠はクリックを親へ渡す（PASS）。
+## シーンファイルにも書いてあるが、エディタでシーンを保存し直すと消えることがあった（2026-11-08。ルートが STOP に戻り、
+## 右の枠の空き部分のクリックがルートに止められて会話が進まなかった）ので、ここで必ず決める。スマホ（PanePhone）は止めたまま。
+func _set_click_through() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_pane.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for pane in _panes():
+		if pane != pane_phone:
+			pane.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## 受け取られなかった左クリックで会話を進めてよいか（UI準備T）。

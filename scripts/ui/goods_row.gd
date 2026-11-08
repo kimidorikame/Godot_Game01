@@ -33,6 +33,7 @@ func _rot_width_on_line2() -> float:
 
 
 func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_PASS   # 見た目の枠はクリックを通す（UI準備T。エディタの保存で消えないようにコードでも決める）
 	_buy.pressed.connect(func(): buy_pressed.emit())
 
 

@@ -77,6 +77,11 @@ func run(t: SceneTree) -> int:
 	var s: PlaySession = root.session
 	var pane: UiPaneKaiten = root.pane_kaiten
 	var left := root.left
+	var filters_ok := root.mouse_filter == Control.MOUSE_FILTER_IGNORE and root.left.mouse_filter == Control.MOUSE_FILTER_IGNORE
+	for p in [root.pane_morning, root.pane_market, root.pane_buy_meat, root.pane_buy_shop, root.pane_kaiten, root.pane_close]:
+		filters_ok = filters_ok and p.mouse_filter == Control.MOUSE_FILTER_PASS
+	c.check("当たり判定の設定はコードで決まる（ルート・左の列＝IGNORE、右の各画面の枠＝PASS、スマホ＝STOP。シーンファイルが保存し直されても変わらない）",
+		filters_ok and root.pane_phone.mouse_filter == Control.MOUSE_FILTER_STOP)
 	c.check("場面：開店・来店の会話のクリック待ち（▼）。右は鍋のタブ", s.flow.runner.status == EventRunner.Status.PLAYING
 		and left.is_waiting_click() and pane.visible and pane.pot.visible, "%s st=%d mark=%s ch=%s next=%s wait=%s pv=%s pot=%s" % [_where(root), s.flow.runner.status,
 			str(left.get_node("%PageMark").visible), str(left.get_node("%Choices").visible), str(s.can_next_event()), str(s.is_waiting_input()), str(pane.visible), str(pane.pot.visible)])
