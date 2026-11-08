@@ -272,6 +272,17 @@ func _on_dialogue_input(event: InputEvent) -> void:
 		accept_event()
 
 
+## 会話が「クリック待ち」か（UI準備T。▼が出ていて、クリックで次のページか次の行へ進める状態）。
+## 選択肢が出ているとき・入力待ち（椀を作っている最中など）・進められないとき（市場・段階の選択・鍋が尽きた保留・団体の確認）は false。
+## 画面のどの部品も受け取らなかったクリックで会話を進めてよいかの判定に使う（game_root._unhandled_input）。
+func is_waiting_click() -> bool:
+	if session == null or not _page_mark.visible or not session.current_choices().is_empty():
+		return false
+	if _page < _pages.size() - 1:
+		return true
+	return session.can_next_event() and not session.is_waiting_input()
+
+
 ## 描き直しの最後に（会話ログへ今の行を記録したあと）、開いているログへ新しい行を足す。
 func refresh_log() -> void:
 	if _log_open and session != null:

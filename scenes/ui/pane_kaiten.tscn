@@ -9,6 +9,7 @@
 [node name="PaneKaiten" type="Panel"]
 offset_right = 420.0
 offset_bottom = 672.0
+mouse_filter = 1
 script = ExtResource("1_16cwv")
 
 [node name="PotTab" type="Button" parent="."]

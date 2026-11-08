@@ -6,6 +6,7 @@
 custom_minimum_size = Vector2(388, 52)
 offset_right = 388.0
 offset_bottom = 52.0
+mouse_filter = 1
 theme_type_variation = &"PanelBox"
 script = ExtResource("1_cartbx")
 

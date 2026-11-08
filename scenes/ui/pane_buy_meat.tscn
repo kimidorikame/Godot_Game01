@@ -11,6 +11,7 @@
 [node name="PaneBuyMeat" type="Panel"]
 offset_right = 420.0
 offset_bottom = 672.0
+mouse_filter = 1
 script = ExtResource("1_lggq2")
 
 [node name="Header" type="Control" parent="." instance=ExtResource("2_hnpxm")]

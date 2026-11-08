@@ -165,6 +165,23 @@ func _on_phone_icon() -> void:
 		open_phone(pane_phone.tab)
 
 
+## UI準備T：ボタンなど、画面のどの部品も受け取らなかった左クリックでも、クリック待ちの会話を進める（ノベルゲームのように）。
+## 座標で範囲を決めず、受け取られなかったクリック（_unhandled_input）だけを見る。ボタン（押せないものも）・タブ・具材ボタン・
+## スクロールの一覧などは自分でクリックを受けるので、ここへは来ない。見た目だけの枠（右の各画面の Panel・市場の商品の行・かご）は
+## クリックを通す（mouse_filter＝PASS）。ルートは IGNORE。
+## 進めないとき：スマホを開いている・全面（仕込み・結果・ゲームオーバー）・ログを開いている・会話がクリック待ちでない（is_waiting_click）・
+## 左クリック以外（右クリック・ホイール）。左の列（キャラ表示エリア・会話枠）のクリックは今までどおり LeftSide が受ける。
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and can_click_advance():
+		left.advance()
+		get_viewport().set_input_as_handled()
+
+
+## 受け取られなかった左クリックで会話を進めてよいか（UI準備T）。
+func can_click_advance() -> bool:
+	return overlay == "" and _full_screen() == null and left.visible and not left.is_log_open() and left.is_waiting_click()
+
+
 ## 会話を進めるキー：Enter・Space（左クリックは会話枠が受ける）。
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \

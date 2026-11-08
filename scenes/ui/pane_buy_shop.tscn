@@ -9,6 +9,7 @@
 [node name="PaneBuyShop" type="Panel"]
 offset_right = 420.0
 offset_bottom = 672.0
+mouse_filter = 1
 script = ExtResource("1_yxagi")
 
 [node name="Header" type="Control" parent="." instance=ExtResource("2_l52g6")]
