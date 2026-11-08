@@ -113,7 +113,7 @@ func run(t: SceneTree) -> int:
 	c.check("選ばれているタブ（トッピング）に下線", absf(pane.get_node("%Underline").position.x - 210.0) < 0.5)
 	# UI準備S：上から 好物の行・いまの椀の3枠と鍋の絵・案内文・分類タブ・具材ボタン・大きい椀の絵（前回・今日の行は外した）
 	var rects := { "%FavoriteRow": Rect2(852, 84, 388, 26), "%Slots/Slot1": Rect2(852, 118, 100, 68),
-		"%Slots/Slot3": Rect2(1064, 118, 100, 68), "%PotGauge": Rect2(1176, 118, 64, 68), "BowlArt": Rect2(852, 408, 388, 177) }
+		"%Slots/Slot3": Rect2(1064, 118, 100, 68), "%PotGauge": Rect2(1176, 118, 64, 68), "BowlArt": Rect2(852, 408, 388, 167) }
 	for path in rects:
 		c.check("トッピング：%s の位置と大きさ（寸法表どおり）" % path, _near(top.get_node(path).get_global_rect(), rects[path]),
 			str(top.get_node(path).get_global_rect()))
@@ -121,7 +121,13 @@ func run(t: SceneTree) -> int:
 	c.check("具材ボタン：(852,262) 126×66、間隔6で3列・1ページ6個（UI準備P：文字を大きくして4列→3列）",
 		_near(grid.get_child(0).get_global_rect(), Rect2(852, 262, 126, 66)) and _near(grid.get_child(1).get_global_rect(), Rect2(984, 262, 126, 66))
 			and grid.columns == 3 and grid.get_child_count() == UiKaitenTopping.PER_TAB, str(grid.get_child(1).get_global_rect()))
-	c.check("提供 (852,595)・幅388", _at(top.get_node("%ServeButton"), Vector2(852, 595), 388))
+	c.check("提供 (852,585)・幅388（UI準備S2：下の段との間を16あける）", _at(top.get_node("%ServeButton"), Vector2(852, 585), 388))
+	var serve_rect: Rect2 = top.get_node("%ServeButton").get_global_rect()
+	# 置き場所（枠）で見る：ヘッドレスでは文字が大きめに測られて、ボタンが枠より伸びることがある（見た目はスクリーンショットで確かめる）
+	var serve_button: Control = top.get_node("%ServeButton")
+	c.check("提供ボタンと「一杯を捨てる｜断る」のあいだは16（押し間違えない間隔。UI準備S2。以前は6）",
+		absf((top.get_node("%DiscardButton") as Control).offset_top - serve_button.offset_bottom - 16.0) < 0.5
+			and absf((top.get_node("%DeclineButton") as Control).offset_top - serve_button.offset_bottom - 16.0) < 0.5, str(serve_rect))
 	# UI準備S：下の段は 一杯を捨てる｜断る の2つを半分ずつ（いつもの・レシピ保存・区切り線は外した）
 	var bottoms := { "%DiscardButton": [852, 191, "一杯を捨てる"], "%DeclineButton": [1049, 191, "断る"] }
 	var bottoms_ok := true
@@ -133,9 +139,10 @@ func run(t: SceneTree) -> int:
 		not top.has_node("%UsualRow") and not top.has_node("%TodayRow") and not top.has_node("%ReaskButton") and not top.has_node("%UsualButton")
 			and not top.has_node("%SaveButton") and not top.has_node("%BottomDivider") and not top.has_node("%RecipeMenu"))
 	var tabs: HBoxContainer = top.get_node("%Tabs")
-	c.check("分類タブ：調味料が先・具材が後（UI準備S）、最初に開くのは具材", tabs.get_child(0).text.begins_with("調味料")
-		and tabs.get_child(1).text.begins_with("具材") and tabs.get_child(1).theme_type_variation == &"ButtonCategoryOn"
-		and tabs.get_child(0).theme_type_variation == &"ButtonCategory")
+	c.check("分類タブ：調味料が先・具材が後（UI準備S）、最初に開くのは左の調味料（UI準備S2）", tabs.get_child(0).text.begins_with("調味料")
+		and tabs.get_child(1).text.begins_with("具材") and tabs.get_child(0).theme_type_variation == &"ButtonCategoryOn"
+		and tabs.get_child(1).theme_type_variation == &"ButtonCategory")
+	_press(tabs.get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	var first: UiIngredientButton = grid.get_child(0)
 	c.check("具材のタブの1つ目はモツ（定義順）・短縮名と「×在庫数」・傷んだ在庫の無い品目は右端を出さない",
 		first.get_node("MainButton/Name").text == "モツ" and first.get_node("MainButton/Count").text == "×9"
@@ -285,6 +292,7 @@ func run(t: SceneTree) -> int:
 	c.check("モブ：好物の行は「—」。断るは押せない（断るは団体の確認で）",
 		top.get_node("%FavoriteLabel").text == "—" and (top.get_node("%DeclineButton") as Button).disabled)
 	grid = top.get_node("%Grid")
+	_press(top.get_node("%Tabs").get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	_press(grid.get_child(0).get_node("MainButton"))   # 肉団子（具材の1つ目）
 	_press(top.get_node("%Tabs").get_child(0))   # 調味料（UI準備S：調味料が先）
 	_press(grid.get_child(0).get_node("MainButton"))   # ナムプリ
@@ -292,7 +300,7 @@ func run(t: SceneTree) -> int:
 	var group_box: Control = top.get_node("%GroupBox")
 	c.check("モブの提供 → 団体の確認（大きい椀の位置）：注文4・出せる3", group_box.visible and s.pending_group_choice
 		and top.get_node("%GroupText").text == "注文は4人分。いまの鍋と具材で出せるのは3人分。"
-		and _near(group_box.get_global_rect(), Rect2(852, 408, 388, 177)), top.get_node("%GroupText").text)
+		and _near(group_box.get_global_rect(), Rect2(852, 408, 388, 167)), top.get_node("%GroupText").text)
 	c.check("「3人分を提供」「残り1人に挑戦」「注文を断る」", top.get_node("%GroupServe").text == "3人分を提供"
 		and top.get_node("%GroupRetry").visible and top.get_node("%GroupRetry").text == "残り1人に挑戦"
 		and not (top.get_node("%GroupDecline") as Button).disabled)
@@ -315,6 +323,7 @@ func run(t: SceneTree) -> int:
 	top = pane.topping
 	pot = pane.pot
 	grid = top.get_node("%Grid")
+	_press(top.get_node("%Tabs").get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	_press(grid.get_child(0).get_node("MainButton"))   # モツ
 	_press(top.get_node("%Tabs").get_child(0))   # 調味料（UI準備S：調味料が先）
 	_press(grid.get_child(0).get_node("MainButton"))   # ナムプリ
@@ -343,6 +352,7 @@ func run(t: SceneTree) -> int:
 	pot = root.pane_kaiten.pot
 	top = root.pane_kaiten.topping
 	grid = top.get_node("%Grid")
+	_press(top.get_node("%Tabs").get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	_press(grid.get_child(0).get_node("MainButton"))
 	_press(top.get_node("%Tabs").get_child(0))   # 調味料（UI準備S：調味料が先）
 	_press(grid.get_child(0).get_node("MainButton"))

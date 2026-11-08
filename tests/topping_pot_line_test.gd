@@ -96,9 +96,9 @@ func run(t: SceneTree) -> int:
 		and not top.has_node("%PotMini"))
 	var serve_y: float = top.get_node("%ServeButton").get_global_rect().position.y
 	var art: Control = top.get_node("BowlArt")
-	c.check("大きい椀の絵は上へ広げた（高さ177。下端は提供ボタンの10上）・提供ボタンの位置は今のまま (852,595)",
-		absf(art.size.y - 177.0) < 1.0 and absf(serve_y - art.get_global_rect().end.y - 10.0) < 1.0
-			and top.get_node("%ServeButton").get_global_position().distance_to(Vector2(852, 595)) < 1.0, str(art.get_global_rect()))
+	c.check("大きい椀の絵（高さ167。下端は提供ボタンの10上）・提供ボタン (852,585)（UI準備S2で下の段との間を16に）",
+		absf(art.size.y - 167.0) < 1.0 and absf(serve_y - art.get_global_rect().end.y - 10.0) < 1.0
+			and top.get_node("%ServeButton").get_global_position().distance_to(Vector2(852, 585)) < 1.0, str(art.get_global_rect()))
 	c.check("案内文は今のまま（空の椀：「味付けと具を選んでください」）",
 		(penalty as RichTextLabel).get_parsed_text() == "味付けと具を選んでください")
 
@@ -179,6 +179,7 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		root.left.advance()
 	var grid: GridContainer = top.get_node("%Grid")
+	_press(top.get_node("%Tabs").get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	_press(grid.get_child(0).get_node("MainButton"))   # 肉団子（具材の1つ目）
 	_press(top.get_node("%Tabs").get_child(0))   # 調味料（UI準備S：調味料が先）
 	_press(grid.get_child(0).get_node("MainButton"))   # ナムプリ

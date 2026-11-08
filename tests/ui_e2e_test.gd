@@ -159,6 +159,7 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		root.left.advance()
 	var grid: GridContainer = root.pane_kaiten.topping.get_node("%Grid")
+	AutoplayPress.press(root.pane_kaiten.topping.get_node("%Tabs").get_child(1))   # 具材（UI準備S2：最初に開くのは調味料）
 	AutoplayPress.press(grid.get_child(0).get_node("MainButton"))
 	AutoplayPress.press(root.left.get_node("%PhoneIcon"))
 	c.check("開店中にスマホを開くと操作エリアと入れ替わり、閉じるの文言は「閉じる(鍋・トッピングに戻る)」",

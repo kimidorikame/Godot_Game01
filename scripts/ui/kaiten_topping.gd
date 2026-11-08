@@ -3,7 +3,7 @@ class_name UiKaitenTopping
 ## 開店の操作エリア：トッピング。寸法表 KAITEN_UI_LAYOUT §4・§5。
 ## UI準備S（配置の整理）：上から 好物の行（order_card_view の favorite。知らない客・モブ・客がいないときは「—」）、
 ## いまの椀の3枠（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）と鍋の小さな絵（UiPotGauge。量＝残りの杯数・色＝濃さ。数字は出さない）、
-## 案内文と減点の予告（sale_hint）、分類タブ（調味料が先・具材が後。1タブ6個まで。最初に開くのは具材）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
+## 案内文と減点の予告（sale_hint）、分類タブ（調味料が先・具材が後。1タブ6個まで。最初に開くのは左の調味料。UI準備S2）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
 ## select_ingredient）、大きい椀の絵、提供（complete_input）、一杯を捨てる｜断る。
 ## 「前回」「今日」の欄・[聞き直す]・[いつもの]・[レシピ保存]は画面から外した（UI準備S。注文はセリフとログで確かめる。
 ## session の reask・recipe_adjust_buttons・start_recipe_save などの仕組みは消さずに残す）。
@@ -20,7 +20,7 @@ var session: PlaySession = null
 const NO_FAVORITE := "—"
 
 ## 表示だけの状態：開いている分類タブ（{kind, page}）、タブを決めた客。
-var _tab := { "kind": "topping", "page": 0 }
+var _tab := { "kind": "seasoning", "page": 0 }
 var _tab_customer := ""
 
 @onready var _favorite_row: Control = %FavoriteRow
@@ -61,7 +61,7 @@ func bind_session(s: PlaySession) -> void:
 
 
 func reset_ui_state() -> void:
-	_tab = { "kind": "topping", "page": 0 }
+	_tab = { "kind": "seasoning", "page": 0 }
 	_tab_customer = ""
 
 
@@ -76,9 +76,9 @@ func refresh() -> void:
 	var bowl := session.bowl_view()
 	var customer := str(bowl.get("customer", ""))
 	if customer != _tab_customer:
-		# 客が替わったら、分類タブは具材（最初に開くのは具材。並びは調味料が先）に戻す
+		# 客が替わったら、分類タブは左の調味料（最初に開くタブ。UI準備S2）に戻す
 		_tab_customer = customer
-		_tab = { "kind": "topping", "page": 0 }
+		_tab = { "kind": "seasoning", "page": 0 }
 	var adjusting := is_adjusting()
 	var group := session.mob_group_choice()
 	_refresh_favorite()

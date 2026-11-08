@@ -190,6 +190,11 @@ func run(t: SceneTree) -> int:
 		# 椀に入れて、枠の札を見る
 		var pressed := false
 		var grid: GridContainer = top.get_node("%Grid")
+		for tab in top.get_node("%Tabs").get_children():   # 具材のタブを開く（UI準備S2：最初に開くのは調味料）
+			if (tab as Button).visible and (tab as Button).text.begins_with("具材"):
+				(tab as Button).pressed.emit()
+		top.refresh()
+		_sort(top)
 		for b in grid.get_children():
 			var ib: UiIngredientButton = b
 			if ib.visible and ib.get_node("MainButton/Name").text.contains(UiLabels.short_name("tendon_meat")):
