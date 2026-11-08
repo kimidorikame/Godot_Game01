@@ -1,9 +1,9 @@
 extends RefCounted
-## UI準備Q：トッピング画面の3枠の上の見出し「いまの椀(3枠)」の文字を、鍋の行「鍋 残11杯 / 濃さ3」に替えた。
-## 提供ボタンの上の鍋の小表示は消し、空いた分だけ大きい椀の絵を下へ広げた（提供ボタンの位置は今のまま）。
-## 対象：鍋の行が上に出て、提供の上には出ない／濃さの数字の色（適正の内＝ふつう、0・1・5＝注意色）／
-## 3枠の椀の中身の文字が、入れる・取り消すで変わる・3つまで／
-## 重なり表示（いつもの・レシピ保存・モブの団体の確認）が出ている間は大きい椀の絵を隠す（重なりが優先）。
+## UI準備Q：3枠の上の見出し「いまの椀(3枠)」をやめ、提供ボタンの上の鍋の小表示は消した（2か所に出さない）。
+## UI準備S：鍋の行「鍋 残11杯 / 濃さ3」の文字をやめ、3枠の右の鍋の小さな絵（UiPotGauge）にした。量＝残りの杯数（容量に対する割合）、
+## 色＝濃さ（薄い→濃い。0は水のような色）、濃さが適正の外（0・1・5）なら縁を注意色。数字は出さない（正確な値は鍋タブ）。
+## 対象：鍋の絵の位置・量・色・注意／「鍋 残…」の文字が無い／大きい椀の絵を広げた（提供ボタンの位置は今のまま）／
+## 3枠の椀の中身の文字が、入れる・取り消すで変わる・3つまで／モブの団体の確認が出ている間は大きい椀の絵を隠す。
 ## 動き（入れる・取り消す・上限・判定）は変えない。どれもボタンの pressed だけで操作する（押せないボタンは押さない）。
 
 
@@ -59,7 +59,7 @@ func _item(top: UiKaitenTopping, kind_title: String, name: String) -> UiIngredie
 	return null
 
 
-## node の下にある、見えている Label のうち、文が「鍋 残」で始まるもの。
+## node の下にある、見えている Label のうち、文が「鍋 残」で始まるもの（UI準備Sで無くした）。
 func _pot_labels(node: Node, out: Array) -> Array:
 	for child in node.get_children():
 		_pot_labels(child, out)
@@ -75,46 +75,59 @@ func _bowl_shown(top: UiKaitenTopping) -> bool:
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 
-	# --- 1. 鍋の行は上（注文カードの下・案内文の上）に1か所だけ ---
+	# --- 1. 鍋の小さな絵は3枠の右（同じ段）。「鍋 残…」の文字は無い ---
 	var root := _open_root(t, ["officer"], { "nam_prik_pao": 9, "offal": 9, "coconut_milk": 9, "tofu": 9 })
 	var s: PlaySession = root.session
 	var top: UiKaitenTopping = root.pane_kaiten.topping
-	var warn: Color = top.get_theme_color(&"warn", &"UiPalette")
-	var line: Control = top.get_node("%PotLine")
+	var gauge: UiPotGauge = top.get_node("%PotGauge")
 	var penalty: Control = top.get_node("%Penalty")
-	c.check("鍋の行：「鍋 残999杯 / 濃さ3」", line.is_visible_in_tree()
-		and top.get_node("%PotText").text + top.get_node("%PotStrength").text == "鍋 残999杯 / 濃さ3")
-	c.check("鍋の行は上の段：今日の欄の下・3枠の上（元の見出し「いまの椀(3枠)」の位置）",
-		line.get_global_rect().position.y >= top.get_node("%TodayRow").get_global_rect().end.y
-			and line.get_global_rect().position.y < top.get_node("%Slots").get_global_rect().position.y, str(line.get_global_rect()))
+	var slots_rect: Rect2 = top.get_node("%Slots").get_global_rect()
+	var gauge_rect := gauge.get_global_rect()
+	c.check("鍋の絵は3枠の右・同じ段（3枠と重ならない）", gauge.is_visible_in_tree() and gauge_rect.position.x >= slots_rect.end.x
+		and gauge_rect.position.y <= slots_rect.position.y + 0.5 and gauge_rect.end.y >= slots_rect.end.y - 0.5, "%s / %s" % [str(gauge_rect), str(slots_rect)])
+	c.check("鍋の絵は好物の行の下・案内文の上", gauge_rect.position.y >= top.get_node("%FavoriteRow").get_global_rect().end.y - 0.5
+		and gauge_rect.end.y <= penalty.get_global_rect().position.y + 0.5)
 	var has_caption := false
 	for child in top.get_children():
 		if child is Label and (child as Label).text.begins_with("いまの椀"):
 			has_caption = true
 	c.check("見出し「いまの椀(3枠)」の文字は無い（3枠そのものは残す）", not has_caption and top.get_node("%Slots").is_visible_in_tree())
-	var labels := _pot_labels(top, [])
-	c.check("「鍋 残…」の文は上の1か所だけ（提供の上の小表示は無い）",
-		labels.size() == 1 and labels[0] == top.get_node("%PotText") and not top.has_node("%PotMini"), str(labels.size()))
+	c.check("「鍋 残…」の文字はどこにも無い（鍋の行・提供の上の小表示とも）", _pot_labels(top, []).is_empty() and not top.has_node("%PotLine")
+		and not top.has_node("%PotMini"))
 	var serve_y: float = top.get_node("%ServeButton").get_global_rect().position.y
-	c.check("提供ボタンのすぐ上に鍋の行は無い（鍋の行は提供より300以上上）", serve_y - line.get_global_rect().end.y > 300.0)
 	var art: Control = top.get_node("BowlArt")
-	c.check("大きい椀の絵は下へ広げた（高さ143。下端は提供ボタンの10上）・提供ボタンの位置は今のまま (852,595)",
-		absf(art.size.y - 143.0) < 1.0 and absf(serve_y - art.get_global_rect().end.y - 10.0) < 1.0
+	c.check("大きい椀の絵は上へ広げた（高さ177。下端は提供ボタンの10上）・提供ボタンの位置は今のまま (852,595)",
+		absf(art.size.y - 177.0) < 1.0 and absf(serve_y - art.get_global_rect().end.y - 10.0) < 1.0
 			and top.get_node("%ServeButton").get_global_position().distance_to(Vector2(852, 595)) < 1.0, str(art.get_global_rect()))
 	c.check("案内文は今のまま（空の椀：「味付けと具を選んでください」）",
 		(penalty as RichTextLabel).get_parsed_text() == "味付けと具を選んでください")
 
-	# --- 2. 濃さの数字の色：適正（2〜4）はふつう、0・1・5は注意色（鍋タブの目盛りと同じ線引き）---
-	var strength_label: Label = top.get_node("%PotStrength")
-	var text_label: Label = top.get_node("%PotText")
+	# --- 2. 量＝残りの杯数（容量に対する割合）・色＝濃さ・適正の外は縁を注意色 ---
+	var capacity := Rules.pot_capacity()
+	c.check("残り999杯（容量%d を超える）：満杯" % capacity, gauge.exists and is_equal_approx(gauge.fill_ratio, 1.0), str(gauge.fill_ratio))
+	var ratios := []
+	for remaining in [capacity, capacity / 2, 1, 0]:
+		GameState.soup["remaining_servings"] = remaining
+		s.notify_changed()
+		ratios.append(gauge.fill_ratio)
+	c.check("量：満杯 → 半分 → 1杯（少しだけ）→ 0（空）", is_equal_approx(ratios[0], 1.0) and absf(ratios[1] - float(capacity / 2) / capacity) < 0.001
+		and ratios[2] > 0.0 and ratios[2] < 0.2 and ratios[3] == 0.0, str(ratios))
+	c.check("割合の計算：容量を超えたら1・容量が分からなければ残りがあれば1", UiPotGauge.ratio_for(30, 12) == 1.0 and UiPotGauge.ratio_for(3, 0) == 1.0
+		and UiPotGauge.ratio_for(0, 0) == 0.0)
+	GameState.soup["remaining_servings"] = 999
+	var colors := {}
+	var warns := {}
 	for value in [0, 1, 2, 3, 4, 5]:
 		GameState.soup["strength"] = value
 		s.notify_changed()
-		var outside: bool = value <= GameState.STRENGTH_HARD_FLOOR or value == GameState.STRENGTH_MIN or value == GameState.STRENGTH_MAX
-		var color := strength_label.get_theme_color(&"font_color")
-		var ok := strength_label.text == str(value) and (color.is_equal_approx(warn) if outside else not color.is_equal_approx(warn))
-		c.check("濃さ%d：数字は%s（「鍋 残」の文はふつうの色のまま）" % [value, "注意色" if outside else "ふつうの色"],
-			ok and not text_label.get_theme_color(&"font_color").is_equal_approx(warn), str(color))
+		colors[value] = gauge.fill_color
+		warns[value] = gauge.warn
+	var darker := true
+	for value in [2, 3, 4, 5]:
+		darker = darker and (colors[value] as Color).get_luminance() < (colors[value - 1] as Color).get_luminance()
+	c.check("色＝濃さ：濃さ1→5で濃い色になる", darker, str(colors))
+	c.check("濃さ0（出せない）は水のような色（ほかと違う）", (colors[0] as Color).is_equal_approx(UiPotGauge.WATERY) and not (colors[1] as Color).is_equal_approx(UiPotGauge.WATERY))
+	c.check("縁の注意色は適正の外（0・1・5）だけ（鍋タブ・案内文と同じ線引き）", warns[0] and warns[1] and warns[5] and not warns[2] and not warns[3] and not warns[4], str(warns))
 	c.check("色の線引きは鍋タブと同じ（0・1・5が外）", UiKaitenTopping.strength_outside_fit(0, s.pot_view())
 		and UiKaitenTopping.strength_outside_fit(1, s.pot_view()) and UiKaitenTopping.strength_outside_fit(5, s.pot_view())
 		and not UiKaitenTopping.strength_outside_fit(2, s.pot_view()) and not UiKaitenTopping.strength_outside_fit(4, s.pot_view()))
@@ -141,39 +154,6 @@ func run(t: SceneTree) -> int:
 	_press(top.get_node("%DiscardButton"))
 	c.check("一杯を捨てる → 椀の文字は空に戻る", top.bowl_text() == "" and s.bowl_view()["additions"].is_empty())
 
-	# --- 4. 重なり表示の優先：「いつもの」の中身が出ている間は椀を隠す ---
-	GameState.saved_recipes = [{ "name": "試しの一杯", "ingredients": ["nam_prik_pao", "offal"] }]
-	s.notify_changed()
-	_press(top.get_node("%UsualButton"))
-	c.check("いつもの を開く → 中身の一覧が出て、大きい椀の絵は隠れる", top.get_node("%RecipeMenu").is_visible_in_tree() and not _bowl_shown(top))
-	var menu: GridContainer = top.get_node("%RecipeButtons")
-	for b in menu.get_children():
-		if (b as Button).visible and (b as Button).text == "閉じる":
-			_press(b)
-			break
-	c.check("閉じる → 大きい椀の絵が戻る", not top.get_node("%RecipeMenu").visible and _bowl_shown(top))
-	_press(top.get_node("%UsualButton"))
-	_press(menu.get_child(0))
-	c.check("レシピを選ぶ → 一覧は閉じ、3枠にその中身（「ナムプリ・モツ」）", not top.get_node("%RecipeMenu").visible and _bowl_shown(top)
-		and top.bowl_text() == "ナムプリ・モツ", top.bowl_text())
-
-	# --- 5. 重なり表示の優先：レシピ保存（枠を選ぶ・名前を選ぶ）の間は椀を隠す ---
-	_press(top.get_node("%ServeButton"))
-	var guard := 0
-	while not s.can_save_recipe() and s.can_next_event() and guard < 10:
-		guard += 1
-		root.left.advance()
-	_press(root.pane_kaiten.get_node("%ToppingTab"))
-	_press(top.get_node("%SaveButton"))
-	c.check("レシピ保存 → 枠を選ぶ一覧が出て、大きい椀の絵は隠れる", s.recipe_save_view()["stage"] == "slot"
-		and top.get_node("%RecipeMenu").is_visible_in_tree() and not _bowl_shown(top))
-	var last := menu.get_child(0)
-	for b in menu.get_children():
-		if (b as Button).visible and (b as Button).text == "やめる":
-			last = b
-	_press(last)
-	c.check("やめる → 大きい椀の絵が戻る", s.recipe_save_view()["stage"] == "" and not top.get_node("%RecipeMenu").visible and _bowl_shown(top))
-	GameState.saved_recipes = []
 	root.queue_free()
 
 	# --- 6. 重なり表示の優先：モブの団体の確認（いちばん上）の間は椀を隠す ---
@@ -194,19 +174,19 @@ func run(t: SceneTree) -> int:
 	s.load_current_customer()
 	root.close_overlay()
 	s.notify_changed()
-	guard = 0
+	var guard := 0
 	while s.flow.runner.status == EventRunner.Status.PLAYING and guard < 40:
 		guard += 1
 		root.left.advance()
 	var grid: GridContainer = top.get_node("%Grid")
 	_press(grid.get_child(0).get_node("MainButton"))   # 肉団子（具材の1つ目）
-	_press(top.get_node("%Tabs").get_child(1))
+	_press(top.get_node("%Tabs").get_child(0))   # 調味料（UI準備S：調味料が先）
 	_press(grid.get_child(0).get_node("MainButton"))   # ナムプリ
 	c.check("モブ：確認の前は大きい椀の絵が見え、3枠は「肉団子・ナムプリ」", _bowl_shown(top) and top.bowl_text() == "肉団子・ナムプリ", top.bowl_text())
 	_press(top.get_node("%ServeButton"))
-	c.check("団体の確認が出ている間は、大きい椀の絵も「いつもの」の一覧も隠れる（確認がいちばん上）",
-		top.get_node("%GroupBox").is_visible_in_tree() and not _bowl_shown(top) and not top.get_node("%RecipeMenu").visible)
-	c.check("団体の確認の間も鍋の行は上に出たまま", top.get_node("%PotLine").is_visible_in_tree())
+	c.check("団体の確認が出ている間は、大きい椀の絵は隠れる（確認がいちばん上）",
+		top.get_node("%GroupBox").is_visible_in_tree() and not _bowl_shown(top))
+	c.check("団体の確認の間も鍋の絵は上に出たまま", top.get_node("%PotGauge").is_visible_in_tree())
 	_press(top.get_node("%GroupServe"))
 	_press(root.pane_kaiten.get_node("%ToppingTab"))
 	c.check("確認を閉じる → 大きい椀の絵は隠れたままにならない", not top.get_node("%GroupBox").is_visible_in_tree()

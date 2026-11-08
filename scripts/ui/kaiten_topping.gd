@@ -1,13 +1,13 @@
 extends Control
 class_name UiKaitenTopping
 ## 開店の操作エリア：トッピング。寸法表 KAITEN_UI_LAYOUT §4・§5。
-## 注文カード（order_card_view。「前回」「今日」）と[聞き直す]（reask）、鍋の行（pot_view。「鍋 残11杯 / 濃さ3」。濃さ0・1・5は数字を注意色）、
-## 案内文と減点の予告（sale_hint）、分類タブ（具材が先・調味料が後。1タブ6個まで）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
-## select_ingredient）、いまの椀の3枠（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）、提供（complete_input）、
-## いつもの／レシピ保存｜一杯を捨てる／断る（捨てる・断るは区切り線の右。UI準備P）。
-## UI準備Q：3枠の上の見出し「いまの椀(3枠)」の文字を鍋の行に替え、提供の上の鍋の小表示は消した（2か所に出さない）。
-## 空いた分だけ大きい椀の絵（16,418）を下へ広げた（提供ボタンの位置は今のまま）。
-## 「いつもの」と「保存」の中身・モブの団体の確認は、大きい椀の絵の位置に重ねて出し、出ている間は椀の絵を隠す（plan Q14）。
+## UI準備S（配置の整理）：上から 好物の行（order_card_view の favorite。知らない客・モブ・客がいないときは「—」）、
+## いまの椀の3枠（bowl_view。傷んだ具材は注意色の枠で「豆腐(傷)」）と鍋の小さな絵（UiPotGauge。量＝残りの杯数・色＝濃さ。数字は出さない）、
+## 案内文と減点の予告（sale_hint）、分類タブ（調味料が先・具材が後。1タブ6個まで。最初に開くのは具材）、具材ボタン（本体＝新鮮、右上＝傷んだ側。
+## select_ingredient）、大きい椀の絵、提供（complete_input）、一杯を捨てる｜断る。
+## 「前回」「今日」の欄・[聞き直す]・[いつもの]・[レシピ保存]は画面から外した（UI準備S。注文はセリフとログで確かめる。
+## session の reask・recipe_adjust_buttons・start_recipe_save などの仕組みは消さずに残す）。
+## モブの団体の確認は、大きい椀の絵の位置に重ねて出し、出ている間は椀の絵を隠す（plan Q14）。
 ## 短縮名を使うのはこの画面だけ（UiLabels.short_name）。
 
 const PER_TAB := 6   # 1ページの具材ボタン（UI準備P：文字を大きくして3列×2段。以前は4列×2段の8個）。超えたら「具材1」「具材2」…
@@ -16,25 +16,18 @@ const BLOCKER_TEXT := { "STRENGTH_ZERO": "濃さ0", "SHORT_SERVINGS": "鍋が足
 
 var session: PlaySession = null
 
-## 表示だけの状態：開いている分類タブ（{kind, page}）、「いつもの」の中身を開いているか、タブを決めた客。
+## 好物を知らない・出す客がいないときの好物の行の文字（UI準備S。行は消さずに残す）。
+const NO_FAVORITE := "—"
+
+## 表示だけの状態：開いている分類タブ（{kind, page}）、タブを決めた客。
 var _tab := { "kind": "topping", "page": 0 }
-var _menu_open := false
 var _tab_customer := ""
 
-@onready var _usual_row: Control = %UsualRow
-@onready var _usual_tags: Label = %UsualTags
-@onready var _today_row: Control = %TodayRow
-@onready var _today_tags: Label = %TodayTags
-@onready var _usual_chips: HBoxContainer = %UsualChips
-@onready var _today_chips: HBoxContainer = %TodayChips
-@onready var _reask: Button = %ReaskButton
 @onready var _favorite_row: Control = %FavoriteRow
 @onready var _favorite: Label = %FavoriteLabel
 @onready var _slots: Control = %Slots
 @onready var _bowl_art: Control = $BowlArt
-@onready var _pot_line: Control = %PotLine
-@onready var _pot_text: Label = %PotText
-@onready var _pot_strength: Label = %PotStrength
+@onready var _pot_gauge: UiPotGauge = %PotGauge
 @onready var _penalty: RichTextLabel = %Penalty
 @onready var _tabs: HBoxContainer = %Tabs
 @onready var _grid: GridContainer = %Grid
@@ -43,12 +36,7 @@ var _tab_customer := ""
 @onready var _group_serve: Button = %GroupServe
 @onready var _group_retry: Button = %GroupRetry
 @onready var _group_decline: Button = %GroupDecline
-@onready var _menu: Control = %RecipeMenu
-@onready var _menu_caption: Label = %RecipeCaption
-@onready var _menu_buttons: GridContainer = %RecipeButtons
 @onready var _serve: Button = %ServeButton
-@onready var _usual: Button = %UsualButton
-@onready var _save: Button = %SaveButton
 @onready var _discard: Button = %DiscardButton
 @onready var _decline: Button = %DeclineButton
 
@@ -56,10 +44,7 @@ var _items: Array = []   # いまのタブに並べている品目 [{ id, fresh,
 
 
 func _ready() -> void:
-	_reask.pressed.connect(func(): session.reask())
 	_serve.pressed.connect(_on_serve_pressed)
-	_usual.pressed.connect(_on_usual_pressed)
-	_save.pressed.connect(func(): session.start_recipe_save())
 	_discard.pressed.connect(func(): session.discard_bowl())
 	_decline.pressed.connect(func(): session.decline_customer())
 	_group_serve.pressed.connect(_on_group_serve)
@@ -77,7 +62,6 @@ func bind_session(s: PlaySession) -> void:
 
 func reset_ui_state() -> void:
 	_tab = { "kind": "topping", "page": 0 }
-	_menu_open = false
 	_tab_customer = ""
 
 
@@ -92,77 +76,43 @@ func refresh() -> void:
 	var bowl := session.bowl_view()
 	var customer := str(bowl.get("customer", ""))
 	if customer != _tab_customer:
-		# 客が替わったら、分類タブは具材（最初に開くのは具材）に戻し、中身のメニューを閉じる
+		# 客が替わったら、分類タブは具材（最初に開くのは具材。並びは調味料が先）に戻す
 		_tab_customer = customer
 		_tab = { "kind": "topping", "page": 0 }
-		_menu_open = false
 	var adjusting := is_adjusting()
 	var group := session.mob_group_choice()
-	_refresh_order_card()
+	_refresh_favorite()
 	_refresh_bowl(bowl)
 	_refresh_penalty(bowl)
 	_refresh_items(adjusting and group.is_empty())
-	_refresh_pot_line(session.pot_view())
+	_pot_gauge.set_pot(session.pot_view())
 	_serve.disabled = not (adjusting and group.is_empty() and session.can_complete_input())
-	var empty_bowl := (bowl.get("additions", []) as Array).is_empty()
-	var recipes := session.recipe_adjust_buttons()
-	_usual.disabled = not (adjusting and group.is_empty() and empty_bowl and not recipes.is_empty())
-	var save_view := session.recipe_save_view()
-	_save.disabled = not bool(save_view.get("can_save", false)) or str(save_view.get("stage", "")) != ""
 	_discard.disabled = not (adjusting and group.is_empty() and session.can_discard())
 	_decline.disabled = not (adjusting and group.is_empty() and session.can_decline())
-	if not (adjusting and empty_bowl):
-		_menu_open = false
-	_refresh_overlay(group, recipes, save_view)
+	_refresh_overlay(group)
 
 
-## 「前回」「今日」の欄は常に出す（空白の隙間を作らない。UI準備O2で「いつもの」を「前回」に替えた）。その下に「好物」の1行（知った名前あり客だけ。UI準備R）。「前回」は来店の最初から入る（初来店・モブは空白）。
-## 「今日」は来店の会話が終わった時点（その杯の ADJUST）で入り、それまでは「？」を薄い色で出す（order_card_view の last_known・today_known）。
-## [聞き直す]は、聞き直せる会話があるとき（名前あり客・1杯の場面のADJUST中）だけ出す。
-func _refresh_order_card() -> void:
-	var card := session.order_card_view()
-	_usual_row.visible = true
-	_today_row.visible = true
-	var today_known := bool(card.get("today_known", false))
-	# 文字（_usual_tags・_today_tags）は、タグの言葉をつないだ形で持つ（札が出ていないときの「？」・空白もここ）。
-	# タグがあるときは文字を隠して、言葉の札（UiTagChips。材料側と同じ見た目）を出す。
-	var last_tags: Array = card["last"] if bool(card.get("last_known", false)) else []
-	var today_tags: Array = card["today"] if today_known else []
-	_usual_tags.text = TagWords.joined(last_tags)
-	_today_tags.text = TagWords.joined(today_tags) if today_known else "？"
-	UiTagChips.fill(_usual_chips, last_tags)
-	UiTagChips.fill(_today_chips, today_tags)
-	_usual_tags.visible = last_tags.is_empty()
-	_today_tags.visible = today_tags.is_empty()
-	_usual_tags.modulate = Color(1, 1, 1, 1.0)
-	# 好物（UI準備R）：知った名前あり客だけ。知らない客・モブは行ごと出さない
-	# 見出し「好物」は前回・今日の見出しと、材料名は札と同じ位置・同じくらいの大きさ（14。UI準備R2）
-	_favorite.text = str(card.get("favorite", ""))
-	_favorite_row.visible = _favorite.text != ""
-	_today_tags.modulate = Color(1, 1, 1, 1.0) if _today_tags.text != "？" else Color(1, 1, 1, 0.4)
-	_reask.visible = session.can_reask()
-	_reask.disabled = not session.can_reask()
+## 好物の行（UI準備S）：行は常に出す。好物を知った名前あり客は材料名、それ以外（知らない客・モブ・客がいない）は「—」（薄い色）。
+## 見出し「好物」＝LabelCaption、材料名＝LabelOrder（14）。知る時刻は favorite_reveal のまま（order_card_view の favorite）。
+func _refresh_favorite() -> void:
+	var favorite := str(session.order_card_view().get("favorite", ""))
+	_favorite_row.visible = true
+	_favorite.text = favorite if favorite != "" else NO_FAVORITE
+	_favorite.modulate = Color(1, 1, 1, 1.0) if favorite != "" else Color(1, 1, 1, 0.4)
 
 
-## 鍋の行（UI準備Q）：「鍋 残11杯 / 濃さ3」。濃さが適正の外（0・1・5＝提供できない・減点の側）なら、濃さの数字だけ注意色（鍋タブの目盛りと同じ考え）。
-## 鍋が無いときは行ごと隠す。
-func _refresh_pot_line(pot: Dictionary) -> void:
-	_pot_line.visible = bool(pot.get("exists", false))
-	if not _pot_line.visible:
-		return
-	var strength := int(pot.get("strength", 0))
-	_pot_text.text = "鍋 残%d杯 / 濃さ" % int(pot.get("remaining", 0))
-	_pot_strength.text = str(strength)
-	if strength_outside_fit(strength, pot):
-		_pot_strength.add_theme_color_override(&"font_color", get_theme_color(&"warn", &"UiPalette"))
-	else:
-		_pot_strength.remove_theme_color_override(&"font_color")
-
-
-## 適正の外か（0以下・1・5）。鍋タブ（UiKaitenPot._outside_fit）と同じ線引き。
+## 適正の外か（0以下・1・5）。鍋タブ（UiKaitenPot._outside_fit）と同じ線引き。鍋の小さな絵（UiPotGauge）の縁の注意色に使う。
 static func strength_outside_fit(value: int, pot: Dictionary) -> bool:
 	return value <= int(pot.get("strength_floor", GameState.STRENGTH_HARD_FLOOR)) \
 		or value == int(pot.get("strength_min", GameState.STRENGTH_MIN)) or value == int(pot.get("strength_max", GameState.STRENGTH_MAX))
+
+
+## いまの椀の3枠（UI準備S：幅100・高さ68。札は折り返す〔HFlowContainer〕）。札が1段なら名前と札を枠の上下の真ん中に、
+## 札が2つ（腱肉）なら幅に入らないので2段にして、名前を上に寄せる。
+const SLOT_ONE_ROW := { "label": 12.0, "chips": 36.0 }
+const SLOT_TWO_ROWS := { "label": 1.0, "chips": 25.0 }
+const SLOT_LABEL_H := 22.0
+const SLOT_CHIP_ROW_H := 20.0
 
 
 func _refresh_bowl(bowl: Dictionary) -> void:
@@ -171,16 +121,30 @@ func _refresh_bowl(bowl: Dictionary) -> void:
 	for i in range(_slots.get_child_count()):
 		var slot: Panel = _slots.get_child(i)
 		var label: Label = slot.get_node("Label")
+		var tags: Array = []
 		if i < additions.size():
 			var is_damaged := i < damaged.size() and bool(damaged[i])
 			label.text = UiLabels.short_name(str(additions[i])) + ("(傷)" if is_damaged else "")
-			UiTagChips.fill(slot.get_node("Chips"), Ingredients.tags_for(str(additions[i])), true)   # その材料のタグの言葉の札（UI準備F）
+			tags = Ingredients.tags_for(str(additions[i]))
+			UiTagChips.fill(slot.get_node("Chips"), tags, true)   # その材料のタグの言葉の札（UI準備F）
 			slot.theme_type_variation = &"PanelSlotDamaged" if is_damaged else &"PanelSlot"
 			label.theme_type_variation = &"LabelSlotWarn" if is_damaged else &"LabelSlot"
 		else:
 			label.text = ""
 			UiTagChips.fill(slot.get_node("Chips"), [], true)
 			slot.theme_type_variation = &"PanelSlotEmpty"
+		_place_slot(slot, 2 if tags.size() >= 2 else 1)
+
+
+## 枠の中の名前と札の縦の位置（rows＝札の段数）。
+func _place_slot(slot: Control, rows: int) -> void:
+	var spot: Dictionary = SLOT_TWO_ROWS if rows >= 2 else SLOT_ONE_ROW
+	var label: Control = slot.get_node("Label")
+	var chips: Control = slot.get_node("Chips")
+	label.offset_top = float(spot["label"])
+	label.offset_bottom = float(spot["label"]) + SLOT_LABEL_H
+	chips.offset_top = float(spot["chips"])
+	chips.offset_bottom = float(spot["chips"]) + SLOT_CHIP_ROW_H * rows + 2.0 * (rows - 1)
 
 
 ## いまの椀の文（テスト・確認用）：3枠に入っている順に「短縮名(傷)」を「・」でつなぐ。空なら ""。
@@ -329,9 +293,9 @@ func _refresh_items(can_pick: bool) -> void:
 	ids.sort_custom(func(a, b): return UiLabels.item_order(str(a)) < UiLabels.item_order(str(b)))
 	for id in ids:
 		(groups[by_id[id]["kind"]] as Array).append(by_id[id])
-	# 分類タブ：具材が先、調味料が後。1ページ（PER_TAB）を超えたら「具材1」「具材2」…
+	# 分類タブ：調味料が先、具材が後（UI準備S。調味料は1タブに収まる）。1ページ（PER_TAB）を超えたら「具材1」「具材2」…
 	var tabs: Array = []
-	for kind in ["topping", "seasoning"]:
+	for kind in ["seasoning", "topping"]:
 		var items: Array = groups[kind]
 		var pages := maxi(ceili(float(items.size()) / PER_TAB), 1)
 		for page in range(pages):
@@ -374,8 +338,8 @@ func _refresh_tab_buttons(tabs: Array, current: int) -> void:
 			button.theme_type_variation = &"ButtonCategoryOn" if i == current else &"ButtonCategory"
 
 
-## 大きい椀の絵の位置に重ねて出すもの：モブの団体の確認＞保存の段階＞「いつもの」の中身＞大きい椀の絵（どれか1つ。重ねたものが出ている間は椀の絵を隠す）。
-func _refresh_overlay(group: Dictionary, recipes: Array, save_view: Dictionary) -> void:
+## 大きい椀の絵の位置に重ねて出すもの：モブの団体の確認（出ている間は椀の絵を隠す）。
+func _refresh_overlay(group: Dictionary) -> void:
 	_group_box.visible = not group.is_empty()
 	if not group.is_empty():
 		var achievable := int(group["achievable"])
@@ -384,84 +348,7 @@ func _refresh_overlay(group: Dictionary, recipes: Array, save_view: Dictionary) 
 		_group_serve.disabled = not bool(group["can_serve"])
 		_group_retry.visible = bool(group["can_retry"])
 		_group_retry.text = "残り%d人に挑戦" % int(group["remaining"])
-	var stage := str(save_view.get("stage", ""))
-	var show_save := group.is_empty() and bool(save_view.get("can_save", false)) and stage != ""
-	var show_menu := group.is_empty() and not show_save and _menu_open
-	_menu.visible = show_save or show_menu
-	_bowl_art.visible = not (_group_box.visible or _menu.visible)
-	if show_save:
-		_fill_save_menu(save_view)
-	elif show_menu:
-		_fill_recipe_menu(recipes)
-
-
-func _menu_button(index: int, text: String, enabled: bool, action: Callable) -> void:
-	var button: Button
-	if index < _menu_buttons.get_child_count():
-		button = _menu_buttons.get_child(index)
-	else:
-		button = Button.new()
-		button.theme_type_variation = &"ButtonSmall"
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(118, 36)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.clip_text = true
-		_menu_buttons.add_child(button)
-	for c in button.pressed.get_connections():
-		button.pressed.disconnect(c["callable"])
-	button.pressed.connect(action)
-	button.text = text
-	button.disabled = not enabled
-	button.visible = true
-
-
-func _hide_menu_buttons_from(index: int) -> void:
-	for i in range(index, _menu_buttons.get_child_count()):
-		_menu_buttons.get_child(i).visible = false
-
-
-## 「いつもの」の中身：いつもの（その客の直近）と保存レシピ。押す → apply_recipe（具材ボタンを順に押したのと同じ）。
-func _fill_recipe_menu(recipes: Array) -> void:
-	_menu_caption.text = "いつもの・保存したレシピ"
-	var i := 0
-	for recipe in recipes:
-		var names: Array = []
-		for id in recipe["ingredients"]:
-			names.append(UiLabels.short_name(str(id)))
-		_menu_button(i, "%s（%s）" % [str(recipe["name"]), "・".join(names)], bool(recipe["can_apply"]),
-			session.apply_recipe.bind(recipe["ingredients"]))
-		i += 1
-	_menu_button(i, "閉じる", true, _close_menu)
-	_hide_menu_buttons_from(i + 1)
-
-
-## 保存の段階：枠を選ぶ → 名前を選ぶ（やめるは cancel_recipe_save）。
-func _fill_save_menu(view: Dictionary) -> void:
-	var i := 0
-	if str(view["stage"]) == "slot":
-		_menu_caption.text = "どの枠に保存する？"
-		for slot in view["slots"]:
-			var name := str(slot["name"])
-			_menu_button(i, "枠%d %s" % [int(slot["index"]) + 1, name if name != "" else "（空き）"], bool(slot["selectable"]),
-				session.select_recipe_slot.bind(int(slot["index"])))
-			i += 1
-	else:
-		_menu_caption.text = "名前を選ぶ"
-		for name in view["names"]:
-			_menu_button(i, str(name), true, session.select_recipe_name.bind(str(name)))
-			i += 1
-	_menu_button(i, "やめる", true, session.cancel_recipe_save)
-	_hide_menu_buttons_from(i + 1)
-
-
-func _close_menu() -> void:
-	_menu_open = false
-	refresh()
-
-
-func _on_usual_pressed() -> void:
-	_menu_open = not _menu_open
-	refresh()
+	_bowl_art.visible = not _group_box.visible
 
 
 func _on_tab_pressed(index: int) -> void:

@@ -3,7 +3,9 @@ extends RefCounted
 ## 対象：欄は常に出る（客がいないときも）、「前回」＝前回の来店で頼んだ注文（来店の最初から。初来店・モブは空白）、
 ## 「今日」＝その杯の注文（来店の会話が終わった時点＝その杯の ADJUST で入る。それまでは「？」）、複数杯の場面（配達員）は杯ごと、
 ## 場面データの card_last・card_today で出す札を変えられる（データの検査つき）、好物を知った状態・来店記録の中身は増えも変わりもしない、
-## [聞き直す]は聞き直せるときだけ出る。
+## [聞き直す]は聞き直せるときだけ（session.can_reask）。
+## UI準備S：トッピングの画面からは「前回」「今日」の欄と[聞き直す]を外した（中身＝order_card_view は残し、ここではその中身を確かめる）。
+## 画面に残るのは好物の行（知らない客・モブ・客がいないときは「—」）。
 
 
 func _open(t: SceneTree, customers: Array, setup: Callable = Callable(), mob: Dictionary = {}, day: int = 3) -> UiGameRoot:
@@ -28,10 +30,12 @@ func _open(t: SceneTree, customers: Array, setup: Callable = Callable(), mob: Di
 	return root
 
 
-## 欄の文字。トッピングのタブは、椀を作っているとき以外は隠れていて描き直されないので、読む前に描き直す（欄そのものは常に出る）。
+## 「前回」「今日」の中身の文字（order_card_view から。UI準備Sで画面の欄は外した）。分かっていない「今日」は「？」、前回が無ければ空白。
 func _texts(top) -> Array:
-	top.refresh()
-	return [str(top.get_node("%UsualTags").text), str(top.get_node("%TodayTags").text)]
+	var card: Dictionary = (top.session as PlaySession).order_card_view()
+	var last := TagWords.joined(card["last"]) if bool(card.get("last_known", false)) else ""
+	var today := TagWords.joined(card["today"]) if bool(card.get("today_known", false)) else "？"
+	return [last, today]
 
 
 func _advance_to_adjust(root: UiGameRoot) -> void:
@@ -51,10 +55,12 @@ func run(t: SceneTree) -> int:
 	s.open = null
 	s.notify_changed()
 	var no_customer_texts := _texts(top)
-	c.check("客がいない：注文カードは空。欄は出ていて、前回は空白・今日は「？」（薄い）", s.order_card_view().is_empty() and top.get_node("%UsualRow").visible and top.get_node("%TodayRow").visible
-		and no_customer_texts == ["", "？"] and (top.get_node("%TodayTags") as Label).modulate.a < 0.6 and not (top.get_node("%ReaskButton") as Button).visible,
-		str(no_customer_texts))
-	c.check("欄の見出しは「前回」「今日」", (top.get_node("%UsualRow/Caption") as Label).text == "前回")
+	top.refresh()
+	c.check("客がいない：注文カードは空（前回は空白・今日は「？」）。好物の行は出ていて「—」（薄い）", s.order_card_view().is_empty() and no_customer_texts == ["", "？"]
+		and (top.get_node("%FavoriteRow") as Control).visible and (top.get_node("%FavoriteLabel") as Label).text == "—"
+		and (top.get_node("%FavoriteLabel") as Label).modulate.a < 0.6, str(no_customer_texts))
+	c.check("画面に前回・今日の欄と[聞き直す]・[いつもの]・[レシピ保存]は無い（UI準備S）", not top.has_node("%UsualRow") and not top.has_node("%TodayRow")
+		and not top.has_node("%ReaskButton") and not top.has_node("%UsualButton") and not top.has_node("%SaveButton") and not top.has_node("%RecipeMenu"))
 	root.queue_free()
 
 	# --- 2. 名前あり客の初来店：前回は空白。今日は来店の会話が終わった時点（ADJUST）で入る。注文を言う行ではまだ「？」 ---
@@ -70,10 +76,9 @@ func run(t: SceneTree) -> int:
 	c.check("注文を言う行（来店の会話の最後の行）では、まだ「？」", s.flow.runner.current().get("type") == "GREET" and _texts(top) == ["", "？"], str(_texts(top)))
 	root.left.advance()   # ADJUST
 	card = s.order_card_view()
-	c.check("来店の会話が終わった時点（ADJUST）で今日が入る：うましお・腹もち（前回は空白のまま）・[聞き直す]が出る",
+	c.check("来店の会話が終わった時点（ADJUST）で今日が入る：うましお・腹もち（前回は空白のまま）・聞き直せる",
 		s.is_choosing_ingredients() and bool(card["today_known"]) and card["today"] == ["SAVORY", "FILLING"] and _texts(top) == ["", "うましお・腹もち"]
-		and (top.get_node("%ReaskButton") as Button).visible and not (top.get_node("%ReaskButton") as Button).disabled, str(_texts(top)))
-	c.check("見分けやすさ：分かった欄は濃い色", (top.get_node("%TodayTags") as Label).modulate.a == 1.0)
+		and s.can_reask(), str(_texts(top)))
 	c.check("好物を知った状態（favorite_known）は、欄が埋まっても変わらない（まだ知らない）", GameState.known_favorite_ids().is_empty())
 	var memory_after := GameState.customer_memory.duplicate(true)
 	var keys_ok := true
@@ -122,7 +127,7 @@ func run(t: SceneTree) -> int:
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	c.check("配達員の1杯目：前回は空白（初来店）・今日＝辛い・スタミナ", _texts(top) == ["", "辛い・スタミナ"]
-		and not (top.get_node("%ReaskButton") as Button).visible, str(_texts(top)))
+		and not s.can_reask(), str(_texts(top)))
 	var texts_seen: Array = []
 	var guard := 0
 	var take_out_seen := false
@@ -152,8 +157,8 @@ func run(t: SceneTree) -> int:
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	card = s.order_card_view()
-	c.check("モブ：前回は空白・今日＝辛い・スタミナ（団体の注文）。[聞き直す]は出ない",
-		not bool(card["last_known"]) and bool(card["today_known"]) and _texts(top) == ["", "辛い・スタミナ"] and not (top.get_node("%ReaskButton") as Button).visible, str(card))
+	c.check("モブ：前回は空白・今日＝辛い・スタミナ（団体の注文）。聞き直せない",
+		not bool(card["last_known"]) and bool(card["today_known"]) and _texts(top) == ["", "辛い・スタミナ"] and not s.can_reask(), str(card))
 	root.queue_free()
 
 	# --- 6. 場面データで出す札を変える（card_last・card_today）---
@@ -189,40 +194,37 @@ func run(t: SceneTree) -> int:
 		"cups": [{ "adjust": "a" }, { "adjust": "b" }] }).any(func(x): return str(x).contains("card_today")), str(ScheduleData.scene_problems({ "customer": "delivery_man", "card_today": ["HOT"],
 		"cups": [{ "adjust": "a" }, { "adjust": "b" }] })))
 
-	# --- 7. 好物の行（UI準備R）：知った名前あり客だけ。知らない客・モブは行ごと出さない ---
+	# --- 7. 好物の行（UI準備R・UI準備S）：行は常に出す。知った名前あり客は材料名、知らない客・モブは「—」 ---
 	var granny_favorite := Ingredients.name_for(str(ScheduleData.customer_profile("granny").get("favorite", "")))
 	root = _open(t, ["granny"])
 	s = root.session
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	top.refresh()
-	c.check("好物を知らない客：好物の行は出ない", not (top.get_node("%FavoriteRow") as Control).visible and str(s.order_card_view()["favorite"]) == "")
+	c.check("好物を知らない客：好物の行は出ていて「—」", (top.get_node("%FavoriteRow") as Control).visible and (top.get_node("%FavoriteLabel") as Label).text == "—"
+		and str(s.order_card_view()["favorite"]) == "")
 	root.queue_free()
 	root = _open(t, ["granny"], func(): GameState.mark_favorite_known("granny"))
 	s = root.session
 	top = root.pane_kaiten.topping
 	top.refresh()
-	c.check("好物を知った客：「前回」「今日」の下に、見出し「好物」と材料名（来店の最初から）", (top.get_node("%FavoriteRow") as Control).visible
-		and (top.get_node("%FavoriteLabel") as Label).text == granny_favorite and (top.get_node("%FavoriteRow/Caption") as Label).text == "好物" and granny_favorite != "",
-		(top.get_node("%FavoriteLabel") as Label).text)
+	c.check("好物を知った客：見出し「好物」と材料名（来店の最初から・濃い色）", (top.get_node("%FavoriteRow") as Control).visible
+		and (top.get_node("%FavoriteLabel") as Label).text == granny_favorite and (top.get_node("%FavoriteRow/Caption") as Label).text == "好物" and granny_favorite != ""
+		and (top.get_node("%FavoriteLabel") as Label).modulate.a == 1.0, (top.get_node("%FavoriteLabel") as Label).text)
 	var fav: Control = top.get_node("%FavoriteRow")
-	var today_row: Control = top.get_node("%TodayRow")
 	var fav_label: Label = top.get_node("%FavoriteLabel")
-	c.check("好物の材料名は、前回・今日の札と同じくらいの大きさ（14。LabelOrder）",
-		fav_label.theme_type_variation == &"LabelOrder" and top.get_theme_font_size(&"font_size", &"LabelOrder") == 14)
-	c.check("見出し・材料名の位置を前回・今日の行にそろえる（見出し＝行の見出しと同じ左端・同じ種類、材料名＝札の左端）",
-		is_equal_approx(fav.offset_left, today_row.offset_left) and is_equal_approx((top.get_node("%FavoriteRow/Caption") as Control).offset_left, (top.get_node("%TodayRow/Caption") as Control).offset_left)
-			and (top.get_node("%FavoriteRow/Caption") as Label).theme_type_variation == (top.get_node("%UsualRow/Caption") as Label).theme_type_variation
-			and is_equal_approx(fav_label.offset_left, (top.get_node("%TodayTags") as Control).offset_left))
+	c.check("好物の材料名は札と同じくらいの大きさ（14。LabelOrder）・見出しは LabelCaption",
+		fav_label.theme_type_variation == &"LabelOrder" and top.get_theme_font_size(&"font_size", &"LabelOrder") == 14
+			and (top.get_node("%FavoriteRow/Caption") as Label).theme_type_variation == &"LabelCaption")
 	# 置き場所（枠）で見る：ヘッドレスでは文字が大きめに測られて、ラベルが枠より伸びることがある（見た目はスクリーンショットで確かめる）
-	c.check("好物の行の枠は今日の欄の下で、鍋の行（いまの椀の見出し）と重ならない", fav.offset_top >= today_row.offset_bottom - 0.5
-		and fav.offset_bottom <= (top.get_node("%PotLine") as Control).offset_top + 0.5, "%s-%s / %s" % [str(fav.offset_top), str(fav.offset_bottom), str((top.get_node("%PotLine") as Control).offset_top)])
+	c.check("好物の行は一番上で、いまの椀の3枠・鍋の絵と重ならない", fav.offset_bottom <= (top.get_node("%Slots") as Control).offset_top + 0.5
+		and fav.offset_bottom <= (top.get_node("%PotGauge") as Control).offset_top + 0.5, "%s / %s" % [str(fav.offset_bottom), str((top.get_node("%Slots") as Control).offset_top)])
 	root.queue_free()
 	root = _open(t, ["mob_card"], Callable(), { "mob_card": { "type": "dock_workers", "count": 4 } })
 	top = root.pane_kaiten.topping
 	_advance_to_adjust(root)
 	top.refresh()
-	c.check("モブ：好物の行は出ない", not (top.get_node("%FavoriteRow") as Control).visible)
+	c.check("モブ：好物の行は出ていて「—」", (top.get_node("%FavoriteRow") as Control).visible and (top.get_node("%FavoriteLabel") as Label).text == "—")
 	root.queue_free()
 
 	GameState.reset_for_new_game()

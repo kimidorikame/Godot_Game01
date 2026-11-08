@@ -158,7 +158,7 @@ func run(t: SceneTree) -> int:
 		button.queue_free()
 	c.check("具材ボタン：全材料で、そのタグの言葉の札が全部出る・内部名は出ない", all_ok, shown)
 
-	# --- 6. 椀の枠・「いつもの」「今日」の欄（本番のルート）---
+	# --- 6. 椀の枠・トッピングの画面（本番のルート。UI準備Sで「前回」「今日」の欄は外した）---
 	GameState.reset_for_new_game()
 	GameState.day_count = 2
 	GameState.reputation = 65
@@ -185,18 +185,8 @@ func run(t: SceneTree) -> int:
 	if top != null:
 		top.refresh()
 		_sort(top)
-		var order_chips: Array = []
-		for path in ["%UsualChips", "%TodayChips"]:
-			for ch in (top.get_node(path) as Node).get_children():
-				order_chips.append((ch as Label).text)
-		var card: Dictionary = s.order_card_view()
-		var expect: Array = []
-		if bool(card.get("last_known", false)):
-			expect.append_array(TagWords.words(card["last"]))
-		if bool(card.get("today_known", false)):
-			expect.append_array(TagWords.words(card["today"]))
-		c.check("「前回」「今日」の欄：札は言葉（card の last・today と同じ並び）・内部名は出ない",
-			order_chips == expect and _has_internal(_all_texts(top)) == "", "%s / %s" % [str(order_chips), str(expect)])
+		# UI準備S：「前回」「今日」の欄は画面から外した。トッピングの画面のどこにも内部名は出ない
+		c.check("トッピングの画面（好物の行など）に内部名は出ない", _has_internal(_all_texts(top)) == "", _has_internal(_all_texts(top)))
 		# 椀に入れて、枠の札を見る
 		var pressed := false
 		var grid: GridContainer = top.get_node("%Grid")
@@ -213,6 +203,20 @@ func run(t: SceneTree) -> int:
 				if not ch.is_queued_for_deletion():
 					slot1_chips.append((ch as Label).text)
 			c.check("椀の枠：入れた材料のタグの言葉（腱肉＝スタミナ・歯ごたえ）が出る", slot1_chips == ["スタミナ", "歯ごたえ"], str(slot1_chips))
+			var slot_rect: Rect2 = (top.get_node("%Slots/Slot1") as Control).get_global_rect()
+			var chips_fit := true
+			for ch in (top.get_node("%Slots/Slot1/Chips") as Node).get_children():
+				if ch.is_queued_for_deletion():
+					continue
+				var r: Rect2 = (ch as Control).get_global_rect()
+				chips_fit = chips_fit and r.position.x >= slot_rect.position.x - 1.0 and r.end.x <= slot_rect.end.x + 1.0
+			var chip_rects: Array = (top.get_node("%Slots/Slot1/Chips") as Node).get_children().filter(func(n): return not n.is_queued_for_deletion()).map(func(n): return (n as Control).get_global_rect())
+			var two_rows: bool = chip_rects.size() == 2 and (chip_rects[1] as Rect2).position.y > (chip_rects[0] as Rect2).position.y + 1.0
+			var label_rect: Rect2 = (top.get_node("%Slots/Slot1/Label") as Control).get_global_rect()
+			# 縦は見ない（ヘッドレスは文字の高さが実機より大きく測られる。縦におさまることはスクリーンショットで確かめる）
+			c.check("椀の枠（UI準備Sで幅100）：札2枚は2段に折り返し、名前は枠の上に寄せる", two_rows and label_rect.position.y >= slot_rect.position.y - 0.5
+				and label_rect.position.y <= slot_rect.position.y + 2.0, str(slot_rect) + " " + str(label_rect) + " " + str(chip_rects))
+			c.check("椀の枠（UI準備Sで幅100）：札2枚も枠の中（横）におさまる", chips_fit, str(slot_rect) + " " + str((top.get_node("%Slots/Slot1/Chips") as Node).get_children().map(func(n): return (n as Control).get_global_rect())))
 			c.check("椀の枠・具材ボタンを含め、内部名は出ない", _has_internal(_all_texts(top)) == "", _has_internal(_all_texts(top)))
 		else:
 			c.check("腱肉の具材ボタンが見つかった", false)

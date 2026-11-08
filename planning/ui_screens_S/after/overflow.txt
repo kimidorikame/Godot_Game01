@@ -1,0 +1,12 @@
+# 本番UI（UI準備S）スクリーンショットの一覧と、文字が枠に入りきらない箇所
+# tools/ui_screens_S.gd が書き出す（手で直さない）
+
+## スクリーンショット
+01_topping_empty.png  トッピング：椀を作る前（好物を知らない客は「—」・鍋の絵）
+02_topping_bowl.png  トッピング：椀に調味料と具材を入れたところ
+03_pot_low_thin.png  鍋の絵：残り少ない・濃さ1（薄い色・縁が注意色）
+04_pot_half_thick.png  鍋の絵：半分・濃さ5（濃い色・縁が注意色）
+05_topping_favorite.png  トッピング：好物を知った客（Day2・delivery_man）
+06_slot_two_tags.png  椀の枠：腱肉（札2枚：スタミナ・歯ごたえ）
+
+## 入りきらない箇所（0件）

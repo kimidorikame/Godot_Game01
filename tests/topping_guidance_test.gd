@@ -107,14 +107,9 @@ func run(t: SceneTree) -> int:
 	GameState.soup["strength"] = 3
 	s.notify_changed()
 	# 下段のボタン：文言と区切り
-	c.check("下段のボタンの文言：いつもの・レシピ保存・一杯を捨てる・断る",
-		top.get_node("%UsualButton").text == "いつもの" and top.get_node("%SaveButton").text == "レシピ保存"
-			and top.get_node("%DiscardButton").text == "一杯を捨てる" and top.get_node("%DeclineButton").text == "断る")
-	var save_end: float = top.get_node("%SaveButton").get_global_rect().end.x
-	var discard_x: float = top.get_node("%DiscardButton").get_global_rect().position.x
-	var usual_gap: float = top.get_node("%SaveButton").get_global_rect().position.x - top.get_node("%UsualButton").get_global_rect().end.x
-	c.check("一杯を捨てる・断るは、いつもの・レシピ保存から離す（間隔がほかの倍以上・間に区切り線）",
-		discard_x - save_end >= usual_gap * 2.0 and top.get_node("%BottomDivider").visible, "%d / %d" % [discard_x - save_end, usual_gap])
+	c.check("下段のボタンの文言：一杯を捨てる・断る（UI準備S：いつもの・レシピ保存は外した）",
+		top.get_node("%DiscardButton").text == "一杯を捨てる" and top.get_node("%DeclineButton").text == "断る"
+			and not top.has_node("%UsualButton") and not top.has_node("%SaveButton"))
 	var discards := s.bowl_discard_count
 	_press(top.get_node("%DiscardButton"))
 	c.check("一杯を捨てる：椀が空に戻る（動きは今までどおり。確認の窓は無い）",
