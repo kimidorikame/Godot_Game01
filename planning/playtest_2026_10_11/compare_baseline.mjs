@@ -1,10 +1,11 @@
-// v2 の基準（playthrough_results_regulars_v2.json）との照合：「遊びの結果」だけを比べる（2026-11-09・計測）。
+// 基準との照合：「遊びの結果」だけを比べる（2026-11-09・計測。旧名 compare_v2_play.mjs）。
 // 使い方（このフォルダで）:
-//   node compare_v2_play.mjs <今回の results.json> [基準の results.json（既定＝playthrough_results_regulars_v2.json）]
+//   node compare_baseline.mjs <今回の results.json> [基準：v3（既定）｜v2｜基準の results.json のファイル名]
+// 基準の名前とファイルは BASELINES（今の基準は CURRENT_BASELINE）。新しい基準を作ったら、ここに足して CURRENT_BASELINE を替える。
 // 比べるのは、各周（方針×シード）の結果のうち、会話の長さや支払いの順番では変わらない項目だけ（判定・売上・チップ・仕入れ・
 // その日の終わりの現金・評判・提供と未提供の数・最終の結果など）。下の EXCLUDED の項目は比べない（違っても一覧に数を出すだけ）。
 // 遊びの結果に違いがあれば、違う周と項目を出して終了コード1。基準のファイルは読むだけ（上書きしない）。
-// 説明：V2_COMPARE.md。
+// 説明：BASELINE_COMPARE.md。
 import fs from 'node:fs';
 
 // 比べない項目（会話の行数や支払いの順番で変わる「途中の数」）。path は周の中の場所（rows[] は各日の行）。
@@ -18,6 +19,13 @@ export const EXCLUDED = [
   { path: 'day1_cash.after_tier', why: 'Day1 の途中の残高（鍋の素を選んだあと）。同上' },
   { path: 'day1_cash.after_market', why: 'Day1 の途中の残高（開店の時点）。支払いの順番で変わりうる' },
 ];
+
+// 基準の一覧（名前 → ファイル）。どれも上書きしない。
+export const BASELINES = {
+  v2: 'playthrough_results_regulars_v2.json',   // 運営費75・reach_true の基準（2026-10-18。30シード×13方針）
+  v3: 'playthrough_baseline_v3.json',            // 阿強の3杯目の札の変更後（2026-11-09。3シード×13方針。コミット 307b769）
+};
+export const CURRENT_BASELINE = 'v3';
 
 const DIR = new URL('./', import.meta.url);
 const load = (name) => JSON.parse(fs.readFileSync(new URL(name, DIR), 'utf8'));
@@ -52,12 +60,14 @@ function diffPaths(x, y, base, out) {
 const generalize = (p) => p.replace(/\[\d+\]/g, '[]');
 
 // コマンドとして実行したときだけ照合する（ほかのスクリプトから import したときは EXCLUDED・playResult だけを使う）。
-if ((process.argv[1] ?? '').replace(/\\/g, '/').endsWith('compare_v2_play.mjs')) {
-  const [nowName, baseName = 'playthrough_results_regulars_v2.json'] = process.argv.slice(2);
+if ((process.argv[1] ?? '').replace(/\\/g, '/').endsWith('compare_baseline.mjs')) {
+  const [nowName, baseArg = CURRENT_BASELINE] = process.argv.slice(2);
   if (!nowName) {
-    console.log('使い方: node compare_v2_play.mjs <今回の results.json> [基準の results.json]');
+    console.log('使い方: node compare_baseline.mjs <今回の results.json> [基準：v3（既定）｜v2｜基準の results.json]');
     process.exit(2);
   }
+  const baseName = BASELINES[baseArg] ?? baseArg;
+  console.log(`基準: ${baseArg in BASELINES ? `${baseArg}（${baseName}）` : baseName}`);
   const base = load(baseName), now = load(nowName);
   const playDiffs = [], excludedCounts = {}, missing = [];
   for (const r of now.runs) {
@@ -70,7 +80,7 @@ if ((process.argv[1] ?? '').replace(/\\/g, '/').endsWith('compare_v2_play.mjs'))
     }
   }
   const compared = now.runs.length - missing.length;
-  console.log(`V2PLAY compared ${compared} of ${now.runs.length}（方針 ${now.policies.length}）  遊びの結果の違い ${playDiffs.length}  基準に無い周 ${missing.length}`);
+  console.log(`PLAYCOMPARE compared ${compared} of ${now.runs.length}（方針 ${now.policies.length}）  遊びの結果の違い ${playDiffs.length}  基準に無い周 ${missing.length}`);
   console.log('比べない項目の違い（周×箇所の数）: ' + (Object.keys(excludedCounts).length ? JSON.stringify(excludedCounts) : 'なし'));
   for (const d of playDiffs.slice(0, 20)) console.log(`  違い ${d.run} ${d.path}`);
   if (missing.length) console.log('  基準に無い周: ' + missing.join(', '));

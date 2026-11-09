@@ -2083,7 +2083,10 @@ GameState.try_pay(amount) -> bool
   検査を1件追加）。全44スイート2449件成功。旧`playthrough_results_regulars.json`（運営費65・12/13/14）とは
   **意図して一致しなくなった**（上書きしていない）。新しい基準は運営費75・`reach_true`の13方針×30シード
   （`playthrough_results_regulars_v2.json`。引数で明示して取る）。
-  **【2026-11-09・計測】コミット前の v2 との照合は「遊びの結果」だけを比べる**（`planning/playtest_2026_10_11/compare_v2_play.mjs`・説明は同じフォルダの`V2_COMPARE.md`）。
+  **【2026-11-09・計測】コミット前の基準との照合は「遊びの結果」だけを比べる**（`planning/playtest_2026_10_11/compare_baseline.mjs`・説明は同じフォルダの`BASELINE_COMPARE.md`）。
+  **今の基準は v3**（`playthrough_baseline_v3.json`。阿強の3杯目の札の変更後・コミット`307b769`・3シード×13方針。v2 とは39周のうち11周で最終現金が変わり、平均 −11.1）。
+  v2 は昔の記録として残す。意図した変更で遊びの結果が変わったら、新しい基準（v4…）を作る（手順は`BASELINE_COMPARE.md`）。
+  「基準 v3」は、下の「予報を使わない前提でも測った（v3）」（`playthrough_results_regulars_v3.json`）とは別のもの。
   比べないのは、会話の行数や支払いの順番で変わる途中の数（`clicks`・`steps`・`actions.next_text_event`・`rows[].actions_cumulative`・`day1_cash`の
   `after_wake`／`after_kit`／`after_tier`／`after_market`）。あわせて、自動試遊は食後の行（`part`が`body`・`after_bill`・`closing`）では鍋を直さない
   （`playthroughs.gd`の`AFTER_MEAL_PARTS`）。基準のファイルは上書きしていない。
