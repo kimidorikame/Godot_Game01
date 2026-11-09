@@ -32,11 +32,11 @@ const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
 const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
-	"sets_facts", "must_info", "cups", "after_bill", "source"]
-# 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・場所代のあとの会話（after_bill）・元の文の場所（source）を持つ。
+	"sets_facts", "must_info", "cups", "source"]
+# 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・元の文の場所（source）を持つ（中身U2で場所代のあとの会話 after_bill は body にまとめた）。
 # 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
 # ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
-const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body", "after_bill"], "granny_01": ["body"] }
+const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"] }
 const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。

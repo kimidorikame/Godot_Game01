@@ -109,6 +109,8 @@ func _right_pane() -> Control:
 				"before":
 					# 所持金が鍋の素に満たない日は、張記の画面を出さない（端材屋のクズ野菜ベースが自動で決まる）
 					return pane_market if session.today_base()["scraps"] else pane_buy_meat
+				"exit_talk":
+					return pane_market   # 中身U2：市場を出たあとの炭屋・水場の会話（店の一覧は出ない・「市場を出る」は押せない）
 		GameState.Phase.OPEN:
 			return pane_kaiten
 		GameState.Phase.CLOSE:
@@ -117,13 +119,18 @@ func _right_pane() -> Control:
 
 
 ## 仕込み（PREP）の列のどこにいるか："before"（市場＝MARKET の前。段階の選択と語り）／"in"（市場の画面）／
-## "after"（市場を出たあと）。段階を選ぶ前の列には MARKET が無い（段階を選ぶと列が組み直される）。
+## "exit_talk"（中身U2：市場を出たあとの炭屋・水場の会話）／"after"（市場を出たあと）。段階を選ぶ前の列には MARKET が無い（段階を選ぶと列が組み直される）。
 func _market_stage() -> String:
 	if session.is_in_market():
 		return "in"
 	var runner := session.flow.runner
 	if runner == null:
 		return "before"
+	# 中身U2：1日目の「市場を出る」のあとの会話（店主の一言→炭屋→水場。part:"market_exit"）のあいだは、仕込みの全面を出さず、
+	# 市場の画面のまま左の会話を見せる（"exit_talk"）。会話を読み終えてから仕込みの全面。
+	var current = runner.current()
+	if current is Dictionary and str(current.get("part", "")) == "market_exit":
+		return "exit_talk"
 	for i in range(runner.events.size()):
 		var ev = runner.events[i]
 		if ev is Dictionary and str(ev.get("type", "")) == "MARKET":

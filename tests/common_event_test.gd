@@ -204,7 +204,7 @@ func run(t: SceneTree) -> int:
 		wake_texts.append(str(ev.get("text", "")))
 	var news_count := News.morning_events(2).size()
 	c.check("at:wake の共通イベントは朝のニュースの後に出る",
-		wake_texts[2 + news_count] == "朝の出来事" and wake_texts[3 + news_count].begins_with("水と炭の支払い"))
+		wake_texts[2 + news_count] == "朝の出来事" and wake_texts[3 + news_count].begins_with("炭代¥40・水代¥35は"))
 	var p10 = _wake_panel(t, 2)
 	c.check("朝に出した共通イベントは再生済みになる", p10.session.played_events == ["w"])
 	p10.free()

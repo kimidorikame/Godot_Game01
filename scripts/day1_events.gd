@@ -24,7 +24,7 @@ static func wake_events() -> Array:
 		{ "type": "TEXT", "text": "……目が覚めた。まだ薄暗い店の奥。" },
 		{ "type": EventRunner.TYPE_WAIT_INPUT, "text": "スマホを見る。" },
 	] + News.morning_events(GameState.day_count) + _wake_common_events() + [
-		{ "type": "TEXT", "text": "水と炭の支払い（運営費 ¥%d）は、市場を出るときに払う。" % GameState.DAILY_OPERATING_COST },
+		{ "type": "TEXT", "text": "%sは、市場を出るときに払う。" % Rules.operating_cost_parts_text() },   # 中身U2：炭代と水代に分けて見せる（合計は運営費）
 		{ "type": "TEXT", "text": "さて、準備へ向かうか。" },
 	]
 
@@ -111,19 +111,8 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 			names.append(Ingredients.name_for(str(id)))
 		events.append({ "type": "TEXT",
 			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
-	# 朝の決まった順の会話（中身U1。1日目の昼市場の会話。水道代はこの中の梁伯の場面で払う）。無い日は空。
-	events.append_array(morning_talk_events())
-	# 初日セット（DESIGN.md 10.3.4）：day_overrides.kit（Day1のみ"day1_kit"）が
-	# 宣言されている日だけ、仕込み量を選ぶ前に固定の購入イベントを差し込む。
-	# 自由な買い物ではない（DESIGN.md §6「Day1は自由な買い物なし」を維持）ので
-	# MARKETのようなプレイヤー操作は挟まず、進行に乗せるだけの一方向イベントにする。
-	# _scraps_base（このすぐ後の分岐）はWAKE直後・このセット購入前の所持金で
-	# 既に決まっている（debug_panel.gd._set_runner_for_phase(PREP)参照）。Day1の
-	# 初期現金(600)では購入順序を入れ替えても結果は変わらない数値のため、あえて
-	# 処理順序（_scraps_base判定→PREP突入→このセット購入）の入れ替えはしない。
-	var kit_id := str(Rules.day_overrides(GameState.day_count).get("kit", ""))
-	if kit_id != "":
-		events.append_array(_kit_purchase_events(kit_id))
+	# 初日セット（DESIGN.md 10.3.4）は、中身U2から買うのではなく手持ちの在庫として、朝（WAKE に入った時点）に
+	# PlaySession が引いて持ち物に足す（kit_today()）。ここには出さない。
 	if scraps_base:
 		# 値切る／譲ってもらう。食肉仲卸で仕込みを選ぶ淡々としたトーンと対比させる。
 		events.append_array([
@@ -131,6 +120,15 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 			{ "type": "TEXT", "text": "「すまん、持ち合わせが足りねえ」「……野菜くずなら持ってきな。金はいい」" },
 		])
 		events.append_array(prep_after_tier_events(PREP_TIERS[0], true))
+	elif has_market_scene():
+		# 中身U2：市場の場面のある日（1日目）は、張記で張姐の会話だけを出す（「食肉売場へ来た」と仕込みの見当の会話は出さない）。
+		# 仕込む量は会話の途中（{ "prep_tier": true } の位置）で選ぶ。その直前の行を、選んでいるあいだの PREP_TIER の文にする。
+		var before := market_scene_events("arrive_before")
+		var question := "（仕込む量を決める。）"
+		if not before.is_empty() and str(before.back().get("type", "")) == "TEXT":
+			question = str(before.pop_back()["text"])
+		events.append_array(before)
+		events.append({ "type": "PREP_TIER", "text": question, "options": prep_tier_options(), "part": "market_scene" })
 	else:
 		events.append({ "type": "TEXT", "text": "食肉売場へ来た" })
 		events.append_array(prep_talk_events())
@@ -165,27 +163,21 @@ static func prep_talk_events() -> Array:
 	return events
 
 
-## 初日セット（DESIGN.md 10.3.4）の購入Event列。kit_idからdata/kits/<id>.jsonを読み、
-## 合計額をPAY（kind:"kit"）で払い、各品目をADD_ITEM（unit_price付き）で受け取る。
-## 濃縮だし（idが"dashi"）は在庫ではないため、受け側（debug_panel.gd._apply_event）が
-## 市場の購入ハンドラ（_on_shop_item_selected）と同じ前例でGameState.buy_dashi()へ
-## 振り分ける。
-static func _kit_purchase_events(kit_id: String) -> Array:
-	var kit := ScheduleData.kit_data(kit_id)
-	var items: Array = kit.get("items", [])
+## 今日の初日セット（DESIGN.md 10.3.4。day_overrides.kit。Day1だけ "day1_kit"）：{ total, items:[{ item, amount, unit_price }] }。無い日は空辞書。
+## 中身U2：買う場面は作らず、手持ちの在庫として朝（WAKE に入った時点）に PlaySession が total を引き、items を持ち物に足す
+## （文も支払いの行も出さない）。濃縮だし（item が "dashi"）は在庫ではないので、受け側が GameState.buy_dashi() へ振り分ける。
+static func kit_today() -> Dictionary:
+	var kit_id := str(Rules.day_overrides(GameState.day_count).get("kit", ""))
+	if kit_id == "":
+		return {}
 	var total := 0
-	for good in items:
-		total += int(good.get("price", 0))
-	var events := [
-		{ "type": "TEXT", "text": "いつもの仕入れ先で、仕込みに使う分をまとめて受け取った。" },
-		{ "type": "PAY", "amount": total, "kind": "kit", "text": "初日セット" },
-	]
-	for good in items:
+	var items := []
+	for good in ScheduleData.kit_data(kit_id).get("items", []):
 		var count: int = int(good.get("count", 1))
 		var price: int = int(good.get("price", 0))
-		events.append({ "type": "ADD_ITEM", "item": str(good.get("item", "")),
-			"amount": count, "unit_price": int(price / count) if count > 0 else price })
-	return events
+		total += price
+		items.append({ "item": str(good.get("item", "")), "amount": count, "unit_price": int(price / count) if count > 0 else price })
+	return { "total": total, "items": items }
 
 
 ## PREP_TIERの選択（または端材屋の固定・小仕込み相当）が決まった後の残り。
@@ -196,10 +188,15 @@ static func _kit_purchase_events(kit_id: String) -> Array:
 ## （scraps_baseルートはprep_events()側の既存TEXTに連結されるだけなので影響なし）。
 static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) -> Array:
 	var events := []
-	if not scraps_base:
+	# 中身U2：市場の場面のある日（1日目）は、張姐の会話の続き（選んだあと〜出汁の代金）を先に出す。「%sにした。」は出さない。
+	# 列の先頭は張姐の会話の行（効果の無い TEXT）。鍋の素の受け取り（ADD_ITEM）は文を出さない。
+	var scene_arrive := has_market_scene() and not scraps_base
+	if scene_arrive:
+		events.append_array(market_scene_events("arrive_after", tier))
+	elif not scraps_base:
 		events.append({ "type": "TEXT", "text": "%sにした。" % str(tier.get("label", "")) })
 	events.append({ "type": "ADD_ITEM", "item": "soup_base", "amount": 1,
-		"text": "萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "鶏骨と手羽端を受け取った" })
+		"text": "" if scene_arrive else ("萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "鶏骨と手羽端を受け取った") })
 	# ベース入手の後・市場の前に、今日来る常連の場面が持つ昼の市場の会話（market_talk）を挟む
 	# （新人警官の初登場＝officer_01。要求タグを仕入れの前に知らせるため）。市場の enabled とは
 	# 無関係に、会話は必ず出る。日番号の直書きではなく、場面データから引く。
@@ -209,7 +206,13 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	# 場所代・水道代の再編＋日々の運営費：市場を出た瞬間の物語上のけじめ（表示専用の
 	# TEXT。効果は持たない）。日々の運営費（水と炭）は、このTEXTに乗る前の「市場を出る」操作
 	# （PlaySession.exit_market）で引く（UI準備D・D-4。朝は確保だけ）。
-	events.append({ "type": "TEXT", "text": "水を汲み、炭を買った（−¥%d）。" % GameState.DAILY_OPERATING_COST })
+	# 中身U2：市場の場面のある日（1日目）は、「市場を出る」のあとに店主の一言→炭屋→水場の会話を出し、それぞれの会話の
+	# あとで炭代・水代・水道代を払う（PlaySession.exit_market はその日の運営費・水道代を払わない）。ほかの日は今までどおり
+	# 市場を出るときにまとめて払い、表示だけ炭代と水代に分ける。
+	if has_market_scene():
+		events.append_array(market_scene_events("exit"))
+	else:
+		events.append({ "type": "TEXT", "text": "水を汲み、炭を買った（%s）。" % Rules.operating_cost_parts_text("−") })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
@@ -749,26 +752,61 @@ static func market_talk_events() -> Array:
 	return events
 
 
-## 朝の決まった順の会話（中身U1。day_overrides.<日>.morning_talk が data/talks/<id>.json を指す日だけ。1日目の
-## 昼市場の会話＝炭屋→水場→張記）。PREP の列の先頭（初日セットの受け取りの前）に置く。選ぶ操作は無い。
-## 行は TEXT（part:"morning_talk"。話し手は行の頭の名前から出す）。〔演出〕の行は落とす。
-## 行の代わりの { pay_bills: <scene> } の位置で、その場面が取り立てる今日の請求（bills[] の scene）を PAY にする
-## （水道代＝scene "water_stall" は梁伯の場面で払う。kind は請求の id、文は「<その場の話し手>（<請求の名前>）」）。
-## 先頭は必ず行（EventRunner は列の先頭の効果を適用しないため、PAY を先頭に置かない。検査は data の側）。
-static func morning_talk_events() -> Array:
-	var talk := ScheduleData.talk_data(str(Rules.day_overrides(GameState.day_count).get("morning_talk", "")))
+## 市場の場面（中身U2。day_overrides.<日>.market_scene が data/talks/<id>.json を指す日だけ。1日目）。
+static func market_scene_id() -> String:
+	return str(Rules.day_overrides(GameState.day_count).get("market_scene", ""))
+
+
+static func has_market_scene() -> bool:
+	return not ScheduleData.talk_data(market_scene_id()).is_empty()
+
+
+## 市場の場面の行を Event にする。section：
+##   "arrive_before" … 市場に着いたとき（when:"arrive"）の { "prep_tier": true } より前（TEXT。part:"market_scene"）
+##   "arrive_after"  … その後ろ（選んだ鍋の素の代金の PAY を含む。tier＝選んだ段階）
+##   "exit"          … 「市場を出る」のあと（when:"exit"。店主の一言→炭屋→水場。part:"market_exit"）
+## 払う印：{ "pay": "prep" }＝tier の代金（kind:"prep"・item＝段階の id）、{ "pay": "operating", "id" }＝運営費の内訳
+## （Rules.operating_cost_parts。kind:"operating"）、{ "pay_bills": <scene> }＝その場面が取り立てる今日の請求（bills[]）。
+## PAY の文は「<その場の話し手>（<名前>）」。〔演出〕の行は落とす。状態を読むだけ。
+static func market_scene_events(section: String, tier: Dictionary = {}) -> Array:
+	var talk := ScheduleData.talk_data(market_scene_id())
+	var want := "exit" if section == "exit" else "arrive"
+	var part_tag := "market_exit" if section == "exit" else "market_scene"
 	var events := []
 	for part in talk.get("parts", []):
-		if not (part is Dictionary):
+		if not (part is Dictionary) or str(part.get("when", "")) != want:
 			continue
-		for line in (part as Dictionary).get("lines", []):
-			if line is Dictionary and (line as Dictionary).has("pay_bills"):
-				for bill in Rules.bills_for_scene(str(line["pay_bills"]), GameState.day_count):
-					events.append({ "type": "PAY", "amount": int(bill["amount"]), "kind": str(bill["id"]),
-						"text": "%s（%s）" % [str(part.get("speaker", "")), str(bill.get("label", bill["id"]))],
-						"part": "morning_talk" })
+		var speaker := str(part.get("speaker", ""))
+		var before := true
+		for line in part.get("lines", []):
+			if line is Dictionary and (line as Dictionary).has("prep_tier"):
+				before = false
+				continue
+			if (section == "arrive_before" and not before) or (section == "arrive_after" and before):
+				continue
+			if line is Dictionary:
+				events.append_array(_market_pay_events(line, speaker, tier, part_tag))
 			elif line is String and line != "" and not ScheduleData.is_direction_line(line):
-				events.append({ "type": "TEXT", "text": line, "part": "morning_talk" })
+				events.append({ "type": "TEXT", "text": line, "part": part_tag })
+	return events
+
+
+static func _market_pay_events(mark: Dictionary, speaker: String, tier: Dictionary, part_tag: String) -> Array:
+	var events := []
+	match str(mark.get("pay", "")):
+		"prep":
+			if not tier.is_empty():
+				events.append({ "type": "PAY", "amount": int(tier.get("price", 0)), "kind": "prep", "item": str(tier.get("id", "")),
+					"text": "%s（鍋の素）" % speaker, "part": part_tag })
+		"operating":
+			var cost := Rules.operating_cost_part(str(mark.get("id", "")))
+			if not cost.is_empty():
+				events.append({ "type": "PAY", "amount": int(cost["amount"]), "kind": "operating", "item": str(cost["id"]),
+					"text": "%s（%s）" % [speaker, str(cost["label"])], "part": part_tag })
+	if mark.has("pay_bills"):
+		for bill in Rules.bills_for_scene(str(mark["pay_bills"]), GameState.day_count):
+			events.append({ "type": "PAY", "amount": int(bill["amount"]), "kind": str(bill["id"]),
+				"text": "%s（%s）" % [speaker, str(bill.get("label", bill["id"]))], "part": part_tag })
 	return events
 
 
@@ -981,8 +1019,8 @@ const _OFFICER_PAYMENT := [
 
 
 ## Day1開始時の無料在庫（DESIGN.md 10.3.4「無料在庫0」）。3-5でこれまでの無料在庫
-## （調味料10個・具材4〜6個の増量版）を廃止し、代わりにPREPで「初日セット」を
-## 固定購入するようにした（prep_events()の_kit_purchase_events()参照。中身は
+## （調味料10個・具材4〜6個の増量版）を廃止し、代わりに「初日セット」を
+## 固定購入するようにした（中身U2から朝に引いて持ち物に足す＝kit_today()参照。中身は
 ## data/kits/day1_kit.json）。市場は初日はまだ開いていない（market_open_from_day=2）
 ## ため、このセットがDay1に使える具材の唯一の出どころになる。
 static func initial_inventory() -> Dictionary:
@@ -1135,8 +1173,4 @@ static func _customer_extra_events(customer_id: String) -> Array:
 		collected.append({ "type": "PAY", "customer": customer_id, "amount": int(bill["amount"]),
 			"kind": str(bill["id"]),
 			"text": "%s（%s）" % [ScheduleData.customer_display_name(customer_id), str(bill.get("label", bill["id"]))] })
-	# 請求を払ったあとの会話（場面の after_bill。中身U1：レックスの場所代のあと〜退店）。請求がある日だけ。
-	if not collected.is_empty():
-		collected.append_array(_scene_lines("after_bill", customer_id,
-			ScheduleData.episode_after_bill(customer_id, episode_id_of(customer_id))))
 	return collected

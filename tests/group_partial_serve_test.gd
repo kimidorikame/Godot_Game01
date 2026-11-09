@@ -160,6 +160,10 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(panel2)
 	# 3-5：initial_inventory()は空になったため、_seed_initial_inventory()はもう何も
 	# 積まない。このテストで使う分を直接積む。
+	# 中身U2：Day1 は朝（WAKE）に初日セットを持ち物に足す。このテストは持ち物を自分で決めるので、空にしてから始める
+	GameState.inventory.clear()
+	GameState.perishable_batches.clear()
+	GameState.dashi_units = 0
 	GameState.add_inventory("nam_prik_pao", 10)
 	GameState.add_inventory("meat_ball", 10)
 	GameState.phase = GameState.Phase.OPEN

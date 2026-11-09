@@ -238,7 +238,7 @@ func run(t: SceneTree) -> int:
 		GameState.phase == GameState.Phase.GAME_OVER and not bool(exits["can_retry"]) and bool(exits["run_again_is_new_run"])
 			and retry.text == "Day 1 の朝からやり直す" and not retry.disabled, retry.text)
 	_press(retry)
-	c.check("→ run_again（新しい周）でDay1の朝から", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
-		and GameState.money == GameState.INITIAL_MONEY)
+	c.check("→ run_again（新しい周）でDay1の朝から（中身U2：所持金は初期現金−初日セット210）", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+		and GameState.money == GameState.INITIAL_MONEY - 210)
 	root.queue_free()
 	return c.finish()

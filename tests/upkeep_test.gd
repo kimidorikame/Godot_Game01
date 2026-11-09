@@ -9,7 +9,9 @@ extends RefCounted
 func _setup(t: SceneTree, money: int, day: int = 1):
 	GameState.reset_for_new_game()
 	GameState.day_count = day
-	GameState.money = money
+	# 中身U2：初日セットのある日（Day1）は、朝（WAKE）に初日セット（210）を引く。このスイートの所持金は「初日セットを引いたあと」の値
+	# なので、その分を足して朝を始める。
+	GameState.money = money + int(Day1Events.kit_today().get("total", 0))
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)   # _ready()がその場で_set_runner_for_phase(WAKE)を呼ぶ
 	return panel
@@ -18,6 +20,11 @@ func _setup(t: SceneTree, money: int, day: int = 1):
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 	var root_before := t.root.get_children()   # 終わりに、このテストが作った画面の部品（DebugPanel など）を片づける
+	# 中身U2：このスイートは市場を出るときの支払い（水道代・運営費）の仕組みを見るので、Day1の市場の場面（炭屋・水場の会話のあとで払う）は
+	# 外して確かめ、最後に戻す（市場の場面のある Day1 は tests/day1_script_test.gd・operating_cost_test.gd）。
+	var day1_overrides: Dictionary = Rules.day_overrides(1)
+	var market_scene_id = day1_overrides.get("market_scene")
+	day1_overrides.erase("market_scene")
 
 	# --- 1. 新しい定数の値そのもの ---
 	c.check("RENT_PRICEは90", GameState.RENT_PRICE == 90)
@@ -79,9 +86,8 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	var extra_day1: Array = Day1Events._customer_extra_events("thug")
-	c.check("Day1のチンピラPAYは場所代90（そのあとは場所代を払ったあとの会話の行だけ。中身U1）",
-		extra_day1.size() >= 1 and str(extra_day1[0].get("type", "")) == "PAY" and int(extra_day1[0].get("amount", -1)) == 90
-			and extra_day1.slice(1).all(func(e): return str(e.get("type", "")) == "GREET"), str(extra_day1))
+	c.check("Day1のチンピラPAYは場所代90（中身U2：退店のあとに払う。PAY だけ）",
+		extra_day1.size() == 1 and str(extra_day1[0].get("type", "")) == "PAY" and int(extra_day1[0].get("amount", -1)) == 90, str(extra_day1))
 	GameState.day_count = 2
 	var extra_day2: Array = Day1Events._customer_extra_events("thug")
 	c.check("Day2はチンピラPAYが出ない(is_collection_dayでない)", extra_day2.is_empty(), str(extra_day2))
@@ -178,5 +184,6 @@ func run(t: SceneTree) -> int:
 	c.check("確保が0になっても行自体は残る(常時表示)", panel10._format_game_state().contains("/ 0 /"),
 		panel10._format_game_state())
 
+	day1_overrides["market_scene"] = market_scene_id
 	TestCheck.free_added(t, root_before)
 	return c.finish()

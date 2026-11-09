@@ -11,7 +11,9 @@ extends RefCounted
 func _setup(t: SceneTree, money: int, day: int, keep_wake_money: bool = false):
 	GameState.reset_for_new_game()
 	GameState.day_count = day
-	GameState.money = money
+	# 中身U2：初日セットのある日（Day1）は、朝（WAKE）に初日セット（210）を引く。このスイートの所持金は「初日セットを引いたあと」の値
+	# なので、その分を足して朝を始める。
+	GameState.money = money + int(Day1Events.kit_today().get("total", 0))
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
 	if not keep_wake_money:
@@ -168,11 +170,11 @@ func run(t: SceneTree) -> int:
 	p3.free()
 
 	# --- 4. 市場を出る（水場）：徴収日だけ水道代・払えなければゲームオーバー ---
-	# 中身U1：Day1の水道代は、朝の昼市場の会話（day_overrides.morning_talk の梁伯の場面）で先に払う。ここでは
-	# 「朝に払う場面が無い徴収日」の市場を出るときの精算（保険の経路）を見るため、Day1の朝の会話を外してから確かめ、最後に戻す。
+	# 中身U2：Day1の水道代・運営費は、市場を出たあとの炭屋・水場の会話（day_overrides.market_scene）のあとで払う。ここでは
+	# 「市場の場面が無い徴収日」の市場を出るときの精算（今までの経路）を見るため、Day1の市場の場面を外してから確かめ、最後に戻す。
 	var day1_overrides: Dictionary = Rules.day_overrides(1)   # 読み込み結果の辞書そのもの（書き換えると Rules も変わる）
-	var morning_talk_id = day1_overrides.get("morning_talk")
-	day1_overrides.erase("morning_talk")
+	var market_scene_id = day1_overrides.get("market_scene")
+	day1_overrides.erase("market_scene")
 	var p4 = _setup(t, 1000, 1)
 	_to_tier(p4)
 	p4.session.choose_prep_tier("small")
@@ -203,18 +205,24 @@ func run(t: SceneTree) -> int:
 		not p6.session.exit_market() and GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("ゲームオーバーでも所持金は変わらない（マイナスにならない）", GameState.money == 30, str(GameState.money))
 	p6.free()
-	day1_overrides["morning_talk"] = morning_talk_id
-	# 朝の会話がある Day1（実データ）：市場に着いた時点で、もう水場に寄った扱い（水道代は梁伯の場面で払い済み）
-	var p6b = _setup(t, 1000, 1)
+	day1_overrides["market_scene"] = market_scene_id
+	# 市場の場面がある Day1（実データ）：市場を出る操作では払わず、そのあとの炭屋・水場の会話のあとで炭代・水代・水道代を払う
+	var p6b = _setup(t, 1000, 1, true)
 	_to_tier(p6b)
 	p6b.session.choose_prep_tier("small")
 	_to_market(p6b)
 	var money6b: int = GameState.money
-	c.check("朝の会話がある Day1：市場に着いたときには水道代を払い済み（水場に寄った扱い）・市場を出ても水道代は払わない（所持金が変わらない）",
-		p6b.session.market_visited_water and p6b.session.exit_market() and GameState.money == money6b,   # 運営費は _setup で引き終えた扱い
+	c.check("市場の場面がある Day1：市場を出る操作では払わない（まだ水場に寄っていない）",
+		p6b.session.exit_market() and GameState.money == money6b and not p6b.session.market_visited_water,
 		"visited=%s money %d → %d" % [str(p6b.session.market_visited_water), money6b, GameState.money])
-	c.check("朝の会話がある Day1：水道代は1回だけ（帳簿の water は -50 が1件）",
-		GameState.ledger.filter(func(e): return str(e["category"]) == "water").map(func(e): return int(e["amount"])) == [-50])
+	var guard6b := 0
+	while GameState.phase == GameState.Phase.PREP and not p6b.session.flow.is_runner_done() and guard6b < 80:
+		guard6b += 1
+		p6b.session.next_event()
+	c.check("市場の場面がある Day1：炭屋・水場の会話のあとで炭代40・水代35・水道代50（水道代は1回だけ・水場に寄った扱い）",
+		GameState.money == money6b - 125 and p6b.session.market_visited_water and p6b.session.operating_cost_pending() == 0
+			and GameState.ledger.filter(func(e): return str(e["category"]) == "water").map(func(e): return int(e["amount"])) == [-50],
+		str(GameState.money))
 	p6b.free()
 
 	# --- 5. 支払いとゲームオーバー ---

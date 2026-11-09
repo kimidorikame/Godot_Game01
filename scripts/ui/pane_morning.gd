@@ -65,8 +65,9 @@ func refresh() -> void:
 		_balance_label.text = "昨日の収支 %s¥%d（売上 − 仕入れ − 運営費）" % ["+" if balance >= 0 else "−", absi(balance)]
 		_balance_caption.text = "昨日のお金の出入り%s" % ("　（ほかに場所代・水道代 ¥%d）" % bills if bills > 0 else "")
 		_reputation_label.text = "評判 %d → %d" % [int(rec.get("opening_reputation", 0)), int(rec.get("closing_reputation", 0))]
-	_cost_label.text = "水と炭（運営費） ¥%d　市場を出るときに払う" % session.operating_cost_pending() if session.operating_cost_pending() > 0 \
-		else "水と炭（運営費） −¥%d　払った" % session.morning_cost()
+	# 中身U2：運営費は炭代と水代に分けて見せる（Rules.operating_cost_parts。合計は運営費のまま）
+	_cost_label.text = "%s　市場を出るときに払う" % Rules.operating_cost_parts_text() if session.operating_cost_pending() > 0 \
+		else "炭代・水代 −¥%d　払った" % session.morning_cost()
 	_usable_label.text = "使える現金 ¥%d" % int(session.budget()["usable"])
 	_primary.text = "市場へ"
 	_primary.disabled = not session.flow.is_runner_done() or session.flow.is_advance_blocked()

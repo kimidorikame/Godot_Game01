@@ -14,6 +14,7 @@ func _setup_open(t: SceneTree, customers: Array, inventory: Dictionary, strength
 	t.root.add_child(panel)
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
+	GameState.dashi_units = 0   # 中身U2：Day1 の朝に初日セットの濃縮だし（1）が足されるので、このテストの前提（だし0）に戻す
 	GameState.phase = GameState.Phase.OPEN
 	panel.session.open = OpenController.new([{ "name": "宵の口", "customers": customers }])
 	for id in inventory:
@@ -126,6 +127,7 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(p5)
 	GameState.inventory.clear()
 	GameState.perishable_batches.clear()
+	GameState.dashi_units = 0   # 中身U2：Day1 の朝に初日セットの濃縮だし（1）が足されるので、このテストの前提（だし0）に戻す
 	GameState.phase = GameState.Phase.OPEN
 	GameState.today_plan["mob_instances"]["mob_pot_test"] = { "type": "dock_workers", "count": 4 }
 	p5.session.open = OpenController.new([{ "name": "宵の口", "customers": ["mob_pot_test"] }])

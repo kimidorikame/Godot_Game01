@@ -76,13 +76,13 @@ func run(t: SceneTree) -> int:
 		not ex["can_retry"] and not ex["can_last_morning"] and ex["can_run_again"] and ex["run_again_is_new_run"]
 			and ex["can_new_run"], str(ex))
 	p.run_again()
-	c.check("run_again()：記録が空でも新しい周のDay1のWAKEへ", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
-		and GameState.money == GameState.INITIAL_MONEY and p.operating_cost_pending() == GameState.DAILY_OPERATING_COST)
+	c.check("run_again()：記録が空でも新しい周のDay1のWAKEへ（中身U2：所持金は初期現金−初日セット210）", GameState.phase == GameState.Phase.WAKE and GameState.day_count == 1
+		and GameState.money == GameState.INITIAL_MONEY - 210 and p.operating_cost_pending() == GameState.DAILY_OPERATING_COST)
 	GameState.day_count = 1
 	var morning_money := GameState.money
 	GameState.money = 5
 	c.check("retry_from_morning(1)：Day1の朝へ戻る（所持金が朝の値に戻る）",
-		p.retry_from_morning(1) and GameState.money == GameState.INITIAL_MONEY
+		p.retry_from_morning(1) and GameState.money == GameState.INITIAL_MONEY - 210   # 中身U2：初日セットは朝に引く（二重には引かない）
 			and GameState.phase == GameState.Phase.WAKE and morning_money == GameState.money)
 	c.check("存在しない日の朝へは戻れない（false）", not p.retry_from_morning(9))
 	panel._phone_mode = true

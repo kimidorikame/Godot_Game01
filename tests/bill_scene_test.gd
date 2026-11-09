@@ -37,21 +37,14 @@ func run(_t: SceneTree) -> int:
 	c.check("Day1のチンピラ：場所代のPAYが1つ（kind=rent・90・文は「表示名（場所代）」。中身U1で表示名はレックス）",
 		d1.size() == 1 and int(d1[0]["amount"]) == 90 and str(d1[0]["kind"]) == "rent"
 			and str(d1[0]["customer"]) == "thug" and str(d1[0]["text"]) == "レックス（場所代）", str(d1))
-	# 中身U1：場所代を払ったあとの会話（thug_01 の after_bill）は、PAY のすぐ後ろに続く（〔演出〕の行は出さない）
+	# 中身U2：場所代はレックスの会話が終わったとき（退店のあと）に払う＝PAY は場面の列の最後（食後の会話は REACT の直後に差し込む body）
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	var thug_events := Day1Events.customer_events("thug")
-	var pay_at := -1
-	for i in range(thug_events.size()):
-		if str(thug_events[i].get("type", "")) == "PAY":
-			pay_at = i
-	var after_bill := ScheduleData.spoken_lines(ScheduleData.episode_after_bill("thug", "thug_01"))
-	var follows := pay_at >= 0 and not after_bill.is_empty() and thug_events.size() == pay_at + 1 + after_bill.size()
-	for i in range(after_bill.size()):
-		follows = follows and str(thug_events[pay_at + 1 + i].get("text", "")) == str(after_bill[i]) \
-			and str(thug_events[pay_at + 1 + i].get("part", "")) == "after_bill"
-	c.check("Day1のチンピラ：場所代のPAYの直後に、払ったあとの会話（after_bill）が順に続く（〔演出〕は除く）", follows,
-		"%d / %d" % [pay_at, after_bill.size()])
+	c.check("Day1のチンピラ：場所代のPAYは列の最後（食後の会話は body。退店の行まで body に入っている）",
+		str(thug_events.back().get("type", "")) == "PAY" and thug_events.filter(func(e): return str(e.get("type", "")) == "PAY").size() == 1
+			and str(ScheduleData.episode_body("thug", "thug_01").back()).begins_with("〔演出〕レックスが通りへ出る")
+			and str(ScheduleData.spoken_lines(ScheduleData.episode_body("thug", "thug_01")).back()) == "レックス「今日のスープ代、何の金だよ」")
 	for d in range(2, 8):
 		c.check("Day%dのチンピラ：PAYは出ない" % d, _pays("thug", d).is_empty())
 	for cid in ["delivery_man", "granny", "officer", "hooker", "streamer"]:

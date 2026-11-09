@@ -108,6 +108,34 @@ static func daily_operating_cost() -> int:
 	return int(_economy().get("daily_operating_cost", 80))
 
 
+## 運営費の内訳（中身U2）：[{ id, label, amount }]（炭代・水代）。合計は daily_operating_cost と同じ（テストで確かめる）。
+## 1日目は炭屋・水場の会話のあとでそれぞれ払い、2日目以降は市場を出るときにまとめて払う（表示だけ分ける）。
+## 無いときは運営費をまとめて1つ（label「水と炭」）。
+static func operating_cost_parts() -> Array:
+	var parts = _economy().get("operating_cost_parts", [])
+	if not (parts is Array) or (parts as Array).is_empty():
+		return [{ "id": "all", "label": "水と炭", "amount": daily_operating_cost() }]
+	var out := []
+	for p in parts:
+		out.append({ "id": str(p.get("id", "")), "label": str(p.get("label", "")), "amount": int(p.get("amount", 0)) })
+	return out
+
+
+## 運営費の内訳の文（「炭代¥40・水代¥35」）。朝の画面・朝の語り・市場を出るときの語りで使う。
+static func operating_cost_parts_text(sign: String = "") -> String:
+	var texts := PackedStringArray()
+	for p in operating_cost_parts():
+		texts.append("%s%s¥%d" % [str(p["label"]), sign, int(p["amount"])])
+	return "・".join(texts)
+
+
+static func operating_cost_part(id: String) -> Dictionary:
+	for p in operating_cost_parts():
+		if str(p["id"]) == id:
+			return p
+	return {}
+
+
 static func dashi_price() -> int:
 	return int(_economy().get("dashi_price", 16))
 

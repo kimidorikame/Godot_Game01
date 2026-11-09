@@ -99,7 +99,7 @@ func run(t: SceneTree) -> int:
 	while not (GameState.phase == GameState.Phase.PREP and s.flow.runner.index == 0) and guard < 40:
 		guard += 1
 		play.step()
-	c.check("Day1の仕込みに入った（最初の行は受け取りの語り）", GameState.phase == GameState.Phase.PREP and s.flow.runner.index == 0
+	c.check("Day1の仕込みに入った（最初の行は張記の張姐の会話。中身U2）", GameState.phase == GameState.Phase.PREP and s.flow.runner.index == 0
 		and _box_text(root) != "")
 	var clicks := 0
 	var empty_seen := false
@@ -117,16 +117,18 @@ func run(t: SceneTree) -> int:
 			silent_seen = true
 	c.check("Day1の仕込み：初日セットの受け取り（ADD_ITEM 7件）で、会話枠を空にしてクリックさせない", not empty_seen and not silent_seen,
 		"クリック%d回・空の枠=%s・ADD_ITEMで止まった=%s" % [clicks, str(empty_seen), str(silent_seen)])
-	# 中身U1：Day1は仕込みの前に朝の昼市場の会話（行と水道代の支払いの行）があるので、その行のページの数だけクリックが増える
+	# 中身U2：Day1の仕込みは張記の張姐の会話から始まり、「今日はどれ位仕込むんだい？」の行で鍋の素を選ぶ。初日セットは朝に受け取った。
+	# クリックの数＝選ぶ場面より前の行のページの数
 	var talk_pages := 0
-	for ev in Day1Events.morning_talk_events():
-		talk_pages += root.left.paginate(str(PlaySession.split_speaker(str(ev["text"]))["text"])).size()
-	c.check("鍋の素を選ぶ画面（PREP_TIER）まで、会話枠のクリックだけで着いた（5回＋朝の昼市場の会話%dページ）" % talk_pages,
-		s.is_in_prep_tier() and clicks == 5 + talk_pages and talk_pages > 0, str(clicks))
+	for ev in s.flow.runner.events.slice(0, s.flow.runner.index):
+		talk_pages += root.left.paginate(str(PlaySession.split_speaker(str(ev.get("text", "")))["text"])).size()
+	c.check("鍋の素を選ぶ画面（PREP_TIER）まで、会話枠のクリックだけで着いた（張姐の会話%dページ）" % talk_pages,
+		s.is_in_prep_tier() and clicks == talk_pages and talk_pages > 0
+			and s.flow.runner.events.slice(0, s.flow.runner.index).all(func(e): return str(e.get("part", "")) == "market_scene"), str(clicks))
 	var kit_total := 0
 	for item in GameState.inventory:
 		kit_total += int(GameState.inventory[item])
-	c.check("受け取りのEventはすべて反映されている（初日セットの在庫が入っている）", kit_total > 0, str(GameState.inventory))
+	c.check("初日セットの在庫が入っている（朝に受け取った）", kit_total > 0, str(GameState.inventory))
 	c.check("仕込みの会話枠にも、押せない既読スキップは重ならない", _blockers(root).is_empty(), str(_blockers(root)))
 
 	# --- 4. 開店・閉店の会話枠のクリック ---

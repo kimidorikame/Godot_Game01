@@ -389,7 +389,7 @@ static func _is_lines(value) -> bool:
 ## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
 ## 配列を返す（空なら問題なし）。検査するのは新しいキーと反応のキーだけ：
 ##   reactions … 4段階＋UNSERVED。値は文字列の配列
-##   market_talk / pre_order / body / body_unserved / after_bill … 空でない文字列の配列
+##   market_talk / pre_order / body / body_unserved … 空でない文字列の配列
 ##   行の印（中身U1）… 〔ゲーム〕の行は持たない。〔演出〕は行の頭だけ（会話の行の配列の中。反応の行には持たない）
 ##   choices … 最大2。各 { id, options:[2つ { id, label, set(辞書・任意) }] }。idは一意
 ##   sets_facts … 辞書。選択肢の set と合わせた事実のキーが重複を除いて2個まで。両方に同じキーは不可
@@ -449,11 +449,11 @@ static func scene_problems(ep: Dictionary) -> Array:
 					problems.append("reactions に未知のキー %s" % str(key))
 				elif not (reactions[key] is Array):
 					problems.append("reactions.%s が配列でない" % str(key))
-	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info", "after_bill"]:
+	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info"]:
 		if ep.has(key) and not _is_lines(ep[key]):
 			problems.append("%s が空でない文字列の配列でない" % key)
 	# 〔ゲーム〕〔演出〕の印（中身U1）：会話の行の配列と反応の行
-	for key in ["greet", "market_talk", "pre_order", "body", "body_unserved", "after_bill"]:
+	for key in ["greet", "market_talk", "pre_order", "body", "body_unserved"]:
 		problems.append_array(marker_problems(ep.get(key, []), key))
 	var reaction_sources := [ep.get("reactions", {})]
 	if ep.get("cups") is Array:
@@ -633,14 +633,9 @@ static func marker_problems(lines, where: String) -> Array:
 	return problems
 
 
-## 請求を払ったあとの行（中身U1。レックスの場所代のあとの会話）。その客がその日に取り立てる請求
-## （bills[] の scene がその客）があるときだけ、支払い（PAY）の直後に流す。無ければ空配列。
-static func episode_after_bill(customer_id: String, episode_id: String) -> Array:
-	return _string_lines(episode_data(customer_id, episode_id).get("after_bill", []))
-
-
-## 決まった順に見せる会話（中身U1。data/talks/<id>.json）：{ id, parts:[ { place, speaker, lines:[行 | { pay_bills:<scene> }] } ] }。
-## 1日目の朝の昼市場の会話（day_overrides.morning_talk）が使う。無いときは空辞書。
+## 市場の場面（中身U1で足し、中身U2で形を変えた。data/talks/<id>.json）：
+##   { id, parts:[ { when:"arrive"|"exit", place, speaker, lines:[行 | { prep_tier:true } | { pay:"prep" } | { pay:"operating", id } | { pay_bills:<scene> }] } ] }
+## 1日目の市場（day_overrides.market_scene）が使う（Day1Events.market_scene_events）。無いときは空辞書。
 static func talk_data(id: String) -> Dictionary:
 	if id == "":
 		return {}

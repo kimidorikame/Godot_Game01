@@ -2,12 +2,13 @@ extends RefCounted
 ## 中身U1：1日目の本番の文（planning/scenario/day1/ の8本）をゲームのデータに入れたことの検証。
 ##   1. 話し手の名前の札：行の頭の「名前「セリフ」」を名前と本文に分ける（split_speaker）
 ##   2. 〔演出〕の行：データには持つが、Event にしない（spoken_lines）。〔ゲーム〕の行は持たない（marker_problems）
-##   3. データ：1日目の場面・モブ・朝の会話に印の問題が無い・注文の札・好物・名前
-##   4. 朝の昼市場の会話（炭屋→水場→張記）：PREP の先頭・水道代は梁伯の場面の行のあとで払う・2日目には無い
+##   3. データ：1日目の場面・モブ・市場の場面に印の問題が無い・注文の札・好物・名前
+##   4. 中身U2：1日目の市場の流れ（張記で張姐の会話→その途中で仕込む量を選ぶ→会話の終わりに出汁代／「市場を出る」のあと
+##      店主の一言→サミル→炭代40→梁伯→水代35・水道代50）。初日セットは朝に引いて持ち物に足す。2日目は今までどおり
 ##   5. モブのその日だけの文（days."1"）：1日目は元の文、2日目は日をまたぐ文。椀を出したあとの会話は、出したときだけ
 ##   6. 港湾労働者の OK：外れた札で出し分ける（OK_MISSING）。減点の OK は1つ目の OK
 ##   7. Day1 を最初から閉店まで本番の画面で通す：元の文の行が順に出る・〔演出〕〔ゲーム〕が出ない・反応は判定どおりの1行だけ・
-##      名前の札（店主など）
+##      名前の札（店主など）・所持金の減る順番（朝に初日セット→張姐のあと出汁代→サミルのあと炭代→梁伯のあと水代・水道代→レックスの退店のあと場所代）
 
 
 const TALK_ID := "day1_market"
@@ -96,9 +97,9 @@ func run(t: SceneTree) -> int:
 	var talk_problems := []
 	for part in talk["parts"]:
 		talk_problems.append_array(ScheduleData.marker_problems((part["lines"] as Array).filter(func(l): return l is String), str(part["place"])))
-	c.check("朝の会話（data/talks/day1_market.json）：炭屋→共同水場→張記の3場面・話し手・印に問題が無い",
-		talk["parts"].map(func(p): return str(p["place"])) == ["炭屋", "共同水場", "張記肉類加工"]
-			and talk["parts"].map(func(p): return str(p["speaker"])) == ["サミル", "梁伯", "張姐"] and talk_problems.is_empty(), str(talk_problems))
+	c.check("市場の場面（data/talks/day1_market.json）：着いたとき＝張記（張姐）、市場を出たあと＝店主→炭屋（サミル）→共同水場（梁伯）・印に問題が無い",
+		talk["parts"].map(func(p): return "%s:%s:%s" % [p["when"], p["place"], p["speaker"]])
+			== ["arrive:張記肉類加工:張姐", "exit:市場を出るとき:店主", "exit:炭屋:サミル", "exit:共同水場:梁伯"] and talk_problems.is_empty(), str(talk_problems))
 	var cups := ScheduleData.episode_cups("delivery_man", "delivery_man_01")
 	c.check("阿強：3杯。1・2杯目は札を持たない（プロフィールの 辛い＋スタミナ・好物 豆腐）、3杯目は持ち帰りで うましお＋やさしい・好物なし",
 		cups.size() == 3 and not cups[0].has("tags") and not cups[1].has("tags") and cups[2]["tags"] == ["SAVORY", "GENTLE"] and cups[2]["favorite"] == false
@@ -113,30 +114,59 @@ func run(t: SceneTree) -> int:
 			and str(Dm.data()["previews"]["pools"]["delivery_man"]["from"]) == "阿強" and str(Dm.data()["previews"]["pools"]["thug"]["from"]) == "レックス"
 			and str(Dm.data()["previews"]["pools"]["granny"]["from"]) == "ターニャ婆")
 
-	# --- 4. 朝の昼市場の会話（PREP の先頭） ---
+	# --- 4. 1日目の市場の流れ（中身U2） ---
+	var op_sum := 0
+	for part in Rules.operating_cost_parts():
+		op_sum += int(part["amount"])
+	c.check("運営費の内訳：炭代40・水代35（合計は運営費75のまま）",
+		Rules.operating_cost_parts().map(func(p): return "%s%d" % [p["label"], p["amount"]]) == ["炭代40", "水代35"] and op_sum == Rules.daily_operating_cost()
+			and Rules.operating_cost_parts_text() == "炭代¥40・水代¥35")
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
-	var morning := Day1Events.morning_talk_events()
-	var spoken_total := 0
-	for part in talk["parts"]:
-		spoken_total += ScheduleData.spoken_lines(part["lines"]).size()
-	var pays := morning.filter(func(e): return str(e["type"]) == "PAY")
-	var pay_at := -1
-	for i in range(morning.size()):
-		if str(morning[i]["type"]) == "PAY":
-			pay_at = i
-	c.check("Day1：朝の会話は行（TEXT）だけ＋水道代の PAY が1つ（kind=water・50・文「梁伯（水道代）」）。〔演出〕は出さない",
-		morning.size() == spoken_total + 1 and pays.size() == 1 and int(pays[0]["amount"]) == 50 and str(pays[0]["kind"]) == "water"
-			and str(pays[0]["text"]) == "梁伯（水道代）" and morning.all(func(e): return not str(e["text"]).contains("〔")), str(pays))
-	c.check("水道代は梁伯の「へこみのおかげで、こぼさずに済んでるんだ」のすぐあと・先頭は行（列の先頭の効果は適用されない）",
-		pay_at > 0 and str(morning[pay_at - 1]["text"]) == "梁伯「へこみのおかげで、こぼさずに済んでるんだ」" and str(morning[0]["type"]) == "TEXT"
-			and str(morning[0]["text"]) == "サミル「縫ったのか」")
+	var kit := Day1Events.kit_today()
+	c.check("初日セットは210・7品（朝に引いて持ち物に足す）。2日目は無い", int(kit.get("total", 0)) == 210 and (kit["items"] as Array).size() == 7)
 	var prep := Day1Events.prep_events({}, false)
-	c.check("Day1 の PREP の列は朝の会話から始まり、そのあとに初日セットの受け取り",
-		prep.slice(0, morning.size()) == morning and str(prep[morning.size()]["text"]) == "いつもの仕入れ先で、仕込みに使う分をまとめて受け取った。")
+	var prep_texts := prep.map(func(e): return str(e.get("text", "")))
+	var arrive_spoken: Array = ScheduleData.spoken_lines(talk["parts"][0]["lines"])
+	var question_at: int = arrive_spoken.find("張姐「そこがうまいって知ってるんだね。今日はどれ位仕込むんだい？」")
+	c.check("Day1 の PREP：張姐の会話（〔演出〕なし）→「今日はどれ位仕込むんだい？」の行で仕込む量を選ぶ（PREP_TIER の文）。地の文・初日セット・見当の会話は出さない",
+		prep.size() == question_at + 1 and str(prep.back()["type"]) == "PREP_TIER" and str(prep.back()["text"]) == str(arrive_spoken[question_at])
+			and prep_texts.slice(0, question_at) == arrive_spoken.slice(0, question_at)
+			and not prep_texts.any(func(x): return x.contains("いつもの仕入れ先") or x.contains("食肉売場") or x.contains("今日はどれぐらい") or x == "初日セット"),
+		str(prep_texts))
+	var after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false)
+	var after_texts := after.map(func(e): return str(e.get("text", "")))
+	var at_prep_pay: int = after_texts.find("張姐（鍋の素）")
+	var at_market := -1
+	for i in range(after.size()):
+		if str(after[i]["type"]) == "MARKET":
+			at_market = i
+	c.check("選んだあと：張姐の会話の続き（先頭は張姐の行）→会話の終わりに「張姐（鍋の素）」の PAY（110・kind=prep・item=medium）→市場",
+		str(after[0]["type"]) == "TEXT" and str(after[0]["text"]) == str(arrive_spoken[question_at + 1])
+			and at_prep_pay > 0 and str(after[at_prep_pay - 1]["text"]) == "張姐「値段も読めるだろ。先にそっち」"
+			and int(after[at_prep_pay]["amount"]) == 110 and str(after[at_prep_pay]["kind"]) == "prep" and str(after[at_prep_pay]["item"]) == "medium"
+			and at_market > at_prep_pay and not after_texts.has("中仕込みにした。") and not after_texts.has("鶏骨と手羽端を受け取った"), str(after_texts))
+	var exit_spoken := []
+	for k in range(1, talk["parts"].size()):
+		exit_spoken.append_array(ScheduleData.spoken_lines(talk["parts"][k]["lines"]))
+	var exit_events := after.slice(at_market + 1).filter(func(e): return str(e.get("part", "")) == "market_exit")
+	var exit_texts := exit_events.map(func(e): return str(e["text"]))
+	var exit_pays := exit_events.filter(func(e): return str(e["type"]) == "PAY").map(func(e): return "%s:%s:%d" % [e["text"], e["kind"], e["amount"]])
+	var at_charcoal: int = exit_texts.find("サミル（炭代）")
+	var at_water: int = exit_texts.find("梁伯（水代）")
+	c.check("「市場を出る」のあと：店主「炭屋と水場も寄らないとな」→サミル→「サミル（炭代）」40→梁伯→「梁伯（水代）」35・「梁伯（水道代）」50（水を汲みの地の文は出さない）",
+		str(after[at_market + 1]["text"]) == "店主「炭屋と水場も寄らないとな」"
+			and exit_texts.filter(func(x): return not x.contains("（")) == exit_spoken
+			and exit_pays == ["サミル（炭代）:operating:40", "梁伯（水代）:operating:35", "梁伯（水道代）:water:50"]
+			and exit_texts[at_charcoal - 1] == "サミル「なら焚きつけ用に細いのを足せばいい。客が来る前から、炭だけ余計に食わせることはないさ」"
+			and exit_texts[at_water - 1] == "梁伯「あんたの缶に、三回分は入らないよ」"
+			and not after_texts.any(func(x): return x.begins_with("水を汲み")), str(exit_texts))
 	GameState.day_count = 2
-	c.check("Day2 には朝の会話が無い（PREP の列は今までどおり）", Day1Events.morning_talk_events().is_empty()
-		and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
+	var day2_after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false).map(func(e): return str(e.get("text", "")))
+	c.check("Day2 は今までどおり（食肉売場へ来た・中仕込みにした・市場を出るときにまとめて払う。文は炭代と水代に分けて見せる）。初日セットは無い",
+		Day1Events.kit_today().is_empty() and not Day1Events.has_market_scene()
+			and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た" and day2_after.has("中仕込みにした。")
+			and day2_after.has("水を汲み、炭を買った（炭代−¥40・水代−¥35）。"), str(day2_after))
 
 	# --- 5. モブのその日だけの文 ---
 	var day1_dock := ScheduleData.mob_data_for_day("dock_workers", 1)
@@ -186,9 +216,15 @@ func run(t: SceneTree) -> int:
 	var reactions := []   # [{ grade, text, pool }]
 	var reacted := {}
 	var plate := {}       # 名前の札の確かめ：話し手の名前 → 札の文字・本文の頭
+	var spends := []      # 所持金が減った順：「その時に会話枠に出ていた文 -額」
+	var wake_money := GameState.money
+	var money_before := GameState.money
 	var guard := 0
 	while GameState.day_count == 1 and guard < 5000:
 		guard += 1
+		if GameState.money < money_before:
+			spends.append("%s%s -%d" % [str(s.current_line().get("speaker_name", "")), str(s.current_line().get("text", "")), money_before - GameState.money])
+		money_before = GameState.money
 		var box_text := str(root.left.get_node("%DialogueText").text)
 		if box_text.contains("〔"):
 			bracket_shown.append(box_text)
@@ -211,7 +247,7 @@ func run(t: SceneTree) -> int:
 	c.check("会話枠に〔演出〕〔ゲーム〕の文が一度も出ない", bracket_shown.is_empty(), str(bracket_shown))
 	# 元の文の行（名前「セリフ」）を、出てくるはずの順に並べる（〔演出〕は除く。椀は全部出した前提）
 	var expected := []
-	for part in talk["parts"]:
+	for part in talk["parts"]:   # 張姐（「今日はどれ位仕込むんだい？」は段階を選ぶ場面の文として出る）→ 店主 → サミル → 梁伯
 		expected.append_array(ScheduleData.spoken_lines(part["lines"]))
 	var dm := ScheduleData.episode_data("delivery_man", "delivery_man_01")
 	expected.append_array(ScheduleData.spoken_lines(dm["greet"]))
@@ -221,7 +257,7 @@ func run(t: SceneTree) -> int:
 	expected.append_array(ScheduleData.spoken_lines(day1_dock["greet"]))
 	expected.append_array(ScheduleData.spoken_lines(day1_dock["after_talk"]))
 	var thug := ScheduleData.episode_data("thug", "thug_01")
-	for key in ["greet", "body", "after_bill"]:
+	for key in ["greet", "body"]:
 		expected.append_array(ScheduleData.spoken_lines(thug[key]))
 	var inn := ScheduleData.mob_data_for_day("inn_clerk", 1)
 	expected.append_array(ScheduleData.spoken_lines(inn["greet"]))
@@ -238,7 +274,7 @@ func run(t: SceneTree) -> int:
 		if i >= got.size() or i >= expected.size() or got[i] != expected[i]:
 			first_diff = i
 			break
-	c.check("Day1 の元の文の行（%d行）が、朝の会話→阿強→港湾労働者→レックス→安宿の夜勤受付→ターニャ婆の順に、抜けも重なりも無く出た" % expected.size(),
+	c.check("Day1 の元の文の行（%d行）が、張記→市場を出たあと（店主・炭屋・水場）→阿強→港湾労働者→レックス→安宿の夜勤受付→ターニャ婆の順に、抜けも重なりも無く出た" % expected.size(),
 		first_diff == -1, "最初に違う行 %d：%s ／ 期待 %s" % [first_diff, str(got[first_diff]) if first_diff >= 0 and first_diff < got.size() else "（無い）",
 			str(expected[first_diff]) if first_diff >= 0 and first_diff < expected.size() else "（無い）"])
 	c.check("反応は7回（阿強3杯・港湾労働者・レックス・安宿の夜勤受付・ターニャ婆）", reactions.size() == 7, str(reactions.map(func(r): return r["customer"] + ":" + r["grade"])))
@@ -255,6 +291,14 @@ func run(t: SceneTree) -> int:
 	c.check("名前の札：店主の行は「店主」、客の行はその人の名前（行の頭の名前）・本文は「」から",
 		plate.get("店主", [])  == ["店主", "「"] and plate.get("阿強", []) == ["阿強", "「"] and plate.get("サミル", []) == ["サミル", "「"]
 			and plate.get("労働者B", []) == ["労働者B", "「"] and plate.get("端末音声", []) == ["端末音声", "「"], str(plate))
+	var tier_paid := spends.filter(func(x): return str(x).begins_with("張姐（鍋の素） -"))
+	var thug_last := str(ScheduleData.spoken_lines(thug["body"]).back())
+	c.check("朝（目が覚めた時点）に初日セットの210を引いた（Day1 の朝の所持金 600−210＝390）", wake_money == 390, str(wake_money))
+	c.check("所持金が減る順番：張姐（鍋の素）-段階の値段→サミル（炭代）-40→梁伯（水代）-35→梁伯（水道代）-50→レックス（場所代）-90。ほかに減るのは椀を作るときの具材などではない（減ったのはこの5回だけ）",
+		spends.size() == 5 and tier_paid.size() == 1 and str(spends[0]).begins_with("張姐（鍋の素） -") and spends.slice(1) == ["サミル（炭代） -40", "梁伯（水代） -35", "梁伯（水道代） -50", "レックス（場所代） -90"],
+		str(spends))
+	c.check("場所代はレックスの会話の最後の行（退店）のあと", log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find(thug_last)
+		< log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find("レックス（場所代）"))
 	root.queue_free()
 
 	ReadState.reset(ReadState.path)

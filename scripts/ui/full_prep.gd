@@ -55,10 +55,14 @@ func lit_dots() -> int:
 		return 0
 	if runner.status == EventRunner.Status.DONE:
 		return _dots.get_child_count()
+	# 数え始めは市場（MARKET）。中身U2：1日目は市場を出たあとの会話（part:"market_exit"）の最後から数える（会話は全面の前に出す）
+	var anchor := -1
 	for i in range(runner.events.size()):
 		var ev = runner.events[i]
-		if ev is Dictionary and str(ev.get("type", "")) == "MARKET":
-			return clampi(runner.index - i, 0, _dots.get_child_count())
+		if ev is Dictionary and (str(ev.get("type", "")) == "MARKET" or str(ev.get("part", "")) == "market_exit"):
+			anchor = i
+	if anchor >= 0:
+		return clampi(runner.index - anchor, 0, _dots.get_child_count())
 	return 0
 
 

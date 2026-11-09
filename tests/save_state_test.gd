@@ -172,8 +172,8 @@ func run(t: SceneTree) -> int:
 	var panel = _setup(t, 300, 1)
 	var rec: Dictionary = GameState.latest_morning()
 	c.check("WAKEが成功すると朝が1件記録される", GameState.morning_snapshots.size() == 1 and not rec.is_empty())
-	c.check("朝の辞書の所持金は運営費を確保する前（300。運営費は朝は引かない）",
-		int(rec["state"]["money"]) == 300 and GameState.money == 300 and panel.session.operating_cost_pending() == GameState.DAILY_OPERATING_COST,
+	c.check("朝の辞書の所持金は運営費を確保する前・初日セットを引く前（300。運営費は朝は引かない。中身U2：初日セット210は辞書を取ったあとに引く）",
+		int(rec["state"]["money"]) == 300 and GameState.money == 300 - 210 and panel.session.operating_cost_pending() == GameState.DAILY_OPERATING_COST,
 		str(rec["state"]["money"]))
 	c.check("朝の辞書の帳簿には、その朝のdaily_cost・reserveがまだ入っていない",
 		not rec["state"]["ledger"].any(func(r): return str(r["category"]) in ["daily_cost", "reserve"]))
@@ -203,8 +203,8 @@ func run(t: SceneTree) -> int:
 	c.check("retry_from_morningはtrueを返す", ok)
 	c.check("戻った先の日・フェーズはDay1のWAKE",
 		GameState.day_count == 1 and GameState.phase == GameState.Phase.WAKE)
-	c.check("戻った朝の所持金は朝の値のまま・運営費は支払い予定として確保される（WAKEからやり直し）",
-		GameState.money == 300 and panel.session.operating_cost_pending() == GameState.DAILY_OPERATING_COST, str(GameState.money))
+	c.check("戻った朝の所持金は朝の値から初日セット210を1回だけ引いた値・運営費は支払い予定として確保される（WAKEからやり直し）",
+		GameState.money == 300 - 210 and panel.session.operating_cost_pending() == GameState.DAILY_OPERATING_COST, str(GameState.money))
 	c.check("戻った朝のDayPlanは保存したものと同一（slots・mob_instances・demand_center）",
 		GameState.today_plan["slots"] == before_plan["slots"]
 			and GameState.today_plan["mob_instances"] == before_plan["mob_instances"]
@@ -240,7 +240,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 8. 日中のゲームオーバー（Day1の場所代）：その日の朝へ戻る。2回続けて戻っても同じ ---
 	var panel3 = _setup(t, 600, 1)
-	var morning_money := 600
+	var morning_money := 600 - 210   # 中身U2：Day1 は朝（WAKE）に初日セット（210）を引く。戻っても1回だけ
 	GameState.money = 10
 	GameState.inventory["probe"] = 5
 	Ledger.record("market", -30)

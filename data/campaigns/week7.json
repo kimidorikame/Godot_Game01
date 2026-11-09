@@ -5,6 +5,7 @@
   "economy": {
     "initial_money": 600, "initial_reputation": 30,
     "price_per_serving": 45, "bad_price": 20, "daily_operating_cost": 75,
+    "operating_cost_parts": [{ "id": "charcoal", "label": "炭代", "amount": 40 }, { "id": "water", "label": "水代", "amount": 35 }],
     "tips": { "GREAT": 10, "GOOD": 5 }, "hearty_tip": 10,
     "prep_tiers": [[8, 80], [11, 110], [14, 140]],
     "pot_capacity": 14, "water_doses": 2, "dashi_price": 16,
@@ -32,7 +33,7 @@
   },
 
   "day_overrides": {
-    "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact", "morning_talk": "day1_market",
+    "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact", "market_scene": "day1_market",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },
                     { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
   },

@@ -14,6 +14,24 @@ func _norm(value) -> Variant:
 	return JSON.parse_string(JSON.stringify(value))
 
 
+## 記録に、中身U2の意図した差を当てる：市場を出たあとの語り「水を汲み、炭を買った（−¥75）。」は炭代と水代に分けた文に
+## （1日目は市場を出たあとの炭屋・水場の会話になるので無い）。1日目の通常の日は「中仕込みにした。」を出さず、鍋の素の受け取りの文を出さない。
+func _expected(recorded_events: Array, day: int, scraps: bool) -> Array:
+	var out := []
+	for ev in _norm(recorded_events):
+		if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).begins_with("水を汲み、炭を買った"):
+			if day == 1:
+				continue
+			ev["text"] = "水を汲み、炭を買った（炭代−¥40・水代−¥35）。"
+		if day == 1 and not scraps:
+			if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).ends_with("にした。"):
+				continue
+			if str(ev.get("type", "")) == "ADD_ITEM" and str(ev.get("item", "")) == "soup_base":
+				ev["text"] = ""
+		out.append(ev)
+	return out
+
+
 func _market_talks(events: Array) -> Array:
 	# MARKETより前にあるGREET（＝市場の会話）の [customer, text]
 	var talks := []
@@ -39,8 +57,11 @@ func run(t: SceneTree) -> int:
 			GameState.day_count = d
 			var now = _norm(Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[1], scraps))
 			var key := "%d:%s" % [d, "scraps" if scraps else "normal"]
-			c.check("Day%d（%s）：直書きの実装の記録と同一" % [d, "端材屋" if scraps else "通常"], now == recorded[key],
-				"%d vs %d events" % [(now as Array).size(), (recorded[key] as Array).size()])
+			# 中身U2：1日目の市場の場面（part:"market_scene"／"market_exit"の行と支払い）を除き、意図した差（下の _expected）を当てた記録と同一
+			var now_rest: Array = (now as Array).filter(func(e): return not ["market_scene", "market_exit"].has(str(e.get("part", ""))))
+			var expected := _expected(recorded[key], d, scraps)
+			c.check("Day%d（%s）：直書きの実装の記録と同一（中身U2の意図した差を除く）" % [d, "端材屋" if scraps else "通常"], now_rest == expected,
+				"%s / vs / %s" % [str(now_rest), str(expected)])
 
 	# --- 2. 新人警官の会話はDay2にだけ出る（日程の枠＝DayPlanが無い経路） ---
 	for d in range(1, 9):
@@ -61,7 +82,7 @@ func run(t: SceneTree) -> int:
 		int(GameState.today_plan.get("day", -1)) == 2 and Day1Events.episode_id_of("officer") == "officer_01")
 	var plan_events := Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[1], false)
 	c.check("DayPlanがあるDay2も、直書きの記録と同一（同じ位置に同じ形）",
-		_norm(plan_events) == recorded["2:normal"])
+		_norm(plan_events) == _expected(recorded["2:normal"], 2, false))
 	c.check("market_talk_events()は状態を書き換えない（何度呼んでも同じ）",
 		_norm(Day1Events.market_talk_events()) == _norm(Day1Events.market_talk_events()))
 

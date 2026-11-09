@@ -40,8 +40,8 @@ func run(_t: SceneTree) -> int:
 			and ScheduleData.episode_body_unserved("thug", "thug_02").is_empty()
 			and ScheduleData.episode_closing("thug", "thug_02").is_empty()
 			and ScheduleData.episode_must_info("thug", "thug_02").is_empty())
-	c.check("実データ（1日目の本番の文 thug_01。中身U1）：食後の本文（body）と場所代のあとの会話（after_bill）だけを持つ",
-		not ScheduleData.episode_body("thug", "thug_01").is_empty() and not ScheduleData.episode_after_bill("thug", "thug_01").is_empty()
+	c.check("実データ（1日目の本番の文 thug_01。中身U1・U2）：食後の本文（body。退店まで）だけを持つ",
+		not ScheduleData.episode_body("thug", "thug_01").is_empty() and not ScheduleData.episode_data("thug", "thug_01").has("after_bill")
 			and ScheduleData.episode_pre_order("thug", "thug_01").is_empty() and ScheduleData.episode_closing("thug", "thug_01").is_empty()
 			and ScheduleData.episode_must_info("thug", "thug_01").is_empty())
 	c.check("無い場面・空idも空", ScheduleData.episode_body("thug", "thug_99").is_empty()

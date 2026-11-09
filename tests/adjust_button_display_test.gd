@@ -10,6 +10,10 @@ func _setup(t: SceneTree):
 	GameState.day_count = 1
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)   # _ready()が自動でinitial_inventory()を積むが、3-5で空になった
+	# 中身U2：Day1 は朝（WAKE）に初日セットを持ち物に足す。このテストは持ち物を自分で決めるので、空にしてから始める
+	GameState.inventory.clear()
+	GameState.perishable_batches.clear()
+	GameState.dashi_units = 0
 	# （無料在庫0。初日セットはPREPの購入イベント経由でのみ積まれる）。このテストは
 	# ADJUSTボタンの表示（B/C）だけを見るので、旧initial_inventoryと同じ内容を客の
 	# ロード前に直接積む（offalは初日セットに含まれない品目だが、下処理したモツの
