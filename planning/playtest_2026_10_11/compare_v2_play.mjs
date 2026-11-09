@@ -51,7 +51,8 @@ function diffPaths(x, y, base, out) {
 
 const generalize = (p) => p.replace(/\[\d+\]/g, '[]');
 
-if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('compare_v2_play.mjs')) {
+// コマンドとして実行したときだけ照合する（ほかのスクリプトから import したときは EXCLUDED・playResult だけを使う）。
+if ((process.argv[1] ?? '').replace(/\\/g, '/').endsWith('compare_v2_play.mjs')) {
   const [nowName, baseName = 'playthrough_results_regulars_v2.json'] = process.argv.slice(2);
   if (!nowName) {
     console.log('使い方: node compare_v2_play.mjs <今回の results.json> [基準の results.json]');
