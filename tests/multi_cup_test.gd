@@ -247,8 +247,11 @@ func run(t: SceneTree) -> int:
 					v[k] = e[k]
 			out.append(v)
 		return out
-	c.check("文以外の Event（ADJUST・SERVE・REACT の並び・札・好物・杯数・売上）が記録と同じ（中身U1で文だけ替えた）",
-		strip.call(now_events) == strip.call(recorded_events), "%s / vs / %s" % [str(strip.call(now_events)), str(strip.call(recorded_events))])
+	# 中身U1：3杯目（持ち帰り）の札は まろやか＋やさしい → うましお＋やさしい に変えた（意図した差）。記録の側をその値に置き換えて比べる。
+	var recorded_values: Array = strip.call(recorded_events)
+	recorded_values.filter(func(v): return v["type"] == "REACT")[2]["wanted_tags"] = ["SAVORY", "GENTLE"]
+	c.check("文以外の Event（ADJUST・SERVE・REACT の並び・札・好物・杯数・売上）が記録と同じ（中身U1で文を替え、3杯目の札を うましお＋やさしい にした）",
+		strip.call(now_events) == recorded_values, "%s / vs / %s" % [str(strip.call(now_events)), str(strip.call(recorded_events))])
 	var keys_same := true
 	var now_values := now_events.filter(func(e): return e["type"] != "GREET")
 	var rec_values := recorded_events.filter(func(e): return e["type"] != "GREET")
@@ -270,8 +273,8 @@ func run(t: SceneTree) -> int:
 		recorded_reacts.size() == 3 and now_reacts.size() == 3 and not (now_reacts[2] as Dictionary).has("favorite")
 			and now_reacts[0]["favorite"] == "tofu" and now_reacts[1]["favorite"] == "tofu"
 			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size())
-	c.check("3杯目の注文は MELLOW/GENTLE のまま・反応は元の文（GOOD・OK・BAD の3段。GREAT は無い）",
-		now_reacts[2]["wanted_tags"] == ["MELLOW", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK"])
+	c.check("3杯目の注文は SAVORY/GENTLE（中身U1：うましお＋やさしい）・反応は元の文（GOOD・OK・BAD の3段。GREAT は無い）",
+		now_reacts[2]["wanted_tags"] == ["SAVORY", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK"])
 	c.check("1・2杯目の要求タグはプロフィール（HOT/POWER）で、反応は各結果1パターンのまま",
 		now_reacts[0]["wanted_tags"] == ["HOT", "POWER"] and now_reacts[1]["wanted_tags"] == ["HOT", "POWER"]
 			and (now_reacts[0]["reactions"]["GOOD"] as Array).size() == 1 and (now_reacts[1]["reactions"]["GREAT"] as Array).size() == 1)

@@ -100,8 +100,8 @@ func run(t: SceneTree) -> int:
 		talk["parts"].map(func(p): return str(p["place"])) == ["炭屋", "共同水場", "張記肉類加工"]
 			and talk["parts"].map(func(p): return str(p["speaker"])) == ["サミル", "梁伯", "張姐"] and talk_problems.is_empty(), str(talk_problems))
 	var cups := ScheduleData.episode_cups("delivery_man", "delivery_man_01")
-	c.check("阿強：3杯。1・2杯目は札を持たない（プロフィールの 辛い＋スタミナ・好物 豆腐）、3杯目は持ち帰りで好物なし",
-		cups.size() == 3 and not cups[0].has("tags") and not cups[1].has("tags") and cups[2].has("tags") and cups[2]["favorite"] == false
+	c.check("阿強：3杯。1・2杯目は札を持たない（プロフィールの 辛い＋スタミナ・好物 豆腐）、3杯目は持ち帰りで うましお＋やさしい・好物なし",
+		cups.size() == 3 and not cups[0].has("tags") and not cups[1].has("tags") and cups[2]["tags"] == ["SAVORY", "GENTLE"] and cups[2]["favorite"] == false
 			and ScheduleData.customer_profile("delivery_man")["wanted_tags"] == ["HOT", "POWER"] and ScheduleData.customer_profile("delivery_man")["favorite"] == "tofu")
 	c.check("レックス＝まろやか＋やさしい（好物 肉団子）・ターニャ婆＝うましお＋腹もち（好物 モツ）・港湾労働者＝辛い＋スタミナ・安宿の夜勤受付＝まろやか＋やさしい",
 		ScheduleData.customer_profile("thug")["wanted_tags"] == ["MELLOW", "GENTLE"] and ScheduleData.customer_profile("thug")["favorite"] == "meat_ball"

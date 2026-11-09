@@ -143,12 +143,12 @@ func run(t: SceneTree) -> int:
 			root.left.advance()
 		texts_seen.append(_texts(top))
 		question_between = question_between or _texts(top)[1] == "？"
-		if _texts(top)[1] == "まろやか・やさしい":
+		if _texts(top)[1] == "うましお・やさしい":
 			take_out_seen = true
-	c.check("配達員の3杯目（持ち帰り）：今日＝まろやか・やさしい（その杯の ADJUST で）。杯のあいだの会話では「？」",
+	c.check("配達員の3杯目（持ち帰り）：今日＝うましお・やさしい（中身U1。その杯の ADJUST で）。杯のあいだの会話では「？」",
 		take_out_seen and question_between and s.is_choosing_ingredients(), str(texts_seen.slice(-4)))
 	var q := s.order_card_view()
-	c.check("そのとき、今日の注文は MELLOW・GENTLE（基本の注文 base は HOT・POWER のまま）", q["base"] == ["HOT", "POWER"] and bool(q["today_known"]) and q["today"] == ["MELLOW", "GENTLE"], str(q))
+	c.check("そのとき、今日の注文は SAVORY・GENTLE（基本の注文 base は HOT・POWER のまま）", q["base"] == ["HOT", "POWER"] and bool(q["today_known"]) and q["today"] == ["SAVORY", "GENTLE"], str(q))
 	root.queue_free()
 
 	# --- 5. モブの団体：前回は空白・今日＝団体の注文（ADJUST で）。聞き直せない ---

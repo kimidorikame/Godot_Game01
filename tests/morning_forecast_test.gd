@@ -25,11 +25,11 @@ func run(t: SceneTree) -> int:
 		and int(total1["high"]) == 9, str(total1))
 	var dm_orders: Array = Forecast.orders_of("delivery_man")
 	c.check("配達員Day1は3杯の内訳が取れる(本人2杯＋持ち帰り1杯)", dm_orders.size() == 3, str(dm_orders))
-	c.check("持ち帰りはMELLOW+GENTLE", dm_orders.size() == 3
-		and dm_orders[2]["tags"] == ["MELLOW", "GENTLE"], str(dm_orders))
+	c.check("持ち帰りはSAVORY+GENTLE（中身U1：うましお＋やさしい）", dm_orders.size() == 3
+		and dm_orders[2]["tags"] == ["SAVORY", "GENTLE"], str(dm_orders))
 	var req1 := Forecast.required_exact()
-	c.check("必要数はHOT4 POWER4 MELLOW4 GENTLE4 SAVORY1 FILLING1（辞書として）",
-		req1 == { "HOT": 4, "POWER": 4, "MELLOW": 4, "GENTLE": 4, "SAVORY": 1, "FILLING": 1 }, str(req1))
+	c.check("必要数はHOT4 POWER4 MELLOW3 GENTLE4 SAVORY2 FILLING1（辞書として）",
+		req1 == { "HOT": 4, "POWER": 4, "MELLOW": 3, "GENTLE": 4, "SAVORY": 2, "FILLING": 1 }, str(req1))
 	c.check("空在庫なら全タグが不足", Forecast.shortages(req1).size() == 6, str(Forecast.shortages(req1)))
 	for id in { "nam_prik_pao": 5, "coconut_milk": 6, "herbal_sauce": 5,
 			"meat_ball": 6, "tofu": 6, "broken_wrapper": 3 }:
@@ -39,10 +39,10 @@ func run(t: SceneTree) -> int:
 		str(Forecast.shortages(req1)))
 	var memo1: String = panel._format_tonight_memo()
 	c.check("Day1メモに総杯数9杯・配達員の内訳・モブの人数が出る",
-		memo1.contains("総杯数: 9杯") and memo1.contains("HOT/POWER×2・MELLOW/GENTLE×1")
+		memo1.contains("総杯数: 9杯") and memo1.contains("HOT/POWER×2・SAVORY/GENTLE×1")
 		and memo1.contains("港湾労働者2人") and memo1.contains("安宿の夜勤受付2人"), memo1)
 	c.check("Day1メモに必要数・在庫との過不足・使える現金が出る",
-		memo1.contains("HOT4 MELLOW4 SAVORY1 POWER4 GENTLE4 FILLING1")
+		memo1.contains("HOT4 MELLOW3 SAVORY2 POWER4 GENTLE4 FILLING1")
 		and memo1.contains("不足なし") and memo1.contains("使える現金"), memo1)
 
 	# --- 2. 範囲は実際に引いた値ではなく「中心」基準（中心±1が毎回変わらない） ---

@@ -158,8 +158,8 @@ func run(_t: SceneTree) -> int:
 			elif DAY1_SCRIPT_DIFFS.has("%d:%s" % [d, cid]):
 				# 中身U1：文（GREET）は本番の文に替わった。判定・売上・支払いに効く Event は記録と同じ
 				c.check("Day%d %s：文以外の Event（ADJUST・SERVE・REACT・PAY の並びと、札・好物・杯数・売上・支払い）が4-3の記録と一致（中身U1で文だけ替えた）" % [d, cid],
-					_value_events(now) == _value_events(recorded),
-					"%s / vs / %s" % [str(_value_events(now)), str(_value_events(recorded))])
+					_value_events(now) == _expected_value_events(d, cid, recorded),
+					"%s / vs / %s" % [str(_value_events(now)), str(_expected_value_events(d, cid, recorded))])
 				var greets := (now as Array).filter(func(e): return str(e.get("type", "")) == "GREET")
 				c.check("Day%d %s：会話の行は〔演出〕〔ゲーム〕を含まない（%d行）" % [d, cid, greets.size()],
 					not greets.is_empty() and greets.all(func(e): return not str(e.get("text", "")).contains("〔")))
@@ -169,6 +169,14 @@ func run(_t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 
 	return c.finish()
+
+
+## 記録の側の値（中身U1：Day1の阿強の3杯目〔持ち帰り〕の札は まろやか＋やさしい → うましお＋やさしい に変えた＝意図した差）。
+func _expected_value_events(d: int, cid: String, recorded) -> Array:
+	var values := _value_events(recorded)
+	if d == 1 and cid == "delivery_man":
+		values.filter(func(v): return v["type"] == "REACT")[2]["wanted_tags"] = ["SAVORY", "GENTLE"]
+	return values
 
 
 ## 文（GREET）を除いた Event の、判定・売上・支払いに効く値だけ（中身U1。JSONを通した形）。
