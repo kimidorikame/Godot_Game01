@@ -38,12 +38,12 @@ func _initialize() -> void:
 	var text_is := func(t: String): return str(s.current_line().get("speaker_name", "")) + str(s.current_line().get("text", "")) == t
 
 	var money := func(): return "所持金 ¥%d" % gs.money
-	# 1. 張記：仕込む量（鍋の素）を選ぶところ（張姐の「今日はどれ位仕込むんだい？」の行）
+	# 1. 張記：仕込む量（鍋の素）を選ぶところ（張姐の「今日はどれ位仕込む？」の行）
 	await _until(func(): return s.is_in_prep_tier())
-	await _shot("01_zhang_choose_tier", "張記：張姐の「今日はどれ位仕込むんだい？」の行で、仕込む量（鍋の素）を選ぶ（%s。初日セットは朝に引いた）" % money.call())
+	await _shot("01_zhang_choose_tier", "張記：張姐の「今日はどれ位仕込む？」の行で、仕込む量（鍋の素）を選ぶ（%s。初日セットは朝に引いた）" % money.call())
 	# 2. 「市場を出る」のあとの店主の一言
 	await _until(func(): return text_is.call("店主「炭屋と水場も寄らないとな」"))
-	await _shot("02_after_market_exit", "「市場を出る」のあとの店主の一言（%s。出汁代は張姐の会話の終わりに払った）" % money.call())
+	await _shot("02_after_market_exit", "「市場を出る」のあとの店主の一言（%s。出汁代は仕込む量を選んで買った時点で払った）" % money.call())
 	# 3. 梁伯のあとの所持金（水代・水道代を払った行）
 	await _until(func(): return text_is.call("梁伯（水道代）"))
 	await _shot("03_after_water_stall", "梁伯の会話のあと：「梁伯（水代）」「梁伯（水道代）」の行で払った（%s）" % money.call())

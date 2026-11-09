@@ -634,7 +634,7 @@ static func marker_problems(lines, where: String) -> Array:
 
 
 ## 市場の場面（中身U1で足し、中身U2で形を変えた。data/talks/<id>.json）：
-##   { id, parts:[ { when:"arrive"|"exit", place, speaker, lines:[行 | { prep_tier:true } | { pay:"prep" } | { pay:"operating", id } | { pay_bills:<scene> }] } ] }
+##   { id, parts:[ { when:"arrive"|"exit", place, speaker, lines:[行 | { prep_tier:true } | { pay:"operating", id } | { pay_bills:<scene> }] } ] }
 ## 1日目の市場（day_overrides.market_scene）が使う（Day1Events.market_scene_events）。無いときは空辞書。
 static func talk_data(id: String) -> Dictionary:
 	if id == "":

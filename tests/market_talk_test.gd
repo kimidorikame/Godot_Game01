@@ -23,6 +23,11 @@ func _expected(recorded_events: Array, day: int, scraps: bool) -> Array:
 			if day == 1:
 				continue
 			ev["text"] = "水を汲み、炭を買った（炭代−¥40・水代−¥35）。"
+		# 中身U2の小さな直し：鍋の素の文は張姐の文に合わせて豚骨にそろえた
+		if str(ev.get("text", "")) == "鶏骨と手羽端を受け取った":
+			ev["text"] = "豚骨と端肉を受け取った"
+		if str(ev.get("text", "")).begins_with("鶏の出汁が立ってきた。"):
+			ev["text"] = str(ev["text"]).replace("鶏の出汁", "豚骨の出汁")
 		if day == 1 and not scraps:
 			if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).ends_with("にした。"):
 				continue

@@ -71,8 +71,6 @@ func _exit_tree() -> void:
 var market_shop := ""
 ## 水場（水道代）にもう寄ったか。仕込みに入るたびにリセットする。
 var market_visited_water := false
-## 選んだが、まだ払っていない鍋の素の段階の id（中身U2。1日目は張姐の会話が終わったときに払う。それまでは確保）。フェーズに入るたびに空へ。
-var prep_tier_pending := ""
 ## ゲームオーバーの理由の文。_set_runner_for_phase(GAME_OVER) が読んで消費する（一度きり）。
 var game_over_reason := ""
 ## ゲームオーバーの種類と額（UI準備B④。表示だけ）。払えなかった支払いの { kind（帳簿のカテゴリ。"daily_cost"／"water"／
@@ -170,7 +168,7 @@ func prep_tiers() -> Array:
 
 ## 今日、鍋の素（仕込みの段階）をもう買ったか。帳簿の "prep" が今日あるかで見る（買うと一度きり）。
 func prep_tier_paid() -> bool:
-	return int(Ledger.spend_by_category_today().get("prep", 0)) > 0 or prep_tier_pending != ""
+	return int(Ledger.spend_by_category_today().get("prep", 0)) > 0
 
 
 ## 今日の鍋の素。{ paid, tier_id, label, servings, scraps }（読むだけ。本番UIの市場の店一覧に
@@ -184,8 +182,6 @@ func today_base() -> Dictionary:
 	for entry in GameState.ledger:
 		if int(entry.get("day", -1)) == GameState.day_count and str(entry.get("category", "")) == "prep":
 			tier_id = str(entry.get("item", ""))
-	if tier_id == "" and prep_tier_pending != "":
-		tier_id = prep_tier_pending   # 中身U2：選んだが、払うのは張姐の会話が終わったとき（1日目）。買った扱いで見せる
 	var paid := tier_id != ""
 	var scraps: bool = scraps_base and [GameState.Phase.PREP, GameState.Phase.OPEN, GameState.Phase.CLOSE].has(GameState.phase)
 	if not paid and scraps:
@@ -267,13 +263,9 @@ func choose_prep_tier(tier_id: String) -> void:
 	var price: int = int(tier.get("price", 0))
 	if purchase_block_reason(price) != "":
 		return   # 使える現金（残金−支払い予定）を超える購入は受けない
-	if Day1Events.has_market_scene():
-		# 中身U2：市場の場面のある日（1日目）は、張姐の会話が終わったとき（PAY kind:"prep"）に払う。それまでは支払い予定として確保する。
-		prep_tier_pending = tier_id
-		Ledger.record("reserve", -price)
-	else:
-		GameState.apply_money(-price)
-		Ledger.record("prep", -price, tier_id, 0, price)
+	# 1日目（市場の場面のある日）も、ほかの日と同じく選んで買った時点で払う（中身U2の小さな直し）
+	GameState.apply_money(-price)
+	Ledger.record("prep", -price, tier_id, 0, price)
 	flow.set_runner(Day1Events.prep_after_tier_events(tier, false))
 	changed.emit()
 
@@ -773,7 +765,6 @@ func _apply_event(ev) -> void:
 			# 中身U1・U2：1日目の市場の場面（Day1Events.market_scene_events）の支払い。
 			#   kind:"water"（水道代。梁伯の場面）… 市場を出るときの水場の精算（visit_water_stall）と同じ記帳・確保の決済をし、水場を訪れた扱いにする。
 			#   kind:"operating"（炭代・水代＝運営費の内訳）… 運営費（"daily_cost"）として記帳し、その額だけ運営費の確保（ref:"operating"）を解く。
-			#   kind:"prep"（鍋の素。張姐の会話の終わり）… 段階を選んだときに確保した代金を払う（帳簿は "prep"・item＝段階の id。choose_prep_tier）。
 			var pay_kind := str(ev.get("kind", ""))
 			var pay_amount := int(ev.get("amount", 0))
 			var pay_category := ""
@@ -791,10 +782,6 @@ func _apply_event(ev) -> void:
 				market_visited_water = true
 			elif paid and pay_kind == "operating":
 				Ledger.record("release", pay_amount, "", 0, 0, "operating")
-			elif paid and pay_kind == "prep":
-				Ledger.record("prep", -pay_amount, str(ev.get("item", "")), 0, pay_amount)
-				Ledger.record("release", pay_amount)
-				prep_tier_pending = ""
 		"ADD_ITEM":
 			# 3-5：初日セットの濃縮だし（idが"dashi"）は在庫ではないので、市場の購入
 			# ハンドラ（_on_shop_item_selected）と同じ前例でGameState.buy_dashi()へ
@@ -2394,7 +2381,6 @@ func set_runner_for_phase(phase: int) -> void:
 	# 7.7: 市場の水場訪問フラグ・店の中にいるかも PREP に入るたびリセットする。
 	market_visited_water = false
 	market_shop = ""
-	prep_tier_pending = ""
 	# 表示だけの状態（スマホの開閉・タブなど）もフェーズをまたいで持ち越さない（防御的リセット）。
 	# それはUIの状態なので、ここでは知らせるだけ（DebugPanelが phase_entering を受けて捨てる）。
 	phase_entering.emit(phase)

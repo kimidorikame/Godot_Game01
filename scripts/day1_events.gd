@@ -188,7 +188,7 @@ static func kit_today() -> Dictionary:
 ## （scraps_baseルートはprep_events()側の既存TEXTに連結されるだけなので影響なし）。
 static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) -> Array:
 	var events := []
-	# 中身U2：市場の場面のある日（1日目）は、張姐の会話の続き（選んだあと〜出汁の代金）を先に出す。「%sにした。」は出さない。
+	# 中身U2：市場の場面のある日（1日目）は、張姐の会話の続き（選んだあと）を先に出す。「%sにした。」は出さない。
 	# 列の先頭は張姐の会話の行（効果の無い TEXT）。鍋の素の受け取り（ADD_ITEM）は文を出さない。
 	var scene_arrive := has_market_scene() and not scraps_base
 	if scene_arrive:
@@ -196,7 +196,7 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	elif not scraps_base:
 		events.append({ "type": "TEXT", "text": "%sにした。" % str(tier.get("label", "")) })
 	events.append({ "type": "ADD_ITEM", "item": "soup_base", "amount": 1,
-		"text": "" if scene_arrive else ("萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "鶏骨と手羽端を受け取った") })
+		"text": "" if scene_arrive else ("萎れた野菜くずをひと抱え、譲ってもらった" if scraps_base else "豚骨と端肉を受け取った") })
 	# ベース入手の後・市場の前に、今日来る常連の場面が持つ昼の市場の会話（market_talk）を挟む
 	# （新人警官の初登場＝officer_01。要求タグを仕入れの前に知らせるため）。市場の enabled とは
 	# 無関係に、会話は必ず出る。日番号の直書きではなく、場面データから引く。
@@ -216,8 +216,9 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
 		"text": "さて、仕込むか。鍋に放り込む" })
-	# 共有鍋ができる（STEP 12）。ベースは今は鶏がらだしの1種類だけ（DESIGN.md 7.7：
-	# 「骨と大根」から「鶏骨＋手羽端」に変更。IDはbone_broth/soup_baseのまま据え置き）。
+	# 共有鍋ができる（STEP 12）。ベースは今は豚骨の出汁の1種類だけ（DESIGN.md 7.7：
+	# 「骨と大根」から「鶏骨＋手羽端」に変更。中身U2の小さな直しで、張姐の文に合わせて「豚骨＋端肉」にそろえた。
+	# IDはbone_broth/soup_baseのまま据え置き）。
 	# 7.6: 残量（杯数）を Event が運ぶ。PAY の amount / REACT の sale と同じで、
 	#   具体値は Event が持ち、適用は受け側（GameState.set_soup）が行う。仕込み3段階化：
 	#   杯数はtier.servings（選んだ段階、または端材屋の固定分）を使う。
@@ -239,7 +240,7 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 			"servings": servings,
 			"strength": 3,
 			"water_doses": GameState.WATER_DOSES_PER_NIGHT,
-			"text": "鶏の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % servings })
+			"text": "豚骨の出汁が立ってきた。今日の鍋ができた（%d杯分）。" % servings })
 	return events
 
 
@@ -763,9 +764,9 @@ static func has_market_scene() -> bool:
 
 ## 市場の場面の行を Event にする。section：
 ##   "arrive_before" … 市場に着いたとき（when:"arrive"）の { "prep_tier": true } より前（TEXT。part:"market_scene"）
-##   "arrive_after"  … その後ろ（選んだ鍋の素の代金の PAY を含む。tier＝選んだ段階）
+##   "arrive_after"  … その後ろ（鍋の素の代金は、選んで買った時点で PlaySession.choose_prep_tier が払う）
 ##   "exit"          … 「市場を出る」のあと（when:"exit"。店主の一言→炭屋→水場。part:"market_exit"）
-## 払う印：{ "pay": "prep" }＝tier の代金（kind:"prep"・item＝段階の id）、{ "pay": "operating", "id" }＝運営費の内訳
+## 払う印：{ "pay": "operating", "id" }＝運営費の内訳
 ## （Rules.operating_cost_parts。kind:"operating"）、{ "pay_bills": <scene> }＝その場面が取り立てる今日の請求（bills[]）。
 ## PAY の文は「<その場の話し手>（<名前>）」。〔演出〕の行は落とす。状態を読むだけ。
 static func market_scene_events(section: String, tier: Dictionary = {}) -> Array:
@@ -793,16 +794,11 @@ static func market_scene_events(section: String, tier: Dictionary = {}) -> Array
 
 static func _market_pay_events(mark: Dictionary, speaker: String, tier: Dictionary, part_tag: String) -> Array:
 	var events := []
-	match str(mark.get("pay", "")):
-		"prep":
-			if not tier.is_empty():
-				events.append({ "type": "PAY", "amount": int(tier.get("price", 0)), "kind": "prep", "item": str(tier.get("id", "")),
-					"text": "%s（鍋の素）" % speaker, "part": part_tag })
-		"operating":
-			var cost := Rules.operating_cost_part(str(mark.get("id", "")))
-			if not cost.is_empty():
-				events.append({ "type": "PAY", "amount": int(cost["amount"]), "kind": "operating", "item": str(cost["id"]),
-					"text": "%s（%s）" % [speaker, str(cost["label"])], "part": part_tag })
+	if str(mark.get("pay", "")) == "operating":
+		var cost := Rules.operating_cost_part(str(mark.get("id", "")))
+		if not cost.is_empty():
+			events.append({ "type": "PAY", "amount": int(cost["amount"]), "kind": "operating", "item": str(cost["id"]),
+				"text": "%s（%s）" % [speaker, str(cost["label"])], "part": part_tag })
 	if mark.has("pay_bills"):
 		for bill in Rules.bills_for_scene(str(mark["pay_bills"]), GameState.day_count):
 			events.append({ "type": "PAY", "amount": int(bill["amount"]), "kind": str(bill["id"]),

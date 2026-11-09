@@ -128,24 +128,23 @@ func run(t: SceneTree) -> int:
 	var prep := Day1Events.prep_events({}, false)
 	var prep_texts := prep.map(func(e): return str(e.get("text", "")))
 	var arrive_spoken: Array = ScheduleData.spoken_lines(talk["parts"][0]["lines"])
-	var question_at: int = arrive_spoken.find("張姐「そこがうまいって知ってるんだね。今日はどれ位仕込むんだい？」")
-	c.check("Day1 の PREP：張姐の会話（〔演出〕なし）→「今日はどれ位仕込むんだい？」の行で仕込む量を選ぶ（PREP_TIER の文）。地の文・初日セット・見当の会話は出さない",
+	var question_at: int = arrive_spoken.find("張姐「そこがうまいって知ってるんだね。今日はどれ位仕込む？」")
+	c.check("Day1 の PREP：張姐の会話（〔演出〕なし）→「今日はどれ位仕込む？」の行で仕込む量を選ぶ（PREP_TIER の文）。地の文・初日セット・見当の会話は出さない",
 		prep.size() == question_at + 1 and str(prep.back()["type"]) == "PREP_TIER" and str(prep.back()["text"]) == str(arrive_spoken[question_at])
 			and prep_texts.slice(0, question_at) == arrive_spoken.slice(0, question_at)
 			and not prep_texts.any(func(x): return x.contains("いつもの仕入れ先") or x.contains("食肉売場") or x.contains("今日はどれぐらい") or x == "初日セット"),
 		str(prep_texts))
 	var after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false)
 	var after_texts := after.map(func(e): return str(e.get("text", "")))
-	var at_prep_pay: int = after_texts.find("張姐（鍋の素）")
 	var at_market := -1
 	for i in range(after.size()):
 		if str(after[i]["type"]) == "MARKET":
 			at_market = i
-	c.check("選んだあと：張姐の会話の続き（先頭は張姐の行）→会話の終わりに「張姐（鍋の素）」の PAY（110・kind=prep・item=medium）→市場",
+	var at_last_zhang: int = after_texts.find("張姐「値段も読めるだろ。先にそっち」")
+	c.check("選んだあと：張姐の会話の続き（先頭は張姐の行）→市場。鍋の素の代金の行は無い（選んで買った時点で払う。中身U2の小さな直し）",
 		str(after[0]["type"]) == "TEXT" and str(after[0]["text"]) == str(arrive_spoken[question_at + 1])
-			and at_prep_pay > 0 and str(after[at_prep_pay - 1]["text"]) == "張姐「値段も読めるだろ。先にそっち」"
-			and int(after[at_prep_pay]["amount"]) == 110 and str(after[at_prep_pay]["kind"]) == "prep" and str(after[at_prep_pay]["item"]) == "medium"
-			and at_market > at_prep_pay and not after_texts.has("中仕込みにした。") and not after_texts.has("鶏骨と手羽端を受け取った"), str(after_texts))
+			and at_last_zhang > 0 and at_market > at_last_zhang and not after.any(func(e): return str(e["type"]) == "PAY" and str(e.get("kind", "")) == "prep")
+			and not after_texts.has("張姐（鍋の素）") and not after_texts.has("中仕込みにした。") and not after_texts.has("豚骨と端肉を受け取った"), str(after_texts))
 	var exit_spoken := []
 	for k in range(1, talk["parts"].size()):
 		exit_spoken.append_array(ScheduleData.spoken_lines(talk["parts"][k]["lines"]))
@@ -247,7 +246,7 @@ func run(t: SceneTree) -> int:
 	c.check("会話枠に〔演出〕〔ゲーム〕の文が一度も出ない", bracket_shown.is_empty(), str(bracket_shown))
 	# 元の文の行（名前「セリフ」）を、出てくるはずの順に並べる（〔演出〕は除く。椀は全部出した前提）
 	var expected := []
-	for part in talk["parts"]:   # 張姐（「今日はどれ位仕込むんだい？」は段階を選ぶ場面の文として出る）→ 店主 → サミル → 梁伯
+	for part in talk["parts"]:   # 張姐（「今日はどれ位仕込む？」は段階を選ぶ場面の文として出る）→ 店主 → サミル → 梁伯
 		expected.append_array(ScheduleData.spoken_lines(part["lines"]))
 	var dm := ScheduleData.episode_data("delivery_man", "delivery_man_01")
 	expected.append_array(ScheduleData.spoken_lines(dm["greet"]))
@@ -291,11 +290,10 @@ func run(t: SceneTree) -> int:
 	c.check("名前の札：店主の行は「店主」、客の行はその人の名前（行の頭の名前）・本文は「」から",
 		plate.get("店主", [])  == ["店主", "「"] and plate.get("阿強", []) == ["阿強", "「"] and plate.get("サミル", []) == ["サミル", "「"]
 			and plate.get("労働者B", []) == ["労働者B", "「"] and plate.get("端末音声", []) == ["端末音声", "「"], str(plate))
-	var tier_paid := spends.filter(func(x): return str(x).begins_with("張姐（鍋の素） -"))
 	var thug_last := str(ScheduleData.spoken_lines(thug["body"]).back())
 	c.check("朝（目が覚めた時点）に初日セットの210を引いた（Day1 の朝の所持金 600−210＝390）", wake_money == 390, str(wake_money))
-	c.check("所持金が減る順番：張姐（鍋の素）-段階の値段→サミル（炭代）-40→梁伯（水代）-35→梁伯（水道代）-50→レックス（場所代）-90。ほかに減るのは椀を作るときの具材などではない（減ったのはこの5回だけ）",
-		spends.size() == 5 and tier_paid.size() == 1 and str(spends[0]).begins_with("張姐（鍋の素） -") and spends.slice(1) == ["サミル（炭代） -40", "梁伯（水代） -35", "梁伯（水道代） -50", "レックス（場所代） -90"],
+	c.check("所持金が減る順番：仕込む量を選んで買った時点で鍋の素の値段→サミル（炭代）-40→梁伯（水代）-35→梁伯（水道代）-50→レックス（場所代）-90（減ったのはこの5回だけ）",
+		spends.size() == 5 and str(spends[0]).begins_with(str(arrive_spoken[question_at + 1]) + " -") and spends.slice(1) == ["サミル（炭代） -40", "梁伯（水代） -35", "梁伯（水道代） -50", "レックス（場所代） -90"],
 		str(spends))
 	c.check("場所代はレックスの会話の最後の行（退店）のあと", log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find(thug_last)
 		< log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find("レックス（場所代）"))

@@ -117,7 +117,7 @@ func run(t: SceneTree) -> int:
 			silent_seen = true
 	c.check("Day1の仕込み：初日セットの受け取り（ADD_ITEM 7件）で、会話枠を空にしてクリックさせない", not empty_seen and not silent_seen,
 		"クリック%d回・空の枠=%s・ADD_ITEMで止まった=%s" % [clicks, str(empty_seen), str(silent_seen)])
-	# 中身U2：Day1の仕込みは張記の張姐の会話から始まり、「今日はどれ位仕込むんだい？」の行で鍋の素を選ぶ。初日セットは朝に受け取った。
+	# 中身U2：Day1の仕込みは張記の張姐の会話から始まり、「今日はどれ位仕込む？」の行で鍋の素を選ぶ。初日セットは朝に受け取った。
 	# クリックの数＝選ぶ場面より前の行のページの数
 	var talk_pages := 0
 	for ev in s.flow.runner.events.slice(0, s.flow.runner.index):
