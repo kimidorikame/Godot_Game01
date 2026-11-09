@@ -2081,6 +2081,10 @@ GameState.try_pay(amount) -> bool
   検査を1件追加）。全44スイート2449件成功。旧`playthrough_results_regulars.json`（運営費65・12/13/14）とは
   **意図して一致しなくなった**（上書きしていない）。新しい基準は運営費75・`reach_true`の13方針×30シード
   （`playthrough_results_regulars_v2.json`。引数で明示して取る）。
+  **【2026-11-09・計測】コミット前の v2 との照合は「遊びの結果」だけを比べる**（`planning/playtest_2026_10_11/compare_v2_play.mjs`・説明は同じフォルダの`V2_COMPARE.md`）。
+  比べないのは、会話の行数や支払いの順番で変わる途中の数（`clicks`・`steps`・`actions.next_text_event`・`rows[].actions_cumulative`・`day1_cash`の
+  `after_wake`／`after_kit`／`after_tier`／`after_market`）。あわせて、自動試遊は食後の行（`part`が`body`・`after_bill`・`closing`）では鍋を直さない
+  （`playthroughs.gd`の`AFTER_MEAL_PARTS`）。基準のファイルは上書きしていない。
 - **【2026-10-25・UI準備C⑤】予報を使わない前提でも測った（v3）**：上の結果はすべて「予報で仕込みと仕入れを決める」基準方針（v2）での値。
   本番UIは予報を出さなくなったので、予報を読まないハーネス（引数`info=visible`／`visible_improvise`）でも測った。基本GOODの平均最終現金は
   v2の1636に対して、既定版418・補う版1316（どちらも1500達成0/30）。**この「75は暫定値」の結論は、予報を使わない前提では変わる可能性がある**

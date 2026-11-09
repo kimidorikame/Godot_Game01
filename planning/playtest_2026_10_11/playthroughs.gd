@@ -45,6 +45,8 @@ const FUND_BASE_POLICY := "forecast_good"
 ##   strength_neglect_dashi … strength_neglect と同じ判断（濃さ・鮮度のミス）で、毎朝のだし2個の買い置きだけ
 ##                            基準方針と同じにしたもの（だしの買い置きが下振れの原因かを単独で見るため）
 const POLICIES_ISOLATION := ["strength_neglect_dashi"]
+## 食後の行の part（この行では鍋を直さない。fix_pot の呼び出し元を参照）。
+const AFTER_MEAL_PARTS := ["body", "after_bill", "closing"]
 ## 下限版（UI準備C⑤。別枠。引数[3]で名前を指定したときだけ走る。"visible" 専用）：見込みを「前日の注文杯数だけ」にする
 ## （客足の言葉もDMの匂わせも使わない。Day1は張記の会話の9杯）。ほかの判断は基になる方針と同じ。
 const POLICIES_LOWER := ["forecast_good_lower", "favorite_oracle_lower"]
@@ -418,7 +420,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 					break
 				continue
 			# 注文を取る前に濃さを整える（ADJUST中は通常の鍋操作がロックされる）。
-			if typ not in ["SERVE", "REACT"] and panel.session.can_touch_pot():
+			# 食後の行（提供後の本文 body・請求を払ったあとの会話 after_bill・締め closing。モブの椀のあとの会話も part:"body"）では
+			# 鍋を直さない（2026-11-09・計測）。その客の椀はもう出し終えていて、行の数だけ「直前の客の杯数」で鍋を見てしまうため
+			# （中身U1で食後の行が増え、空の鍋に水とだしを足して次の日の仕入れまで変わっていた）。
+			if typ not in ["SERVE", "REACT"] and panel.session.can_touch_pot() \
+					and not AFTER_MEAL_PARTS.has(str(ev.get("part", ""))):
 				fix_pot()
 		if typ == "CHOICE":
 			# 店主の距離感の選択（システム整理C2）：先頭の選択肢を押す。現行の21場面には無い（通らない分岐）
