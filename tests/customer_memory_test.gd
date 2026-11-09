@@ -214,7 +214,7 @@ func run(t: SceneTree) -> int:
 	var summary_before := Result.summarize([], [], 0)
 	var story_before := Result.format_story(summary_before, GameState.known_favorite_ids())
 	c.check("format_storyは好物を知った客を知った順に、表示名で並べる",
-		story_before.contains("好物を知った客: チンピラ、老婆"), story_before)
+		story_before.contains("好物を知った客: レックス、ターニャ婆"), story_before)
 	var d := GameState.to_dict()
 	GameState.reset_for_new_game()
 	GameState.from_dict(d)

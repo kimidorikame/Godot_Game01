@@ -29,7 +29,7 @@ func _setup(t: SceneTree, money: int, day: int, keep_wake_money: bool = false):
 ## 仕込みの段階選択（PREP_TIER）まで進める。
 func _to_tier(panel) -> void:
 	var guard := 0
-	while not panel.session.is_in_prep_tier() and guard < 50:
+	while not panel.session.is_in_prep_tier() and guard < 120:   # Day1は朝の昼市場の会話のぶん長い（中身U1）
 		guard += 1
 		panel.session.next_event()
 
@@ -168,6 +168,11 @@ func run(t: SceneTree) -> int:
 	p3.free()
 
 	# --- 4. 市場を出る（水場）：徴収日だけ水道代・払えなければゲームオーバー ---
+	# 中身U1：Day1の水道代は、朝の昼市場の会話（day_overrides.morning_talk の梁伯の場面）で先に払う。ここでは
+	# 「朝に払う場面が無い徴収日」の市場を出るときの精算（保険の経路）を見るため、Day1の朝の会話を外してから確かめ、最後に戻す。
+	var day1_overrides: Dictionary = Rules.day_overrides(1)   # 読み込み結果の辞書そのもの（書き換えると Rules も変わる）
+	var morning_talk_id = day1_overrides.get("morning_talk")
+	day1_overrides.erase("morning_talk")
 	var p4 = _setup(t, 1000, 1)
 	_to_tier(p4)
 	p4.session.choose_prep_tier("small")
@@ -198,6 +203,19 @@ func run(t: SceneTree) -> int:
 		not p6.session.exit_market() and GameState.phase == GameState.Phase.GAME_OVER)
 	c.check("ゲームオーバーでも所持金は変わらない（マイナスにならない）", GameState.money == 30, str(GameState.money))
 	p6.free()
+	day1_overrides["morning_talk"] = morning_talk_id
+	# 朝の会話がある Day1（実データ）：市場に着いた時点で、もう水場に寄った扱い（水道代は梁伯の場面で払い済み）
+	var p6b = _setup(t, 1000, 1)
+	_to_tier(p6b)
+	p6b.session.choose_prep_tier("small")
+	_to_market(p6b)
+	var money6b: int = GameState.money
+	c.check("朝の会話がある Day1：市場に着いたときには水道代を払い済み（水場に寄った扱い）・市場を出ても水道代は払わない（所持金が変わらない）",
+		p6b.session.market_visited_water and p6b.session.exit_market() and GameState.money == money6b,   # 運営費は _setup で引き終えた扱い
+		"visited=%s money %d → %d" % [str(p6b.session.market_visited_water), money6b, GameState.money])
+	c.check("朝の会話がある Day1：水道代は1回だけ（帳簿の water は -50 が1件）",
+		GameState.ledger.filter(func(e): return str(e["category"]) == "water").map(func(e): return int(e["amount"])) == [-50])
+	p6b.free()
 
 	# --- 5. 支払いとゲームオーバー ---
 	var p7 = _setup(t, 300, 2)

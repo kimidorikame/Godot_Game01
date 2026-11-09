@@ -80,7 +80,7 @@ func run(t: SceneTree) -> int:
 	var greet_text: String = Day1Events.customer_events("thug")[0]["text"]
 	c.check("客の最初の GREET（index 0）が talk・話し手は表示名で1回だけ記録される",
 		_count(greet_text) == 1 and TalkLog.entries.filter(func(e): return e["text"] == greet_text)[0]["kind"] == "talk"
-			and TalkLog.entries.filter(func(e): return e["text"] == greet_text)[0]["speaker"] == "チンピラ")
+			and TalkLog.entries.filter(func(e): return e["text"] == greet_text)[0]["speaker"] == "レックス")
 	var size3 := TalkLog.entries.size()
 	p3.session.load_current_customer()
 	p3.session.load_current_customer()
@@ -103,7 +103,7 @@ func run(t: SceneTree) -> int:
 	var reaction: String = p3.session.current_reaction_text()
 	var reaction_entries: Array = TalkLog.entries.filter(func(e): return e["kind"] == "reaction")
 	c.check("反応が kind:reaction・話し手＝客で、_current_reaction_text() の文のまま1回", reaction != ""
-		and reaction_entries.size() == 1 and reaction_entries[0]["text"] == reaction and reaction_entries[0]["speaker"] == "チンピラ")
+		and reaction_entries.size() == 1 and reaction_entries[0]["text"] == reaction and reaction_entries[0]["speaker"] == "レックス")
 	seed(4242)
 	var before_state := JSON.stringify([GameState.to_dict(), p3.session.open.current_bowl])
 	for i in range(20):
@@ -179,10 +179,10 @@ func run(t: SceneTree) -> int:
 	c.check("来店ごとに1行・全日分（4来店）", summary.size() == 4, str(summary))
 	c.check("新しい日が上（Day3 → Day2 → Day1）", str(summary[0]).begins_with("Day3 ") and str(summary[1]).begins_with("Day2 ")
 		and str(summary[2]).begins_with("Day1 ") and str(summary[3]).begins_with("Day1 "))
-	c.check("同じ日は枠の順の新しい方が上（Day1：夜半のチンピラ → 宵の口の配達員）",
-		str(summary[2]).contains("チンピラ") and str(summary[3]).contains("配達員"))
+	c.check("同じ日は枠の順の新しい方が上（Day1：夜半のレックス → 宵の口の阿強）",
+		str(summary[2]).contains("レックス") and str(summary[3]).contains("阿強"))
 	c.check("今日の頼みのある来店：いつもの／今日（ラベル付き）・出した具材・評価",
-		str(summary[1]) == "Day2 明け方　チンピラ：いつもの MELLOW/GENTLE ／ 今日 HOT/POWER（辛め） → 出した：%s → OK" % RecipeBook.ingredient_text(["nam_prik_pao", "offal"]),
+		str(summary[1]) == "Day2 明け方　レックス：いつもの MELLOW/GENTLE ／ 今日 HOT/POWER（辛め） → 出した：%s → OK" % RecipeBook.ingredient_text(["nam_prik_pao", "offal"]),
 		str(summary[1]))
 	c.check("今日の頼みの無い来店は「いつもの」だけ", str(summary[2]).contains("いつもの MELLOW/GENTLE → 出した：") and not str(summary[2]).contains("今日 "))
 	c.check("今日の来店でまだ出していなければ「まだ出していない」", str(summary[0]).ends_with("→ まだ出していない"), str(summary[0]))

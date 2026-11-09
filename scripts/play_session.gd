@@ -756,11 +756,18 @@ func _apply_event(ev) -> void:
 			# 3-5：kind:"kit"（初日セット）はLedgerの"kit"カテゴリで記帳するだけで、
 			# 場所代のような「支払い済み」フラグや確保の決済は不要（一度きりの固定購入で、
 			# 未払いのまま閉店する経路が無いため）。
+			# 中身U1：kind:"water"（水道代。1日目の朝の会話の梁伯の場面＝Day1Events.morning_talk_events）は、
+			# 市場を出るときの水場の精算（visit_water_stall）と同じ記帳・確保の決済をして、水場を訪れた扱いにする
+			# （市場を出るときに二重に払わない）。
 			var pay_kind := str(ev.get("kind", ""))
-			var pay_category := "rent" if pay_kind == "rent" else ("kit" if pay_kind == "kit" else "")
-			if pay_or_game_over(int(ev.get("amount", 0)), pay_category) and pay_kind == "rent":
+			var pay_category := pay_kind if pay_kind in ["rent", "kit", "water"] else ""
+			var paid := pay_or_game_over(int(ev.get("amount", 0)), pay_category)
+			if paid and pay_kind == "rent":
 				GameState.mark_rent_paid()
 				Ledger.record("release", GameState.RENT_PRICE)
+			elif paid and pay_kind == "water":
+				Ledger.record("release", GameState.WATER_PRICE)
+				market_visited_water = true
 		"ADD_ITEM":
 			# 3-5：初日セットの濃縮だし（idが"dashi"）は在庫ではないので、市場の購入
 			# ハンドラ（_on_shop_item_selected）と同じ前例でGameState.buy_dashi()へ
@@ -1286,10 +1293,44 @@ func current_reaction_text() -> String:
 	if result == "" and declined_now:
 		# 断った客（未提供）の反応。2パターンの抽選は判定（judge_bowl）が引くので使えない＝要素0。
 		pool = reactions.get("UNSERVED", [])
+	# 中身U1：OK のうち、注文の札が1つだけ外れたときは、外れた札ごとの文（reactions.OK_MISSING.<札>）があればそれ
+	# （1日目の港湾労働者）。減点で OK になった（札は2つとも合った）ときなどは、今までどおり OK の文。判定・乱数には触れない。
+	if result == "OK" and reactions.get("OK_MISSING") is Dictionary:
+		var missing := missing_tags(cur.get("wanted_tags", []), open.current_bowl)
+		if missing.size() == 1 and (reactions["OK_MISSING"] as Dictionary).get(missing[0]) is Array \
+				and not ((reactions["OK_MISSING"] as Dictionary)[missing[0]] as Array).is_empty():
+			pool = reactions["OK_MISSING"][missing[0]]
 	if pool.is_empty():
 		return ""
 	var variant: int = open.current_bowl.get("reaction_variant", 0)
 	return str(pool[variant % pool.size()])
+
+
+## 注文の札（wanted）のうち、椀（bowl の additions の具材の札）に無いもの（中身U1。OK の文の出し分けだけに使う）。
+static func missing_tags(wanted: Array, bowl: Dictionary) -> Array:
+	var have := []
+	for id in bowl.get("additions", []):
+		have.append_array(Ingredients.tags_for(str(id)))
+	var missing := []
+	for tag in wanted:
+		if not have.has(tag):
+			missing.append(str(tag))
+	return missing
+
+
+## 話し手の名前の札（中身U1）：行の頭の「名前「セリフ」」の名前。名前は「の前の短い語（句読点・括弧・空白を含まない）。
+## 名前の無い行（地の文・「はいよ、お待ち。」など）は名前なし。戻り値 { name, text }（text は名前を除いた残り＝「」から）。
+static var _speaker_re: RegEx = null
+
+
+static func split_speaker(line: String) -> Dictionary:
+	if _speaker_re == null:
+		_speaker_re = RegEx.new()
+		_speaker_re.compile("(?s)^([^「」『』（）()。、！？…\\s・]{1,10})(「.*)$")
+	var m := _speaker_re.search(line)
+	if m == null:
+		return { "name": "", "text": line }
+	return { "name": m.get_string(1), "text": m.get_string(2) }
 
 
 ## 今の客の注文（servings）に、鍋の残量が足りないか。ADJUST中の提供・廃棄の共通ルール：
@@ -1568,7 +1609,13 @@ func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int, reason: String = "") -> void:
 	_add_unserved(reason, maxi(ordered - actual, 0))   # 出せなかった分（この団体の最後のレシピ）の理由別の記録
 	_apply_mob_recipe(ev, actual)
+	var served_any := int(visit_tally.get("servings", 0)) > 0
 	flush_visit_tally()
+	# 椀を出したあとの会話（中身U1。その日だけの文の after_talk）：この団体に1杯以上出したときだけ、この REACT の直後へ。
+	if served_any and flow.runner != null:
+		var lines := Day1Events.mob_after_talk_events(str(ev.get("customer", "")))
+		for i in range(lines.size()):
+			flow.runner.events.insert(flow.runner.index + 1 + i, lines[i])
 
 
 ## 「挑戦する」を選んだ場合の処理：レシピ1（achievable人分）をその場で確定・積算し、
@@ -2664,6 +2711,11 @@ func record_visible_event() -> void:
 	# 朝の会話枠にはニュースとスマホの入力待ちを出さない（ニュースはスマホで読む）ので、会話ログにも載せない
 	if kind == "news" or str(ev.get("type", "")) == EventRunner.TYPE_WAIT_INPUT:
 		text = ""
+	# 話し手の名前（中身U1）：行の頭に「名前「セリフ」」があれば、その名前を話し手に、残りを本文に（会話枠の札と同じ）
+	var split := split_speaker(text)
+	if str(split["name"]) != "":
+		speaker = str(split["name"])
+		text = str(split["text"])
 	if text == "":
 		last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
 		return
@@ -3235,7 +3287,8 @@ func day_info() -> Dictionary:
 		"money": GameState.money, "reputation": GameState.reputation }
 
 
-## いま表示すべき文：{ type（Event の種類）, speaker（話し手の客id。地の文・店主は ""）, text, part（"news" など） }。
+## いま表示すべき文：{ type（Event の種類）, speaker（話し手の客id。地の文・店主は ""）, speaker_name（行の頭の名前。無ければ ""）,
+## text（speaker_name があれば名前を除いた「」から）, part（"news" など） }。
 ## REACT は判定後に決まる反応文（判定前は空）。runner が無い・Event が無いときは空。
 func current_line() -> Dictionary:
 	var ev = _current_event()
@@ -3256,7 +3309,10 @@ func current_line() -> Dictionary:
 				text += "　+¥%d" % (last_serve_tip - last_serve_hearty)
 			if last_serve_hearty > 0:
 				text += "　具だくさん +¥%d" % last_serve_hearty
-	return { "type": type, "speaker": speaker, "text": text, "part": str(ev.get("part", "")) }
+	# 話し手の名前の札（中身U1）：行の頭に「名前「セリフ」」があれば、その名前を札に、残り（「」から）を本文に。
+	var split := split_speaker(text)
+	return { "type": type, "speaker": speaker, "speaker_name": str(split["name"]), "text": str(split["text"]),
+		"part": str(ev.get("part", "")) }
 
 
 ## 入力待ち（WAITING_INPUT）か。

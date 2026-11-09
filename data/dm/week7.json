@@ -9,7 +9,7 @@
 	"2": [
 	  { "id": "d2_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:40",
 		"text": "今日は入荷が遅れてる。早めに来な", "hint": "none", "provisional": true },
-	  { "id": "d2_delivery_man", "from": "配達員", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
+	  { "id": "d2_delivery_man", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
 		"text": "昨日のスープ、体にしみた。また夜に寄るよ", "hint": "none", "provisional": true }
 	],
 	"3": [
@@ -29,7 +29,7 @@
 	"5": [
 	  { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
 		"text": "明日は現場に近づくな", "hint": "none", "provisional": true },
-	  { "id": "d5_thug", "from": "チンピラ", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
+	  { "id": "d5_thug", "from": "レックス", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
 		"text": "この前の味、悪くなかった。……それだけだ", "hint": "none", "provisional": true }
 	],
 	"6": [
@@ -45,11 +45,11 @@
 	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。本文に数字と「客足」は入れない。",
 	"max_per_morning": 3, "mob_max": 2, "first_day": 2,
 	"pools": {
-	  "delivery_man": { "from": "配達員", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
+	  "delivery_man": { "from": "阿強", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
-	  "thug": { "from": "チンピラ", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
+	  "thug": { "from": "レックス", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
 		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
-	  "granny": { "from": "老婆", "from_kind": "customer", "time": "4:30", "tag_hint": "", "provisional": false,
+	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "time": "4:30", "tag_hint": "", "provisional": false,
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
 	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },

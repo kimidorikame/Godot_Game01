@@ -32,7 +32,7 @@
   },
 
   "day_overrides": {
-    "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact",
+    "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact", "morning_talk": "day1_market",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },
                     { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
   },

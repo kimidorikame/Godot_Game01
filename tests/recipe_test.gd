@@ -376,7 +376,7 @@ func run(t: SceneTree) -> int:
 	c.check("保存レシピの名前・具材・空き枠が出る", tab.contains("終電後の椰子豆腐湯") and tab.contains(RecipeBook.ingredient_text(["coconut_milk", "tofu"]))
 		and tab.contains("枠2：（空き）") and tab.contains("1/3枠"))
 	c.check("客ごとの「いつもの」が表示名と具材の並びで出る（評価は出さない）",
-		tab.contains("チンピラ：" + RecipeBook.ingredient_text(["coconut_milk", "tofu", "meat_ball"])) and not tab.contains("GOOD") and not tab.contains("まだ記録がありません"), tab)
+		tab.contains("レックス：" + RecipeBook.ingredient_text(["coconut_milk", "tofu", "meat_ball"])) and not tab.contains("GOOD") and not tab.contains("まだ記録がありません"), tab)
 	p11.free()
 	GameState.reset_for_new_game()
 	var p11b = load("res://scenes/debug_panel.tscn").instantiate()

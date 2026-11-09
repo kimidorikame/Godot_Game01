@@ -83,7 +83,7 @@ static func paginate(text: String, chars_per_line: int = CHARS_PER_LINE, lines_p
 	return pages
 
 
-## 会話枠に出す内容：{ speaker（客id。地の文は ""）, text }。聞き直しの再表示があるときはそれを優先する。
+## 会話枠に出す内容：{ speaker（客id。地の文は ""）, speaker_name（行の頭の名前。中身U1）, text }。聞き直しの再表示があるときはそれを優先する。
 func _display() -> Dictionary:
 	if session.reask_customer_id != "" and session.adjust_customer_id() == session.reask_customer_id \
 			and not session.reask_lines.is_empty():
@@ -99,7 +99,7 @@ func _display() -> Dictionary:
 	if str(line.get("part", "")) == "day_summary":
 		text = SUMMARY_LINE
 	_last_text = text
-	return { "speaker": str(line.get("speaker", "")), "text": text }
+	return { "speaker": str(line.get("speaker", "")), "speaker_name": str(line.get("speaker_name", "")), "text": text }
 
 
 ## スマホのボタンの未読の印（●と数）。DMとニュースの未読の合計（session.phone_unread_count）。
@@ -122,9 +122,12 @@ func refresh() -> void:
 	_refresh_time(info)
 	var shown := _display()
 	var speaker := str(shown["speaker"])
+	# 名前の札（中身U1）：行の頭に名前がある行（「名前「セリフ」」）はその名前（店主・端末音声・労働者B・サミルなど）。
+	# 無い行は今までどおり、話し手の客の表示名（地の文は札なし）。立ち絵の枠は今までどおり客で決める。
+	var speaker_name := str(shown.get("speaker_name", ""))
 	_portrait.visible = speaker != "" or _customer_present(info)
-	_name_plate.visible = speaker != ""
-	_name_label.text = session.log_speaker(speaker) if speaker != "" else ""
+	_name_plate.visible = speaker != "" or speaker_name != ""
+	_name_label.text = speaker_name if speaker_name != "" else (session.log_speaker(speaker) if speaker != "" else "")
 	# 残している行は、列の位置が進んでも同じ行なので、ページを戻さない
 	var run_index := -2 if shown.has("retained") else (session.flow.runner.index if session.flow.runner != null else -1)
 	var key := "%d|%d|%s" % [int(info["phase"]), run_index, str(shown["text"])]

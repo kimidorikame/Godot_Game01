@@ -79,8 +79,9 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	GameState.day_count = 1
 	var extra_day1: Array = Day1Events._customer_extra_events("thug")
-	c.check("Day1のチンピラPAYは場所代90",
-		extra_day1.size() == 1 and int(extra_day1[0].get("amount", -1)) == 90, str(extra_day1))
+	c.check("Day1のチンピラPAYは場所代90（そのあとは場所代を払ったあとの会話の行だけ。中身U1）",
+		extra_day1.size() >= 1 and str(extra_day1[0].get("type", "")) == "PAY" and int(extra_day1[0].get("amount", -1)) == 90
+			and extra_day1.slice(1).all(func(e): return str(e.get("type", "")) == "GREET"), str(extra_day1))
 	GameState.day_count = 2
 	var extra_day2: Array = Day1Events._customer_extra_events("thug")
 	c.check("Day2はチンピラPAYが出ない(is_collection_dayでない)", extra_day2.is_empty(), str(extra_day2))

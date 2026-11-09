@@ -111,6 +111,8 @@ static func prep_events(spoiled: Dictionary = {}, scraps_base: bool = false) -> 
 			names.append(Ingredients.name_for(str(id)))
 		events.append({ "type": "TEXT",
 			"text": "在庫を確かめる。傷みきった%sは捨てた。" % "・".join(names) })
+	# 朝の決まった順の会話（中身U1。1日目の昼市場の会話。水道代はこの中の梁伯の場面で払う）。無い日は空。
+	events.append_array(morning_talk_events())
 	# 初日セット（DESIGN.md 10.3.4）：day_overrides.kit（Day1のみ"day1_kit"）が
 	# 宣言されている日だけ、仕込み量を選ぶ前に固定の購入イベントを差し込む。
 	# 自由な買い物ではない（DESIGN.md §6「Day1は自由な買い物なし」を維持）ので
@@ -634,13 +636,10 @@ static func customer_events(customer_id: String, mob_count: int = 0, scene_id: S
 	var flavor := _customer_flavor(customer_id, mob_count, scene)
 	var events := []
 	# 来店の前に「前回の料理を読んだ2行」（場面にcallbackがあるときだけ。現行の21場面は無し）。
-	for line in _callback_lines(customer_id, scene):
-		events.append({ "type": "GREET", "customer": customer_id, "text": line })
+	events.append_array(_talk(customer_id, _callback_lines(customer_id, scene)))
 	# 注文の前の行（場面にpre_orderがあるときだけ。前回の2行と注文の間。現行の21場面は無し）。
-	for line in ScheduleData.episode_pre_order(customer_id, scene):
-		events.append({ "type": "GREET", "customer": customer_id, "text": line })
-	for line in flavor["greet"]:
-		events.append({ "type": "GREET", "customer": customer_id, "text": line })
+	events.append_array(_talk(customer_id, ScheduleData.episode_pre_order(customer_id, scene)))
+	events.append_array(_talk(customer_id, flavor["greet"]))
 	events.append({ "type": "ADJUST", "customer": customer_id, "text": "（味を調える）",
 		"options": _adjust_options() })
 	events.append({ "type": "SERVE", "customer": customer_id, "text": "「はいよ、お待ち。」" })
@@ -750,6 +749,39 @@ static func market_talk_events() -> Array:
 	return events
 
 
+## 朝の決まった順の会話（中身U1。day_overrides.<日>.morning_talk が data/talks/<id>.json を指す日だけ。1日目の
+## 昼市場の会話＝炭屋→水場→張記）。PREP の列の先頭（初日セットの受け取りの前）に置く。選ぶ操作は無い。
+## 行は TEXT（part:"morning_talk"。話し手は行の頭の名前から出す）。〔演出〕の行は落とす。
+## 行の代わりの { pay_bills: <scene> } の位置で、その場面が取り立てる今日の請求（bills[] の scene）を PAY にする
+## （水道代＝scene "water_stall" は梁伯の場面で払う。kind は請求の id、文は「<その場の話し手>（<請求の名前>）」）。
+## 先頭は必ず行（EventRunner は列の先頭の効果を適用しないため、PAY を先頭に置かない。検査は data の側）。
+static func morning_talk_events() -> Array:
+	var talk := ScheduleData.talk_data(str(Rules.day_overrides(GameState.day_count).get("morning_talk", "")))
+	var events := []
+	for part in talk.get("parts", []):
+		if not (part is Dictionary):
+			continue
+		for line in (part as Dictionary).get("lines", []):
+			if line is Dictionary and (line as Dictionary).has("pay_bills"):
+				for bill in Rules.bills_for_scene(str(line["pay_bills"]), GameState.day_count):
+					events.append({ "type": "PAY", "amount": int(bill["amount"]), "kind": str(bill["id"]),
+						"text": "%s（%s）" % [str(part.get("speaker", "")), str(bill.get("label", bill["id"]))],
+						"part": "morning_talk" })
+			elif line is String and line != "" and not ScheduleData.is_direction_line(line):
+				events.append({ "type": "TEXT", "text": line, "part": "morning_talk" })
+	return events
+
+
+## モブが椀を出したあとの会話（中身U1。その日だけの文 days.<日>.after_talk）。出した人数が1以上のときに
+## PlaySession が最後の REACT の直後へ差し込む。モブでない・文が無い日は空配列。
+static func mob_after_talk_events(customer_id: String) -> Array:
+	var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
+	if inst.is_empty():
+		return []
+	var mob := ScheduleData.mob_data_for_day(str(inst.get("type", "")), GameState.day_count)
+	return _scene_lines("body", customer_id, mob.get("after_talk", []) if mob.get("after_talk", []) is Array else [])
+
+
 ## 提供後の列（DESIGN.md 10.5.3・10.8.6。システム整理C）。REACT の処理が済んだ後に DebugPanel が
 ## 呼び、返った列を現在位置の直後へ差し込む（来店時に最後まで固定しない＝実際の出来が出た後に組む）。
 ## 状態を読むだけで書かない（何度呼んでも同じ。乱数も使わない）。EventRunner に条件分岐は入れない
@@ -835,7 +867,7 @@ static func closing_events(customer_id: String, scene_id: String) -> Array:
 ## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。
 static func _scene_lines(part: String, customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in lines:
+	for line in ScheduleData.spoken_lines(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
 		events.append({ "type": "GREET", "customer": customer_id, "text": line, "part": part })
 	return events
 
@@ -902,7 +934,7 @@ static func today_request_of(customer_id: String, episode_id: String) -> Diction
 ## 会話行（発話・ト書き）を、1行1Eventの GREET にして積む（既存の接客と同じ形）。
 static func _talk(customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in lines:
+	for line in ScheduleData.spoken_lines(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
 		events.append({ "type": "GREET", "customer": customer_id, "text": line })
 	return events
 
@@ -1021,12 +1053,13 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 	var mob_instances: Dictionary = GameState.today_plan.get("mob_instances", {})
 	if mob_instances.has(customer_id):
 		var inst: Dictionary = mob_instances[customer_id]
-		var mob := ScheduleData.mob_data(str(inst.get("type", "")))
+		# その日だけの文（days.<日>）があればそれ（中身U1。1日目の港湾労働者・安宿の夜勤受付）
+		var mob := ScheduleData.mob_data_for_day(str(inst.get("type", "")), GameState.day_count)
 		if mob.is_empty():
 			return _unknown_customer_flavor()
 		var count := int(inst.get("count", 0))
 		var greet := []
-		for line in mob.get("greet", []):
+		for line in ScheduleData.spoken_lines(mob.get("greet", [])):
 			greet.append(_format_mob_greet(str(line), count))
 		return { "greet": greet, "reactions": mob.get("reactions", {}),
 			"servings": count, "is_mob": true,
@@ -1102,4 +1135,8 @@ static func _customer_extra_events(customer_id: String) -> Array:
 		collected.append({ "type": "PAY", "customer": customer_id, "amount": int(bill["amount"]),
 			"kind": str(bill["id"]),
 			"text": "%s（%s）" % [ScheduleData.customer_display_name(customer_id), str(bill.get("label", bill["id"]))] })
+	# 請求を払ったあとの会話（場面の after_bill。中身U1：レックスの場所代のあと〜退店）。請求がある日だけ。
+	if not collected.is_empty():
+		collected.append_array(_scene_lines("after_bill", customer_id,
+			ScheduleData.episode_after_bill(customer_id, episode_id_of(customer_id))))
 	return collected

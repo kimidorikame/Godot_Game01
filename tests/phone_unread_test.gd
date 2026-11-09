@@ -18,9 +18,9 @@ func run(t: SceneTree) -> int:
 	var news_total := 0
 	for section in s.phone_news():
 		news_total += (section["news"] as Array).size()
-	c.check("Day3：今日までのニュースが3件（Day1・2・3の各1件）で、すべてid・未読つき", news_total == 3
+	c.check("Day3：今日までのニュースが6件（Day1の4本＝中身U1・Day2・3の各1件）で、すべてid・未読つき", news_total == 6
 		and s.phone_news().all(func(sec): return (sec["news"] as Array).all(func(n): return str(n["id"]) != "" and bool(n["unread"]))))
-	c.check("ニュースの未読の数＝3、スマホの未読の合計＝DM＋ニュース＋タイムライン", s.news_unread_count() == 3
+	c.check("ニュースの未読の数＝6、スマホの未読の合計＝DM＋ニュース＋タイムライン", s.news_unread_count() == 6
 		and s.phone_unread_count() == s.dm_unread_count() + s.news_unread_count() + s.timeline_unread_count(), "%d/%d" % [s.news_unread_count(), s.dm_unread_count()])
 	c.check("必須情報を持つ未読のニュース（3件）を数えられる", (s.unread_must_info_news() as Array).size() == 3, str(s.unread_must_info_news()))
 	s.mark_news_read()
@@ -84,11 +84,11 @@ func run(t: SceneTree) -> int:
 	var primary: Button = root.pane_morning.get_node("%PrimaryButton")
 	c.check("Day2の朝の語りを読み終えた（会話枠にニュースの行は出ていない）", session.flow.is_runner_done()
 		and not shown.any(func(x): return str(x).contains("ニュース：")), str(shown))
-	c.check("このとき必須情報を持つニュース（Day1・Day2の分）は未読のまま", (session.unread_must_info_news() as Array).size() == 2
-		and session.news_unread_count() == 2, str(session.unread_must_info_news()))
+	c.check("このとき必須情報を持つニュース（Day1・Day2の分）は未読のまま（未読のニュースは Day1 の4本＋Day2 の1本）", (session.unread_must_info_news() as Array).size() == 2
+		and session.news_unread_count() == 5, str(session.unread_must_info_news()))
 	c.check("「市場へ」は押せる（未読の必須情報ニュースでも止めない）", primary.text == "市場へ" and not primary.disabled)
 	load("res://tests/ui_autoplay.gd").press(primary)
-	c.check("そのまま仕込み（PREP）へ進める", GameState.phase == GameState.Phase.PREP and session.news_unread_count() == 2)
+	c.check("そのまま仕込み（PREP）へ進める", GameState.phase == GameState.Phase.PREP and session.news_unread_count() == 5)
 	root.queue_free()
 
 	ReadState.reset("user://test_read_state.json")

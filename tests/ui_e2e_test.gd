@@ -90,7 +90,7 @@ func run(t: SceneTree) -> int:
 	AutoplayPress.press(tabs.get_child(0))
 	var sns_content: VBoxContainer = phone.get_node("%Content")
 	c.check("SNS：最初はタイムライン（上に「タイムライン｜DM」・Day1 の夜の投稿）。予報は出さない", phone.tab == "sns" and phone.sns_mode == "timeline"
-		and sns_content.has_node("SnsSwitch") and sns_content.has_node("Post_d1_yoru_strike"))
+		and sns_content.has_node("SnsSwitch") and sns_content.has_node("Post_d1_lin_cipher"))
 	c.check("タイムラインを表示したので、その分は既読（SNSタブの数は消え、DMの未読は「DM」の切り替えに出る）", phone.get_node("%SnsBadge").text == ""
 		and s.timeline_unread_count() == 0 and (sns_content.get_node("SnsSwitch/DmUnread") as Label).text == "●%d" % s.dm_unread_count())
 	AutoplayPress.press(sns_content.get_node("SnsSwitch/SwitchDm"))

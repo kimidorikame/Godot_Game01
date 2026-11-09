@@ -34,11 +34,15 @@ func run(_t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 
 	# --- 1. 読み口：キーが無い・形が不正なら「無い」と同じ（クラッシュしない） ---
-	c.check("実データ：どの読み口も空（21場面は新キーを持たない）",
-		ScheduleData.episode_pre_order("thug", "thug_01").is_empty()
-			and ScheduleData.episode_body("thug", "thug_01").is_empty()
-			and ScheduleData.episode_body_unserved("thug", "thug_01").is_empty()
-			and ScheduleData.episode_closing("thug", "thug_01").is_empty()
+	c.check("実データ（仮の文の場面 thug_02）：どの読み口も空（新キーを持たない）",
+		ScheduleData.episode_pre_order("thug", "thug_02").is_empty()
+			and ScheduleData.episode_body("thug", "thug_02").is_empty()
+			and ScheduleData.episode_body_unserved("thug", "thug_02").is_empty()
+			and ScheduleData.episode_closing("thug", "thug_02").is_empty()
+			and ScheduleData.episode_must_info("thug", "thug_02").is_empty())
+	c.check("実データ（1日目の本番の文 thug_01。中身U1）：食後の本文（body）と場所代のあとの会話（after_bill）だけを持つ",
+		not ScheduleData.episode_body("thug", "thug_01").is_empty() and not ScheduleData.episode_after_bill("thug", "thug_01").is_empty()
+			and ScheduleData.episode_pre_order("thug", "thug_01").is_empty() and ScheduleData.episode_closing("thug", "thug_01").is_empty()
 			and ScheduleData.episode_must_info("thug", "thug_01").is_empty())
 	c.check("無い場面・空idも空", ScheduleData.episode_body("thug", "thug_99").is_empty()
 		and ScheduleData.episode_closing("", "").is_empty() and ScheduleData.episode_must_info("thug", "").is_empty())

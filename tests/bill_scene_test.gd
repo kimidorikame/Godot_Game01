@@ -34,9 +34,24 @@ func run(_t: SceneTree) -> int:
 	c.check("請求の取り立て先（scene）は場所代＝thug・水道代＝water_stall",
 		str(Rules.bill("rent")["scene"]) == "thug" and str(Rules.bill("water")["scene"]) == "water_stall")
 	var d1 := _pays("thug", 1)
-	c.check("Day1のチンピラ：場所代のPAYが1つ（kind=rent・90・従来の文）",
+	c.check("Day1のチンピラ：場所代のPAYが1つ（kind=rent・90・文は「表示名（場所代）」。中身U1で表示名はレックス）",
 		d1.size() == 1 and int(d1[0]["amount"]) == 90 and str(d1[0]["kind"]) == "rent"
-			and str(d1[0]["customer"]) == "thug" and str(d1[0]["text"]) == "チンピラ（場所代）", str(d1))
+			and str(d1[0]["customer"]) == "thug" and str(d1[0]["text"]) == "レックス（場所代）", str(d1))
+	# 中身U1：場所代を払ったあとの会話（thug_01 の after_bill）は、PAY のすぐ後ろに続く（〔演出〕の行は出さない）
+	GameState.reset_for_new_game()
+	GameState.day_count = 1
+	var thug_events := Day1Events.customer_events("thug")
+	var pay_at := -1
+	for i in range(thug_events.size()):
+		if str(thug_events[i].get("type", "")) == "PAY":
+			pay_at = i
+	var after_bill := ScheduleData.spoken_lines(ScheduleData.episode_after_bill("thug", "thug_01"))
+	var follows := pay_at >= 0 and not after_bill.is_empty() and thug_events.size() == pay_at + 1 + after_bill.size()
+	for i in range(after_bill.size()):
+		follows = follows and str(thug_events[pay_at + 1 + i].get("text", "")) == str(after_bill[i]) \
+			and str(thug_events[pay_at + 1 + i].get("part", "")) == "after_bill"
+	c.check("Day1のチンピラ：場所代のPAYの直後に、払ったあとの会話（after_bill）が順に続く（〔演出〕は除く）", follows,
+		"%d / %d" % [pay_at, after_bill.size()])
 	for d in range(2, 8):
 		c.check("Day%dのチンピラ：PAYは出ない" % d, _pays("thug", d).is_empty())
 	for cid in ["delivery_man", "granny", "officer", "hooker", "streamer"]:
@@ -59,7 +74,7 @@ func run(_t: SceneTree) -> int:
 	var granny_pays := _pays("granny", 2)
 	c.check("scene=grannyの請求はDay2の老婆にだけ出る（kind=請求のid・金額・老婆の表示名）",
 		granny_pays.size() == 1 and int(granny_pays[0]["amount"]) == 33 and str(granny_pays[0]["kind"]) == "tab"
-			and str(granny_pays[0]["text"]) == "老婆（つけ）", str(granny_pays))
+			and str(granny_pays[0]["text"]) == "ターニャ婆（つけ）", str(granny_pays))
 	c.check("別の客（チンピラ）の請求には混ざらない（Day2のチンピラのPAYは場所代1つ）",
 		_pays("thug", 2).size() == 1 and str(_pays("thug", 2)[0]["kind"]) == "rent")
 	c.check("sceneが別の客の請求は、Day3の老婆には出ない", _pays("granny", 3).is_empty())

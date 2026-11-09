@@ -5,7 +5,7 @@ class_name Sns
 ##
 ## データ形：
 ##   accounts.<id> … { name（表示名）, handle（@〜）, icon:{ color（"#rrggbb"）, text（1文字か記号）}, profile, kind:"main|alt"（表／裏）,
-##                    owner（書き手用。客の id か "town"。画面に出さない）}
+##                    owner（書き手用。客の id か、モブの種類の id（中身U1）か "town"。画面に出さない）}
 ##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, reply_to（任意。元の投稿の id）,
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから）, truth（任意。書き手用。画面に出さない）, provisional } ]
 ## アカウントの持ち主は画面に出さない（どれが誰のアカウントかはプレイヤーが推理する）。DMの差出人とも結びつけない。
@@ -173,8 +173,9 @@ static func problems(source: Dictionary = {}) -> Array:
 		if not KINDS.has(str(a.get("kind", ""))):
 			found.append(where + " の kind が main／alt でない")
 		var owner := str(a.get("owner", ""))
-		if owner != "town" and not FileAccess.file_exists("res://data/customers/%s.json" % owner):
-			found.append("%s の owner %s が客でも town でもない" % [where, owner])
+		if owner != "town" and not FileAccess.file_exists("res://data/customers/%s.json" % owner) \
+				and not FileAccess.file_exists("res://data/mobs/%s.json" % owner):
+			found.append("%s の owner %s が客でもモブの種類でも town でもない" % [where, owner])
 		if not (a.get("profile", "") is String):
 			found.append(where + " の profile が文字列でない")
 	var list = d.get("posts", [])

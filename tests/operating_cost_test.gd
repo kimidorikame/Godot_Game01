@@ -113,17 +113,31 @@ func run(t: SceneTree) -> int:
 		s4.exit_market() and GameState.phase == GameState.Phase.PREP and GameState.money == money_cap - daily and GameState.money >= 0, str(GameState.money))
 	s4.free()
 
-	# --- 5. 徴収日（Day1）：水道代は市場を出るとき、運営費もそのとき。場所代は開店中（変えない） ---
+	# --- 5. 徴収日（Day1）：水道代は朝の昼市場の会話（梁伯の場面。中身U1）、運営費は市場を出るとき。場所代は開店中（変えない） ---
 	GameState.reset_for_new_game()
 	var s5 := PlaySession.new()
 	t.root.add_child(s5)
 	s5.start()
 	c.check("Day1の朝：支払い予定＝運営費＋場所代＋水道代（%d）" % (daily + 140), int(s5.budget()["reserved"]) == daily + 140 and s5.operating_cost_pending() == daily)
-	_to_market(s5)
+	# 中身U1：Day1の水道代は、朝の昼市場の会話（梁伯の場面。PREP の先頭）で払う。市場を出るときは運営費だけ。
+	var ledger5_start := GameState.ledger.size()
+	s5.flow.advance_phase()   # WAKE→PREP
+	var guard5 := 0
+	while not s5.is_in_prep_tier() and guard5 < 80:
+		guard5 += 1
+		s5.next_event()
+	c.check("Day1：鍋の素を選ぶ前（朝の昼市場の会話の梁伯の場面）に、水道代（50）を払った・確保から外れた",
+		_category_amounts(ledger5_start) == [["water", -50, "PREP"]] and int(s5.budget()["reserved"]) == daily + 90 and s5.market_visited_water,
+		str(_category_amounts(ledger5_start)))
+	s5.choose_prep_tier("small")
+	guard5 = 0
+	while not s5.is_in_market() and guard5 < 60:
+		guard5 += 1
+		s5.next_event()
 	var ledger5 := GameState.ledger.size()
 	var money5 := GameState.money
-	c.check("Day1：市場を出るとき、水道代（50）→運営費（75）の順に引く", s5.exit_market() and GameState.money == money5 - 50 - daily
-		and _category_amounts(ledger5) == [["water", -50, "PREP"], ["daily_cost", -daily, "PREP"]], str(_category_amounts(ledger5)))
+	c.check("Day1：市場を出るときは、運営費（75）だけを引く（水道代は払い済みなので二重に払わない）", s5.exit_market() and GameState.money == money5 - daily
+		and _category_amounts(ledger5) == [["daily_cost", -daily, "PREP"]], str(_category_amounts(ledger5)))
 	c.check("場所代（90）は、まだ支払い予定のまま（開店中のチンピラの来店で払う。タイミングは変えない）",
 		int(s5.budget()["reserved"]) == 90 and not GameState.rent_paid_today)
 	s5.free()

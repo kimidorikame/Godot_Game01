@@ -76,15 +76,15 @@ func run(t: SceneTree) -> int:
 	_fresh()
 
 	# --- 1. ReadState：キー・追加・書き出し・読み込み・パス差し替え ---
-	var k1 := ReadState.line_key("talk", "チンピラ", "", "本文")
+	var k1 := ReadState.line_key("talk", "レックス", "", "本文")
 	c.check("キーは 種別・話し手・part・本文のsha1 で決まる（同じなら同じ）",
-		k1 == ReadState.line_key("talk", "チンピラ", "", "本文") and k1.ends_with("|" + "本文".sha1_text()))
+		k1 == ReadState.line_key("talk", "レックス", "", "本文") and k1.ends_with("|" + "本文".sha1_text()))
 	c.check("本文・話し手・part・種別のどれかが違えば別のキー",
-		k1 != ReadState.line_key("talk", "チンピラ", "", "本文２") and k1 != ReadState.line_key("talk", "老婆", "", "本文")
-			and k1 != ReadState.line_key("talk", "チンピラ", "news", "本文") and k1 != ReadState.line_key("narration", "チンピラ", "", "本文"))
+		k1 != ReadState.line_key("talk", "レックス", "", "本文２") and k1 != ReadState.line_key("talk", "ターニャ婆", "", "本文")
+			and k1 != ReadState.line_key("talk", "レックス", "news", "本文") and k1 != ReadState.line_key("narration", "レックス", "", "本文"))
 	c.check("最初は未読。足すと既読（新しく足したときだけ true）",
 		not ReadState.is_read(k1) and ReadState.mark(k1) and ReadState.is_read(k1) and not ReadState.mark(k1) and ReadState.count() == 1)
-	c.check("本文が差し替わった行は未読に戻る", not ReadState.is_read(ReadState.line_key("talk", "チンピラ", "", "本文（直した）")))
+	c.check("本文が差し替わった行は未読に戻る", not ReadState.is_read(ReadState.line_key("talk", "レックス", "", "本文（直した）")))
 	c.check("書き出す前はファイルが無い（1行ごとには書かない）", not FileAccess.file_exists(TEST_PATH))
 	c.check("flush で書き出す。version と lines を持つJSON",
 		ReadState.flush() and FileAccess.file_exists(TEST_PATH)
@@ -190,12 +190,12 @@ func run(t: SceneTree) -> int:
 	_fresh()
 	var p4 = _setup(t, 41)
 	for text in ["g2", "g4"]:
-		ReadState.mark(ReadState.line_key("talk", "チンピラ", "", text))
+		ReadState.mark(ReadState.line_key("talk", "レックス", "", text))
 	p4.session.load_current_customer()   # 先頭（g1）から組み直す
 	var steps_unread: int = p4._on_skip_read_pressed()
 	c.check("未読の行（g3）の手前の既読（g2）は飛ばし、未読の行で止まる（その行は見えている）",
 		steps_unread == 2 and str(p4.session.flow.runner.current()["text"]) == "g3", "%d / %s" % [steps_unread, str(p4.session.flow.runner.current())])
-	c.check("止まった未読の行は既読になる（次回は飛ばせる）", ReadState.is_read(ReadState.line_key("talk", "チンピラ", "", "g3")))
+	c.check("止まった未読の行は既読になる（次回は飛ばせる）", ReadState.is_read(ReadState.line_key("talk", "レックス", "", "g3")))
 	# 入力待ち：全部既読にして ADJUST（入力待ち）で止まる
 	p4._on_skip_read_pressed()   # g4 は既読、ADJUST の文は未読 → ADJUST で止まる
 	c.check("入力待ち（ADJUST）で止まる", str(p4.session.flow.runner.current()["type"]) == "ADJUST" and p4.session.flow.runner.status == EventRunner.Status.WAITING_INPUT)
@@ -210,7 +210,7 @@ func run(t: SceneTree) -> int:
 	while p4b.session.flow.runner.index < p4b.session.flow.runner.events.size() - 1:
 		p4b.session.next_event()   # 手で全部読む（既読にする）
 	p4b.free()
-	var reaction_key := ReadState.line_key("reaction", "チンピラ", "", "R:GOOD")
+	var reaction_key := ReadState.line_key("reaction", "レックス", "", "R:GOOD")
 	c.check("（前提）反応文も既読になった", ReadState.is_read(reaction_key))
 	ReadState._lines.erase(reaction_key)
 	var p4c = _setup(t, 31)

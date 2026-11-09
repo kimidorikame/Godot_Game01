@@ -23,6 +23,12 @@ func _cups_scene(extra: Dictionary = {}) -> Dictionary:
 	return ep
 
 
+func _sorted(values: Array) -> Array:
+	var out := values.duplicate()
+	out.sort()
+	return out
+
+
 func _types(events: Array) -> Array:
 	var out := []
 	for ev in events:
@@ -214,7 +220,7 @@ func run(t: SceneTree) -> int:
 		and (CustomerMemory.last_visit("thug")["grades"] as Array).size() == 2)
 	panel.free()
 
-	# --- 7. 配達員のDay1（delivery_man_01）：cups から組んだ列が4-3の記録と完全に同一 ---
+	# --- 7. 配達員のDay1（delivery_man_01）：cups から組んだ列の、文以外が4-3の記録と同一（中身U1で文を本番に替えた） ---
 	# 記録（tests/fixtures/customer_events_4_3.json）と、キーの有無まで含めて厳密に照合する
 	# （JSONを通した形にそろえ、辞書の値とキー集合が一致。3杯目の REACT に favorite が付かないことも）。
 	ScheduleData.clear_cache()
@@ -228,25 +234,44 @@ func run(t: SceneTree) -> int:
 	var now_events: Array = _norm(Day1Events.customer_events("delivery_man"))
 	c.check("（前提）Day1の配達員は複数杯の場面（delivery_man_01）", Day1Events.episode_id_of("delivery_man") == "delivery_man_01"
 		and Day1Events.is_multi_cup_scene("delivery_man", "delivery_man_01"))
-	c.check("イベント数が記録と同じ（%d）" % recorded_events.size(), now_events.size() == recorded_events.size())
-	var same_all := now_events == recorded_events
-	c.check("Day1の配達員のEvent列が記録と完全に一致（値の一致）", same_all)
+	# 中身U1：文（GREET と ADJUST・SERVE の文）は本番の文に替わった。文を除いた並びと、判定・売上に効く値は記録と同じ。
+	var value_keys := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "new_bowl"]
+	var strip := func(events: Array) -> Array:
+		var out := []
+		for e in events:
+			if str(e["type"]) == "GREET":
+				continue
+			var v := {}
+			for k in value_keys:
+				if (e as Dictionary).has(k):
+					v[k] = e[k]
+			out.append(v)
+		return out
+	c.check("文以外の Event（ADJUST・SERVE・REACT の並び・札・好物・杯数・売上）が記録と同じ（中身U1で文だけ替えた）",
+		strip.call(now_events) == strip.call(recorded_events), "%s / vs / %s" % [str(strip.call(now_events)), str(strip.call(recorded_events))])
 	var keys_same := true
-	for i in range(mini(now_events.size(), recorded_events.size())):
-		var a: Array = (now_events[i] as Dictionary).keys()
-		var b: Array = (recorded_events[i] as Dictionary).keys()
+	var now_values := now_events.filter(func(e): return e["type"] != "GREET")
+	var rec_values := recorded_events.filter(func(e): return e["type"] != "GREET")
+	for i in range(mini(now_values.size(), rec_values.size())):
+		var a: Array = (now_values[i] as Dictionary).keys()
+		var b: Array = (rec_values[i] as Dictionary).keys()
 		a.sort()
 		b.sort()
 		keys_same = keys_same and a == b
-	c.check("各イベントのキー集合も記録と一致（キーの過不足なし）", keys_same)
+	c.check("文以外の各イベントのキー集合も記録と一致（キーの過不足なし）", keys_same and now_values.size() == rec_values.size())
+	var serves := now_events.filter(func(e): return e["type"] == "SERVE")
+	c.check("1杯目の提供の文は元の文（店主「ほら。熱いぞ」）・2杯目と3杯目は文が無いので既定の文",
+		serves.size() == 3 and serves[0]["text"] == "店主「ほら。熱いぞ」" and serves[1]["text"] == "「はいよ、お待ち。」" and serves[2]["text"] == "「はいよ、お待ち。」",
+		str(serves))
+	c.check("会話の行に〔演出〕〔ゲーム〕が無い", now_events.all(func(e): return not str(e.get("text", "")).contains("〔")))
 	var recorded_reacts := recorded_events.filter(func(e): return e["type"] == "REACT")
 	var now_reacts := now_events.filter(func(e): return e["type"] == "REACT")
 	c.check("3杯目のREACTに favorite が付かない（記録と同じ）。1・2杯目は付く（tofu）",
 		recorded_reacts.size() == 3 and now_reacts.size() == 3 and not (now_reacts[2] as Dictionary).has("favorite")
 			and now_reacts[0]["favorite"] == "tofu" and now_reacts[1]["favorite"] == "tofu"
 			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size())
-	c.check("3杯目の注文は直書きだった MELLOW/GENTLE のまま・反応は空辞書",
-		now_reacts[2]["wanted_tags"] == ["MELLOW", "GENTLE"] and now_reacts[2]["reactions"] == {})
+	c.check("3杯目の注文は MELLOW/GENTLE のまま・反応は元の文（GOOD・OK・BAD の3段。GREAT は無い）",
+		now_reacts[2]["wanted_tags"] == ["MELLOW", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK"])
 	c.check("1・2杯目の要求タグはプロフィール（HOT/POWER）で、反応は各結果1パターンのまま",
 		now_reacts[0]["wanted_tags"] == ["HOT", "POWER"] and now_reacts[1]["wanted_tags"] == ["HOT", "POWER"]
 			and (now_reacts[0]["reactions"]["GOOD"] as Array).size() == 1 and (now_reacts[1]["reactions"]["GREAT"] as Array).size() == 1)

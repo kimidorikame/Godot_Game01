@@ -4,7 +4,7 @@ extends RefCounted
 ## 予告メモ）で使う。計器盤・STATE VIEWER・Ledgerはデバッグ／内部用なのでidのまま。
 
 const REGULAR_NAMES := {
-	"delivery_man": "配達員", "thug": "チンピラ", "granny": "老婆",
+	"delivery_man": "阿強", "thug": "レックス", "granny": "ターニャ婆",   # 中身U1：店主が前から名前を知っている3人は本名
 	"officer": "新人警官", "hooker": "夜の女", "streamer": "配信者",
 }
 
@@ -13,10 +13,10 @@ func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
 
-	# --- 1. 全常連の表示名が空でなく、idとは別の文字列（既存の仮の値のまま） ---
+	# --- 1. 全常連の表示名が空でなく、idとは別の文字列（阿強・レックス・ターニャ婆は中身U1の本名。ほかは仮の値のまま） ---
 	for id in REGULAR_NAMES:
 		var name := ScheduleData.customer_display_name(id)
-		c.check("%s の表示名は空でなく、仮の値のまま" % id,
+		c.check("%s の表示名は空でなく、表のとおり（%s）" % [id, REGULAR_NAMES[id]],
 			name != "" and name != id and name == REGULAR_NAMES[id], name)
 		c.check("%s のプロフィールに name がある" % id, ScheduleData.customer_profile(id).has("name"))
 
@@ -42,7 +42,7 @@ func run(t: SceneTree) -> int:
 	for id in REGULAR_NAMES:
 		all_named = all_named and story.contains(REGULAR_NAMES[id])
 	c.check("物語の欄に6人全員の表示名が出る", all_named, story)
-	c.check("来た常連は「表示名（N日）」の形", story.contains("チンピラ（3日）"), story)
+	c.check("来た常連は「表示名（N日）」の形", story.contains("レックス（3日）"), story)
 
 	# --- 4. 予告メモ（朝の予報の文面）：名前あり客は表示名で出てidが残らない ---
 	GameState.reset_for_new_game()
@@ -55,8 +55,8 @@ func run(t: SceneTree) -> int:
 		if memo.contains(id):
 			memo_leaked.append(id)
 	c.check("予告メモにidが残らない", memo_leaked.is_empty(), "%s / %s" % [str(memo_leaked), memo])
-	c.check("予告メモに今日の常連の表示名が出る（Day2：新人警官・配達員・チンピラ）",
-		memo.contains("新人警官") and memo.contains("配達員") and memo.contains("チンピラ"), memo)
+	c.check("予告メモに今日の常連の表示名が出る（Day2：新人警官・阿強・レックス）",
+		memo.contains("新人警官") and memo.contains("阿強") and memo.contains("レックス"), memo)
 
 	GameState.reset_for_new_game()
 	if is_instance_valid(panel):

@@ -38,7 +38,7 @@ func run(t: SceneTree) -> int:
 	var unread_before := s.news_unread_count()
 	root.open_phone("news")
 	var rows := _rows(content)
-	c.check("一覧：その日までのニュースを新しい日が上で並べる（Day4 より先は出ない）", rows == ["d3_spillover", "d2_checkpoints", "d1_strike"], str(rows))
+	c.check("一覧：その日までのニュースを新しい日が上で並べる（同じ日はデータの順。Day4 より先は出ない）", rows == ["d3_spillover", "d2_checkpoints", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(rows))
 	var d3: Dictionary = News.day_entry(3)["news"][0]
 	var row3: Button = content.get_node("NewsRow_d3_spillover")
 	var row1: Button = content.get_node("NewsRow_d1_strike")
@@ -56,13 +56,13 @@ func run(t: SceneTree) -> int:
 		and (content.get_node("NewsDate") as Label).text == "%s（今日）" % Calendar.label(3)
 		and (d3["body"] as Array).all(func(line): return labels.has(str(line))), str(labels))
 	_press(content.get_node("NewsBack"))
-	c.check("「戻る」で一覧に戻る", phone.news_open == "" and _rows(content) == ["d3_spillover", "d2_checkpoints", "d1_strike"], str(_rows(content)))
+	c.check("「戻る」で一覧に戻る", phone.news_open == "" and _rows(content) == ["d3_spillover", "d2_checkpoints", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(_rows(content)))
 
 	# --- 3. 長い本文（Day7 の d7_unresolved は4行）：縦に送れる ---
 	root.close_overlay()
 	GameState.day_count = 7
 	root.open_phone("news")
-	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も）", _rows(content).size() == 9 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
+	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1 は4本＝中身U1）", _rows(content).size() == 12 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
 	_press(content.get_node("NewsRow_d7_unresolved"))
 	var long: Dictionary = News.day_entry(7)["news"][1]
 	labels = _texts(content)

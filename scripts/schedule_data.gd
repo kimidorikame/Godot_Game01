@@ -18,7 +18,8 @@ class_name ScheduleData
 ##   複数杯の場面（Day1の配達員の3杯）は reactions・servings の代わりに cups（杯の配列）を持つ
 ##   どの場面を引くかはDayPlanの枠（regular_id・episode_id）が持つ（Day1Events.episode_id_of）。
 ## mobs/<id>.json のモデル：
-##   { "is_mob", "greet", "reactions", "wanted_tags" }（日をまたいで変わらない＝days無し）。
+##   { "is_mob", "greet", "reactions", "wanted_tags" }（日をまたいで変わらない）。中身U1から、その日だけの文を
+##   days.<日>：{ greet, reactions, after_talk } で持てる（mob_data_for_day。注文は日で変えない）。
 
 # 4-3：常連の固定日程（week7.jsonのregular_schedule＝"week7_regulars"から引く）と、
 # モブの抽選ルール（既定＋日別の上書き）。DESIGN.md 10.8.1。
@@ -31,10 +32,12 @@ static var episodes_dir := "res://data/episodes/"
 const _CUSTOMERS_DIR := "res://data/customers/"
 const _MOBS_DIR := "res://data/mobs/"
 const _KITS_DIR := "res://data/kits/"
+const _TALKS_DIR := "res://data/talks/"
 
 static var _customer_cache: Dictionary = {}   # id(String) -> 生のJSON全体（Dictionary）
 static var _mob_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
 static var _kit_cache: Dictionary = {}        # id(String) -> 生のJSON全体（Dictionary）
+static var _talk_cache: Dictionary = {}       # id(String) -> 生のJSON全体（決まった順の会話。中身U1）
 static var _regulars_cache: Dictionary = {}   # 常連の固定日程（schedule id -> 生のJSON全体）
 static var _mob_rules_cache: Dictionary = {}
 static var _mob_rules_loaded := false
@@ -386,7 +389,8 @@ static func _is_lines(value) -> bool:
 ## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
 ## 配列を返す（空なら問題なし）。検査するのは新しいキーと反応のキーだけ：
 ##   reactions … 4段階＋UNSERVED。値は文字列の配列
-##   market_talk / pre_order / body / body_unserved … 空でない文字列の配列
+##   market_talk / pre_order / body / body_unserved / after_bill … 空でない文字列の配列
+##   行の印（中身U1）… 〔ゲーム〕の行は持たない。〔演出〕は行の頭だけ（会話の行の配列の中。反応の行には持たない）
 ##   choices … 最大2。各 { id, options:[2つ { id, label, set(辞書・任意) }] }。idは一意
 ##   sets_facts … 辞書。選択肢の set と合わせた事実のキーが重複を除いて2個まで。両方に同じキーは不可
 ##   closing … { default: 行の配列, <選択id>:<選択肢id> | request_honored:true|false: 行の配列 }
@@ -445,9 +449,28 @@ static func scene_problems(ep: Dictionary) -> Array:
 					problems.append("reactions に未知のキー %s" % str(key))
 				elif not (reactions[key] is Array):
 					problems.append("reactions.%s が配列でない" % str(key))
-	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info"]:
+	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info", "after_bill"]:
 		if ep.has(key) and not _is_lines(ep[key]):
 			problems.append("%s が空でない文字列の配列でない" % key)
+	# 〔ゲーム〕〔演出〕の印（中身U1）：会話の行の配列と反応の行
+	for key in ["greet", "market_talk", "pre_order", "body", "body_unserved", "after_bill"]:
+		problems.append_array(marker_problems(ep.get(key, []), key))
+	var reaction_sources := [ep.get("reactions", {})]
+	if ep.get("cups") is Array:
+		for i in range((ep["cups"] as Array).size()):
+			var cup = ep["cups"][i]
+			if cup is Dictionary:
+				problems.append_array(marker_problems((cup as Dictionary).get("after_talk", []), "cups[%d].after_talk" % i))
+				for key in ["adjust", "serve"]:
+					problems.append_array(marker_problems([(cup as Dictionary).get(key, "")], "cups[%d].%s" % [i, key]))
+				reaction_sources.append((cup as Dictionary).get("reactions", {}))
+	for source in reaction_sources:
+		if source is Dictionary:
+			for key in source:
+				problems.append_array(marker_problems(source[key], "reactions.%s" % str(key)))
+				for line in (source[key] if source[key] is Array else []):
+					if is_direction_line(line):
+						problems.append("reactions.%s：反応の行に〔演出〕は持たない「%s」" % [str(key), str(line)])
 	var choice_ids := {}
 	var option_keys := {}   # "選択id:選択肢id" -> true
 	var fact_keys := {}
@@ -555,6 +578,78 @@ static func mob_data(id: String) -> Dictionary:
 	return _mob_cache[id]
 
 
+## モブ1種の、その日の文（中身U1）。mobs/<id>.json の days.<日> に greet・reactions・after_talk があれば、
+## その日だけそれに替える（無いキー・無い日は、日をまたぐ文のまま）。注文（wanted_tags）は日で変えない。
+## after_talk … 椀を出したあとの会話（出した人数が1以上のときだけ流す）。日をまたぐ文には無い。
+static func mob_data_for_day(id: String, day: int) -> Dictionary:
+	var base := mob_data(id)
+	var result := {}
+	for key in base:
+		if key != "days":
+			result[key] = base[key]
+	var days = base.get("days", {})
+	if days is Dictionary and (days as Dictionary).get(str(day)) is Dictionary:
+		var form: Dictionary = days[str(day)]
+		for key in ["greet", "reactions", "after_talk"]:
+			if form.has(key):
+				result[key] = form[key]
+	return result
+
+
+## 〔演出〕の行（絵・音・動きの書き置き。中身U1）。場面データ・モブ・朝の会話の行の配列に、元の文の位置のまま持つ。
+## 会話枠・ログには出さない：行を Event にするところ（Day1Events._talk など）で spoken_lines() を通して落とす。
+## 〔ゲーム〕の行（処理の位置の説明）はデータに持たない（marker_problems が弾く）。
+const DIRECTION_PREFIX := "〔演出〕"
+const GAME_NOTE_PREFIX := "〔ゲーム〕"
+
+
+static func is_direction_line(line) -> bool:
+	return line is String and (line as String).begins_with(DIRECTION_PREFIX)
+
+
+## 会話枠に出す行だけ（文字列で、空でなく、〔演出〕でない行）。
+static func spoken_lines(lines) -> Array:
+	var out := []
+	if lines is Array:
+		for line in lines:
+			if line is String and line != "" and not is_direction_line(line):
+				out.append(line)
+	return out
+
+
+## 行の配列の印の検査：〔ゲーム〕の行は持たない・〔演出〕は行の頭だけ（行の途中にあると会話枠に出てしまう）。
+static func marker_problems(lines, where: String) -> Array:
+	var problems := []
+	if not (lines is Array):
+		return problems
+	for line in lines:
+		if not (line is String):
+			continue
+		var text := str(line)
+		if text.contains(GAME_NOTE_PREFIX):
+			problems.append("%s：〔ゲーム〕の行はデータに持たない「%s」" % [where, text])
+		elif text.contains(DIRECTION_PREFIX) and not text.begins_with(DIRECTION_PREFIX):
+			problems.append("%s：〔演出〕が行の途中にある「%s」" % [where, text])
+	return problems
+
+
+## 請求を払ったあとの行（中身U1。レックスの場所代のあとの会話）。その客がその日に取り立てる請求
+## （bills[] の scene がその客）があるときだけ、支払い（PAY）の直後に流す。無ければ空配列。
+static func episode_after_bill(customer_id: String, episode_id: String) -> Array:
+	return _string_lines(episode_data(customer_id, episode_id).get("after_bill", []))
+
+
+## 決まった順に見せる会話（中身U1。data/talks/<id>.json）：{ id, parts:[ { place, speaker, lines:[行 | { pay_bills:<scene> }] } ] }。
+## 1日目の朝の昼市場の会話（day_overrides.morning_talk）が使う。無いときは空辞書。
+static func talk_data(id: String) -> Dictionary:
+	if id == "":
+		return {}
+	if not _talk_cache.has(id):
+		var path := _TALKS_DIR + id + ".json"
+		_talk_cache[id] = _load_json(path) if FileAccess.file_exists(path) else {}
+	return _talk_cache[id]
+
+
 ## 購入セット1種のデータ（F1 day_overrides.kit・DESIGN.md 10.8.1。日をまたいで
 ## 変わらないのでフォールバック不要。mob_data()と同じキャッシュパターン）。
 static func kit_data(id: String) -> Dictionary:
@@ -569,6 +664,7 @@ static func clear_cache() -> void:
 	_customer_cache.clear()
 	_mob_cache.clear()
 	_kit_cache.clear()
+	_talk_cache.clear()
 	_regulars_cache.clear()
 	_mob_rules_cache = {}
 	_mob_rules_loaded = false

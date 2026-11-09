@@ -71,7 +71,7 @@ func run(t: SceneTree) -> int:
 	c.check("Day1のあと：名前あり客は出会った順（配達員→チンピラ→老婆）・モブも出会った順（港湾労働者→安宿の夜勤受付）",
 		ids == ["delivery_man", "thug", "granny"] and (notes["mobs"] as Array).map(func(m): return str(m["type"])) == ["dock_workers", "inn_clerk"], str(ids))
 	var first: Dictionary = notes["regulars"][0]
-	c.check("名前あり客：名前・いつもの（2つ）・来た日（Day1）", str(first["name"]) == "配達員" and first["tags"] == ["HOT", "POWER"] and first["days"] == [1])
+	c.check("名前あり客：名前・いつもの（2つ）・来た日（Day1）", str(first["name"]) == "阿強" and first["tags"] == ["HOT", "POWER"] and first["days"] == [1])
 	var fav_ok := true
 	for r in notes["regulars"]:
 		fav_ok = fav_ok and bool(r["favorite_known"]) == GameState.knows_favorite(str(r["id"]))
@@ -97,14 +97,14 @@ func run(t: SceneTree) -> int:
 			tab_texts.append((child as Button).text)
 	c.check("タブは3つ（SNS／ニュース／持ち物。UI準備R で客タブを画面から外した）。客ノートの描き方は残してあり、tab=\"notes\" なら描ける",
 		tab_texts == ["SNS", "ニュース", "持ち物"] and texts.has("名前あり客") and texts.has("モブ"), str(tab_texts) + str(texts.slice(0, 6)))
-	c.check("一覧は名前だけ（来た日・札は詳細で見る。UI準備O2）", texts.has("配達員") and not texts.has("Day1") and not texts.has("辛い"), str(texts))
+	c.check("一覧は名前だけ（来た日・札は詳細で見る。UI準備O2）", texts.has("阿強") and not texts.has("Day1") and not texts.has("辛い"), str(texts))
 	phone.open_note("delivery_man")
 	var detail_texts := _label_texts(phone.get_node("%Content"))
-	c.check("詳細：名前・来た日（Day1）・札は言葉（辛い・スタミナ）・内部名は出ない", detail_texts.has("配達員") and detail_texts.has("来た日　Day1") and detail_texts.has("辛い") and detail_texts.has("スタミナ")
+	c.check("詳細：名前・来た日（Day1）・札は言葉（辛い・スタミナ）・内部名は出ない", detail_texts.has("阿強") and detail_texts.has("来た日　Day1") and detail_texts.has("辛い") and detail_texts.has("スタミナ")
 		and not detail_texts.any(func(x): return str(x).contains("HOT") or str(x).contains("POWER")), str(detail_texts))
 	phone.close_note()
 	texts = _label_texts(phone.get_node("%Content"))
-	c.check("並び：名前あり客の見出し→名前あり客→モブの見出し→モブ", texts.find("名前あり客") < texts.find("配達員") and texts.find("配達員") < texts.find("モブ") and texts.find("モブ") < texts.find("港湾労働者"))
+	c.check("並び：名前あり客の見出し→名前あり客→モブの見出し→モブ", texts.find("名前あり客") < texts.find("阿強") and texts.find("阿強") < texts.find("モブ") and texts.find("モブ") < texts.find("港湾労働者"))
 	var many_days: Dictionary = (notes["regulars"][0] as Dictionary).duplicate(true)
 	many_days["days"] = [1, 2, 4]
 	var days_text := "・".join(PackedStringArray((many_days["days"] as Array).map(func(d): return Calendar.label(int(d)))))

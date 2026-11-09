@@ -56,16 +56,22 @@ func run(_t: SceneTree) -> int:
 			truth_item = item
 	c.check("#9：複数の説を並べる（本文が3行以上）", (truth_item.get("body", []) as Array).size() >= 3)
 
-	# --- 3. 仮データの印：全項目に provisional が付いている（脚本で差し替える） ---
+	# --- 3. 仮データの印：Day2〜7 の全項目に provisional が付いている（脚本で差し替える）。Day1 は本番の文（中身U1）で付かない ---
 	var all_provisional := true
 	var any_items := 0
-	for day in range(1, 8):
+	for day in range(2, 8):
 		var entry := News.day_entry(day)
 		for kind in ["news", "events"]:
 			for item in entry[kind]:
 				any_items += 1
 				all_provisional = all_provisional and bool(item.get("provisional", false))
-	c.check("全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+	c.check("Day2〜7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+	var day1_news: Array = News.day_entry(1)["news"]
+	c.check("Day1 は本番の4本（1日目_ニュース.md）：provisional なし・1本目はストの見出しで must_info ①（strike_started）",
+		day1_news.size() == 4 and day1_news.all(func(i): return not bool(i.get("provisional", false)))
+			and str(day1_news[0]["headline"]) == "【港湾】第八码頭、二倉庫で夜間作業停止" and day1_news[0]["must_info"] == ["strike_started"]
+			and day1_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty() and (i["body"] as Array).size() == 3),
+		str(day1_news.map(func(i): return i["headline"])))
 	c.check("毎日ニュースが1件以上ある（Day1〜7）", range(1, 8).all(func(d): return not News.day_entry(d)["news"].is_empty()))
 	c.check("日程の無い日・未来の日は空（Day8）", News.day_entry(8)["news"].is_empty() and News.day_entry(8)["events"].is_empty())
 

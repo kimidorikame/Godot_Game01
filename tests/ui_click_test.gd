@@ -117,7 +117,12 @@ func run(t: SceneTree) -> int:
 			silent_seen = true
 	c.check("Day1の仕込み：初日セットの受け取り（ADD_ITEM 7件）で、会話枠を空にしてクリックさせない", not empty_seen and not silent_seen,
 		"クリック%d回・空の枠=%s・ADD_ITEMで止まった=%s" % [clicks, str(empty_seen), str(silent_seen)])
-	c.check("鍋の素を選ぶ画面（PREP_TIER）まで、会話枠のクリックだけで着いた（5回）", s.is_in_prep_tier() and clicks == 5, str(clicks))
+	# 中身U1：Day1は仕込みの前に朝の昼市場の会話（行と水道代の支払いの行）があるので、その行のページの数だけクリックが増える
+	var talk_pages := 0
+	for ev in Day1Events.morning_talk_events():
+		talk_pages += root.left.paginate(str(PlaySession.split_speaker(str(ev["text"]))["text"])).size()
+	c.check("鍋の素を選ぶ画面（PREP_TIER）まで、会話枠のクリックだけで着いた（5回＋朝の昼市場の会話%dページ）" % talk_pages,
+		s.is_in_prep_tier() and clicks == 5 + talk_pages and talk_pages > 0, str(clicks))
 	var kit_total := 0
 	for item in GameState.inventory:
 		kit_total += int(GameState.inventory[item])

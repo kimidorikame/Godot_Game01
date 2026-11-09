@@ -102,7 +102,7 @@ func run(t: SceneTree) -> int:
 	c.check("続きから読み込んだ朝も同じ表示", _norm(p5.session.flow.runner.events) == first_events)
 	p5.session.new_run()
 	c.check("新しい周：Day1の朝のニュース（ストの見出し）",
-		GameState.day_count == 1 and _texts(p5.session.flow.runner.events).has("ニュース：第八码頭で夜間荷役がストに入った"))
+		GameState.day_count == 1 and _texts(p5.session.flow.runner.events).has("ニュース：【港湾】第八码頭、二倉庫で夜間作業停止"))
 	p5.free()
 
 	# --- 6. ニュースタブ：今日と過ぎた日だけ。未来は見せない。ニュースとDMは別の見出し ---
@@ -113,7 +113,7 @@ func run(t: SceneTree) -> int:
 	c.check("ニュースタブに今日（Day4）の見出しと本文が出る", tab.contains("◆今日（Day4）◆") and tab.contains("現場を撮った動画が拡散"))
 	c.check("過ぎた日（Day1〜3）の分も読み返せる",
 		tab.contains("◆Day3◆") and tab.contains("◆Day2◆") and tab.contains("◆Day1◆")
-			and tab.contains("第八码頭で夜間荷役がストに入った") and tab.contains("検問が始まった"))
+			and tab.contains("【港湾】第八码頭、二倉庫で夜間作業停止") and tab.contains("検問が始まった"))
 	c.check("未来の日（Day5以降）は出ない", not tab.contains("◆Day5◆") and not tab.contains("運営会社の変更")
 		and not tab.contains("強行搬出") and not tab.contains("放火"))
 	c.check("新しい日が上（Day4 → Day3 → Day2 → Day1）",

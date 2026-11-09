@@ -32,7 +32,13 @@ const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
 const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
-	"sets_facts", "must_info", "cups"]
+	"sets_facts", "must_info", "cups", "after_bill", "source"]
+# 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・場所代のあとの会話（after_bill）・元の文の場所（source）を持つ。
+# 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
+# ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
+const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body", "after_bill"], "granny_01": ["body"] }
+const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny"]
+const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
 # cups を持つ場面（Day1の配達員の3杯）。他の場面は持たない。
@@ -79,6 +85,9 @@ func run(_t: SceneTree) -> int:
 			c.check("%s：場面のキーは id/customer/greet/reactions/servings（複数杯の場面は id/customer/greet）＋任意キーのみ（日番号キー無し）" % label,
 				required_keys == (CUPS_EPISODE_KEYS if is_cups else EPISODE_KEYS), str(ep.keys()))
 			for k in AFTER_SERVE_KEYS:
+				if (DAY1_SCRIPT_EPISODES.get(eid, []) as Array).has(k):
+					c.check("%s：1日目の本番の文の %s を持つ（中身U1）" % [label, k], ep.has(k))
+					continue
 				c.check("%s：新しいキー %s は持たない（現行データは動作が変わらない）" % [label, k], not ep.has(k))
 			c.check("%s：場面データの形に問題が無い（scene_problems）" % label,
 				ScheduleData.scene_problems(ep).is_empty(), str(ScheduleData.scene_problems(ep)))
@@ -146,12 +155,34 @@ func run(_t: SceneTree) -> int:
 					now == on_schedule and reacts.size() == 1
 						and reacts[0].get("wanted_tags", []) == BASE_ORDER[cid]
 						and (now as Array)[0].get("type", "") == "GREET")
+			elif DAY1_SCRIPT_DIFFS.has("%d:%s" % [d, cid]):
+				# 中身U1：文（GREET）は本番の文に替わった。判定・売上・支払いに効く Event は記録と同じ
+				c.check("Day%d %s：文以外の Event（ADJUST・SERVE・REACT・PAY の並びと、札・好物・杯数・売上・支払い）が4-3の記録と一致（中身U1で文だけ替えた）" % [d, cid],
+					_value_events(now) == _value_events(recorded),
+					"%s / vs / %s" % [str(_value_events(now)), str(_value_events(recorded))])
+				var greets := (now as Array).filter(func(e): return str(e.get("type", "")) == "GREET")
+				c.check("Day%d %s：会話の行は〔演出〕〔ゲーム〕を含まない（%d行）" % [d, cid, greets.size()],
+					not greets.is_empty() and greets.all(func(e): return not str(e.get("text", "")).contains("〔")))
 			else:
 				c.check("Day%d %s：customer_eventsが4-3の記録と一致" % [d, cid], now == recorded,
 					"%d vs %d events" % [(now as Array).size(), (recorded as Array).size()])
 	GameState.reset_for_new_game()
 
 	return c.finish()
+
+
+## 文（GREET）を除いた Event の、判定・売上・支払いに効く値だけ（中身U1。JSONを通した形）。
+func _value_events(events) -> Array:
+	var out := []
+	for e in _norm(events):
+		if str(e.get("type", "")) == "GREET":
+			continue
+		var v := {}
+		for k in REACT_VALUE_KEYS:
+			if e.has(k):
+				v[k] = e[k]
+		out.append(v)
+	return out
 
 
 func _sorted_keys(d: Dictionary) -> Array:
