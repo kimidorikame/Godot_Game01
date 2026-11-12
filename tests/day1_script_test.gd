@@ -128,7 +128,7 @@ func run(t: SceneTree) -> int:
 	var prep := Day1Events.prep_events({}, false)
 	var prep_texts := prep.map(func(e): return str(e.get("text", "")))
 	var arrive_spoken: Array = ScheduleData.spoken_lines(talk["parts"][0]["lines"])
-	var question_at: int = arrive_spoken.find("張姐「そこがうまいって知ってるんだね。今日はどれ位仕込む？」")
+	var question_at: int = arrive_spoken.find("張姐「底がうまいって知ってんだね。で、今日はどれ位仕込む？」")
 	c.check("Day1 の PREP：張姐の会話（〔演出〕なし）→「今日はどれ位仕込む？」の行で仕込む量を選ぶ（PREP_TIER の文）。地の文・初日セット・見当の会話は出さない",
 		prep.size() == question_at + 1 and str(prep.back()["type"]) == "PREP_TIER" and str(prep.back()["text"]) == str(arrive_spoken[question_at])
 			and prep_texts.slice(0, question_at) == arrive_spoken.slice(0, question_at)
@@ -140,7 +140,7 @@ func run(t: SceneTree) -> int:
 	for i in range(after.size()):
 		if str(after[i]["type"]) == "MARKET":
 			at_market = i
-	var at_last_zhang: int = after_texts.find("張姐「値段も読めるだろ。先にそっち」")
+	var at_last_zhang: int = after_texts.find("張姐「だろうね。アンタ、値段だけは一度で読むんだから」")
 	c.check("選んだあと：張姐の会話の続き（先頭は張姐の行）→市場。鍋の素の代金の行は無い（選んで買った時点で払う。中身U2の小さな直し）",
 		str(after[0]["type"]) == "TEXT" and str(after[0]["text"]) == str(arrive_spoken[question_at + 1])
 			and at_last_zhang > 0 and at_market > at_last_zhang and not after.any(func(e): return str(e["type"]) == "PAY" and str(e.get("kind", "")) == "prep")
@@ -157,8 +157,8 @@ func run(t: SceneTree) -> int:
 		str(after[at_market + 1]["text"]) == "店主「炭屋と水場も寄らないとな」"
 			and exit_texts.filter(func(x): return not x.contains("（")) == exit_spoken
 			and exit_pays == ["サミル（炭代）:operating:40", "梁伯（水代）:operating:35", "梁伯（水道代）:water:50"]
-			and exit_texts[at_charcoal - 1] == "サミル「なら焚きつけ用に細いのを足せばいい。客が来る前から、炭だけ余計に食わせることはないさ」"
-			and exit_texts[at_water - 1] == "梁伯「あんたの缶に、三回分は入らないよ」"
+			and exit_texts[at_charcoal - 1] == "サミル「なら細いのを足せ。焚きつけ用だ。……客が来る前から、炭に食わせるな」"
+			and exit_texts[at_water - 1] == "梁伯「あんたの缶に、三回分は入らんよ」"
 			and not after_texts.any(func(x): return x.begins_with("水を汲み")), str(exit_texts))
 	GameState.day_count = 2
 	var day2_after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false).map(func(e): return str(e.get("text", "")))
@@ -171,7 +171,7 @@ func run(t: SceneTree) -> int:
 	var day1_dock := ScheduleData.mob_data_for_day("dock_workers", 1)
 	var day2_dock := ScheduleData.mob_data_for_day("dock_workers", 2)
 	c.check("港湾労働者：1日目は元の文（挨拶・反応・椀のあとの会話）、2日目は日をまたぐ文のまま（after_talk なし）・注文は同じ",
-		str(day1_dock["greet"].back()) == "労働者A「頼む。あいつの椀から取ると、数でばれる」" and day1_dock.has("after_talk")
+		str(day1_dock["greet"].back()) == "労働者A「頼む。こいつの椀から取ると、数でばれるからな」" and day1_dock.has("after_talk")
 			and day2_dock["greet"] == ScheduleData.mob_data("dock_workers")["greet"] and not day2_dock.has("after_talk")
 			and day1_dock["wanted_tags"] == day2_dock["wanted_tags"])
 	var panel = _setup_mob(t, "dock_workers", 2)
@@ -179,7 +179,7 @@ func run(t: SceneTree) -> int:
 	c.check("1日目の港湾労働者の挨拶は元の文（〔演出〕を除く）・人数の「%d人」は出ない", greets == ScheduleData.spoken_lines(day1_dock["greet"]), str(greets))
 	var served: Dictionary = _serve_mob(panel, ["nam_prik_pao", "meat_ball"], 2, 2)
 	c.check("2人に出した：GOOD の反応（元の文の1行）のすぐあとに、椀のあとの会話（元の文。〔演出〕なし）",
-		served["reaction"] == "労働者B「この辛さ、いいな。底にもまだ肉がある」"
+		served["reaction"] == "労働者B「この辛さ、いいな！　底にもまだ肉がある」"
 			and (served["after"] as Array).slice(0, ScheduleData.spoken_lines(day1_dock["after_talk"]).size()) == ScheduleData.spoken_lines(day1_dock["after_talk"]),
 		str(served))
 	panel.free()
@@ -191,7 +191,7 @@ func run(t: SceneTree) -> int:
 	# --- 6. 港湾労働者の OK の出し分け ---
 	panel = _setup_mob(t, "dock_workers", 2)
 	var ok_hot: Dictionary = _serve_mob(panel, ["nam_prik_pao", "tofu"], 2, 2)   # 辛さは合った・肉が外れた（POWER が外れた）
-	c.check("OK（辛さは合った・肉が外れた）：「汗はかけた。肉っ気はもうちょい欲しかったけど」", ok_hot["reaction"] == "労働者B「汗はかけた。肉っ気はもうちょい欲しかったけど」", str(ok_hot["reaction"]))
+	c.check("OK（辛さは合った・肉が外れた）：「汗はかけた。肉っ気、もうちょい欲しかったけど」", ok_hot["reaction"] == "労働者B「汗はかけた。肉っ気、もうちょい欲しかったけど」", str(ok_hot["reaction"]))
 	panel.free()
 	panel = _setup_mob(t, "dock_workers", 2)
 	var ok_meat: Dictionary = _serve_mob(panel, ["coconut_milk", "meat_ball"], 2, 2)   # 肉は合った・辛さが外れた（HOT が外れた）
@@ -210,7 +210,8 @@ func run(t: SceneTree) -> int:
 	root.full_prep.auto_advance = false
 	var s: PlaySession = root.session
 	var play = load("res://tests/ui_autoplay.gd").new(root)
-	var log_copy := []
+	var shown_lines := []   # 会話枠に出た行（名前＋本文）。会話ログ（TalkLog）は300行で古い行を捨てるので、その場で記録する
+	var shown_keys := {}
 	var bracket_shown := []
 	var reactions := []   # [{ grade, text, pool }]
 	var reacted := {}
@@ -238,8 +239,12 @@ func run(t: SceneTree) -> int:
 		var name := str(line.get("speaker_name", ""))
 		if name != "" and not plate.has(name) and root.left.get_node("%NamePlate").visible:
 			plate[name] = [str(root.left.get_node("%NameLabel").text), box_text.substr(0, 1)]
-		if GameState.phase == GameState.Phase.CLOSE or GameState.phase == GameState.Phase.OPEN or GameState.phase == GameState.Phase.PREP:
-			log_copy = TalkLog.entries.duplicate(true)
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
+				s.flow.runner.index, str(line.get("text", ""))]
+			if not shown_keys.has(line_key):
+				shown_keys[line_key] = true
+				shown_lines.append(name + str(line.get("text", "")))
 		if play.step() == "":
 			break
 	c.check("（前提）Day1 を閉店まで遊び、Day2 の朝へ進んだ", GameState.day_count == 2, "day=%d phase=%d" % [GameState.day_count, GameState.phase])
@@ -264,10 +269,7 @@ func run(t: SceneTree) -> int:
 	var granny := ScheduleData.episode_data("granny", "granny_01")
 	for key in ["greet", "body"]:
 		expected.append_array(ScheduleData.spoken_lines(granny[key]))
-	var got := []
-	for e in log_copy:
-		if str(e["kind"]) != "reaction" and str(e["speaker"]) != "" and str(e["text"]).begins_with("「"):
-			got.append(str(e["speaker"]) + str(e["text"]))
+	var got := shown_lines.filter(func(x): return str(x).contains("「") and not str(x).begins_with("「"))
 	var first_diff := -1
 	for i in range(maxi(got.size(), expected.size())):
 		if i >= got.size() or i >= expected.size() or got[i] != expected[i]:
@@ -289,14 +291,15 @@ func run(t: SceneTree) -> int:
 		str(reactions.map(func(r): return "%s %s %s" % [r["customer"], r["grade"], r["text"]])))
 	c.check("名前の札：店主の行は「店主」、客の行はその人の名前（行の頭の名前）・本文は「」から",
 		plate.get("店主", [])  == ["店主", "「"] and plate.get("阿強", []) == ["阿強", "「"] and plate.get("サミル", []) == ["サミル", "「"]
-			and plate.get("労働者B", []) == ["労働者B", "「"] and plate.get("端末音声", []) == ["端末音声", "「"], str(plate))
+			and plate.get("労働者B", []) == ["労働者B", "「"] and plate.get("労働者A", []) == ["労働者A", "「"] and plate.get("ターニャ婆", []) == ["ターニャ婆", "「"], str(plate))
 	var thug_last := str(ScheduleData.spoken_lines(thug["body"]).back())
 	c.check("朝（目が覚めた時点）に初日セットの210を引いた（Day1 の朝の所持金 600−210＝390）", wake_money == 390, str(wake_money))
 	c.check("所持金が減る順番：仕込む量を選んで買った時点で鍋の素の値段→サミル（炭代）-40→梁伯（水代）-35→梁伯（水道代）-50→レックス（場所代）-90（減ったのはこの5回だけ）",
 		spends.size() == 5 and str(spends[0]).begins_with(str(arrive_spoken[question_at + 1]) + " -") and spends.slice(1) == ["サミル（炭代） -40", "梁伯（水代） -35", "梁伯（水道代） -50", "レックス（場所代） -90"],
 		str(spends))
-	c.check("場所代はレックスの会話の最後の行（退店）のあと", log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find(thug_last)
-		< log_copy.map(func(e): return str(e["speaker"]) + str(e["text"])).find("レックス（場所代）"))
+	c.check("場所代はレックスの会話の最後の行（退店）のすぐあと", shown_lines.find(thug_last) >= 0
+		and shown_lines.find(thug_last) + 1 == shown_lines.find("レックス（場所代）"), "%d / %d" % [shown_lines.find(thug_last), shown_lines.find("レックス（場所代）")])
+	c.check("ターニャ婆の音声メッセージの行は『 』のまま出る", shown_lines.has("ターニャ婆「『缶は拾ったかい。あと、あんたの端子、修理屋に型番伝えといたよ。出たら取っといてくれるって』……と」"))
 	root.queue_free()
 
 	ReadState.reset(ReadState.path)

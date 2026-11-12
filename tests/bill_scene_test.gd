@@ -43,7 +43,7 @@ func run(_t: SceneTree) -> int:
 	var thug_events := Day1Events.customer_events("thug")
 	c.check("Day1のチンピラ：場所代のPAYは列の最後（食後の会話は body。退店の行まで body に入っている）",
 		str(thug_events.back().get("type", "")) == "PAY" and thug_events.filter(func(e): return str(e.get("type", "")) == "PAY").size() == 1
-			and str(ScheduleData.episode_body("thug", "thug_01").back()).begins_with("〔演出〕レックスが通りへ出る")
+			and str(ScheduleData.episode_body("thug", "thug_01").back()) == "レックス「今日のスープ代、何の金だよ」"
 			and str(ScheduleData.spoken_lines(ScheduleData.episode_body("thug", "thug_01")).back()) == "レックス「今日のスープ代、何の金だよ」")
 	for d in range(2, 8):
 		c.check("Day%dのチンピラ：PAYは出ない" % d, _pays("thug", d).is_empty())
