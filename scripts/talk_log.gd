@@ -11,7 +11,7 @@ class_name TalkLog
 ## 注文の要約：来店ごとの1行。来店記録（CustomerMemory）と場面の注文（今日の頼み）から組む＝
 ## 新しい保存状態は要らない（全日分が出せる）。
 
-const MAX_LINES := 300
+const MAX_LINES := 3000   # UI準備V：300 → 3000（1日目だけで300行を超え、朝の市場の会話が押し出されていた。1日分は今日の分だけなので、実際には上限に届かない）
 const KINDS := ["narration", "talk", "serve", "reaction", "news", "choice"]
 
 static var entries: Array = []

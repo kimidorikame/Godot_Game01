@@ -212,6 +212,7 @@ func run(t: SceneTree) -> int:
 	var play = load("res://tests/ui_autoplay.gd").new(root)
 	var shown_lines := []   # 会話枠に出た行（名前＋本文）。会話ログ（TalkLog）は300行で古い行を捨てるので、その場で記録する
 	var shown_keys := {}
+	var close_log := []     # 閉店のときの会話ログ（UI準備V：1日分が収まること）
 	var bracket_shown := []
 	var reactions := []   # [{ grade, text, pool }]
 	var reacted := {}
@@ -245,6 +246,8 @@ func run(t: SceneTree) -> int:
 			if not shown_keys.has(line_key):
 				shown_keys[line_key] = true
 				shown_lines.append(name + str(line.get("text", "")))
+		if GameState.phase == GameState.Phase.CLOSE:
+			close_log = TalkLog.entries.duplicate(true)
 		if play.step() == "":
 			break
 	c.check("（前提）Day1 を閉店まで遊び、Day2 の朝へ進んだ", GameState.day_count == 2, "day=%d phase=%d" % [GameState.day_count, GameState.phase])
@@ -299,6 +302,10 @@ func run(t: SceneTree) -> int:
 		str(spends))
 	c.check("場所代はレックスの会話の最後の行（退店）のすぐあと", shown_lines.find(thug_last) >= 0
 		and shown_lines.find(thug_last) + 1 == shown_lines.find("レックス（場所代）"), "%d / %d" % [shown_lines.find(thug_last), shown_lines.find("レックス（場所代）")])
+	var first_market := str(ScheduleData.spoken_lines(talk["parts"][0]["lines"])[0])
+	c.check("閉店のときの会話ログに、朝の市場の最初の行（張姐）がまだ残っている（UI準備V：上限3000行。%d行）" % close_log.size(),
+		close_log.size() > 300 and str(close_log[0]["speaker"]) + str(close_log[0]["text"]) != "" 
+			and close_log.any(func(e): return str(e["speaker"]) + str(e["text"]) == first_market), str(close_log.slice(0, 3)))
 	c.check("ターニャ婆の音声メッセージの行は『 』のまま出る", shown_lines.has("ターニャ婆「『缶は拾ったかい。あと、あんたの端子、修理屋に型番伝えといたよ。出たら取っといてくれるって』……と」"))
 	root.queue_free()
 
