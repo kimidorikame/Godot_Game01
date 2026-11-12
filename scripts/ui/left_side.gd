@@ -11,6 +11,8 @@ signal phone_requested()
 
 const CHARS_PER_LINE := 30    # 会話枠：1行30字（全角。半角は0.5字）
 const LINES_PER_PAGE := 3     # ×3行。入りきらない文は枠内でページ送り
+## 行の頭に置かない文字（UI準備V2。UI準備V の Label の折り返し〔AUTOWRAP_WORD_SMART〕で確かめた一覧にそろえる）。
+const KINSOKU_HEAD := "。、」）！？ー』っ…"
 const SLOT_SHORT := { "宵の口": "宵", "夜半": "夜半", "明け方": "明" }
 const SILENT_TYPES := ["ADD_ITEM"]   # 画面に出す文が無いEvent（会話枠が空になる）。会話を進めるときに続けて進める
 const NEWS_PART := "news"            # 朝のニュースの行。会話枠には出さない（ニュースはスマホで読む）。続けて進める
@@ -59,17 +61,31 @@ func bind_session(s: PlaySession) -> void:
 
 ## 会話の文を、30字×3行のページに分ける（全角1字＝1、半角＝0.5。\n は改行）。1ページの行は3つまで。
 ## 文字の幅はフォントに依らず数える（24px の全角30字＝720px）ので、ヘッドレスのテストでも同じに動く。
+## 行頭禁則（UI準備V2）：次の行の頭に KINSOKU_HEAD の文字が来るときは、前の行の最後の字を次の行へ送る（追い出し。送った字も
+## 禁則の文字なら、さらにさかのぼる）。そのぶん行が短くなり、ページが増えることがある。
 static func paginate(text: String, chars_per_line: int = CHARS_PER_LINE, lines_per_page: int = LINES_PER_PAGE) -> Array:
 	var lines: Array = []
 	for raw in text.split("\n"):
 		var current := ""
 		var width := 0.0
 		for ch in raw:
-			var w := 0.5 if ch.unicode_at(0) < 0x100 else 1.0
+			var w := _char_width(ch)
 			if width + w > float(chars_per_line):
+				# 行頭禁則（UI準備V2・追い出し）：次の行の頭に禁則の文字が来るときは、前の行の最後の字を次の行へ送る。
+				# 送った字も禁則の文字なら、もう1字さかのぼる（前の行には少なくとも1字残す）。
+				var carry := ""
+				if KINSOKU_HEAD.contains(ch):
+					var k := 1
+					while k < current.length() - 1 and KINSOKU_HEAD.contains(current.substr(current.length() - k, 1)):
+						k += 1
+					if k < current.length():
+						carry = current.substr(current.length() - k)
+						current = current.substr(0, current.length() - k)
 				lines.append(current)
-				current = ""
+				current = carry
 				width = 0.0
+				for c in carry:
+					width += _char_width(c)
 			current += ch
 			width += w
 		lines.append(current)
@@ -81,6 +97,11 @@ static func paginate(text: String, chars_per_line: int = CHARS_PER_LINE, lines_p
 	if pages.is_empty():
 		pages.append("")
 	return pages
+
+
+## 1字の幅（全角1・半角0.5）。
+static func _char_width(ch: String) -> float:
+	return 0.5 if ch.unicode_at(0) < 0x100 else 1.0
 
 
 ## 会話枠に出す内容：{ speaker（客id。地の文は ""）, speaker_name（行の頭の名前。中身U1）, text }。聞き直しの再表示があるときはそれを優先する。
