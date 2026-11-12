@@ -54,8 +54,27 @@ static func make_icon(color: Color, text: String, size: float = ICON) -> Panel:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.add_theme_color_override(&"font_color", icon_text_color(color))   # UI準備V：地の明るさで文字の色を選ぶ
 	icon.add_child(label)
 	return icon
+
+
+## アイコンの文字の色（UI準備V）：地の明るさ（WCAG の相対輝度）で選ぶ。白い文字と地のコントラスト比が、大きい文字の最低ライン（3.0）に
+## 届かない明るい地（白・薄い色・黄・桃・水色など）は暗い文字、それ以外（濃い色・中くらいの灰）は今までどおり白い文字。色ごとの決め打ちはしない。
+const ICON_TEXT_LIGHT := Color(1, 1, 1)
+const ICON_TEXT_DARK := Color("#1b1d22")
+const ICON_MIN_CONTRAST := 3.0
+
+
+static func icon_text_color(bg: Color) -> Color:
+	var with_light := (_relative_luminance(ICON_TEXT_LIGHT) + 0.05) / (_relative_luminance(bg) + 0.05)
+	return ICON_TEXT_DARK if with_light < ICON_MIN_CONTRAST else ICON_TEXT_LIGHT
+
+
+## WCAG の相対輝度（sRGB を線形にして重みを掛ける）。
+static func _relative_luminance(c: Color) -> float:
+	var lin := func(v: float) -> float: return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+	return 0.2126 * lin.call(c.r) + 0.7152 * lin.call(c.g) + 0.0722 * lin.call(c.b)
 
 
 static func _label(text: String, variation: StringName) -> Label:
@@ -140,7 +159,7 @@ static func _add_post(content: VBoxContainer, item: Dictionary, indent: float, f
 	head.add_child(time)
 	var text := _label(str(item["text"]), &"LabelPhoneBody")
 	text.name = "Text"
-	text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 	text.custom_minimum_size = Vector2(width, 0)
 	body.add_child(text)
 	if str(item.get("photo", "")) != "":
@@ -280,7 +299,7 @@ static func fill_dm_thread(content: VBoxContainer, thread: Dictionary, card: Dic
 		bubble.add_theme_stylebox_override("panel", bubble_style)
 		content.add_child(bubble)
 		var text := _label(str(message["text"]), &"LabelPhoneBody")
-		text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 		bubble.add_child(text)
 		# 短い文は吹き出しを文の幅に、長い文は 300 で折り返す
 		var font := text.get_theme_font(&"font")

@@ -47,7 +47,7 @@ func _add(text: String, variation: StringName) -> void:
 	var label := Label.new()
 	label.text = text
 	label.theme_type_variation = variation
-	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.custom_minimum_size = Vector2(630, 0)   # 右端の「スマホ」「ログ」のボタン（x 686〜）に重ならない幅
 	_content.add_child(label)

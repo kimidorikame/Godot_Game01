@@ -102,7 +102,7 @@ func _add(text: String, variation: StringName) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.theme_type_variation = variation
-	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.custom_minimum_size = Vector2(380, 0)
 	_content.add_child(label)
@@ -221,7 +221,7 @@ func _add_news_row(item: Dictionary, section: Dictionary) -> void:
 	var headline := Label.new()
 	headline.text = ("● " if _fresh_news.has(str(item["id"])) else "") + str(item["headline"])
 	headline.theme_type_variation = &"LabelPhoneHeadline"
-	headline.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 	headline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	headline.position = Vector2(12, 26)
 	row.add_child(headline)
@@ -412,7 +412,7 @@ func _add_memo_line(line: Dictionary, is_new: bool) -> void:
 	text.name = "Text"
 	text.text = str(line["text"])
 	text.theme_type_variation = &"LabelPhoneBody"
-	text.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text.custom_minimum_size = Vector2(304, 0)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
