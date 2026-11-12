@@ -1,161 +1,465 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U1：1日目_タイムライン.md）。アカウントの持ち主（owner）と本当の意味（truth）は書き手用で、画面に出さない。2日目以降の投稿はまだ無い。",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。2日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。",
   "source": "planning/scenario/day1/1日目_タイムライン.md",
   "accounts": {
-    "shiwei": {
-      "name": "拾味｜半端市",
-      "handle": "@shiwei_market",
-      "icon": {
-        "color": "#d9b23a",
-        "text": "拾"
-      },
-      "kind": "main",
-      "owner": "town",
-      "profile": "市場の余り・規格外・端切れの共同売場。今日の端物はここで。半分ずつ買う人、つなぎます。"
-    },
-    "passer1": {
-      "name": "通りすがり",
-      "handle": "@passerby_331",
-      "icon": {
-        "color": "#3f8f5a",
-        "text": "通"
-      },
-      "kind": "main",
-      "owner": "town",
-      "profile": "見てるだけ"
-    },
-    "akiang": {
-      "name": "K4172",
-      "handle": "@k4172_kick",
-      "icon": {
-        "color": "#c0463a",
-        "text": "K"
-      },
-      "kind": "main",
-      "owner": "delivery_man",
-      "profile": "走ってます。曲がり角で鳴らすのは許して。"
-    },
-    "dock_b": {
-      "name": "港の荷役",
-      "handle": "@dock_hands",
-      "icon": {
-        "color": "#2f4a7a",
-        "text": "錨"
-      },
-      "kind": "main",
-      "owner": "dock_workers",
-      "profile": "港で袋を運ぶ係。数えるのも係。"
-    },
-    "dock_a": {
-      "name": "腕まだ袋の形",
-      "handle": "@arms_still_bent",
-      "icon": {
-        "color": "#6b7f95",
-        "text": "腕"
-      },
-      "kind": "main",
-      "owner": "dock_workers",
-      "profile": "荷台の下にもう一人ほしい"
-    },
-    "desk": {
-      "name": "緑の晩は迷子",
-      "handle": "@night_desk_q",
-      "icon": {
-        "color": "#3a72c4",
-        "text": "鍵"
-      },
-      "kind": "main",
-      "owner": "inn_clerk",
-      "profile": "港寄りの宿の番台。道案内は写真でします。"
-    },
-    "lin_alt": {
-      "name": "・",
-      "handle": "@k_3x7q",
-      "icon": {
-        "color": "#7a808a",
-        "text": "・"
-      },
-      "kind": "alt",
-      "owner": "officer",
-      "profile": ""
-    }
+	"after_shift": {
+	  "name": "夜勤あけ",
+	  "handle": "@after_nightshift",
+	  "icon": {
+		"color": "#b9a3d6",
+		"text": "夜"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "帰って寝ます。",
+	  "note": "書き手用（画面に出さない）。層：労働者／持ち主：市民／義手を使う夜勤労働者"
+	},
+	"shiwei": {
+	  "name": "拾味",
+	  "handle": "@shiwei_market",
+	  "icon": {
+		"color": "#d9b23a",
+		"text": "拾"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "市場の余り・規格外・端切れの共同売場。今日の端物はここで。半分ずつ買う人、つなぎます。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：市場のヨヨ（客ではない）"
+	},
+	"celine_view": {
+	  "name": "窓辺の生活",
+	  "handle": "@celine_views",
+	  "icon": {
+		"color": "#b9a3d6",
+		"text": "窓"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "窓と花と、たまに朝食。",
+	  "note": "書き手用（画面に出さない）。層：上の街／持ち主：富裕層／高層住宅の住人"
+	},
+	"commute_40": {
+	  "name": "片道四十分",
+	  "handle": "@commute_40",
+	  "icon": {
+		"color": "#d8d8d8",
+		"text": "片"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "乗り継ぎ二回。",
+	  "note": "書き手用（画面に出さない）。層：労働者／持ち主：市民／補助脚を使う通勤者"
+	},
+	"ayu": {
+	  "name": "葉っぱの番",
+	  "handle": "@leaf_watch",
+	  "icon": {
+		"color": "#8fc98a",
+		"text": "葉"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "青菜と市場の日々。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：アユ"
+	},
+	"east_news": {
+	  "name": "東塔NEWS",
+	  "handle": "@easttower_news",
+	  "icon": {
+		"color": "#7a808a",
+		"text": "東"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "東塔区の短報。港・交通・停電。",
+	  "note": "書き手用（画面に出さない）。層：短報／持ち主：街の短報の配信（客ではない）"
+	},
+	"han_repairs": {
+	  "name": "修理のハン",
+	  "handle": "@han_repairs",
+	  "icon": {
+		"color": "#e08aa6",
+		"text": "修"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "旧型部品の在庫と修理のお知らせ。",
+	  "note": "書き手用（画面に出さない）。層：労働者／持ち主：市民／身体補助機器の修理業者"
+	},
+	"passer1": {
+	  "name": "通行人",
+	  "handle": "@passerby_331",
+	  "icon": {
+		"color": "#3f8f5a",
+		"text": "通"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "見てるだけ",
+	  "note": "書き手用（画面に出さない）。層：街の人／持ち主：街の人（客ではない）"
+	},
+	"akiang": {
+	  "name": "K4172",
+	  "handle": "@k4172_kick",
+	  "icon": {
+		"color": "#c0463a",
+		"text": "K"
+	  },
+	  "kind": "main",
+	  "owner": "delivery_man",
+	  "profile": "走ってます。曲がり角で鳴らすのは許して。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：阿強"
+	},
+	"ren_design": {
+	  "name": "都市と暮らす",
+	  "handle": "@ren_city_design",
+	  "icon": {
+		"color": "#6fb7d9",
+		"text": "都"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "街の設備と暮らしの記録。",
+	  "note": "書き手用（画面に出さない）。層：上の街／持ち主：富裕層／生活系インフルエンサー"
+	},
+	"face_savings": {
+	  "name": "顔面積立中",
+	  "handle": "@face_savings",
+	  "icon": {
+		"color": "#e08a3a",
+		"text": "顔"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "見積もりと貯金の話。",
+	  "note": "書き手用（画面に出さない）。層：夜の街・美容／持ち主：市民／施術費を貯めている人"
+	},
+	"parts_consult": {
+	  "name": "パーツ相談室",
+	  "handle": "@parts_consult",
+	  "icon": {
+		"color": "#d8d8d8",
+		"text": "パ"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "施術前の相談窓口。予約は別フォームへ。",
+	  "note": "書き手用（画面に出さない）。層：夜の街・美容／持ち主：美容施術の相談担当者"
+	},
+	"two_hours": {
+	  "name": "同伴まで二時間",
+	  "handle": "@two_hours_before",
+	  "icon": {
+		"color": "#b0407a",
+		"text": "同"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "出勤前の記録。",
+	  "note": "書き手用（画面に出さない）。層：夜の街・美容／持ち主：夜の店で働く人（客ではない）"
+	},
+	"anne_life": {
+	  "name": "暮らしの記録",
+	  "handle": "@anne_lifelog",
+	  "icon": {
+		"color": "#8a5bc0",
+		"text": "暮"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "暮らしの道具と一週間の企画。",
+	  "note": "書き手用（画面に出さない）。層：上の街／持ち主：富裕層／生活系インフルエンサー"
+	},
+	"backdoor": {
+	  "name": "裏口の灰皿",
+	  "handle": "@backdoor_ashtray",
+	  "icon": {
+		"color": "#2a2a2e",
+		"text": "灰"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "看板と裏口の係。",
+	  "note": "書き手用（画面に出さない）。層：夜の街・美容／持ち主：夜の店の黒服（客ではない）"
+	},
+	"exposure_test": {
+	  "name": "露出調整中",
+	  "handle": "@exposure_test",
+	  "icon": {
+		"color": "#b9a3d6",
+		"text": "露"
+	  },
+	  "kind": "main",
+	  "owner": "streamer",
+	  "profile": "夜の写真。補正も試しています。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：ニカ"
+	},
+	"dock_b": {
+	  "name": "荷役",
+	  "handle": "@dock_hands",
+	  "icon": {
+		"color": "#2f4a7a",
+		"text": "錨"
+	  },
+	  "kind": "main",
+	  "owner": "dock_workers",
+	  "profile": "港で袋を運ぶ係。数えるのも係。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：港湾労働者B"
+	},
+	"dock_a": {
+	  "name": "メタルメタリカ",
+	  "handle": "@arms_still_bent",
+	  "icon": {
+		"color": "#6b7f95",
+		"text": "腕"
+	  },
+	  "kind": "main",
+	  "owner": "dock_workers",
+	  "profile": "荷台の下にもう一人ほしい",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：港湾労働者A"
+	},
+	"desk": {
+	  "name": "緑迷子",
+	  "handle": "@night_desk_q",
+	  "icon": {
+		"color": "#3a72c4",
+		"text": "鍵"
+	  },
+	  "kind": "main",
+	  "owner": "inn_clerk",
+	  "profile": "港寄りの宿の番台。道案内は写真でします。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：安宿の夜勤受付"
+	},
+	"setiya": {
+	  "name": "まだ履ける",
+	  "handle": "@still_wear_these",
+	  "icon": {
+		"color": "#e08aa6",
+		"text": "ま"
+	  },
+	  "kind": "main",
+	  "owner": "hooker",
+	  "profile": "服と靴。たまに昔の写真。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：セティヤ"
+	},
+	"lin_alt": {
+	  "name": "・",
+	  "handle": "@k_3x7q",
+	  "icon": {
+		"color": "#7a808a",
+		"text": "・"
+	  },
+	  "kind": "alt",
+	  "owner": "officer",
+	  "profile": "",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：リン（新人警官）"
+	}
   },
   "posts": [
-    {
-      "id": "d1_shiwei_wrappers",
-      "account": "shiwei",
-      "day": 1,
-      "time": "08:10",
-      "provisional": false,
-      "text": "本日の端物、割れた餃子皮が袋いっぱい。皮だけじゃ鍋にならないので、半分ずつ買う人募集中。",
-      "photo": "割れた餃子皮の山と、手書きの値札",
-      "truth": "初日セットの割れた餃子皮とつながる。ヨヨ（市場の人。客ではない）は、市場の人として毎日のように投稿する。"
-    },
-    {
-      "id": "d1_passer_ad",
-      "account": "passer1",
-      "day": 1,
-      "time": "12:30",
-      "provisional": false,
-      "text": "市場の上の施術広告、今日は四か国語で値段が流れてる。どの言葉で読んでも高い。"
-    },
-    {
-      "id": "d1_akiang_27f",
-      "account": "akiang",
-      "day": 1,
-      "time": "17:20",
-      "provisional": false,
-      "text": "二十七階。到着予定、一分四十秒。上まで走れる脚の人、増えたの？",
-      "truth": "阿強の会話「二十七階…一分四十秒」と同じ。表示名 K4172 は保冷バッグの管理番号＝誰のアカウントかの手がかり。宵の口に来る前の投稿なので、準備のあいだに読める。"
-    },
-    {
-      "id": "d1_passer_reply_legs",
-      "account": "passer1",
-      "day": 1,
-      "time": "17:35",
-      "reply_to": "d1_akiang_27f",
-      "provisional": false,
-      "text": "走れる脚のほうに課金してる人は増えてる",
-      "truth": "街の空気（身体の強化を買う人が増えている）。"
-    },
-    {
-      "id": "d1_dock_zero",
-      "account": "dock_b",
-      "day": 1,
-      "time": "21:40",
-      "provisional": false,
-      "text": "頭の上の表示は残りゼロ。俺の腕には袋が二つ。",
-      "truth": "港湾労働者の二人の会話と同じ話（Bの表アカ）。返信と合わせて、二人の表アカだと推理できる。"
-    },
-    {
-      "id": "d1_dock_a_reply",
-      "account": "dock_a",
-      "day": 1,
-      "time": "21:52",
-      "reply_to": "d1_dock_zero",
-      "provisional": false,
-      "text": "声に出して数えてたの、お前だけな。",
-      "truth": "港湾労働者Aの表アカ。二人の会話（Bが最後の十袋を声に出して数えた）と同じ話。"
-    },
-    {
-      "id": "d1_desk_stairs",
-      "account": "desk",
-      "day": 1,
-      "time": "23:30",
-      "provisional": false,
-      "text": "看板が緑の晩は、船を下りた人がみんな青い階段に着く。",
-      "photo": "運河側の青い階段と、描き込んだ赤い矢印",
-      "truth": "安宿の夜勤受付の会話（緑の看板・青い階段・赤い矢印）と同じ。"
-    },
-    {
-      "id": "d1_lin_cipher",
-      "account": "lin_alt",
-      "day": 1,
-      "time": "23:50",
-      "provisional": false,
-      "text": "DUULYHG. GXWB VWDUWV WRPRUURZ.",
-      "truth": "リン（新人警官）の裏アカ。英語を3文字ずらし（A→D）。原文「ARRIVED. DUTY STARTS TOMORROW.」＝「着任。勤務は明日から。」2日目にリンが初来店。読み解くと潜入にも見えるが、本当は新人の着任（書き手用の真相にスパイはいない）。"
-    }
+	{
+	  "id": "d1_after_shift_0720",
+	  "account": "after_shift",
+	  "day": 1,
+	  "time": "07:20",
+	  "text": "義手の点検に行ったら代替機が白だった。片腕だけ新品みたいで、制服の汚れが急に気になる。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_shiwei_0810",
+	  "account": "shiwei",
+	  "day": 1,
+	  "time": "08:10",
+	  "text": "本日の端物、割れた餃子皮が袋いっぱい。皮だけじゃ鍋にならないので、半分ずつ買う人募集中。",
+	  "provisional": false,
+	  "photo": "割れた餃子皮の山と、手書きの値札",
+	  "truth": "初日セットの割れた餃子皮とつながる。ヨヨは客ではないが、市場の人として毎日のように投稿する。"
+	},
+	{
+	  "id": "d1_celine_view_0835",
+	  "account": "celine_view",
+	  "day": 1,
+	  "time": "08:35",
+	  "text": "今月の窓の景色、山に変えてもらった。海は下へ降りれば見られるので。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_commute_40_0855",
+	  "account": "commute_40",
+	  "day": 1,
+	  "time": "08:55",
+	  "text": "補助脚の点検を予約した日に限って、駅の昇降機も点検。二か所とも「別の日なら」で、別の日が合わない。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_ayu_0940",
+	  "account": "ayu",
+	  "day": 1,
+	  "time": "09:40",
+	  "text": "棚の照明を替えたら、青菜が前より元気に見える。私もその下に立っていたい。",
+	  "provisional": false,
+	  "truth": "アユ（市場の青菜の店）。初登場の前から投稿する。"
+	},
+	{
+	  "id": "d1_east_news_1033",
+	  "account": "east_news",
+	  "day": 1,
+	  "time": "10:33",
+	  "text": "第八码頭、二倉庫で夜間作業停止",
+	  "provisional": false,
+	  "truth": "ストの始まり。ニュースの1本目、サミルの「八番の短報」と同じ話。"
+	},
+	{
+	  "id": "d1_han_repairs_1050",
+	  "account": "han_repairs",
+	  "day": 1,
+	  "time": "10:50",
+	  "text": "旧型の肘部品、入荷しました。色違いでもよければ二つあります。左右は違います。そこは合わせてください。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_passer1_1230",
+	  "account": "passer1",
+	  "day": 1,
+	  "time": "12:30",
+	  "text": "市場の上の施術広告、今日は四か国語で値段が流れてる。どの言葉で読んでも高い。",
+	  "provisional": false,
+	  "truth": "街の空気（施術の広告、身体の強化を買う人が増えている）。"
+	},
+	{
+	  "id": "d1_akiang_1425",
+	  "account": "akiang",
+	  "day": 1,
+	  "time": "14:25",
+	  "text": "配達アプリ、休憩を勧める画面の上に「近くで依頼があります」を出すな。いま休む気になったところだろ。",
+	  "provisional": false,
+	  "truth": "阿強。会話の「休憩を検出しました」とつながる。"
+	},
+	{
+	  "id": "d1_ren_design_1445",
+	  "account": "ren_design",
+	  "day": 1,
+	  "time": "14:45",
+	  "text": "高層庭園の雨、今夜は予約が取れなかった。せっかく防水の上着を買ったのに。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_face_savings_1510",
+	  "account": "face_savings",
+	  "day": 1,
+	  "time": "15:10",
+	  "text": "見積もりの「左右調整」、左右で別料金だった。そりゃそうか。そうかあ。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_parts_consult_1625",
+	  "account": "parts_consult",
+	  "day": 1,
+	  "time": "16:25",
+	  "text": "「この顔にしてください」って持ってきた写真、三人とも同じ配信者だった。照明も角度も違うから、本人でも三通りにはなれない。",
+	  "provisional": false
+	},
+	{
+	  "id": "d1_two_hours_1640",
+	  "account": "two_hours",
+	  "day": 1,
+	  "time": "16:40",
+	  "text": "髪のセット代、店に引かれるのに領収書は出ない。今日もまず、ここまでを稼ぐところから。",
+	  "provisional": false,
+	  "truth": "今回足した夜の街の2人（固定）。店に引かれる金、替えきれない看板。阿強のレンタル料、レックスの「看板付けろ」と同じ街の話。"
+	},
+	{
+	  "id": "d1_anne_life_1650",
+	  "account": "anne_life",
+	  "day": 1,
+	  "time": "16:50",
+	  "text": "「改造なしの一週間」企画、視力補正は含みますかと聞かれて止まってる。これを切ったら配信のコメントが読めない。",
+	  "provisional": false,
+	  "truth": "「改造なしの一週間」は7日の連載にする（毎日1件）。"
+	},
+	{
+	  "id": "d1_akiang_1720",
+	  "account": "akiang",
+	  "day": 1,
+	  "time": "17:20",
+	  "text": "二十七階。到着予定、一分四十秒。上まで走れる脚の人、増えたの？",
+	  "provisional": false,
+	  "truth": "阿強の会話「二十七階…一分四十秒」と同じ。表示名 K4172 は会社の管理番号＝誰のアカウントかの手がかり。宵の口に来る前の投稿なので、準備のあいだに読める。"
+	},
+	{
+	  "id": "d1_passer1_1735",
+	  "account": "passer1",
+	  "day": 1,
+	  "time": "17:35",
+	  "text": "走れる脚のほうに課金してる人は増えてる",
+	  "provisional": false,
+	  "reply_to": "d1_akiang_1720",
+	  "truth": "街の空気（施術の広告、身体の強化を買う人が増えている）。"
+	},
+	{
+	  "id": "d1_backdoor_1930",
+	  "account": "backdoor",
+	  "day": 1,
+	  "time": "19:30",
+	  "text": "開店前に看板の電球を一個替えた。替えたところだけ明るくて、隣の文字が古く見える。全部替える金は出ない。",
+	  "provisional": false,
+	  "truth": "今回足した夜の街の2人（固定）。店に引かれる金、替えきれない看板。阿強のレンタル料、レックスの「看板付けろ」と同じ街の話。"
+	},
+	{
+	  "id": "d1_exposure_test_2002",
+	  "account": "exposure_test",
+	  "day": 1,
+	  "time": "20:02",
+	  "text": "暗所補正ありだと看板まできれいに撮れるけど、湯気が全部白くなる。今日いちばん撮りたかったの、そっちなんだけど。",
+	  "provisional": false,
+	  "truth": "ニカ本人。本名や来店予定は出さない。「湯気」は屋台へのうっすらした前振り（3日目に初来店）。"
+	},
+	{
+	  "id": "d1_dock_b_2140",
+	  "account": "dock_b",
+	  "day": 1,
+	  "time": "21:40",
+	  "text": "頭の上の表示は残りゼロ。俺の腕には袋が二つ。",
+	  "provisional": false,
+	  "truth": "港湾労働者の二人の会話と同じ話。二人の表アカだと推理できる。"
+	},
+	{
+	  "id": "d1_dock_a_2152",
+	  "account": "dock_a",
+	  "day": 1,
+	  "time": "21:52",
+	  "text": "声に出して数えてたの、お前だけな。",
+	  "provisional": false,
+	  "reply_to": "d1_dock_b_2140",
+	  "truth": "港湾労働者の二人の会話と同じ話。二人の表アカだと推理できる。"
+	},
+	{
+	  "id": "d1_desk_2330",
+	  "account": "desk",
+	  "day": 1,
+	  "time": "23:30",
+	  "text": "看板が緑の晩は、船を下りた人がみんな青い階段に着く。",
+	  "provisional": false,
+	  "photo": "運河側の青い階段と、描き込んだ赤い矢印",
+	  "truth": "安宿の受付の会話（緑の看板・青い階段・赤い矢印）と同じ。"
+	},
+	{
+	  "id": "d1_setiya_2335",
+	  "account": "setiya",
+	  "day": 1,
+	  "time": "23:35",
+	  "text": "十年前の顔写真が出てきた。顔より先に、この靴まだ履いてるなって思った。",
+	  "provisional": false,
+	  "truth": "セティヤ。初登場（2日目）の前から投稿する。"
+	},
+	{
+	  "id": "d1_lin_alt_2350",
+	  "account": "lin_alt",
+	  "day": 1,
+	  "time": "23:50",
+	  "text": "DUULYHG. GXWB VWDUWV WRPRUURZ.",
+	  "provisional": false,
+	  "truth": "リンの裏アカ。英語を3文字ずらし（A→D）。原文「ARRIVED. DUTY STARTS TOMORROW.」＝「着任。勤務は明日から。」2日目にリンが初来店。読み解くと潜入にも見えるが、本当は新人の着任（書き手用の真相にスパイはいない）。データの truth に原文と意味を書く。"
+	}
   ]
 }

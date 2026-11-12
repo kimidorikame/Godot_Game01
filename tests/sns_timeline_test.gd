@@ -42,28 +42,38 @@ func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 	Sns.clear_cache()
 
-	# --- 0. 本番のデータ（中身U1：1日目_タイムライン.md） ---
+	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント7・投稿8（すべて Day1）。2日目以降の投稿はまだ無い", Sns.accounts().size() == 7 and Sns.posts().size() == 8
+	c.check("本番：アカウント21・投稿23（すべて Day1）。2日目以降の投稿はまだ無い", Sns.accounts().size() == 21 and Sns.posts().size() == 23
 		and Sns.posts().all(func(x): return int(x["day"]) == 1), "%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
+	var used := {}
+	for x in Sns.posts():
+		used[str(x["account"])] = true
+	c.check("本番：どのアカウントも投稿に使われている", Sns.accounts().keys().all(func(a): return used.has(a)))
 	var real_owner := func(id: String) -> String: return str(Sns.accounts()[id]["owner"])
-	c.check("本番：持ち主（書き手用）は阿強＝delivery_man・港の二人＝dock_workers（モブの種類）・受付＝inn_clerk・裏アカ＝officer・ほかは town",
+	c.check("本番：持ち主（書き手用）は阿強＝delivery_man・港の二人＝dock_workers・受付＝inn_clerk・裏アカ＝officer・ニカ＝streamer・セティヤ＝hooker・ほかは town",
 		real_owner.call("akiang") == "delivery_man" and real_owner.call("dock_a") == "dock_workers" and real_owner.call("dock_b") == "dock_workers"
 			and real_owner.call("desk") == "inn_clerk" and real_owner.call("lin_alt") == "officer" and str(Sns.accounts()["lin_alt"]["kind"]) == "alt"
-			and real_owner.call("shiwei") == "town" and real_owner.call("passer1") == "town")
+			and real_owner.call("exposure_test") == "streamer" and real_owner.call("setiya") == "hooker"
+			and real_owner.call("shiwei") == "town" and real_owner.call("ayu") == "town" and real_owner.call("east_news") == "town")
+	c.check("本番：東塔NEWS は id east_news・ID @easttower_news・表（main）", str(Sns.accounts()["east_news"]["handle"]) == "@easttower_news"
+		and str(Sns.accounts()["east_news"]["kind"]) == "main" and str(Sns.accounts()["east_news"]["name"]) == "東塔NEWS")
 	var real_by_id := {}
 	for x in Sns.posts():
 		real_by_id[str(x["id"])] = x
-	c.check("本番：返信は2件（17:35→17:20 の K4172、21:52→21:40 の港の荷役）・写真は2件・裏アカの原文と意味は truth に",
-		str(real_by_id["d1_passer_reply_legs"]["reply_to"]) == "d1_akiang_27f" and str(real_by_id["d1_dock_a_reply"]["reply_to"]) == "d1_dock_zero"
+	c.check("本番：返信は2件（17:35→17:20 の K4172、21:52→21:40 の荷役）・写真は2件・裏アカの原文と意味は truth に",
+		str(real_by_id["d1_passer1_1735"]["reply_to"]) == "d1_akiang_1720" and str(real_by_id["d1_dock_a_2152"]["reply_to"]) == "d1_dock_b_2140"
+			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 2
 			and Sns.posts().filter(func(x): return x.has("photo")).size() == 2
-			and str(real_by_id["d1_lin_cipher"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW."))
+			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW."))
 	GameState.reset_for_new_game()
-	var prep_ids := Sns.visible_ids(1, Sns.LIMIT_MARKET)
-	prep_ids.sort()
-	c.check("本番：Day1 の準備のあいだ（17:59 まで）は 08:10〜17:35 の4件。夜の4件（21:40〜23:50）はまだ見えない",
-		prep_ids == ["d1_akiang_27f", "d1_passer_ad", "d1_passer_reply_legs", "d1_shiwei_wrappers"], str(prep_ids))
-	c.check("本番：Day2 の朝に全8件が見える", Sns.visible_ids(2, Sns.LIMIT_MORNING).size() == 8, str(Sns.visible_ids(2, Sns.LIMIT_MORNING)))
+	c.check("本番：見える時刻で数える件数：朝（〜09:59）5件・準備まで（〜17:59）16件・宵の口まで20件・夜半まで23件・閉店のあと23件",
+		Sns.visible_ids(1, Sns.LIMIT_MORNING).size() == 5 and Sns.visible_ids(1, Sns.LIMIT_MARKET).size() == 16
+			and Sns.visible_ids(1, Sns.LIMIT_EVENING).size() == 20 and Sns.visible_ids(1, Sns.LIMIT_MIDNIGHT).size() == 23
+			and Sns.visible_ids(1, Sns.LIMIT_DAY_END).size() == 23,
+		"%d / %d / %d / %d" % [Sns.visible_ids(1, Sns.LIMIT_MORNING).size(), Sns.visible_ids(1, Sns.LIMIT_MARKET).size(),
+			Sns.visible_ids(1, Sns.LIMIT_EVENING).size(), Sns.visible_ids(1, Sns.LIMIT_MIDNIGHT).size()])
+	c.check("本番：Day2 の朝に全23件が見える", Sns.visible_ids(2, Sns.LIMIT_MORNING).size() == 23, str(Sns.visible_ids(2, Sns.LIMIT_MORNING).size()))
 
 	# ここから下は、仕組みの検査に前の試しのデータ（fixture）を使う
 	var data_dir_saved := Sns.data_dir
