@@ -24,8 +24,9 @@ export const EXCLUDED = [
 export const BASELINES = {
   v2: 'playthrough_results_regulars_v2.json',   // 運営費75・reach_true の基準（2026-10-18。30シード×13方針）
   v3: 'playthrough_baseline_v3.json',            // 阿強の3杯目の札の変更後（2026-11-09。3シード×13方針。コミット 307b769）
+  v4: 'playthrough_baseline_v4.json',            // 中身W：改訂版の来店の予定とモブの職種表（2026-11-14。3シード×13方針。コミット c832b54）
 };
-export const CURRENT_BASELINE = 'v3';
+export const CURRENT_BASELINE = 'v4';
 
 const DIR = new URL('./', import.meta.url);
 const load = (name) => JSON.parse(fs.readFileSync(new URL(name, DIR), 'utf8'));
