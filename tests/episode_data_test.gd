@@ -32,7 +32,7 @@ const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
 const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
-	"sets_facts", "must_info", "cups", "source"]
+	"sets_facts", "must_info", "cups", "source", "order"]
 # 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・元の文の場所（source）を持つ（中身U2で場所代のあとの会話 after_bill は body にまとめた）。
 # 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
 # ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
@@ -181,6 +181,9 @@ func _expected_value_events(d: int, cid: String, recorded) -> Array:
 	if d == 2 and cid == "hooker":
 		return _value_events(_events_at(cid, _scheduled_day(cid)))
 	var values := _value_events(recorded)
+	# 中身X：2日目のレックスの注文を まろやか＋やさしい → まろやか＋スタミナ（今日の頼み）に変えた（意図した差）
+	if d == 2 and cid == "thug":
+		values.filter(func(v): return v["type"] == "REACT")[0]["wanted_tags"] = ["MELLOW", "POWER"]
 	if d == 1 and cid == "delivery_man":
 		values.filter(func(v): return v["type"] == "REACT")[2]["wanted_tags"] = ["SAVORY", "GENTLE"]
 	return values

@@ -101,18 +101,25 @@ func run(t: SceneTree) -> int:
 		SaleRule.check(flavor_only, GameState.soup)["ok"] == true
 			and SaleRule.check(base_style, GameState.soup)["ok"] == true)
 
-	# --- 6. 実データ：今日の頼みを持たない21場面は、REACTにbase_wanted_tagsが付かない（従来と同一） ---
+	# --- 6. 実データ：今日の頼みを持たない場面は、REACTにbase_wanted_tagsが付かない（従来と同一）。中身X：2日目のレックス（thug_02）だけが
+	#        今日の頼み（まろやか＋スタミナ）を持つ ---
 	ScheduleData.episodes_dir = "res://data/episodes/"
 	ScheduleData.clear_cache()
-	var has_base := false
+	var with_base := []
+	var thug2_react := {}
 	for d in range(1, 8):
 		GameState.reset_for_new_game()
 		GameState.day_count = d
 		for slot in ScheduleData.regular_slots(d):
 			for ev in Day1Events.customer_events(str(slot["regular"])):
 				if str(ev.get("type", "")) == "REACT" and ev.has("base_wanted_tags"):
-					has_base = true
-	c.check("実データのREACTにはbase_wanted_tagsが付かない（今日の頼みが無い）", not has_base)
+					with_base.append("%d:%s" % [d, slot["regular"]])
+					if d == 2 and str(slot["regular"]) == "thug":
+						thug2_react = ev
+	c.check("実データのREACTに base_wanted_tags が付くのは、今日の頼みを持つ2日目のレックスだけ", with_base == ["2:thug"], str(with_base))
+	c.check("2日目のレックス：実効注文は まろやか＋スタミナ、いつもの（base）は まろやか＋やさしい・好物は肉団子のまま",
+		thug2_react.get("wanted_tags", []) == ["MELLOW", "POWER"] and thug2_react.get("base_wanted_tags", []) == ["MELLOW", "GENTLE"]
+			and str(thug2_react.get("favorite", "")) == "meat_ball", str(thug2_react))
 
 	GameState.reset_for_new_game()
 	for p in [panel, panel_b, panel_c]:

@@ -61,7 +61,7 @@ func run(_t: SceneTree) -> int:
 			for key in ["requires", "order", "callback"]:
 				if ep.has(key):
 					bad_keys.append("%s:%s" % [slot["episode_id"], key])
-	c.check("実データの21場面は requires・order・callback を持たない", bad_keys.is_empty(), str(bad_keys))
+	c.check("実データの21場面は requires・order・callback を持たない（中身X：2日目のレックスの order〔今日の頼み〕だけ）", bad_keys == ["thug_02:order"], str(bad_keys))
 	GameState.reset_for_new_game()
 
 	# --- 2. 実データのDayPlan：全日の枠が today_request を持つ（空）。episode_idは4-4aと同じ ---
@@ -72,10 +72,12 @@ func run(_t: SceneTree) -> int:
 		var slots: Array = GameState.today_plan["slots"]
 		var shape_ok := slots.size() == 3
 		for i in range(slots.size()):
-			if not (slots[i].has("today_request") and slots[i]["today_request"] == {}) \
+			# 中身X：2日目のレックスの枠だけ今日の頼み（まろやか＋スタミナ）を持つ
+			var want_request: Dictionary = { "tags": ["MELLOW", "POWER"] } if d == 2 and str(slots[i]["regular_id"]) == "thug" else {}
+			if not (slots[i].has("today_request") and slots[i]["today_request"] == want_request) \
 					or str(slots[i]["episode_id"]) != STATIC_IDS[d][i]:
 				shape_ok = false
-		c.check("Day%d：DayPlanの枠はtoday_request（空）を持ち、episode_idは4-4aと同じ" % d, shape_ok, str(slots))
+		c.check("Day%d：DayPlanの枠はtoday_request（空。2日目のレックスだけ まろやか＋スタミナ）を持ち、episode_idは4-4aと同じ" % d, shape_ok, str(slots))
 
 	# --- 3. フィクスチャ：場面データの読み口（requires・order・callback・候補・余分なキー） ---
 	_use_fixtures()
