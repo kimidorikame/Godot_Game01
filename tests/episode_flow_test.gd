@@ -6,21 +6,21 @@ extends RefCounted
 
 const EPISODES := {
 	1: ["delivery_man_01", "thug_01", "granny_01"],
-	2: ["officer_01", "delivery_man_02", "thug_02"],
-	3: ["hooker_01", "granny_02", "officer_02"],
-	4: ["streamer_01", "hooker_02", "delivery_man_03"],
-	5: ["thug_03", "officer_03", "streamer_02"],
-	6: ["delivery_man_04", "thug_04", "hooker_03"],
-	7: ["streamer_03", "officer_04", "granny_03"],
+	2: ["officer_01", "thug_02", "hooker_01"],
+	3: ["delivery_man_02", "streamer_01", "hooker_02"],
+	4: ["officer_02", "delivery_man_03", "granny_02"],
+	5: ["hooker_03", "streamer_02", "officer_03"],
+	6: ["hooker_04", "streamer_03", "thug_03"],
+	7: ["officer_04", "streamer_04", "granny_03"],
 }
 const REGULARS := {
 	1: ["delivery_man", "thug", "granny"],
-	2: ["officer", "delivery_man", "thug"],
-	3: ["hooker", "granny", "officer"],
-	4: ["streamer", "hooker", "delivery_man"],
-	5: ["thug", "officer", "streamer"],
-	6: ["delivery_man", "thug", "hooker"],
-	7: ["streamer", "officer", "granny"],
+	2: ["officer", "thug", "hooker"],
+	3: ["delivery_man", "streamer", "hooker"],
+	4: ["officer", "delivery_man", "granny"],
+	5: ["hooker", "streamer", "officer"],
+	6: ["hooker", "streamer", "thug"],
+	7: ["officer", "streamer", "granny"],
 }
 
 
@@ -63,8 +63,8 @@ func run(_t: SceneTree) -> int:
 	GameState.day_count = 2
 	c.check("（前提）前日の枠が残っている（today_planの日=1・今日=2）",
 		int(GameState.today_plan["day"]) == 1 and GameState.day_count == 2)
-	c.check("日を進めたら前日の枠は使わない：Day2の配達員はdelivery_man_02",
-		Day1Events.episode_id_of("delivery_man") == "delivery_man_02",
+	c.check("日を進めたら前日の枠は使わない：Day2の配達員は日程に無いので、最後の場面（delivery_man_03。中身Wの予定）",
+		Day1Events.episode_id_of("delivery_man") == "delivery_man_03",
 		Day1Events.episode_id_of("delivery_man"))
 	c.check("Day1の3杯列がDay2の杯数計算に混ざらない（配達員1杯）",
 		Day1Events._customer_total_servings("delivery_man") == 1)
@@ -85,9 +85,9 @@ func run(_t: SceneTree) -> int:
 	# DayPlanが今日のものなら、枠のepisode_idを優先する
 	DayPlanner.build()
 	var plan_slots: Array = GameState.today_plan["slots"]
-	plan_slots[1]["episode_id"] = "delivery_man_04"
+	plan_slots[1]["episode_id"] = "thug_03"   # 中身W：Day2の夜半はレックス
 	c.check("DayPlanが今日のものなら枠のepisode_idを使う",
-		Day1Events.episode_id_of("delivery_man") == "delivery_man_04")
+		Day1Events.episode_id_of("thug") == "thug_03")
 	c.check("客でない・場面の無いidは空文字",
 		Day1Events.episode_id_of("") == "" and Day1Events.episode_id_of("mob#0") == ""
 			and Day1Events.episode_id_of("no_such_customer") == "")
@@ -149,8 +149,8 @@ func run(_t: SceneTree) -> int:
 	MorningSave.apply(env)
 	c.check("復元後のDayPlanの枠（regular_id・episode_id込み）が同一",
 		GameState.today_plan["slots"] == before)
-	c.check("復元後も場面idを引ける（日が今日のDayPlanから）",
-		Day1Events.episode_id_of("delivery_man") == "delivery_man_02")
+	c.check("復元後も場面idを引ける（日が今日のDayPlanから。Day2のレックスはthug_02）",
+		Day1Events.episode_id_of("thug") == "thug_02")
 
 	GameState.reset_for_new_game()
 	return c.finish()

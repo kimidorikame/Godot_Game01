@@ -5,7 +5,7 @@ extends RefCounted
 
 const REGULAR_NAMES := {
 	"delivery_man": "阿強", "thug": "レックス", "granny": "ターニャ婆",   # 中身U1：店主が前から名前を知っている3人は本名
-	"officer": "新人警官", "hooker": "夜の女", "streamer": "配信者",
+	"officer": "新人警官", "hooker": "セティヤ", "streamer": "配信者",   # 中身W：セティヤも元々の常連なので本名
 }
 
 
@@ -55,8 +55,8 @@ func run(t: SceneTree) -> int:
 		if memo.contains(id):
 			memo_leaked.append(id)
 	c.check("予告メモにidが残らない", memo_leaked.is_empty(), "%s / %s" % [str(memo_leaked), memo])
-	c.check("予告メモに今日の常連の表示名が出る（Day2：新人警官・阿強・レックス）",
-		memo.contains("新人警官") and memo.contains("阿強") and memo.contains("レックス"), memo)
+	c.check("予告メモに今日の常連の表示名が出る（Day2：新人警官・レックス・セティヤ。中身W）",
+		memo.contains("新人警官") and memo.contains("レックス") and memo.contains("セティヤ"), memo)
 
 	GameState.reset_for_new_game()
 	if is_instance_valid(panel):

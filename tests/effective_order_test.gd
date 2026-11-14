@@ -56,8 +56,8 @@ func run(t: SceneTree) -> int:
 	# --- 1. DayPlanの枠とREACT：今日の頼みで基本注文を上書き（足し算ではない） ---
 	var panel = _setup(t, stock)
 	c.check("（前提）チンピラの枠はthug_01で、今日の頼みはHOT/POWER",
-		str(GameState.today_plan["slots"][2]["episode_id"]) == "thug_01"
-			and GameState.today_plan["slots"][2]["today_request"]["tags"] == ["HOT", "POWER"])
+		str(GameState.today_plan["slots"][1]["episode_id"]) == "thug_01"
+			and GameState.today_plan["slots"][1]["today_request"]["tags"] == ["HOT", "POWER"])   # 中身W：2日目のレックスは夜半
 	var react := _react(Day1Events.customer_events("thug"))
 	c.check("REACTのwanted_tagsは今日の頼み（HOT/POWER）で上書き。基本注文（MELLOW/GENTLE）は混ざらない",
 		react["wanted_tags"] == ["HOT", "POWER"], str(react["wanted_tags"]))

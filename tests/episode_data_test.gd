@@ -8,21 +8,21 @@ extends RefCounted
 # 21枠の episode_id（日 → [宵の口, 夜半, 明け方]）。来店順の連番。
 const EPISODES := {
 	1: ["delivery_man_01", "thug_01", "granny_01"],
-	2: ["officer_01", "delivery_man_02", "thug_02"],
-	3: ["hooker_01", "granny_02", "officer_02"],
-	4: ["streamer_01", "hooker_02", "delivery_man_03"],
-	5: ["thug_03", "officer_03", "streamer_02"],
-	6: ["delivery_man_04", "thug_04", "hooker_03"],
-	7: ["streamer_03", "officer_04", "granny_03"],
+	2: ["officer_01", "thug_02", "hooker_01"],
+	3: ["delivery_man_02", "streamer_01", "hooker_02"],
+	4: ["officer_02", "delivery_man_03", "granny_02"],
+	5: ["hooker_03", "streamer_02", "officer_03"],
+	6: ["hooker_04", "streamer_03", "thug_03"],
+	7: ["officer_04", "streamer_04", "granny_03"],
 }
 const REGULARS := {
 	1: ["delivery_man", "thug", "granny"],
-	2: ["officer", "delivery_man", "thug"],
-	3: ["hooker", "granny", "officer"],
-	4: ["streamer", "hooker", "delivery_man"],
-	5: ["thug", "officer", "streamer"],
-	6: ["delivery_man", "thug", "hooker"],
-	7: ["streamer", "officer", "granny"],
+	2: ["officer", "thug", "hooker"],
+	3: ["delivery_man", "streamer", "hooker"],
+	4: ["officer", "delivery_man", "granny"],
+	5: ["hooker", "streamer", "officer"],
+	6: ["hooker", "streamer", "thug"],
+	7: ["officer", "streamer", "granny"],
 }
 const BASE_ORDER := {
 	"delivery_man": ["HOT", "POWER"], "thug": ["MELLOW", "GENTLE"], "granny": ["SAVORY", "FILLING"],
@@ -112,13 +112,13 @@ func run(_t: SceneTree) -> int:
 		for n in range(1, ids.size() + 1):
 			want.append("%s_%02d" % [cid, n])
 		c.check("%s：場面idは日程の順に連番（%s）" % [cid, str(want)], ids == want, str(ids))
-	c.check("来店回数＝場面数（4・4・4・3・3・3）",
-		ScheduleData.customer_episode_ids("delivery_man").size() == 4
-			and ScheduleData.customer_episode_ids("thug").size() == 4
+	c.check("来店回数＝場面数（阿強3・レックス3・ターニャ婆3・リン4・セティヤ4・ニカ4。中身W）",
+		ScheduleData.customer_episode_ids("delivery_man").size() == 3
+			and ScheduleData.customer_episode_ids("thug").size() == 3
 			and ScheduleData.customer_episode_ids("officer").size() == 4
 			and ScheduleData.customer_episode_ids("granny").size() == 3
-			and ScheduleData.customer_episode_ids("hooker").size() == 3
-			and ScheduleData.customer_episode_ids("streamer").size() == 3)
+			and ScheduleData.customer_episode_ids("hooker").size() == 4
+			and ScheduleData.customer_episode_ids("streamer").size() == 4)
 	c.check("日程に無い客は場面なし", ScheduleData.customer_episode_ids("no_such_customer").is_empty())
 
 	# --- 3. 基本プロフィール：is_mob・favorite・wanted_tags（日番号を持たない） ---

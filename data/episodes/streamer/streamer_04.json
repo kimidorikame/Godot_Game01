@@ -1,8 +1,8 @@
 {
-  "id": "delivery_man_04",
-  "customer": "delivery_man",
+  "id": "streamer_04",
+  "customer": "streamer",
   "greet": [
-    "配達員（2日目以降・注文: 辛い・スタミナ）"
+    "動画配信者（まろやか・歯ごたえ）"
   ],
   "reactions": {
     "GREAT": [

@@ -11,12 +11,12 @@ const FIXTURE_DIR := "res://tests/fixtures/episodes/"
 # 実データの21枠（日 → [宵の口, 夜半, 明け方]）の静的episode_id。4-4aの割り当て。
 const STATIC_IDS := {
 	1: ["delivery_man_01", "thug_01", "granny_01"],
-	2: ["officer_01", "delivery_man_02", "thug_02"],
-	3: ["hooker_01", "granny_02", "officer_02"],
-	4: ["streamer_01", "hooker_02", "delivery_man_03"],
-	5: ["thug_03", "officer_03", "streamer_02"],
-	6: ["delivery_man_04", "thug_04", "hooker_03"],
-	7: ["streamer_03", "officer_04", "granny_03"],
+	2: ["officer_01", "thug_02", "hooker_01"],
+	3: ["delivery_man_02", "streamer_01", "hooker_02"],
+	4: ["officer_02", "delivery_man_03", "granny_02"],
+	5: ["hooker_03", "streamer_02", "officer_03"],
+	6: ["hooker_04", "streamer_03", "thug_03"],
+	7: ["officer_04", "streamer_04", "granny_03"],
 }
 
 
@@ -139,21 +139,21 @@ func run(_t: SceneTree) -> int:
 	GameState.reputation = 65   # 需要の中心14
 	DayPlanner.build()
 	var slots2: Array = GameState.today_plan["slots"]
-	# Day2：宵の口=新人警官・夜半=配達員・明け方=チンピラ（静的idはthug_02。unlockが無いのでthug_01へ）
+	# Day2（中身Wの予定）：宵の口=新人警官・夜半=チンピラ（静的idはthug_02。unlockが無いのでthug_01へ）・明け方=セティヤ
 	c.check("前提を満たさない第一候補は、別の場面へ（thug_02→thug_01）",
-		str(slots2[2]["regular_id"]) == "thug" and str(slots2[2]["episode_id"]) == "thug_01", str(slots2[2]))
+		str(slots2[1]["regular_id"]) == "thug" and str(slots2[1]["episode_id"]) == "thug_01", str(slots2[1]))
 	c.check("選んだ場面の今日の頼みが枠に入る",
-		slots2[2]["today_request"] == { "tags": ["HOT", "POWER"], "label": "持ち帰り" })
-	c.check("今日の頼みを持つ場面（フィクスチャのofficer_01）の枠にも入り、持たない客（配達員）は空辞書",
+		slots2[1]["today_request"] == { "tags": ["HOT", "POWER"], "label": "持ち帰り" })
+	c.check("今日の頼みを持つ場面（フィクスチャのofficer_01）の枠にも入り、持たない客（セティヤ）は空辞書",
 		slots2[0]["today_request"] == { "tags": ["SOUR", "BITE"], "label": "いつもの確認" }
-			and slots2[1]["today_request"] == {})
+			and slots2[2]["today_request"] == {})
 	c.check("episode_id_ofはDayPlanが選んだ場面を返す（thug_01）",
 		Day1Events.episode_id_of("thug") == "thug_01")
 	var mob_cups := 0
 	for id in GameState.today_plan["mob_instances"]:
 		mob_cups += int(GameState.today_plan["mob_instances"][id]["count"])
 	var center := GameState.demand_center_today()
-	# 常連の杯数＝新人警官1＋配達員1＋選んだ場面（thug_01）の2杯＝4。
+	# 常連の杯数＝新人警官1＋選んだ場面（thug_01）の2杯＋セティヤ1＝4。
 	c.check("モブ杯数は選んだ場面の杯数（thug_01=2杯）で引く（総杯数が中心±1・実測%d）" % (mob_cups + 4),
 		mob_cups + 4 >= center - 1 and mob_cups + 4 <= center + 1)
 	c.check("選んだ場面のservings（2）がcustomer_eventsに出る",
@@ -165,8 +165,8 @@ func run(_t: SceneTree) -> int:
 	CustomerMemory.set_fact("thug", "unlock", true)
 	DayPlanner.build()
 	c.check("事実が立っていれば、枠のepisode_idは第一候補（thug_02）・今日の頼みは空",
-		str(GameState.today_plan["slots"][2]["episode_id"]) == "thug_02"
-			and GameState.today_plan["slots"][2]["today_request"] == {})
+		str(GameState.today_plan["slots"][1]["episode_id"]) == "thug_02"
+			and GameState.today_plan["slots"][1]["today_request"] == {})
 	# 同日に同じ客は2回来ない（選び方は枠ごと。日程で保証）
 	var regulars := []
 	for slot in GameState.today_plan["slots"]:
@@ -200,7 +200,7 @@ func run(_t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	MorningSave.apply(env)
 	c.check("復元後のDayPlanの枠（today_request込み）が同一（再挑戦で同じ今日の頼み）",
-		GameState.today_plan["slots"] == before and before[2]["today_request"].has("tags"))
+		GameState.today_plan["slots"] == before and before[1]["today_request"].has("tags"))
 	c.check("復元後もepisode_id_ofは選んだ場面（thug_01）を返す", Day1Events.episode_id_of("thug") == "thug_01")
 
 	_use_real()

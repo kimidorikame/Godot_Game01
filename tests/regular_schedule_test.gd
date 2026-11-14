@@ -6,15 +6,15 @@ extends RefCounted
 
 const SLOTS := ["宵の口", "夜半", "明け方"]
 
-# 10.5.1の表（日 → [宵の口, 夜半, 明け方]）。JSONの内容をここと突き合わせる。
+# 改訂版の来店の予定（中身W。日 → [宵の口, 夜半, 明け方]）。JSONの内容をここと突き合わせる。
 const TABLE := {
 	1: ["delivery_man", "thug", "granny"],
-	2: ["officer", "delivery_man", "thug"],
-	3: ["hooker", "granny", "officer"],
-	4: ["streamer", "hooker", "delivery_man"],
-	5: ["thug", "officer", "streamer"],
-	6: ["delivery_man", "thug", "hooker"],
-	7: ["streamer", "officer", "granny"],
+	2: ["officer", "thug", "hooker"],
+	3: ["delivery_man", "streamer", "hooker"],
+	4: ["officer", "delivery_man", "granny"],
+	5: ["hooker", "streamer", "officer"],
+	6: ["hooker", "streamer", "thug"],
+	7: ["officer", "streamer", "granny"],
 }
 
 # 10.5.1「常連の基本注文」（日によって変えない）と好物。
@@ -68,18 +68,23 @@ func run(_t: SceneTree) -> int:
 			seen[id] = true
 			if not first.has(id):
 				first[id] = [d, i]
-	c.check("来店回数：配達員4・チンピラ4・新人警官4・老婆3・夜の女3・配信者3",
-		int(counts.get("delivery_man", 0)) == 4 and int(counts.get("thug", 0)) == 4
-			and int(counts.get("officer", 0)) == 4 and int(counts.get("granny", 0)) == 3
-			and int(counts.get("hooker", 0)) == 3 and int(counts.get("streamer", 0)) == 3, str(counts))
+	c.check("来店回数：阿強3・レックス3・ターニャ婆3・リン4・セティヤ4・ニカ4（中身W）",
+		int(counts.get("delivery_man", 0)) == 3 and int(counts.get("thug", 0)) == 3
+			and int(counts.get("granny", 0)) == 3 and int(counts.get("officer", 0)) == 4
+			and int(counts.get("hooker", 0)) == 4 and int(counts.get("streamer", 0)) == 4, str(counts))
 	var total := 0
 	for id in counts:
 		total += int(counts[id])
 	c.check("合計21枠", total == 21)
 	c.check("同日の重複なし", dup_days.is_empty(), str(dup_days))
-	c.check("初登場は新人警官=Day2・夜の女=Day3・配信者=Day4（いずれも宵の口）",
-		first["officer"] == [2, 0] and first["hooker"] == [3, 0] and first["streamer"] == [4, 0],
+	c.check("初登場はリン=Day2の宵の口・セティヤ=Day2の明け方・ニカ=Day3の夜半（中身W）",
+		first["officer"] == [2, 0] and first["hooker"] == [2, 2] and first["streamer"] == [3, 1],
 		str(first))
+	var streamer_slots := []
+	for d in range(1, 8):
+		if _regulars_of(d).has("streamer"):
+			streamer_slots.append([d, _regulars_of(d).find("streamer")])
+	c.check("ニカは3・5・6・7日目、すべて夜半", streamer_slots == [[3, 1], [5, 1], [6, 1], [7, 1]], str(streamer_slots))
 	c.check("Day7の明け方は老婆", _regulars_of(7)[2] == "granny")
 
 	# --- 3. 21枠それぞれに、基本注文・好物・杯数・会話が存在する（フォールバックでも空にならない） ---

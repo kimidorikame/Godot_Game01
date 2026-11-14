@@ -129,8 +129,8 @@ func run(t: SceneTree) -> int:
 	c.check("Day2宵の口はofficer固定", sched_day2[0]["customers"][0] == "officer")
 	# 4-3：常連は抽選ではなく固定日程（10.5.1）。旧「granny/thug/delivery_manのいずれか」
 	# （main_poolの抽選）は、Day2夜半＝delivery_man・明け方＝thug の固定に置き換わった。
-	c.check("Day2夜半はdelivery_man・明け方はthug（固定日程。抽選ではない）",
-		sched_day2[1]["customers"][0] == "delivery_man" and sched_day2[2]["customers"][0] == "thug",
+	c.check("Day2夜半はthug・明け方はhooker（固定日程。抽選ではない。中身Wの改訂版の予定）",
+		sched_day2[1]["customers"][0] == "thug" and sched_day2[2]["customers"][0] == "hooker",
 		str(sched_day2))
 
 	# --- 9. is_mob_customer() / customer_events(): インスタンスidを正しく解決する ---

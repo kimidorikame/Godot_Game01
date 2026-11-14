@@ -53,7 +53,7 @@
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
 	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
-	  "hooker": { "from": "夜の女", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false,
+	  "hooker": { "from": "セティヤ", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
 	  "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },
