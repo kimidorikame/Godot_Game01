@@ -2087,10 +2087,11 @@ GameState.try_pay(amount) -> bool
   **意図して一致しなくなった**（上書きしていない）。新しい基準は運営費75・`reach_true`の13方針×30シード
   （`playthrough_results_regulars_v2.json`。引数で明示して取る）。
   **【2026-11-09・計測】コミット前の基準との照合は「遊びの結果」だけを比べる**（`planning/playtest_2026_10_11/compare_baseline.mjs`・説明は同じフォルダの`BASELINE_COMPARE.md`）。
-  **今の基準は v4**（2026-11-14。`playthrough_baseline_v4.json`。中身Wの改訂版の来店の予定とモブの職種表のあと・コミット`c832b54`・3シード×13方針。
-  v3 とは Day1 は全周同じ、2日目からずれて36周で最終現金が変わり、36周の平均 1396.0 → 1419.9）。
+  **今の基準は v5**（2026-11-14。`playthrough_baseline_v5.json`。中身Xのレックスの2日目の注文〔まろやか＋スタミナ〕のあと・コミット`44e7c4d`・3シード×13方針。
+  v4 とは Day1 は全周同じ、27周で2日目の常連の GREAT が1つ増え、17周で最終現金が増えた。36周の平均 1419.9 → 1433.1）。
+  v4（`playthrough_baseline_v4.json`。中身Wの来店の予定とモブの職種表のあと・コミット`c832b54`。v3 とは36周で最終現金が変わり、平均 1396.0 → 1419.9）、
   v3（`playthrough_baseline_v3.json`。阿強の3杯目の札の変更後・コミット`307b769`。v2 とは39周のうち11周で最終現金が変わり、平均 −11.1）と v2 は昔の記録として残す。
-  意図した変更で遊びの結果が変わったら、新しい基準（v5…）を作る（手順は`BASELINE_COMPARE.md`）。
+  意図した変更で遊びの結果が変わったら、新しい基準（v6…）を作る（手順は`BASELINE_COMPARE.md`）。
   「基準 v3」は、下の「予報を使わない前提でも測った（v3）」（`playthrough_results_regulars_v3.json`）とは別のもの。
   比べないのは、会話の行数や支払いの順番で変わる途中の数（`clicks`・`steps`・`actions.next_text_event`・`rows[].actions_cumulative`・`day1_cash`の
   `after_wake`／`after_kit`／`after_tier`／`after_market`）。あわせて、自動試遊は食後の行（`part`が`body`・`after_bill`・`closing`）では鍋を直さない
