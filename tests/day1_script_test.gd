@@ -162,9 +162,10 @@ func run(t: SceneTree) -> int:
 			and not after_texts.any(func(x): return x.begins_with("水を汲み")), str(exit_texts))
 	GameState.day_count = 2
 	var day2_after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false).map(func(e): return str(e.get("text", "")))
-	c.check("Day2 は今までどおり（食肉売場へ来た・中仕込みにした・市場を出るときにまとめて払う。文は炭代と水代に分けて見せる）。初日セットは無い",
-		Day1Events.kit_today().is_empty() and not Day1Events.has_market_scene()
-			and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た" and day2_after.has("中仕込みにした。")
+	# 中身X：2日目にも市場の場面（張姐。着いたときだけ）がある。払い方は今までどおり（市場を出るときにまとめて払う）
+	c.check("Day2 の払い方は今までどおり（中仕込みにした・市場を出るときにまとめて払う。文は炭代と水代に分けて見せる）。初日セットは無い・市場を出たあとの場面は無い",
+		Day1Events.kit_today().is_empty() and Day1Events.has_market_scene() and not Day1Events.has_market_exit_scene()
+			and str(Day1Events.prep_events({}, false)[0]["text"]).begins_with("張姐「") and day2_after.has("中仕込みにした。")
 			and day2_after.has("水を汲み、炭を買った（炭代−¥40・水代−¥35）。"), str(day2_after))
 
 	# --- 5. モブのその日だけの文 ---

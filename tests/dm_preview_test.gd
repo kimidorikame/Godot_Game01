@@ -53,6 +53,9 @@ func run(t: SceneTree) -> int:
 	c.check("モブは (日番号＋件目) % 候補数：Day3 は 0番目（dock_workers）と 1番目（inn_clerk）", subs[0] == mob_pick[3 % 3] and subs[1] == mob_pick[(3 + 1) % 3], str(subs))
 	c.check("名前あり客は計画にいる客だけ", ["hooker", "granny", "officer"].has(subs[2]))
 	c.check("予告は today_plan にいる客・種類だけ（全員は教えない）", subs.all(func(x): return ["hooker", "granny", "officer", "dock_workers", "inn_clerk", "market_porter"].has(x)))
+	# 中身X：まだ会っていない客の予告は出ない（セティヤ〔before_first_visit〕だけ例外）。名前あり客で埋める確かめは、来たことがある客で
+	_visited("granny", 1)
+	_visited("officer", 2)
 	_plan(3, ["hooker", "granny", "officer"], ["dock_workers"])
 	subs = _subjects(Dm.preview_items(3, []))
 	c.check("モブが1種類の日：モブ1件＋名前あり客で上限3まで（空いた分を埋める）", subs.size() == 3 and subs[0] == "dock_workers", str(subs))
@@ -62,6 +65,7 @@ func run(t: SceneTree) -> int:
 	_plan(3, ["hooker"], [])
 	c.check("計画が小さい日：計画にいる分だけ（嘘を足さない）", _subjects(Dm.preview_items(3, [])) == ["hooker"])
 	# 好みが分かっている客を先に
+	GameState.customer_memory.clear()
 	_plan(3, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
 	_visited("officer", 2)
 	subs = _subjects(Dm.preview_items(3, []))
@@ -73,6 +77,8 @@ func run(t: SceneTree) -> int:
 	c.check("上限をデータで変えられる（1件）", _subjects(Dm.preview_items(3, [], source)).size() == 1)
 	source["previews"]["max_per_morning"] = 5
 	source["previews"]["mob_max"] = 3
+	_visited("granny", 1)
+	_visited("officer", 2)
 	c.check("上限5・モブ最大3：モブ3＋名前あり客2", _subjects(Dm.preview_items(3, [], source)).size() == 5)
 	# 既存DMと同じ差出人は外す
 	GameState.reset_for_new_game()
@@ -83,7 +89,28 @@ func run(t: SceneTree) -> int:
 	var existing_delivery := inbox.any(func(x): return str(x["id"]) == "d2_delivery_man")
 	subs = _subjects(inbox)
 	c.check("同じ朝に既存DM（Day2の配達員）が届くなら、配達員の予告は出さない", existing_delivery and not subs.has("delivery_man"), str(subs))
-	c.check("Day2：予告も届く（モブ2件＋名前あり客1件）", subs.size() == 3, str(subs))
+	c.check("Day2：予告はモブ2件だけ（新人警官はまだ会っていない・レックスは本人のDMが届く）", subs.size() == 2 and not subs.has("officer") and not subs.has("thug"), str(subs))
+	# 中身X：まだ会っていない客（初来店の前）の予告は出ない。セティヤ（店主とは前からの付き合い）は初来店の前でも出す
+	_visited("thug", 1)
+	subs = _subjects(Dm.inbox(2))
+	var day2_texts := Dm.inbox(2).filter(func(x): return str(x.get("from", "")) == "レックス").map(func(x): return "%s %s" % [x["time"], x["text"]])
+	c.check("Day2：レックスに会っていれば、レックスのDM2通（4:40・4:42）が届き、レックスの予告は出ない",
+		day2_texts == ["4:42 今夜は客で行く。帳面は持ってかねえ。丸いの、取っとけ。", "4:40 昨日あのあと兄貴に呼ばれた。焼肉だ。俺の皿に乗ったのは玉ねぎ一枚。"]
+			and not subs.has("thug"), str(day2_texts))
+	GameState.customer_memory.clear()
+	_plan(2, ["officer", "thug", "hooker"], [])
+	subs = _subjects(Dm.preview_items(2, []))
+	var setiya := Dm.preview_items(2, []).filter(func(x): return str(x["subject"]) == "hooker")
+	c.check("Day2：まだ会っていない新人警官の予告は出ず、セティヤの予告は初来店の前でも出る（差出人セティヤ）",
+		not subs.has("officer") and not subs.has("thug") and setiya.size() == 1 and str(setiya[0]["from"]) == "セティヤ", str(subs))
+	_plan(3, ["delivery_man", "streamer", "hooker"], [])
+	_visited("delivery_man", 1)
+	subs = _subjects(Dm.preview_items(3, []))
+	c.check("Day3：初来店の前のニカ（配信者）の予告は出ない（会ったことのある阿強・セティヤは出る）", not subs.has("streamer") and subs.has("delivery_man") and subs.has("hooker"), str(subs))
+	_visited("streamer", 3)
+	_plan(5, ["hooker", "streamer", "officer"], [])
+	c.check("一度来たあとの日は、配信者の予告も出る", _subjects(Dm.preview_items(5, [])).has("streamer"))
+	GameState.customer_memory.clear()
 	# Day1
 	GameState.reset_for_new_game()
 	_plan(1, ["delivery_man", "thug", "granny"], ["dock_workers", "inn_clerk"])
@@ -117,6 +144,8 @@ func run(t: SceneTree) -> int:
 	c.check("過去の日（Day4）の予告は、日次ログの planned_* から同じ内容で出る（計画は作り直されている）", JSON.stringify(past) == JSON.stringify(day4_items) and not past.is_empty())
 	c.check("スマホの一覧にも、過去の日の予告が日付つきで残る", Dm.inbox(5).any(func(x): return str(x["id"]).begins_with("preview_d4_") and int(x["day"]) == 4))
 	GameState.day_records = [{ "day": 4, "opening_reputation": 40, "mob_types_served": [] }]
+	for id in ["officer", "delivery_man", "granny"]:
+		_visited(id, 1)
 	var old := Dm.preview_items(4, [])
 	c.check("旧セーブ（planned_* が無い日）：モブの予告は出さず、名前あり客は日程データから", old.all(func(x): return str(x["from_kind"]) == "customer") and not old.is_empty(), str(_subjects(old)))
 

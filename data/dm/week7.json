@@ -7,10 +7,14 @@
   },
   "days": {
 	"2": [
-	  { "id": "d2_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:40",
-		"text": "今日は入荷が遅れてる。早めに来な", "hint": "none", "provisional": true },
+	  { "id": "d2_market", "from": "張姐", "from_kind": "npc", "time": "6:40",
+		"text": "豚骨、今日は着くのが遅れる。検問だってさ。来る時間は変えなくていいよ", "hint": "none", "provisional": false },
 	  { "id": "d2_delivery_man", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "5:50",
-		"text": "昨日のスープ、体にしみた。また夜に寄るよ", "hint": "none", "provisional": true }
+		"text": "昨日の容器、門のおっさんに預けてきた。返ってきたら持ってく", "hint": "none", "provisional": false },
+	  { "id": "d2_thug_1", "from": "レックス", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:40",
+		"text": "昨日あのあと兄貴に呼ばれた。焼肉だ。俺の皿に乗ったのは玉ねぎ一枚。", "hint": "none", "provisional": false },
+	  { "id": "d2_thug_2", "from": "レックス", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:42",
+		"text": "今夜は客で行く。帳面は持ってかねえ。丸いの、取っとけ。", "hint": "none", "provisional": false }
 	],
 	"3": [
 	  { "id": "d3_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:30",
@@ -42,7 +46,7 @@
 	]
   },
   "previews": {
-	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。本文に数字と「客足」は入れない。",
+	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。名前あり客の予告は、その客がもう来たことがある朝だけ出す（店主がまだ会っていない客から予告は来ない。中身X）。before_first_visit:true の客（セティヤ。店主とは前からの付き合い）は初来店の前の朝にも出す。本文に数字と「客足」は入れない。",
 	"max_per_morning": 3, "mob_max": 2, "first_day": 2,
 	"pools": {
 	  "delivery_man": { "from": "阿強", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
@@ -53,7 +57,7 @@
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
 	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
-	  "hooker": { "from": "セティヤ", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false,
+	  "hooker": { "from": "セティヤ", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
 	  "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },

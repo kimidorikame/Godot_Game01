@@ -35,7 +35,8 @@
   "day_overrides": {
     "1": { "fixed_demand": 9, "kit": "day1_kit", "forecast": "exact", "market_scene": "day1_market",
            "mobs": [{ "slot": "宵の口", "type": "dock_workers", "count": 2 },
-                    { "slot": "夜半", "type": "inn_clerk", "count": 2 }] }
+                    { "slot": "夜半", "type": "inn_clerk", "count": 2 }] },
+    "2": { "market_scene": "day2_market" }
   },
   "forecast": { "regulars": "base_order", "total": "range", "range_width": 1 },
   "goals": { "cash_standard": 1200, "cash_challenge": 1500,

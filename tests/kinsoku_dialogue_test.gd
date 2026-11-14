@@ -55,6 +55,29 @@ func _day1_texts() -> Array:
 	return texts
 
 
+## 2日目の会話枠に出る文（中身X。名前を除いた本文）：常連3人の場面・モブ3組の2日目の文（2杯以上の行を含む）・市場の会話。
+func _day2_texts() -> Array:
+	var raw := []
+	for pair in [["officer", "officer_01"], ["thug", "thug_02"], ["hooker", "hooker_01"]]:
+		var ep := ScheduleData.episode_data(pair[0], pair[1])
+		for key in ["greet", "body", "market_talk"]:
+			raw.append_array(ScheduleData.spoken_lines(ep.get(key, [])))
+		for r in (ep.get("reactions", {}) as Dictionary).values():
+			raw.append_array(r)
+	for mob in ["market_porter", "laundry_night", "long_haul_driver"]:
+		var form := ScheduleData.mob_data_for_day(mob, 2)
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(form["after_talk"]))
+		for r in (form["reactions"] as Dictionary).values():
+			raw.append_array(r)
+	for part in ScheduleData.talk_data("day2_market")["parts"]:
+		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
+	var texts := []
+	for line in raw:
+		texts.append(str(PlaySession.split_speaker(str(line))["text"]))
+	return texts
+
+
 func run(_t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
@@ -89,6 +112,19 @@ func run(_t: SceneTree) -> int:
 		c.check("UI準備V の報告の行が直った：%s" % line.substr(0, 12), texts.has(line) and _bad_heads(line).is_empty(), str(UiLeftSide.paginate(line)))
 	c.check("1日目の文で、2ページ以上になるのは %d 本（追い出しで行が増えた分も含む）" % multi, multi <= 3)
 	print("  1日目の会話枠の文：%d本・2ページ以上：%d本" % [texts.size(), multi])
+
+	# --- 3. 2日目の会話枠に出る文（中身X） ---
+	var texts2 := _day2_texts()
+	var bad2 := {}
+	var multi2 := []
+	for text in texts2:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad2[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi2.append(text)
+	c.check("2日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts2.size(), texts2.size() > 200 and bad2.is_empty(), str(bad2))
+	print("  2日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts2.size(), multi2.size(), str(multi2)])
 
 	ScheduleData.clear_cache()
 	return c.finish()

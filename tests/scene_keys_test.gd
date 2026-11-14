@@ -34,12 +34,17 @@ func run(_t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 
 	# --- 1. 読み口：キーが無い・形が不正なら「無い」と同じ（クラッシュしない） ---
-	c.check("実データ（仮の文の場面 thug_02）：どの読み口も空（新キーを持たない）",
-		ScheduleData.episode_pre_order("thug", "thug_02").is_empty()
-			and ScheduleData.episode_body("thug", "thug_02").is_empty()
-			and ScheduleData.episode_body_unserved("thug", "thug_02").is_empty()
-			and ScheduleData.episode_closing("thug", "thug_02").is_empty()
-			and ScheduleData.episode_must_info("thug", "thug_02").is_empty())
+	c.check("実データ（仮の文の場面 thug_03）：どの読み口も空（新キーを持たない）",
+		ScheduleData.episode_pre_order("thug", "thug_03").is_empty()
+			and ScheduleData.episode_body("thug", "thug_03").is_empty()
+			and ScheduleData.episode_body_unserved("thug", "thug_03").is_empty()
+			and ScheduleData.episode_closing("thug", "thug_03").is_empty()
+			and ScheduleData.episode_must_info("thug", "thug_03").is_empty())
+	var day2_ok := true
+	for pair in [["thug", "thug_02"], ["officer", "officer_01"], ["hooker", "hooker_01"]]:
+		day2_ok = day2_ok and not ScheduleData.episode_body(pair[0], pair[1]).is_empty() and ScheduleData.episode_pre_order(pair[0], pair[1]).is_empty() \
+			and ScheduleData.episode_closing(pair[0], pair[1]).is_empty() and ScheduleData.episode_must_info(pair[0], pair[1]).is_empty()
+	c.check("実データ（2日目の本番の文 thug_02・officer_01・hooker_01。中身X）：食後の本文（body。会計・退店まで）だけを持つ", day2_ok)
 	c.check("実データ（1日目の本番の文 thug_01。中身U1・U2）：食後の本文（body。退店まで）だけを持つ",
 		not ScheduleData.episode_body("thug", "thug_01").is_empty() and not ScheduleData.episode_data("thug", "thug_01").has("after_bill")
 			and ScheduleData.episode_pre_order("thug", "thug_01").is_empty() and ScheduleData.episode_closing("thug", "thug_01").is_empty()

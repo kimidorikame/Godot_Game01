@@ -243,7 +243,7 @@ func run(t: SceneTree) -> int:
 		and top.penalty_bbcode(s.bowl_view(), extreme_max).ends_with("1段階下がります。[/color]"), top.penalty_bbcode(s.bowl_view(), extreme_max))
 	GameState.soup["strength"] = 3
 	guard = 0
-	while s.can_next_event() and not s.flow.is_runner_done() and guard < 30:
+	while s.can_next_event() and not s.flow.is_runner_done() and guard < 120:   # 中身X：2日目の新人警官は食後の本文（会計・退店まで44行）を持つ
 		guard += 1
 		root.left.advance()
 	_sort(root)

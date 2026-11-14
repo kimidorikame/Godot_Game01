@@ -44,8 +44,9 @@ func run(t: SceneTree) -> int:
 
 	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント21・投稿23（すべて Day1）。2日目以降の投稿はまだ無い", Sns.accounts().size() == 21 and Sns.posts().size() == 23
-		and Sns.posts().all(func(x): return int(x["day"]) == 1), "%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
+	c.check("本番：アカウント28（1日目21＋2日目7）・投稿49（Day1 23・Day2 26。中身X）。3日目以降の投稿はまだ無い", Sns.accounts().size() == 28 and Sns.posts().size() == 49
+		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26,
+		"%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
 	var used := {}
 	for x in Sns.posts():
 		used[str(x["account"])] = true
@@ -61,11 +62,48 @@ func run(t: SceneTree) -> int:
 	var real_by_id := {}
 	for x in Sns.posts():
 		real_by_id[str(x["id"])] = x
-	c.check("本番：返信は2件（17:35→17:20 の K4172、21:52→21:40 の荷役）・写真は2件・裏アカの原文と意味は truth に",
+	c.check("本番：返信は3件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目）・写真は3件・裏アカの原文と意味は truth に",
 		str(real_by_id["d1_passer1_1735"]["reply_to"]) == "d1_akiang_1720" and str(real_by_id["d1_dock_a_2152"]["reply_to"]) == "d1_dock_b_2140"
-			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 2
-			and Sns.posts().filter(func(x): return x.has("photo")).size() == 2
-			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW."))
+			and str(real_by_id["d2_passer1_1735"]["reply_to"]) == "d2_rex_1710"
+			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 3
+			and Sns.posts().filter(func(x): return x.has("photo")).size() == 3
+			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW.")
+			and not str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("スパイはいない"))
+	# --- 0b. 2日目（中身X：2日目_タイムライン.md の26件）の確かめ a〜e ---
+	var day2 := Sns.posts().filter(func(x): return int(x["day"]) == 2)
+	var new_accounts := ["rex", "one_box", "cold_noodle", "laundry_3", "sou_jobhunt", "south_blocks", "lisa_walks"]
+	c.check("2日目 a：新しいアカウント7つがあり、投稿のアカウントはどれもある・投稿の id は重ならない",
+		new_accounts.all(func(a): return Sns.accounts().has(a)) and day2.all(func(x): return Sns.accounts().has(str(x["account"])))
+			and real_by_id.size() == Sns.posts().size())
+	var replies_ok := true
+	for x in day2.filter(func(p): return p.has("reply_to")):
+		var parent_id := str(x["reply_to"])
+		replies_ok = replies_ok and real_by_id.has(parent_id) and Sns.order_value(2, str(x["time"])) \
+			> Sns.order_value(int(real_by_id[parent_id]["day"]), str(real_by_id[parent_id]["time"]))
+	c.check("2日目 b：返信先があり、返信先の時刻が前（17:35 の通行人 → 17:10 の継ぎ目）", replies_ok)
+	c.check("2日目 c：時刻は HH:MM（23:59 まで）", day2.all(func(x): return Sns.minutes(str(x["time"])) >= 0 and str(x["time"]).length() == 5))
+	var pairs := {}
+	for x in day2:
+		pairs["%s %s" % [x["time"], x["account"]]] = true
+	c.check("2日目 d：同じ時刻・同じアカウントの投稿は重ならない", pairs.size() == day2.size())
+	var count_in := func(lo: int, hi: int) -> int: return day2.filter(func(x): return Sns.day_minutes(str(x["time"])) >= lo and Sns.day_minutes(str(x["time"])) <= hi).size()
+	c.check("2日目 e：件数 朝4／市場・準備11／宵の口5／夜半6／明け方0／合計26",
+		count_in.call(0, Sns.LIMIT_MORNING) == 4 and count_in.call(Sns.LIMIT_MORNING + 1, Sns.LIMIT_MARKET) == 11
+			and count_in.call(Sns.LIMIT_MARKET + 1, Sns.LIMIT_EVENING) == 5 and count_in.call(Sns.LIMIT_EVENING + 1, Sns.LIMIT_MIDNIGHT) == 6
+			and count_in.call(Sns.LIMIT_MIDNIGHT + 1, Sns.LIMIT_DAY_END) == 0 and day2.size() == 26)
+	var lin2 := day2.filter(func(x): return str(x["account"]) == "lin_alt")
+	c.check("2日目：リンの裏アカ「・」は3件（14:10・23:10・23:40）。暗号文はそのまま・truth に原文と意味・報告か記録か",
+		lin2.map(func(x): return str(x["time"])) == ["14:10", "23:10", "23:40"]
+			and str(lin2[0]["text"]) == "ORFDO VRXUFH: WKUHH PDUNHW HQWUDQFHV. RQOB RQH PDUNHG. UHDU URXWH YHULILHG."
+			and str(lin2[0]["truth"]).contains("LOCAL SOURCE: THREE MARKET ENTRANCES.") and str(lin2[0]["truth"]).contains("誰かへの報告")
+			and str(lin2[1]["truth"]).contains("CONTACT MADE WITH NIGHT STALL OWNER.") and str(lin2[1]["truth"]).contains("誰かへの報告")
+			and str(lin2[2]["truth"]).contains("FIRST DAY. LOST ONCE. FOUND SOUP.") and str(lin2[2]["truth"]).contains("自分用の記録"))
+	c.check("2日目：リンの 14:10 は、昼の市場で新人警官の会話が済むまで見えない（市場・準備のあいだ。済んだら・開店のあと・次の日は見える）",
+		not Sns.is_visible(lin2[0], 2, Sns.LIMIT_MARKET) and Sns.is_visible(lin2[0], 2, Sns.LIMIT_MARKET, ["officer"])
+			and not Sns.is_visible(lin2[0], 2, Sns.LIMIT_MARKET, ["thug"])
+			and Sns.is_visible(lin2[0], 2, Sns.LIMIT_EVENING) and Sns.is_visible(lin2[0], 3, Sns.LIMIT_MORNING))
+	c.check("2日目：リンの 23:10・23:40 は宵の口（リンの接客の時間帯）には見えず、夜半から見える（時刻の決まりだけ）",
+		lin2.slice(1).all(func(x): return not Sns.is_visible(x, 2, Sns.LIMIT_EVENING) and Sns.is_visible(x, 2, Sns.LIMIT_MIDNIGHT) and not x.has("requires")))
 	GameState.reset_for_new_game()
 	c.check("本番：見える時刻で数える件数：朝（〜09:59）5件・準備まで（〜17:59）16件・宵の口まで20件・夜半まで23件・閉店のあと23件",
 		Sns.visible_ids(1, Sns.LIMIT_MORNING).size() == 5 and Sns.visible_ids(1, Sns.LIMIT_MARKET).size() == 16
@@ -73,7 +111,13 @@ func run(t: SceneTree) -> int:
 			and Sns.visible_ids(1, Sns.LIMIT_DAY_END).size() == 23,
 		"%d / %d / %d / %d" % [Sns.visible_ids(1, Sns.LIMIT_MORNING).size(), Sns.visible_ids(1, Sns.LIMIT_MARKET).size(),
 			Sns.visible_ids(1, Sns.LIMIT_EVENING).size(), Sns.visible_ids(1, Sns.LIMIT_MIDNIGHT).size()])
-	c.check("本番：Day2 の朝に全23件が見える", Sns.visible_ids(2, Sns.LIMIT_MORNING).size() == 23, str(Sns.visible_ids(2, Sns.LIMIT_MORNING).size()))
+	c.check("本番：Day2 の朝に Day1 の全23件＋Day2 の朝の4件が見える", Sns.visible_ids(2, Sns.LIMIT_MORNING).size() == 27, str(Sns.visible_ids(2, Sns.LIMIT_MORNING).size()))
+	c.check("本番：Day2 の市場・準備（会話の前）37件・会話のあと38件・宵の口43件・夜半49件・Day3 の朝に全49件（累計）",
+		Sns.visible_ids(2, Sns.LIMIT_MARKET).size() == 37 and Sns.visible_ids(2, Sns.LIMIT_MARKET, {}, ["officer"]).size() == 38
+			and Sns.visible_ids(2, Sns.LIMIT_EVENING).size() == 43 and Sns.visible_ids(2, Sns.LIMIT_MIDNIGHT).size() == 49
+			and Sns.visible_ids(3, Sns.LIMIT_MORNING).size() == 49,
+		"%d / %d / %d / %d" % [Sns.visible_ids(2, Sns.LIMIT_MARKET).size(), Sns.visible_ids(2, Sns.LIMIT_MARKET, {}, ["officer"]).size(),
+			Sns.visible_ids(2, Sns.LIMIT_EVENING).size(), Sns.visible_ids(2, Sns.LIMIT_MIDNIGHT).size()])
 
 	# ここから下は、仕組みの検査に前の試しのデータ（fixture）を使う
 	var data_dir_saved := Sns.data_dir
@@ -175,7 +219,7 @@ func run(t: SceneTree) -> int:
 	# --- 4. DM：相手ごとの一覧・やりとり・戻る・相手ごとの未読・連絡先のカード ---
 	var threads := s.dm_threads()
 	var keys: Array = threads.map(func(th): return str(th["key"]))
-	c.check("DMは相手ごと（阿強＝名前あり客／市場の顔なじみ＝客でない差出人）", keys.has("customer:delivery_man") and keys.has("npc:市場の顔なじみ"), str(keys))
+	c.check("DMは相手ごと（阿強＝名前あり客／張姐＝客でない差出人。中身X）", keys.has("customer:delivery_man") and keys.has("npc:張姐"), str(keys))
 	var orders: Array = threads.map(func(th): return int(th["last"]["day"]) * 10000 + Sns.minutes(str(th["last"]["time"])))
 	var sorted_orders := orders.duplicate()
 	sorted_orders.sort()
@@ -187,7 +231,7 @@ func run(t: SceneTree) -> int:
 		and content.has_node("DmRow_customer_delivery_man/UnreadMark") and (content.get_node("SnsSwitch/DmUnread") as Label).text == "●%d" % dm_total, str(_names(content, "DmRow_")))
 	c.check("一覧を見ただけでは読んだ扱いにならない", s.dm_unread_count() == dm_total)
 	var dm_thread: Dictionary = threads.filter(func(th): return str(th["key"]) == "customer:delivery_man")[0]
-	var npc_unread := int(threads.filter(func(th): return str(th["key"]) == "npc:市場の顔なじみ")[0]["unread"])
+	var npc_unread := int(threads.filter(func(th): return str(th["key"]) == "npc:張姐")[0]["unread"])
 	_press(content.get_node("DmRow_customer_delivery_man"))
 	var thread_texts := _texts(content)
 	c.check("相手を押すとやりとり（吹き出し・日時の区切り）。その相手の未読だけ消える", phone.dm_open == "customer:delivery_man" and content.has_node("DmBack")
@@ -199,8 +243,8 @@ func run(t: SceneTree) -> int:
 		and card_texts.has("スタミナ") and card_texts.has("来た日　Day1") and (card_texts.has("好物　" + Ingredients.name_for("tofu")) == GameState.knows_favorite("delivery_man")), str(card_texts))
 	_press(content.get_node("DmBack"))
 	c.check("「戻る」で相手の一覧・配達員の●は消えている", phone.dm_open == "" and content.has_node("DmRow_customer_delivery_man") and not content.has_node("DmRow_customer_delivery_man/UnreadMark"))
-	_press(content.get_node("DmRow_npc_市場の顔なじみ"))
-	c.check("客でない相手のカードは名前だけ", _texts(content.get_node("ContactCard")) == ["市場の顔なじみ"], str(_texts(content.get_node("ContactCard"))))
+	_press(content.get_node("DmRow_npc_張姐"))
+	c.check("客でない相手のカードは名前だけ", _texts(content.get_node("ContactCard")) == ["張姐"], str(_texts(content.get_node("ContactCard"))))
 	_press(content.get_node("SnsSwitch/SwitchTimeline"))
 	c.check("上の切り替えでタイムラインにも戻れる", phone.sns_mode == "timeline" and content.has_node("Post_d1_yoru_strike"))
 	root.close_overlay()

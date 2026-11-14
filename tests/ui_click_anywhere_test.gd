@@ -176,7 +176,7 @@ func run(t: SceneTree) -> int:
 	s = root.session
 	pane = root.pane_kaiten
 	var guard := 0
-	while not s.is_choosing_ingredients() and guard < 20:
+	while not s.is_choosing_ingredients() and guard < 80:   # 中身X：2日目の新人警官の注文までの会話は24行
 		guard += 1
 		_click(root, Vector2(828, 300))
 	c.check("隙間のクリックだけで、椀を作るところ（ADJUST）まで進められる", s.is_choosing_ingredients() and pane.topping.visible, _where(root))

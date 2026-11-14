@@ -190,9 +190,12 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	var events := []
 	# 中身U2：市場の場面のある日（1日目）は、張姐の会話の続き（選んだあと）を先に出す。「%sにした。」は出さない。
 	# 列の先頭は張姐の会話の行（効果の無い TEXT）。鍋の素の受け取り（ADD_ITEM）は文を出さない。
-	var scene_arrive := has_market_scene() and not scraps_base
+	# 中身X：選んだあとの行が無い場面（2日目。張姐の会話は仕込む量の問いで終わる）は、今までどおり「%sにした。」から
+	# （列の先頭を効果の無い TEXT にするため。ADD_ITEM を先頭にすると乗った瞬間に適用されない）。
+	var scene_after: Array = market_scene_events("arrive_after", tier) if has_market_scene() and not scraps_base else []
+	var scene_arrive := not scene_after.is_empty()
 	if scene_arrive:
-		events.append_array(market_scene_events("arrive_after", tier))
+		events.append_array(scene_after)
 	elif not scraps_base:
 		events.append({ "type": "TEXT", "text": "%sにした。" % str(tier.get("label", "")) })
 	events.append({ "type": "ADD_ITEM", "item": "soup_base", "amount": 1,
@@ -206,10 +209,11 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	# 場所代・水道代の再編＋日々の運営費：市場を出た瞬間の物語上のけじめ（表示専用の
 	# TEXT。効果は持たない）。日々の運営費（水と炭）は、このTEXTに乗る前の「市場を出る」操作
 	# （PlaySession.exit_market）で引く（UI準備D・D-4。朝は確保だけ）。
-	# 中身U2：市場の場面のある日（1日目）は、「市場を出る」のあとに店主の一言→炭屋→水場の会話を出し、それぞれの会話の
+	# 中身U2：市場を出たあとの場面のある日（1日目）は、「市場を出る」のあとに店主の一言→炭屋→水場の会話を出し、それぞれの会話の
 	# あとで炭代・水代・水道代を払う（PlaySession.exit_market はその日の運営費・水道代を払わない）。ほかの日は今までどおり
-	# 市場を出るときにまとめて払い、表示だけ炭代と水代に分ける。
-	if has_market_scene():
+	# 市場を出るときにまとめて払い、表示だけ炭代と水代に分ける。中身X：2日目の市場の場面は着いたときの会話だけ（when:"exit" が無い）
+	# なので、払い方は今までどおり（has_market_exit_scene が false）。
+	if has_market_exit_scene():
 		events.append_array(market_scene_events("exit"))
 	else:
 		events.append({ "type": "TEXT", "text": "水を汲み、炭を買った（%s）。" % Rules.operating_cost_parts_text("−") })
@@ -753,13 +757,31 @@ static func market_talk_events() -> Array:
 	return events
 
 
-## 市場の場面（中身U2。day_overrides.<日>.market_scene が data/talks/<id>.json を指す日だけ。1日目）。
+## 今日の昼の市場の会話（market_talk）を持つ場面の客 id（枠の順。重複なし）。タイムラインの requires.market_talk が使う（中身X）。
+static func market_talk_customers() -> Array:
+	var out := []
+	for scene in _todays_scenes():
+		if not out.has(scene["customer"]) and not ScheduleData.episode_market_talk(str(scene["customer"]), str(scene["episode_id"])).is_empty():
+			out.append(scene["customer"])
+	return out
+
+
+## 市場の場面（中身U2。day_overrides.<日>.market_scene が data/talks/<id>.json を指す日だけ。1日目・2日目〔中身X〕）。
 static func market_scene_id() -> String:
 	return str(Rules.day_overrides(GameState.day_count).get("market_scene", ""))
 
 
 static func has_market_scene() -> bool:
 	return not ScheduleData.talk_data(market_scene_id()).is_empty()
+
+
+## 市場を出たあとの場面（when:"exit" の部分）がある日か（1日目。炭屋・水場の会話のあとで払う）。中身X：2日目の市場の場面は
+## 着いたときの会話（張姐）だけなので false＝払い方は今までどおり（「市場を出る」でまとめて払う）。
+static func has_market_exit_scene() -> bool:
+	for part in ScheduleData.talk_data(market_scene_id()).get("parts", []):
+		if part is Dictionary and str(part.get("when", "")) == "exit":
+			return true
+	return false
 
 
 ## 市場の場面の行を Event にする。section：
@@ -1093,7 +1115,7 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 			return _unknown_customer_flavor()
 		var count := int(inst.get("count", 0))
 		var greet := []
-		for line in ScheduleData.spoken_lines(mob.get("greet", [])):
+		for line in ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(mob.get("greet", []), count)):
 			greet.append(_format_mob_greet(str(line), count))
 		return { "greet": greet, "reactions": mob.get("reactions", {}),
 			"servings": count, "is_mob": true,
@@ -1160,7 +1182,10 @@ static func _unknown_customer_flavor() -> Dictionary:
 static func _customer_extra_events(customer_id: String) -> Array:
 	# 新人警官：評価の結果に関係なく、REACT の後に同じ共通会話と会計・退店を出す（PAYは無い＝
 	# 会計は台詞だけ。売上は REACT の sale で反映済み）。
+	# 中身X：食後の本文（body）を持つ場面（officer_01）は、その本文が会計・退店まで持つので、仮の行は出さない。
 	if customer_id == "officer":
+		if not ScheduleData.episode_body(customer_id, episode_id_of(customer_id)).is_empty():
+			return []
 		return _talk("officer", _OFFICER_AFTER + _OFFICER_PAYMENT)
 	# 今日この客が取り立てる請求（bills[]のsceneがこの客のid・daysに今日を含む）。客idの直書きや
 	# is_collection_day() は使わない。kind は請求のid（"rent"＝場所代の印）、金額は請求のamount。

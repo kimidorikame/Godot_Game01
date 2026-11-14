@@ -35,7 +35,11 @@ func run(t: SceneTree) -> int:
 	c.check("仮の文の種類：hint:few が最低1通", all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	c.check("全部に provisional が付いている（本文はチャット側で差し替える）", all_items.all(func(x): return bool(x.get("provisional", false))))
+	c.check("2日目のDMは本番の文（provisional なし。中身X）、3日目以降は仮の文（provisional）",
+		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 3)))
+	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
+		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
+			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))
 	c.check("DMに必須情報（must_info）を置かない（10.5.5）", all_items.all(func(x): return not x.has("must_info")))
 	# 壊れたデータは落ちる
 	var broken: Dictionary = (Dm.data() as Dictionary).duplicate(true)
@@ -196,6 +200,7 @@ func run(t: SceneTree) -> int:
 		int(seer.previous_day_record()["planned_cups"]) == 11 and str(talk[1]["text"]).contains("11杯"))
 	seer.free()
 	# 組み立て：クズ野菜ベースの日は会話を入れない。通常の日は PREP_TIER の直前
+	_state(3, 30)   # 中身X：2日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは3日目で確かめる
 	var normal := Day1Events.prep_events({}, false)
 	c.check("通常の日：食肉売場のあと PREP_TIER の直前に会話が並ぶ",
 		str(normal[normal.size() - 1]["type"]) == "PREP_TIER" and str(normal[normal.size() - 2]["part"]) == "prep_talk")

@@ -94,15 +94,15 @@ func run(t: SceneTree) -> int:
 	c.check("タイムラインを表示したので、その分は既読（SNSタブの数は消え、DMの未読は「DM」の切り替えに出る）", phone.get_node("%SnsBadge").text == ""
 		and s.timeline_unread_count() == 0 and (sns_content.get_node("SnsSwitch/DmUnread") as Label).text == "●%d" % s.dm_unread_count())
 	AutoplayPress.press(sns_content.get_node("SnsSwitch/SwitchDm"))
-	var dm_row: Node = sns_content.get_node("DmRow_npc_市場の顔なじみ")
+	var dm_row: Node = sns_content.get_node("DmRow_npc_張姐")   # 中身X：2日目の市場のDMは張姐から
 	var dm_texts: Array = []
 	for node in dm_row.get_children():
 		if node is Label:
 			dm_texts.append(node.text)
 	c.check("DMの相手の行：名前・最後のメッセージの1行目・日付と時刻・未読の●（常連の印は付けない）",
-		dm_texts.has("今日は入荷が遅れてる。早めに来な") and dm_texts.has("市場の顔なじみ") and dm_texts.has("Day2 06:40") and dm_row.has_node("UnreadMark")
+		dm_texts.has("豚骨、今日は着くのが遅れる。検問だってさ。来る時間は変えなくていいよ") and dm_texts.has("張姐") and dm_texts.has("Day2 06:40") and dm_row.has_node("UnreadMark")
 			and not dm_texts.has("常連"), str(dm_texts))
-	var market_unread := int(s.dm_threads().filter(func(th): return str(th["key"]) == "npc:市場の顔なじみ")[0]["unread"])
+	var market_unread := int(s.dm_threads().filter(func(th): return str(th["key"]) == "npc:張姐")[0]["unread"])
 	var dm_before := s.dm_unread_count()
 	AutoplayPress.press(dm_row)
 	var dm_after := s.dm_unread_count()

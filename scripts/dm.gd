@@ -26,6 +26,8 @@ class_name Dm
 ## 選び方（乱数なし。日付で回す）：モブの種類を先に最大 mob_max 件→名前あり客で上限（max_per_morning）まで。モブが mob_max に満たない日は、空いた分を名前あり客で埋める。
 ##   ・モブ：その夜の計画の並び（重複なし）から (日番号＋件目) % 候補数。
 ##   ・名前あり客：今日より前に来たことがある客（好みが分かっている客）を先に、同じ条件の中では日付で回す。
+##     まだ来たことがない客は、pools.<客>.before_first_visit が true の客（店主が前から知っている客。セティヤ）だけ（中身X：
+##     店主がまだ会っていない客〔新人警官・配信者〕から予告は来ない）。
 ##   ・同じ朝に届く既存DMの差出人（requires の客・モブ、同じ from）は候補から外す。
 ## 過去の日は、日次ログ（day_records）の planned_regulars・planned_mob_types から再現する（計画は翌朝に作り直されて残らないため）。
 ## 日次ログに無い日（旧セーブ）は、名前あり客は日程データから、モブは出さない。
@@ -266,7 +268,7 @@ static func preview_items(day: int, existing: Array, source: Dictionary = {}) ->
 			continue
 		if regular_known_before(str(id), day):
 			known.append(str(id))
-		else:
+		elif bool(pool.get("before_first_visit", false)):
 			unknown.append(str(id))
 	var picked_regulars := _rotated(known, day) + _rotated(unknown, day)
 	var regular_count := mini(max_total - mob_count, picked_regulars.size())
@@ -393,6 +395,8 @@ static func preview_problems(d: Dictionary) -> Array:
 				found.append("%s に %s が無い" % [where, key])
 		if str(pool.get("from_kind", "")) != expected[str(id)]:
 			found.append(where + "：from_kind が " + expected[str(id)] + " でない")
+		if pool.has("before_first_visit") and (not (pool["before_first_visit"] is bool) or expected[str(id)] != "customer"):
+			found.append(where + "：before_first_visit は名前あり客だけの true／false")
 		var hint := str(pool.get("tag_hint", ""))
 		if expected[str(id)] == "customer" and hint != "":
 			found.append(where + "：名前あり客に tag_hint がある（好みは初来店の挨拶で知る仕様）")

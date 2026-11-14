@@ -16,9 +16,14 @@ func _norm(value) -> Variant:
 
 ## 記録に、中身U2の意図した差を当てる：市場を出たあとの語り「水を汲み、炭を買った（−¥75）。」は炭代と水代に分けた文に
 ## （1日目は市場を出たあとの炭屋・水場の会話になるので無い）。1日目の通常の日は「中仕込みにした。」を出さず、鍋の素の受け取りの文を出さない。
+## 中身X：新人警官の市場の会話は、仮の1行（OFFICER_LINE）から、元の文の会話（officer_01 の market_talk）に替えた。
 func _expected(recorded_events: Array, day: int, scraps: bool) -> Array:
 	var out := []
 	for ev in _norm(recorded_events):
+		if str(ev.get("type", "")) == "GREET" and str(ev.get("text", "")) == OFFICER_LINE:
+			for line in ScheduleData.episode_market_talk("officer", "officer_01"):
+				out.append(_norm({ "type": "GREET", "customer": "officer", "text": line }))
+			continue
 		if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).begins_with("水を汲み、炭を買った"):
 			if day == 1:
 				continue
@@ -74,7 +79,9 @@ func run(t: SceneTree) -> int:
 		GameState.day_count = d
 		var talks := _market_talks(Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[1], false))
 		if d == 2:
-			c.check("Day2：市場の前に新人警官の1行だけが出る", talks == [["officer", OFFICER_LINE]], str(talks))
+			var want := ScheduleData.episode_market_talk("officer", "officer_01").map(func(x): return ["officer", x])
+			c.check("Day2：市場の前に新人警官の会話（officer_01 の market_talk。元の文の %d 行）だけが出る" % want.size(),
+				talks == want and want.size() == 27 and str(want[0][1]) == "警官「すみません。この市場の方ですか」", str(talks))
 		else:
 			c.check("Day%d：市場の会話は出ない" % d, talks.is_empty(), str(talks))
 

@@ -292,9 +292,9 @@ func visit_water_stall() -> bool:
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。水道代が払えずゲームオーバーに
 ## なったら先へ進まず false（進んだら true）。
 func exit_market() -> bool:
-	# 中身U2：市場の場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う（ここでは払わない）。
-	# 払う行が無いデータでも、運営費は開店に入るとき（pay_operating_cost）に引かれる。
-	if Day1Events.has_market_scene():
+	# 中身U2：市場を出たあとの場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う（ここでは払わない）。
+	# 払う行が無いデータでも、運営費は開店に入るとき（pay_operating_cost）に引かれる。中身X：2日目の市場の場面（着いたときだけ）は今までどおり。
+	if Day1Events.has_market_exit_scene():
 		complete_input_and_advance()
 		return true
 	if not market_visited_water:
@@ -3029,9 +3029,22 @@ func timeline_limit() -> int:
 	return Sns.LIMIT_DAY_END
 
 
+## 今日の昼の市場の会話（場面の market_talk）が済んだ客の id（タイムラインの requires.market_talk。中身X）。市場・準備（PREP）の
+## あいだは、今の Event 列で市場（MARKET）に着いていれば済んでいる（市場の会話は市場の直前に出る）。それ以外の場面は空
+## （開店のあとは Sns 側が時刻で済んだ扱いにする）。状態を読むだけ。
+func market_talks_done() -> Array:
+	if GameState.phase != GameState.Phase.PREP or flow.runner == null:
+		return []
+	var events: Array = flow.runner.events
+	for i in range(mini(flow.runner.index, events.size() - 1) + 1):
+		if events[i] is Dictionary and str(events[i].get("type", "")) == "MARKET":
+			return Day1Events.market_talk_customers()
+	return []
+
+
 ## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
 func sns_timeline() -> Array:
-	var sections := Sns.timeline(GameState.day_count, timeline_limit())
+	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done())
 	for section in sections:
 		for item in section["posts"]:
 			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
@@ -3043,7 +3056,7 @@ func sns_timeline() -> Array:
 ## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
 func timeline_unread_count() -> int:
 	var n := 0
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done()):
 		if not ReadState.is_read(_post_read_key(str(id))):
 			n += 1
 	return n
@@ -3051,7 +3064,7 @@ func timeline_unread_count() -> int:
 
 ## タイムラインを表示した：見えている投稿を読んだ扱いにする。
 func mark_timeline_read() -> void:
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done()):
 		ReadState.mark(_post_read_key(str(id)))
 
 

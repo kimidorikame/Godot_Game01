@@ -160,7 +160,8 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	GameState.day_count = 4
 	GameState.day_records = [{ "day": 1, "mob_types_served": ["dock_workers"] }, { "day": 2, "mob_types_served": ["dock_workers"] }, { "day": 3, "mob_types_served": [] }]
-	GameState.today_plan = { "day": 4, "slots": [{ "name": "宵の口", "customers": ["streamer", "mob#0"], "regular_id": "streamer", "episode_id": "", "today_request": {} }],
+	# 中身X：まだ会っていない客（配信者）の予告は出なくなったので、初来店の前でも予告を出すセティヤ（before_first_visit）で確かめる
+	GameState.today_plan = { "day": 4, "slots": [{ "name": "宵の口", "customers": ["hooker", "mob#0"], "regular_id": "hooker", "episode_id": "", "today_request": {} }],
 		"mob_instances": { "mob#0": { "type": "inn_clerk", "count": 2 } }, "demand_center": 9 }
 	phone.tab = "sns"
 	phone.show_dm_list()   # UI準備R：SNSタブの DM は相手ごとの一覧
@@ -172,7 +173,7 @@ func run(t: SceneTree) -> int:
 		var kind := ""
 		if row_texts.has("港湾労働者の組") or row_texts.has("安宿の夜勤受付"):
 			kind = "mob"
-		elif row_texts.has(ScheduleData.customer_display_name("streamer")):
+		elif row_texts.has(ScheduleData.customer_display_name("hooker")):
 			kind = "customer"
 		elif row_texts.has("市場の顔なじみ"):
 			kind = "npc"

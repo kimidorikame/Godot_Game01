@@ -282,7 +282,13 @@ func run(t: SceneTree) -> int:
 	p9.session.select_ingredient("coconut_milk")
 	p9.session.select_ingredient("tofu")
 	p9.session.complete_input()
-	p9.session.next_event()   # REACT（thug_02 の最後のイベント）
+	p9.session.next_event()   # REACT
+	c.check("提供直後（REACT）から保存できる", p9._can_save_recipe_now())
+	# 中身X：thug_02 は食後の本文（会計・退店まで）を持つようになったので、その客の最後の行まで読み進める
+	var guard9 := 0
+	while p9.session.flow.runner.index < p9.session.flow.runner.events.size() - 1 and guard9 < 200:
+		guard9 += 1
+		p9.session.next_event()
 	var last_event: bool = p9.session.flow.runner.index == p9.session.flow.runner.events.size() - 1
 	c.check("提供後（その客の最後の行でも）保存できる", p9._can_save_recipe_now() and last_event)
 	p9._refresh()

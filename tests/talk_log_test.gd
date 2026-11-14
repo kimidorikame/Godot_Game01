@@ -73,7 +73,8 @@ func run(t: SceneTree) -> int:
 	panel.free()
 
 	# --- 3. 客の接客：同じ客を何度組み直しても二重にならず、台詞の順に記録される ---
-	var p3 = _setup(t, 2)
+	# 中身X：2日目のレックス（thug_02）は本番の文（最初の行は店主の台詞）になったので、仮の文のままの6日目（thug_03）で確かめる
+	var p3 = _setup(t, 6)
 	TalkLog.clear()
 	p3.session.logged_positions = {}
 	_start_open(p3)

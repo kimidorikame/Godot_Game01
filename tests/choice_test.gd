@@ -25,9 +25,9 @@ func _scene(extra: Dictionary) -> Dictionary:
 	return ep
 
 
-func _setup(t: SceneTree):
+func _setup(t: SceneTree, day: int = 2):
 	GameState.reset_for_new_game()
-	GameState.day_count = 2
+	GameState.day_count = day
 	GameState.reputation = 65
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
@@ -208,9 +208,9 @@ func run(t: SceneTree) -> int:
 	c.check("CHOICEは options を持つので EventRunner が入力待ちにする（条件分岐はRunnerに無い）",
 		EventRunner.new([first[1]]).status == EventRunner.Status.WAITING_INPUT)
 
-	# --- 7. 現行の21場面（選択なし）は何も出ない ---
+	# --- 7. 選択の無い実データの場面は何も出ない（中身X：2日目の thug_02 は本文を持つようになったので、仮の文のままの6日目 thug_03 で） ---
 	ScheduleData.clear_cache()
-	var pr = _setup(t)
+	var pr = _setup(t, 6)
 	var count_before: int = pr.session.flow.runner.events.size()
 	_serve(pr, GOOD_PICKS)
 	c.check("実データ：CHOICEは出ず、イベント列も変わらない",

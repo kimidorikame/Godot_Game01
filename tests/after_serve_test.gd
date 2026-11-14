@@ -25,9 +25,9 @@ func _scene(extra: Dictionary) -> Dictionary:
 
 
 ## Day2のWAKEを通し、客（チンピラ→老婆）の接客のADJUST待ちまで進める。
-func _setup(t: SceneTree):
+func _setup(t: SceneTree, day: int = 2):
 	GameState.reset_for_new_game()
-	GameState.day_count = 2
+	GameState.day_count = day
 	GameState.reputation = 65
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
@@ -100,9 +100,10 @@ func run(t: SceneTree) -> int:
 			str(next_event["type"]) == "GREET" and str(next_event["customer"]) == "thug")
 		panel.free()
 
-	# --- 2. 場面データにキーが無い（現行の21場面）なら、従来と同一（何も差さない） ---
+	# --- 2. 場面データにキーが無い（仮の文の場面）なら、従来と同一（何も差さない）。中身X：2日目の thug_02 は本番の文（body あり）に
+	#        なったので、仮の文のままの6日目（thug_03）で確かめる ---
 	ScheduleData.clear_cache()
-	var plain = _setup(t)
+	var plain = _setup(t, 6)
 	var plain_before: int = plain.session.flow.runner.events.size()
 	_serve(plain, GRADE_PICKS["GOOD"])
 	c.check("実データ：REACTの前後でイベント数が変わらない（何も差さない）",

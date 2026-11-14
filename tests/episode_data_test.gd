@@ -36,8 +36,10 @@ const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "ch
 # 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・元の文の場所（source）を持つ（中身U2で場所代のあとの会話 after_bill は body にまとめた）。
 # 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
 # ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
-const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"] }
-const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny"]
+# 中身X：2日目の本番の文（officer_01・thug_02・hooker_01）も同じ形（食後の本文 body を持つ。文だけ替えた）。
+const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"],
+	"officer_01": ["body"], "thug_02": ["body"], "hooker_01": ["body"] }
+const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
@@ -50,7 +52,8 @@ const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "stre
 # 日程に無く、旧データでは当日のキーもDay1のキーも無く会話データを持たなかった組（日:客）。
 # 日番号で引くのをやめたため、日程に無い客はその客の最後の場面（通常の1杯）を返す＝
 # 要求タグ・会話・杯数が入る。ゲーム内では呼ばれない組み合わせ（意図した差）。
-const KNOWN_DIFFS := ["1:officer", "1:hooker", "2:hooker", "1:streamer", "2:streamer", "3:streamer"]
+# 中身X：2日目のセティヤ（中身Wで日程に入った）は本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
+const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer", "3:streamer"]
 
 
 ## JSONを通した形（整数が小数になる差を避けて比べるため）にそろえる。
@@ -86,7 +89,7 @@ func run(_t: SceneTree) -> int:
 				required_keys == (CUPS_EPISODE_KEYS if is_cups else EPISODE_KEYS), str(ep.keys()))
 			for k in AFTER_SERVE_KEYS:
 				if (DAY1_SCRIPT_EPISODES.get(eid, []) as Array).has(k):
-					c.check("%s：1日目の本番の文の %s を持つ（中身U1）" % [label, k], ep.has(k))
+					c.check("%s：本番の文の %s を持つ（1日目＝中身U1・2日目＝中身X）" % [label, k], ep.has(k))
 					continue
 				c.check("%s：新しいキー %s は持たない（現行データは動作が変わらない）" % [label, k], not ep.has(k))
 			c.check("%s：場面データの形に問題が無い（scene_problems）" % label,
@@ -157,7 +160,7 @@ func run(_t: SceneTree) -> int:
 						and (now as Array)[0].get("type", "") == "GREET")
 			elif DAY1_SCRIPT_DIFFS.has("%d:%s" % [d, cid]):
 				# 中身U1：文（GREET）は本番の文に替わった。判定・売上・支払いに効く Event は記録と同じ
-				c.check("Day%d %s：文以外の Event（ADJUST・SERVE・REACT・PAY の並びと、札・好物・杯数・売上・支払い）が4-3の記録と一致（中身U1で文だけ替えた）" % [d, cid],
+				c.check("Day%d %s：文以外の Event（ADJUST・SERVE・REACT・PAY の並びと、札・好物・杯数・売上・支払い）が4-3の記録と一致（中身U1・中身Xで文だけ替えた）" % [d, cid],
 					_value_events(now) == _expected_value_events(d, cid, recorded),
 					"%s / vs / %s" % [str(_value_events(now)), str(_expected_value_events(d, cid, recorded))])
 				var greets := (now as Array).filter(func(e): return str(e.get("type", "")) == "GREET")
@@ -173,6 +176,10 @@ func run(_t: SceneTree) -> int:
 
 ## 記録の側の値（中身U1：Day1の阿強の3杯目〔持ち帰り〕の札は まろやか＋やさしい → うましお＋やさしい に変えた＝意図した差）。
 func _expected_value_events(d: int, cid: String, recorded) -> Array:
+	# 2日目のセティヤは4-3の日程に無かった（記録に会話データが無い）。中身Wで日程に入った場面なので、同じ客の仮の文の場面
+	# （最後の場面）と、文以外の Event が同じことを確かめる。
+	if d == 2 and cid == "hooker":
+		return _value_events(_events_at(cid, _scheduled_day(cid)))
 	var values := _value_events(recorded)
 	if d == 1 and cid == "delivery_man":
 		values.filter(func(v): return v["type"] == "REACT")[2]["wanted_tags"] = ["SAVORY", "GENTLE"]
