@@ -123,9 +123,20 @@ func run(_t: SceneTree) -> int:
 		ScheduleData.mob_rule_for(1, "夜半") == { "pool": ["dock_workers", "inn_clerk", "market_porter"] })
 	c.check("Day1明け方はモブなし", ScheduleData.mob_rule_for(1, "明け方") == false)
 	c.check("Day7明け方はモブなし", ScheduleData.mob_rule_for(7, "明け方") == false)
-	c.check("Day2〜6は3枠とも既定の7種プール",
-		[2, 3, 4, 5, 6].all(func(d): return SLOTS.all(
-			func(n): return ScheduleData.mob_rule_for(d, n) == { "pool": MOB_POOL })))
+	# 中身W：2〜7日目は日ごと・時間帯ごとに職種を1つに決める（改訂版の職種表。7日目の明け方は今のまま無し）
+	var mob_table := {
+		2: ["market_porter", "laundry_night", "long_haul_driver"], 3: ["inn_clerk", "general_store_clerk", "street_cleaners"],
+		4: ["long_haul_driver", "general_store_clerk", "laundry_night"], 5: ["market_porter", "security_guard", "dock_workers"],
+		6: ["long_haul_driver", "security_guard", "street_cleaners"], 7: ["inn_clerk", "market_porter", ""] }
+	var table_ok := true
+	for d in mob_table:
+		for i in range(3):
+			var want = { "pool": [mob_table[d][i]] } if mob_table[d][i] != "" else false
+			table_ok = table_ok and ScheduleData.mob_rule_for(d, SLOTS[i]) == want
+	c.check("Day2〜7は職種表どおり（時間帯ごとに職種1つ）", table_ok)
+	c.check("新しいモブ「共同洗濯場の夜番」（laundry_night）：好み 酸っぱい・やさしい（仮）",
+		str(ScheduleData.mob_data("laundry_night").get("name", "")) == "共同洗濯場の夜番"
+			and ScheduleData.mob_data("laundry_night")["wanted_tags"] == ["SOUR", "GENTLE"])
 	c.check("定義の無い日（Day8）は常連の枠が空（Day1へのフォールバックはしない）",
 		ScheduleData.regular_slots(8).is_empty())
 

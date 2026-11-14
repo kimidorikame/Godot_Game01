@@ -1,0 +1,22 @@
+{
+	"is_mob": true,
+	"name": "共同洗濯場の夜番",
+	"greet": [
+		"共同洗濯場の夜番 %d人（酸っぱい・やさしい）"
+	],
+	"reactions": {
+		"GOOD": [
+			"GOOD"
+		],
+		"OK": [
+			"OK"
+		],
+		"BAD": [
+			"BAD"
+		]
+	},
+	"wanted_tags": [
+		"SOUR",
+		"GENTLE"
+	]
+}

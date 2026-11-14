@@ -1,38 +1,134 @@
 {
+  "_note": "中身W：2〜7日目は日ごと・時間帯ごとに職種を1つに決める（改訂版の職種表）。組は今までどおり1組目→夜半、2組目→宵の口、3組目→明け方、4組目→宵の口の順に入り、その時間帯の職種で来る（明け方が無い晩は夜半へ）。1日目は day_overrides の固定編成。default は日の定義が無いときだけ使う。",
   "default": {
-    "pool": [
-      "dock_workers",
-      "security_guard",
-      "inn_clerk",
-      "street_cleaners",
-      "general_store_clerk",
-      "market_porter",
-      "long_haul_driver"
-    ],
-    "slots": {
-      "宵の口": true,
-      "夜半": true,
-      "明け方": true
-    }
+	"pool": [
+	  "dock_workers",
+	  "security_guard",
+	  "inn_clerk",
+	  "street_cleaners",
+	  "general_store_clerk",
+	  "market_porter",
+	  "long_haul_driver"
+	],
+	"slots": {
+	  "宵の口": true,
+	  "夜半": true,
+	  "明け方": true
+	}
   },
   "days": {
-    "1": {
-      "宵の口": {
-        "pool": [
-          "dock_workers"
-        ]
-      },
-      "夜半": {
-        "pool": [
-          "dock_workers",
-          "inn_clerk",
-          "market_porter"
-        ]
-      },
-      "明け方": false
-    },
-    "7": {
-      "明け方": false
-    }
+	"1": {
+	  "宵の口": {
+		"pool": [
+		  "dock_workers"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "dock_workers",
+		  "inn_clerk",
+		  "market_porter"
+		]
+	  },
+	  "明け方": false
+	},
+	"7": {
+	  "宵の口": {
+		"pool": [
+		  "inn_clerk"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "market_porter"
+		]
+	  },
+	  "明け方": false
+	},
+	"2": {
+	  "宵の口": {
+		"pool": [
+		  "market_porter"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "laundry_night"
+		]
+	  },
+	  "明け方": {
+		"pool": [
+		  "long_haul_driver"
+		]
+	  }
+	},
+	"3": {
+	  "宵の口": {
+		"pool": [
+		  "inn_clerk"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "general_store_clerk"
+		]
+	  },
+	  "明け方": {
+		"pool": [
+		  "street_cleaners"
+		]
+	  }
+	},
+	"4": {
+	  "宵の口": {
+		"pool": [
+		  "long_haul_driver"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "general_store_clerk"
+		]
+	  },
+	  "明け方": {
+		"pool": [
+		  "laundry_night"
+		]
+	  }
+	},
+	"5": {
+	  "宵の口": {
+		"pool": [
+		  "market_porter"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "security_guard"
+		]
+	  },
+	  "明け方": {
+		"pool": [
+		  "dock_workers"
+		]
+	  }
+	},
+	"6": {
+	  "宵の口": {
+		"pool": [
+		  "long_haul_driver"
+		]
+	  },
+	  "夜半": {
+		"pool": [
+		  "security_guard"
+		]
+	  },
+	  "明け方": {
+		"pool": [
+		  "street_cleaners"
+		]
+	  }
+	}
   }
 }

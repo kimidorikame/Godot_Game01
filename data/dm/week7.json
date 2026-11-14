@@ -63,6 +63,8 @@
 		"texts": ["店番の合間に寄る予定。{hint}のが好きでね", "夜、覗きに行くかもしれん。{hint}ものが食いたい気分だ"] },
 	  "inn_clerk": { "from": "安宿の夜勤受付", "from_kind": "mob", "time": "4:15", "tag_hint": "MELLOW", "provisional": false,
 		"texts": ["受付が空いたら寄る予定です。{hint}なものが飲みたいです", "夜、顔を出すかもしれません。{hint}なのをお願いします"] },
+	  "laundry_night": { "from": "共同洗濯場の夜番", "from_kind": "mob", "time": "4:10", "tag_hint": "GENTLE", "provisional": true,
+		"texts": ["洗濯機が回ってるうちに寄る予定です。{hint}のを一杯", "夜、顔を出すかもしれません。{hint}なのがいいな"] },
 	  "long_haul_driver": { "from": "長距離運転手の仲間", "from_kind": "mob", "time": "4:10", "tag_hint": "TREAT", "provisional": false,
 		"texts": ["走り終えたら寄る予定だ。たまには{hint}っぽいのが食いたい", "夜に顔を出すかもな。{hint}を頼むかもしれん"] },
 	  "market_porter": { "from": "市場の荷捌き仲間", "from_kind": "mob", "time": "4:05", "tag_hint": "FILLING", "provisional": false,
