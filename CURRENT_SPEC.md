@@ -3323,6 +3323,10 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   `body`＝食事〜会計・退店）。**OK の文の2通り**：1日目の港湾労働者の`reactions.OK_MISSING.<札>`（その札だけが外れたときの文）を常連の場面でも使う。
   `reactions.OK`は1つ目の文（札が2つとも外れた・減点の OK）。`ScheduleData.scene_problems`は、`OK_MISSING`の札がその場面の注文
   （今日の頼み、無ければ基本の注文）にあることを検査する。
+- **阿強・セティヤの3日目の注文（遊びに効く変更。別のコミット）**：`delivery_man_02`の`order.today_request`＝`["HOT", "FILLING"]`（辛い＋腹もち。手がかりは
+  「辛いのはそのまま」「腹にたまるやつ」「麺とか皮の方」と朝のDM）、`hooker_02`＝`["MELLOW", "TREAT"]`（まろやか＋ごちそう。「苦いのより、まろやかなのがいい」
+  「具はいつもどおり、少しいいの」）。いつもの注文（`customers`の`wanted_tags`）・好物は変えない。ニカはデータのまま（まろやか＋歯ごたえ、好物 海老。今日の頼み無し）。
+  OK の2通りもこのコミット（札が注文にあることを検査するため）。
 - **条件付きの行**（新しい仕組み）：場面の行の配列（greet・market_talk・pre_order・body・body_unserved・closing・cups の after_talk）に
   `{ "if": { "fact": "<キー>" }, "lines": [...] }`（その客の事実が真のときだけ）／`{ "if": { "not_fact": "<キー>" }, "lines": [...] }`（偽＝無いときだけ）を置ける。
   `if.customer`で別の客の事実を見られる。入れ子も可。行を Event にするところ（`Day1Events._talk`・`_scene_lines`）で`CustomerMemory.resolve_lines`が

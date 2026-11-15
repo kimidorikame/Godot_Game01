@@ -121,6 +121,26 @@ func run(t: SceneTree) -> int:
 	c.check("OK_MISSING の検査：注文に無い札・空の文を弾く",
 		not ScheduleData.scene_problems({ "id": "x", "customer": "streamer", "greet": ["a"], "servings": 1, "reactions": { "OK": ["a"], "OK_MISSING": { "HOT": ["b"] } } }).is_empty()
 			and not ScheduleData.scene_problems({ "id": "x", "customer": "streamer", "greet": ["a"], "servings": 1, "reactions": { "OK": ["a"], "OK_MISSING": { "BITE": [] } } }).is_empty())
+	# 今日の頼み（遊びに効く変更。別のコミット）：阿強＝辛い＋腹もち・セティヤ＝まろやか＋ごちそう。ニカはデータのまま。いつもの注文は変えない
+	c.check("今日の頼み：阿強＝辛い＋腹もち・セティヤ＝まろやか＋ごちそう（order.today_request）。ニカは無し。customers の wanted_tags はそのまま",
+		ScheduleData.episode_today_request("delivery_man", "delivery_man_02").get("tags", []) == ["HOT", "FILLING"]
+			and ScheduleData.episode_today_request("hooker", "hooker_02").get("tags", []) == ["MELLOW", "TREAT"]
+			and ScheduleData.episode_today_request("streamer", "streamer_01").is_empty()
+			and ScheduleData.customer_profile("delivery_man")["wanted_tags"] == ["HOT", "POWER"] and ScheduleData.customer_profile("hooker")["wanted_tags"] == ["BITTER", "TREAT"]
+			and ScheduleData.customer_profile("streamer")["wanted_tags"] == ["MELLOW", "BITE"])
+	c.check("OK の文は外れた札で2通り（阿強：腹もちが外れた／辛さが外れた・セティヤ：ごちそうが外れた／まろやかが外れた）",
+		achang["reactions"]["OK_MISSING"]["FILLING"] == achang["reactions"]["OK"] and str(achang["reactions"]["OK_MISSING"]["HOT"][0]).contains("赤いやつ")
+			and setiya["reactions"]["OK_MISSING"]["TREAT"] == setiya["reactions"]["OK"] and str(setiya["reactions"]["OK_MISSING"]["MELLOW"][0]).contains("まろやかなのが良かった"))
+	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
+	var grade_of := func(additions: Array, wanted: Array, favorite: String) -> String: return str(Judge.grade({ "additions": additions }, GameState.soup, { "wanted_tags": wanted, "favorite": favorite })["grade"])
+	c.check("手がかりと札：阿強の GREAT＝辛い調味料＋腹もちの具（米麺・割れた餃子皮）＋豆腐。肉団子では腹もちにならない",
+		grade_of.call(["nam_prik_pao", "rice_noodle", "tofu"], ["HOT", "FILLING"], "tofu") == "GREAT" and grade_of.call(["nam_prik_pao", "broken_wrapper", "tofu"], ["HOT", "FILLING"], "tofu") == "GREAT"
+			and grade_of.call(["nam_prik_pao", "meat_ball"], ["HOT", "FILLING"], "tofu") != "GOOD")
+	c.check("手がかりと札：セティヤの GREAT＝ココナッツミルク＋ごちそうの具＋塩漬けライム（ライムで酸っぱいが増えても、まろやかの頼みは満たしたまま）",
+		grade_of.call(["coconut_milk", "shrimp", "pickled_lime"], ["MELLOW", "TREAT"], "pickled_lime") == "GREAT" and grade_of.call(["coconut_milk", "clam"], ["MELLOW", "TREAT"], "pickled_lime") == "GOOD")
+	c.check("手がかりと札：ニカの GREAT＝ココナッツミルク＋歯ごたえの具（軟骨・乾燥きくらげ・すじ肉）＋海老。海老は歯ごたえの代わりにならない",
+		grade_of.call(["coconut_milk", "cartilage", "shrimp"], ["MELLOW", "BITE"], "shrimp") == "GREAT" and grade_of.call(["coconut_milk", "dried_wood_ear", "shrimp"], ["MELLOW", "BITE"], "shrimp") == "GREAT"
+			and grade_of.call(["coconut_milk", "shrimp"], ["MELLOW", "BITE"], "shrimp") != "GREAT")
 	# 市場
 	var talk := ScheduleData.talk_data("day3_market")
 	var parts: Array = talk.get("parts", [])

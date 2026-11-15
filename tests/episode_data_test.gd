@@ -191,6 +191,11 @@ func _expected_value_events(d: int, cid: String, recorded) -> Array:
 		values.filter(func(v): return v["type"] == "REACT")[0]["wanted_tags"] = ["MELLOW", "POWER"]
 	if d == 1 and cid == "delivery_man":
 		values.filter(func(v): return v["type"] == "REACT")[2]["wanted_tags"] = ["SAVORY", "GENTLE"]
+	# 中身Z：3日目の阿強（辛い＋スタミナ → 辛い＋腹もち）・セティヤ（苦い＋ごちそう → まろやか＋ごちそう）の今日の頼み（意図した差）
+	if d == 3 and cid == "delivery_man":
+		values.filter(func(v): return v["type"] == "REACT")[0]["wanted_tags"] = ["HOT", "FILLING"]
+	if d == 3 and cid == "hooker":
+		values.filter(func(v): return v["type"] == "REACT")[0]["wanted_tags"] = ["MELLOW", "TREAT"]
 	return values
 
 

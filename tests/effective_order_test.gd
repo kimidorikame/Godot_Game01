@@ -116,7 +116,7 @@ func run(t: SceneTree) -> int:
 					with_base.append("%d:%s" % [d, slot["regular"]])
 					if d == 2 and str(slot["regular"]) == "thug":
 						thug2_react = ev
-	c.check("実データのREACTに base_wanted_tags が付くのは、今日の頼みを持つ2日目のレックスだけ", with_base == ["2:thug"], str(with_base))
+	c.check("実データのREACTに base_wanted_tags が付くのは、今日の頼みを持つ2日目のレックス・3日目の阿強とセティヤ（中身Z）だけ", with_base == ["2:thug", "3:delivery_man", "3:hooker"], str(with_base))
 	c.check("2日目のレックス：実効注文は まろやか＋スタミナ、いつもの（base）は まろやか＋やさしい・好物は肉団子のまま",
 		thug2_react.get("wanted_tags", []) == ["MELLOW", "POWER"] and thug2_react.get("base_wanted_tags", []) == ["MELLOW", "GENTLE"]
 			and str(thug2_react.get("favorite", "")) == "meat_ball", str(thug2_react))
