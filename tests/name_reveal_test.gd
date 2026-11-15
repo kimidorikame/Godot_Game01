@@ -63,7 +63,7 @@ func run(t: SceneTree) -> int:
 		and TalkLog._summary_line("officer", GameState.memory_entry("officer")["visits"][0]).contains("リン"))
 	c.check("来店記録の facts.revealed_name に残る（プロフィールの name は変えない）",
 		str(CustomerMemory.fact("officer", "revealed_name", "")) == "リン" and ScheduleData.customer_display_name("officer") == "新人警官")
-	c.check("ほかの客は変わらない", CustomerMemory.display_name("thug") == "レックス" and CustomerMemory.display_name("streamer") == "配信者")
+	c.check("ほかの客は変わらない（中身Z：配信者は名乗る前の名前「初めての客」）", CustomerMemory.display_name("thug") == "レックス" and CustomerMemory.display_name("streamer") == "初めての客")
 
 	# --- 3. 朝のセーブ ---
 	var after_envelope: Dictionary = MorningSave.capture("")

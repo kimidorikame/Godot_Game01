@@ -122,8 +122,8 @@ func run(t: SceneTree) -> int:
 	var scraps := Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[0], true)
 	c.check("端材屋の日も新人警官の会話は出る（場面の会話は市場の解禁と無関係）",
 		scraps.filter(func(e): return str(e["type"]) == "GREET").map(func(e): return str(e["text"])) == ScheduleData.episode_market_talk("officer", "officer_01"))
-	GameState.day_count = 3
-	c.check("3日目は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
+	GameState.day_count = 4   # 中身Z：3日目は市場の場面（張姐・梁伯）を持つようになった
+	c.check("4日目は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
 
 	# --- 3. モブの「2杯以上のときだけ」の1行 ---
 	for mob_id in mob_tags:

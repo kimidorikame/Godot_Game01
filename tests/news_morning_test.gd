@@ -75,8 +75,8 @@ func run(t: SceneTree) -> int:
 	# --- 4. 実際のWAKE（前日の成績の一言があるとき）：成績 → 目が覚めた → スマホ → ニュース ---
 	var p4 = _wake_panel(t, 3)
 	var ev4: Array = p4.session.flow.runner.events
-	c.check("パネルのWAKEにも差し込まれる（Day3：迂回輸送の見出し）",
-		_texts(ev4).has("ニュース：迂回輸送で市内の物流が混乱。歓楽街でも仕入れと支払いが滞っている"))
+	c.check("パネルのWAKEにも差し込まれる（Day3：迂回便の見出し。中身Z）",
+		_texts(ev4).has("ニュース：【港湾】第八码頭の作業停止続く　迂回便、複数の窓口で受付"))
 	p4.free()
 	GameState.reset_for_new_game()
 	GameState.day_count = 3
@@ -127,7 +127,7 @@ func run(t: SceneTree) -> int:
 	var back_tab: String = p6._format_phone()
 	c.check("Day2の朝へ戻すと、Day3以降の分は見えない（Day1・Day2だけ）",
 		back_tab.contains("◆今日（Day2）◆") and back_tab.contains("◆Day1◆")
-			and not back_tab.contains("◆Day3◆") and not back_tab.contains("迂回輸送"))
+			and not back_tab.contains("◆Day3◆") and not back_tab.contains("迂回便"))
 	p6.free()
 
 	# --- 7. 表示だけ：数値・保存・読み出しは副作用なし ---

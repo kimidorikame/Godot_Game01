@@ -8,7 +8,8 @@ class_name Sns
 ##                    owner（書き手用。客の id か、モブの種類の id（中身U1）か "town"。画面に出さない）}
 ##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, reply_to（任意。元の投稿の id）,
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから／{ market_talk:<客id> }＝その日の昼の市場で、その客の
-##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）, truth（任意。書き手用。画面に出さない）, provisional } ]
+##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）／{ visited:<客id> }＝その日、その客の接客が済んで
+##              〔店を出て〕から。閉店のあとは来なかった日も見える。中身Z）, truth（任意。書き手用。画面に出さない）, provisional } ]
 ## アカウントの持ち主は画面に出さない（どれが誰のアカウントかはプレイヤーが推理する）。DMの差出人とも結びつけない。
 ## いいね・拡散・表示回数などの数字は持たない。
 ##
@@ -94,13 +95,18 @@ static func first_met_day(customer_id: String) -> int:
 ## met（その客に会ったあと）は、初来店の日の閉店のあと（limit が LIMIT_DAY_END）から。
 ## market_talk（その客の昼の市場の会話のあと。中身X）は、今日の投稿なら、市場・準備より先の時刻（開店のあと）か、
 ## talked（今日の市場の会話が済んだ客の id。PlaySession.market_talks_done）にその客がいるときだけ。前の日の投稿は見える。
-static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END, talked: Array = []) -> bool:
+## visited（その日その客の接客が済んだあと。中身Z）は、今日の投稿なら、visited（今日の接客が済んだ客の id。PlaySession.visits_done_today。
+## 閉店のあとはその日の客の全部）にその客がいるときだけ。前の日の投稿は見える。
+static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END, talked: Array = [], visited: Array = []) -> bool:
 	var day := int(post.get("day", 0))
 	if day > today or (day == today and day_minutes(str(post.get("time", ""))) > limit):
 		return false
 	var requires = post.get("requires", {})
 	if requires is Dictionary and (requires as Dictionary).has("market_talk") and day == today:
 		if not (limit > LIMIT_MARKET or talked.has(str(requires["market_talk"]))):
+			return false
+	if requires is Dictionary and (requires as Dictionary).has("visited") and day == today:
+		if not visited.has(str(requires["visited"])):
 			return false
 	if requires is Dictionary and (requires as Dictionary).has("met"):
 		var met := first_met_day(str(requires["met"]))
@@ -111,12 +117,12 @@ static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END,
 
 ## 見えている投稿を、画面の形にまとめる：[{ day, posts:[ 投稿＋{ account（アカウントの辞書）, replies:[返信…] } ] }]。
 ## 新しい日が上。同じ日の中は新しい時刻が上。返信は元の投稿のすぐ下に古い順（元の投稿が見えていないときは出さない）。
-static func timeline(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}, talked: Array = []) -> Array:
+static func timeline(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}, talked: Array = [], visited: Array = []) -> Array:
 	var accts := accounts(source)
 	var tops := []
 	var replies := {}   # 元の投稿の id -> [返信]
 	for post in posts(source):
-		if not (post is Dictionary) or not is_visible(post, today, limit, talked):
+		if not (post is Dictionary) or not is_visible(post, today, limit, talked, visited):
 			continue
 		var item: Dictionary = (post as Dictionary).duplicate(true)
 		item["account_data"] = (accts.get(str(item.get("account", "")), {}) as Dictionary).duplicate(true)
@@ -138,9 +144,9 @@ static func timeline(today: int, limit: int = LIMIT_DAY_END, source: Dictionary 
 
 
 ## 見えている投稿の id（返信を含む。未読の数・既読に使う）。
-static func visible_ids(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}, talked: Array = []) -> Array:
+static func visible_ids(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}, talked: Array = [], visited: Array = []) -> Array:
 	var out := []
-	for section in timeline(today, limit, source, talked):
+	for section in timeline(today, limit, source, talked, visited):
 		for item in section["posts"]:
 			out.append(str(item["id"]))
 			for reply in item["replies"]:
@@ -229,8 +235,8 @@ static func problems(source: Dictionary = {}) -> Array:
 			found.append(where + "：requires が辞書でない")
 		else:
 			for key in requires:
-				if str(key) != "met" and str(key) != "market_talk":
-					found.append("%s：requires のキー %s は使えない（met・market_talk だけ）" % [where, str(key)])
+				if not ["met", "market_talk", "visited"].has(str(key)):
+					found.append("%s：requires のキー %s は使えない（met・market_talk・visited だけ）" % [where, str(key)])
 				elif not FileAccess.file_exists("res://data/customers/%s.json" % str(requires[key])):
 					found.append("%s：requires.%s の客 %s が無い" % [where, str(key), str(requires[key])])
 	return found

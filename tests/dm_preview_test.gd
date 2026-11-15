@@ -42,44 +42,44 @@ func run(t: SceneTree) -> int:
 	var cfg := Dm.previews_config()
 	c.check("設定：上限3・モブ最大2・Day2から（データで変えられる）", int(cfg["max_per_morning"]) == 3 and int(cfg["mob_max"]) == 2 and int(cfg["first_day"]) == 2)
 
-	# --- 1. 選び方 ---
+	# --- 1. 選び方 ---（中身Z：3日目は阿強・セティヤの予告を出さない日〔no_preview_days〕になったので、選び方は6日目で確かめる。モブの回り方は3日目と同じ）
 	GameState.reset_for_new_game()
-	GameState.day_count = 3
-	_plan(3, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
-	var items := Dm.preview_items(3, [])
+	GameState.day_count = 6
+	_plan(6, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
+	var items := Dm.preview_items(6, [])
 	var subs := _subjects(items)
 	var mob_pick := ["dock_workers", "inn_clerk", "market_porter"]
 	c.check("上限3件・モブ2件が先・次に名前あり客1件", subs.size() == 3 and mob_pick.has(subs[0]) and mob_pick.has(subs[1]) and not mob_pick.has(subs[2]), str(subs))
-	c.check("モブは (日番号＋件目) % 候補数：Day3 は 0番目（dock_workers）と 1番目（inn_clerk）", subs[0] == mob_pick[3 % 3] and subs[1] == mob_pick[(3 + 1) % 3], str(subs))
+	c.check("モブは (日番号＋件目) % 候補数：Day6 は 0番目（dock_workers）と 1番目（inn_clerk）", subs[0] == mob_pick[6 % 3] and subs[1] == mob_pick[(6 + 1) % 3], str(subs))
 	c.check("名前あり客は計画にいる客だけ", ["hooker", "granny", "officer"].has(subs[2]))
 	c.check("予告は today_plan にいる客・種類だけ（全員は教えない）", subs.all(func(x): return ["hooker", "granny", "officer", "dock_workers", "inn_clerk", "market_porter"].has(x)))
 	# 中身X：まだ会っていない客の予告は出ない（セティヤ〔before_first_visit〕だけ例外）。名前あり客で埋める確かめは、来たことがある客で
 	_visited("granny", 1)
 	_visited("officer", 2)
-	_plan(3, ["hooker", "granny", "officer"], ["dock_workers"])
-	subs = _subjects(Dm.preview_items(3, []))
+	_plan(6, ["hooker", "granny", "officer"], ["dock_workers"])
+	subs = _subjects(Dm.preview_items(6, []))
 	c.check("モブが1種類の日：モブ1件＋名前あり客で上限3まで（空いた分を埋める）", subs.size() == 3 and subs[0] == "dock_workers", str(subs))
-	_plan(3, ["hooker", "granny", "officer"], [])
-	subs = _subjects(Dm.preview_items(3, []))
+	_plan(6, ["hooker", "granny", "officer"], [])
+	subs = _subjects(Dm.preview_items(6, []))
 	c.check("モブが無い日：名前あり客3件", subs.size() == 3 and not subs.has("dock_workers"), str(subs))
-	_plan(3, ["hooker"], [])
-	c.check("計画が小さい日：計画にいる分だけ（嘘を足さない）", _subjects(Dm.preview_items(3, [])) == ["hooker"])
+	_plan(6, ["hooker"], [])
+	c.check("計画が小さい日：計画にいる分だけ（嘘を足さない）", _subjects(Dm.preview_items(6, [])) == ["hooker"])
 	# 好みが分かっている客を先に
 	GameState.customer_memory.clear()
-	_plan(3, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
+	_plan(6, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
 	_visited("officer", 2)
-	subs = _subjects(Dm.preview_items(3, []))
+	subs = _subjects(Dm.preview_items(6, []))
 	c.check("名前あり客は、すでに来たことがある客（好みが分かっている）を先に", subs[2] == "officer", str(subs))
 	GameState.customer_memory.clear()
 	# 上限をデータで変える
 	var source: Dictionary = Dm.data().duplicate(true)
 	source["previews"]["max_per_morning"] = 1
-	c.check("上限をデータで変えられる（1件）", _subjects(Dm.preview_items(3, [], source)).size() == 1)
+	c.check("上限をデータで変えられる（1件）", _subjects(Dm.preview_items(6, [], source)).size() == 1)
 	source["previews"]["max_per_morning"] = 5
 	source["previews"]["mob_max"] = 3
 	_visited("granny", 1)
 	_visited("officer", 2)
-	c.check("上限5・モブ最大3：モブ3＋名前あり客2", _subjects(Dm.preview_items(3, [], source)).size() == 5)
+	c.check("上限5・モブ最大3：モブ3＋名前あり客2", _subjects(Dm.preview_items(6, [], source)).size() == 5)
 	# 既存DMと同じ差出人は外す
 	GameState.reset_for_new_game()
 	GameState.day_count = 2
@@ -103,10 +103,13 @@ func run(t: SceneTree) -> int:
 	var setiya := Dm.preview_items(2, []).filter(func(x): return str(x["subject"]) == "hooker")
 	c.check("Day2：まだ会っていない新人警官の予告は出ず、セティヤの予告は初来店の前でも出る（差出人セティヤ）",
 		not subs.has("officer") and not subs.has("thug") and setiya.size() == 1 and str(setiya[0]["from"]) == "セティヤ", str(subs))
-	_plan(3, ["delivery_man", "streamer", "hooker"], [])
+	_plan(6, ["delivery_man", "streamer", "hooker"], [])
 	_visited("delivery_man", 1)
+	subs = _subjects(Dm.preview_items(6, []))
+	c.check("初来店の前のニカ（配信者）の予告は出ない（会ったことのある阿強・セティヤは出る。6日目で）", not subs.has("streamer") and subs.has("delivery_man") and subs.has("hooker"), str(subs))
+	_plan(3, ["delivery_man", "streamer", "hooker"], [])
 	subs = _subjects(Dm.preview_items(3, []))
-	c.check("Day3：初来店の前のニカ（配信者）の予告は出ない（会ったことのある阿強・セティヤは出る）", not subs.has("streamer") and subs.has("delivery_man") and subs.has("hooker"), str(subs))
+	c.check("中身Z：3日目は阿強・セティヤの予告を出さない（その朝のDMが代わり。no_preview_days）・ニカも出ない", subs.is_empty(), str(subs))
 	_visited("streamer", 3)
 	_plan(5, ["hooker", "streamer", "officer"], [])
 	c.check("一度来たあとの日は、配信者の予告も出る", _subjects(Dm.preview_items(5, [])).has("streamer"))

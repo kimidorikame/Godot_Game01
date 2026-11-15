@@ -11,6 +11,9 @@ var tier_index := 1
 const SHOP_PLAN := { 3: 2, 2: 1, 0: 1 }   # 豆腐麺 2回・乾物調味料 1回・食肉仲卸 1回
 var _visited := {}
 var _visited_day := -1
+## 中身Z：断る杯を決める台本（空＝断らない）。トッピングで味を調えている杯で true を返したら、具材を入れる前に「断る」を押す
+## （1日目の阿強の3杯目を断った道を通すテスト用）。
+var decline_when := Callable()
 var _bought_here := 0
 
 
@@ -151,6 +154,8 @@ func _kaiten() -> String:
 		return "団体：断る"
 	if not top.is_adjusting():
 		return _talk()
+	if decline_when.is_valid() and bool(decline_when.call()) and press(top.get_node("%DeclineButton")):
+		return "断る（台本）"
 	var bowl := session.bowl_view()
 	var has_topping := false
 	var has_flavor := false

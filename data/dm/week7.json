@@ -17,12 +17,14 @@
 		"text": "今夜は客で行く。帳面は持ってかねえ。丸いの、取っとけ。", "hint": "none", "provisional": false }
 	],
 	"3": [
-	  { "id": "d3_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:30",
-		"text": "魚がしばらく入らないかもしれない", "hint": "none", "provisional": true },
-	  { "id": "d3_market_quiet", "from": "市場の顔なじみ", "from_kind": "npc", "time": "7:10",
-		"text": "今日は人通りが少ないな。夜も静かかもしれない", "hint": "few", "provisional": true },
-	  { "id": "d3_officer", "from": "新人警官", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "6:05",
-		"text": "昨夜のこと、同僚にも話しました。今夜は何人か連れて行くかもしれません", "hint": "many", "provisional": true }
+	  { "id": "d3_market", "from": "張姐", "from_kind": "npc", "time": "6:35",
+		"text": "雨だけど骨は届いてるよ。いつもどおりおいで。濡れた袋のまま持って帰らせないからね。", "hint": "none", "provisional": false },
+	  { "id": "d3_delivery_man", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "if": { "fact": "day1_takeout_served" }, "time": "7:10",
+		"text": "門のおっさんが容器洗っといたって。今夜持ってく。雨だと次いつ休めるか読めないから、腹にたまるやつ頼む。", "hint": "none", "provisional": false },
+	  { "id": "d3_delivery_man_declined", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "if": { "not_fact": "day1_takeout_served" }, "time": "7:10",
+		"text": "今夜寄る。雨だと次いつ休めるか読めないから、腹にたまるやつ頼む。", "hint": "none", "provisional": false },
+	  { "id": "d3_hooker", "from": "セティヤ", "from_kind": "customer", "requires": { "customer": "hooker" }, "time": "7:45",
+		"text": "今夜、帰りに寄るわ。こういう雨の日は冷えるのよね。あんたの鍋の前を、少し空けといて。", "hint": "none", "provisional": false }
 	],
 	"4": [
 	  { "id": "d4_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:35",
@@ -49,7 +51,7 @@
 	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。名前あり客の予告は、その客がもう来たことがある朝だけ出す（店主がまだ会っていない客から予告は来ない。中身X）。before_first_visit:true の客（セティヤ。店主とは前からの付き合い）は初来店の前の朝にも出す。本文に数字と「客足」は入れない。",
 	"max_per_morning": 3, "mob_max": 2, "first_day": 2,
 	"pools": {
-	  "delivery_man": { "from": "阿強", "from_kind": "customer", "time": "4:50", "tag_hint": "", "provisional": false,
+	  "delivery_man": { "from": "阿強", "from_kind": "customer", "no_preview_days": [3], "time": "4:50", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
 	  "thug": { "from": "レックス", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
 		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
@@ -57,7 +59,7 @@
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
 	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
-	  "hooker": { "from": "セティヤ", "from_kind": "customer", "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
+	  "hooker": { "from": "セティヤ", "from_kind": "customer", "no_preview_days": [3], "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
 	  "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },

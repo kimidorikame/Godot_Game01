@@ -294,7 +294,8 @@ func visit_water_stall() -> bool:
 func exit_market() -> bool:
 	# 中身U2：市場を出たあとの場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う（ここでは払わない）。
 	# 払う行が無いデータでも、運営費は開店に入るとき（pay_operating_cost）に引かれる。中身X：2日目の市場の場面（着いたときだけ）は今までどおり。
-	if Day1Events.has_market_exit_scene():
+	# 中身Z：3日目の梁伯の場面（払う印が無い）は、今までどおりここでまとめて払う（market_exit_pays_in_scene が false）。
+	if Day1Events.market_exit_pays_in_scene():
 		complete_input_and_advance()
 		return true
 	if not market_visited_water:
@@ -1040,6 +1041,11 @@ func _serve_customer(ev: Dictionary) -> void:
 		CustomerMemory.record_serve(customer_id, open.current_slot_name(),
 			Day1Events.episode_id_of(customer_id), servings, result,
 			open.current_bowl.get("additions", []), honored)
+		# 中身Z：杯を出したときに残す事実（複数杯の場面の杯の sets_facts。1日目の阿強の3杯目＝持ち帰りを出した）。断った杯はここへ来ない
+		var serve_facts = ev.get("sets_facts", {})
+		if serve_facts is Dictionary and CustomerMemory.is_recordable(customer_id):
+			for fact_key in serve_facts:
+				CustomerMemory.set_fact(customer_id, str(fact_key), serve_facts[fact_key])
 	if aggregate:
 		# 集計客（配達員）は「退店時」に知った扱いにする必要があるため、ここではまだ
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
@@ -1686,6 +1692,8 @@ func reask() -> void:
 		lines = ((order as Dictionary).get("reask", []) as Array).duplicate()
 	if lines.is_empty():
 		lines = (episode.get("greet", []) as Array).duplicate()
+	# 中身Z：条件付きの行は今の事実で開き、名乗りの印など行でない要素は落とす（文字列の行はそのまま）
+	lines = CustomerMemory.resolve_lines(lines, customer_id).filter(func(line): return line is String)
 	reask_customer_id = customer_id
 	reask_lines = lines
 	changed.emit()
@@ -3046,9 +3054,30 @@ func market_talks_done() -> Array:
 	return []
 
 
+## 今日の接客が済んだ名前あり客の id（タイムラインの requires.visited。中身Z）。開店（OPEN）のあいだは、今の客より前に並ぶ客
+## （前の時間帯の客と、同じ時間帯の前の客＝もう店を出た客）。閉店のあと（CLOSE より先）は、今日の計画の名前あり客の全部
+## （来なかった客も。日が終わったら見える）。朝・市場・準備のあいだは空。状態を読むだけ。
+func visits_done_today() -> Array:
+	var out := []
+	match GameState.phase:
+		GameState.Phase.WAKE, GameState.Phase.PREP:
+			return out
+		GameState.Phase.OPEN:
+			if open == null:
+				return out
+			for si in range(mini(open.slot_index + 1, open.schedule.size())):
+				var customers: Array = (open.schedule[si] as Dictionary).get("customers", [])
+				var upto: int = customers.size() if si < open.slot_index else mini(open.index, customers.size())
+				for i in range(upto):
+					if not out.has(str(customers[i])):
+						out.append(str(customers[i]))
+			return out
+	return Dm.plan_regulars(GameState.today_plan) if int(GameState.today_plan.get("day", -1)) == GameState.day_count else out
+
+
 ## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
 func sns_timeline() -> Array:
-	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done())
+	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today())
 	for section in sections:
 		for item in section["posts"]:
 			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
@@ -3060,7 +3089,7 @@ func sns_timeline() -> Array:
 ## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
 func timeline_unread_count() -> int:
 	var n := 0
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today()):
 		if not ReadState.is_read(_post_read_key(str(id))):
 			n += 1
 	return n
@@ -3068,7 +3097,7 @@ func timeline_unread_count() -> int:
 
 ## タイムラインを表示した：見えている投稿を読んだ扱いにする。
 func mark_timeline_read() -> void:
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today()):
 		ReadState.mark(_post_read_key(str(id)))
 
 

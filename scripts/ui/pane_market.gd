@@ -57,8 +57,8 @@ func refresh() -> void:
 	_final_note.visible = GameState.is_final_day()
 	_final_note.text = UiParts.FINAL_DAY_NOTE
 	_exit.disabled = not session.can_exit_market()
-	# 中身U2：市場の場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う
-	(get_node("ExitNote") as Label).text = "炭代・水代・水道代は、このあと炭屋と水場で払う" if Day1Events.has_market_exit_scene() \
+	# 中身U2：市場の場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う（中身Z：3日目の梁伯の場面は払う印が無いので今までどおり）
+	(get_node("ExitNote") as Label).text = "炭代・水代・水道代は、このあと炭屋と水場で払う" if Day1Events.market_exit_pays_in_scene() \
 		else "徴収日は、出るときに水道代を払う"
 
 

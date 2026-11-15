@@ -38,14 +38,23 @@ func _post_ids(sections: Array) -> Array:
 	return out
 
 
+## 英語を3文字ずらす（A→D。リンの裏アカの暗号）。
+func _shift3(plain: String) -> String:
+	var out := ""
+	for ch in plain:
+		out += String.chr((ch.unicode_at(0) - 65 + 3) % 26 + 65) if ch >= "A" and ch <= "Z" else ch
+	return out
+
+
 func run(t: SceneTree) -> int:
 	var c := TestCheck.new()
 	Sns.clear_cache()
 
 	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント28（1日目21＋2日目7）・投稿49（Day1 23・Day2 26。中身X）。3日目以降の投稿はまだ無い", Sns.accounts().size() == 28 and Sns.posts().size() == 49
-		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26,
+	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4）・投稿73（Day1 23・Day2 26・Day3 24。中身X・中身Z）。4日目以降の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 73
+		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26
+		and Sns.posts().filter(func(x): return int(x["day"]) == 3).size() == 24 and not Sns.posts().any(func(x): return int(x["day"]) >= 4),
 		"%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
 	var used := {}
 	for x in Sns.posts():
@@ -62,11 +71,11 @@ func run(t: SceneTree) -> int:
 	var real_by_id := {}
 	for x in Sns.posts():
 		real_by_id[str(x["id"])] = x
-	c.check("本番：返信は3件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目）・写真は3件・裏アカの原文と意味は truth に",
+	c.check("本番：返信は3件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目）・写真は5件（3日目に2件）・裏アカの原文と意味は truth に",
 		str(real_by_id["d1_passer1_1735"]["reply_to"]) == "d1_akiang_1720" and str(real_by_id["d1_dock_a_2152"]["reply_to"]) == "d1_dock_b_2140"
 			and str(real_by_id["d2_passer1_1735"]["reply_to"]) == "d2_rex_1710"
 			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 3
-			and Sns.posts().filter(func(x): return x.has("photo")).size() == 3
+			and Sns.posts().filter(func(x): return x.has("photo")).size() == 5
 			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW.")
 			and not str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("スパイはいない"))
 	# --- 0b. 2日目（中身X：2日目_タイムライン.md の26件）の確かめ a〜e ---
@@ -104,6 +113,49 @@ func run(t: SceneTree) -> int:
 			and Sns.is_visible(lin2[0], 2, Sns.LIMIT_EVENING) and Sns.is_visible(lin2[0], 3, Sns.LIMIT_MORNING))
 	c.check("2日目：リンの 23:10・23:40 は宵の口（リンの接客の時間帯）には見えず、夜半から見える（時刻の決まりだけ）",
 		lin2.slice(1).all(func(x): return not Sns.is_visible(x, 2, Sns.LIMIT_EVENING) and Sns.is_visible(x, 2, Sns.LIMIT_MIDNIGHT) and not x.has("requires")))
+	# --- 0c. 3日目（中身Z：3日目_タイムライン.md の24件）の確かめ a〜e ---
+	var day3 := Sns.posts().filter(func(x): return int(x["day"]) == 3)
+	var new3 := ["min", "hao_gifts", "back_shelf", "second_floor"]
+	c.check("3日目 a：新しいアカウント4つ（粉まみれ @flour_daily・贈り物覚え書き @hao_gifts・棚の奥 @back_shelf・二階の住人 @second_floor）があり、投稿のアカウントはどれもある・投稿の id は重ならない",
+		new3.all(func(a): return Sns.accounts().has(a)) and day3.all(func(x): return Sns.accounts().has(str(x["account"])))
+			and str(Sns.accounts()["min"]["handle"]) == "@flour_daily" and str(Sns.accounts()["hao_gifts"]["handle"]) == "@hao_gifts"
+			and str(Sns.accounts()["back_shelf"]["handle"]) == "@back_shelf" and str(Sns.accounts()["second_floor"]["handle"]) == "@second_floor"
+			and real_owner.call("back_shelf") == "general_store_clerk" and real_owner.call("min") == "town"
+			and real_by_id.size() == Sns.posts().size())
+	c.check("3日目 b：返信は無い（元の文の返信先はすべて —）", not day3.any(func(x): return x.has("reply_to")))
+	c.check("3日目 c：時刻は HH:MM（23:59 まで）", day3.all(func(x): return Sns.minutes(str(x["time"])) >= 0 and str(x["time"]).length() == 5))
+	var pairs3 := {}
+	for x in day3:
+		pairs3["%s %s" % [x["time"], x["account"]]] = true
+	c.check("3日目 d：同じ時刻・同じアカウントの投稿は重ならない", pairs3.size() == day3.size())
+	var count3 := func(lo: int, hi: int) -> int: return day3.filter(func(x): return Sns.day_minutes(str(x["time"])) >= lo and Sns.day_minutes(str(x["time"])) <= hi).size()
+	c.check("3日目 e：件数 朝5／市場・準備10／宵の口5／夜半4／明け方0／合計24",
+		count3.call(0, Sns.LIMIT_MORNING) == 5 and count3.call(Sns.LIMIT_MORNING + 1, Sns.LIMIT_MARKET) == 10
+			and count3.call(Sns.LIMIT_MARKET + 1, Sns.LIMIT_EVENING) == 5 and count3.call(Sns.LIMIT_EVENING + 1, Sns.LIMIT_MIDNIGHT) == 4
+			and count3.call(Sns.LIMIT_MIDNIGHT + 1, Sns.LIMIT_DAY_END) == 0 and day3.size() == 24)
+	var lin3 := day3.filter(func(x): return str(x["account"]) == "lin_alt")
+	c.check("3日目：リンの裏アカ「・」は2件（15:00・23:35）。暗号文は原文を3文字ずらしたもの・truth は「誰かへの報告」で、報告先・組織の名前は書かない・条件は無い",
+		lin3.map(func(x): return str(x["time"])) == ["15:00", "23:35"]
+			and str(lin3[0]["text"]) == _shift3("NEW NAME ON OLD WAREHOUSE CARGO. PASSED WITHOUT STOP. AS INSTRUCTED.")
+			and str(lin3[1]["text"]) == _shift3("REAR MARKET ROUTE STILL OPEN. NO CONTACT WITH STALL OWNER TODAY.")
+			and lin3.all(func(x): return str(x["truth"]).contains("誰かへの報告") and not str(x["truth"]).contains("組織）") and not str(x["truth"]).contains("新興") and not x.has("requires")))
+	var nika23 := day3.filter(func(x): return str(x["account"]) == "exposure_test" and str(x["time"]) == "23:00")
+	c.check("3日目：ニカの 23:00 だけ requires.visited（streamer）。ほかの3日目の投稿に条件は無い",
+		nika23.size() == 1 and nika23[0]["requires"] == { "visited": "streamer" } and day3.filter(func(x): return x.has("requires")).size() == 1)
+	c.check("3日目：ニカの 23:00 は夜半に入っても、ニカの接客が済むまで見えない（済んだら・次の日は見える）",
+		not Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT) and not Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT, [], ["delivery_man"])
+			and Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT, [], ["delivery_man", "streamer"])
+			and not Sns.is_visible(nika23[0], 3, Sns.LIMIT_EVENING, [], ["streamer"])
+			and Sns.is_visible(nika23[0], 4, Sns.LIMIT_MORNING))
+	c.check("本番：Day3 の見える件数：朝54・市場・準備64・宵の口69・夜半（ニカの前）72・ニカのあと73・Day4 の朝に全73件（累計）",
+		Sns.visible_ids(3, Sns.LIMIT_MORNING).size() == 54 and Sns.visible_ids(3, Sns.LIMIT_MARKET).size() == 64
+			and Sns.visible_ids(3, Sns.LIMIT_EVENING).size() == 69 and Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT).size() == 72
+			and Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT, {}, [], ["streamer"]).size() == 73 and Sns.visible_ids(4, Sns.LIMIT_MORNING).size() == 73,
+		"%d / %d / %d / %d" % [Sns.visible_ids(3, Sns.LIMIT_MORNING).size(), Sns.visible_ids(3, Sns.LIMIT_MARKET).size(),
+			Sns.visible_ids(3, Sns.LIMIT_EVENING).size(), Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT).size()])
+	var broken_visit: Dictionary = (Sns.data() as Dictionary).duplicate(true)
+	(broken_visit["posts"] as Array)[0]["requires"] = { "visited": "no_such_customer" }
+	c.check("requires.visited の客が無いと落ちる", not Sns.problems(broken_visit).is_empty())
 	GameState.reset_for_new_game()
 	c.check("本番：見える時刻で数える件数：朝（〜09:59）5件・準備まで（〜17:59）16件・宵の口まで20件・夜半まで23件・閉店のあと23件",
 		Sns.visible_ids(1, Sns.LIMIT_MORNING).size() == 5 and Sns.visible_ids(1, Sns.LIMIT_MARKET).size() == 16
@@ -115,7 +167,7 @@ func run(t: SceneTree) -> int:
 	c.check("本番：Day2 の市場・準備（会話の前）37件・会話のあと38件・宵の口43件・夜半49件・Day3 の朝に全49件（累計）",
 		Sns.visible_ids(2, Sns.LIMIT_MARKET).size() == 37 and Sns.visible_ids(2, Sns.LIMIT_MARKET, {}, ["officer"]).size() == 38
 			and Sns.visible_ids(2, Sns.LIMIT_EVENING).size() == 43 and Sns.visible_ids(2, Sns.LIMIT_MIDNIGHT).size() == 49
-			and Sns.visible_ids(3, Sns.LIMIT_MORNING).size() == 49,
+			and Sns.visible_ids(3, Sns.LIMIT_MORNING).size() == 54,
 		"%d / %d / %d / %d" % [Sns.visible_ids(2, Sns.LIMIT_MARKET).size(), Sns.visible_ids(2, Sns.LIMIT_MARKET, {}, ["officer"]).size(),
 			Sns.visible_ids(2, Sns.LIMIT_EVENING).size(), Sns.visible_ids(2, Sns.LIMIT_MIDNIGHT).size()])
 

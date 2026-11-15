@@ -1,16 +1,16 @@
 {
   "id": "week7",
-  "provisional_note": "文面は SEVEN_DAY_OUTLINE.md の仮案（脚本で差し替える）。各項目の provisional を外して差し替えるだけでよい。",
+  "provisional_note": "文面は SEVEN_DAY_OUTLINE.md の仮案（脚本で差し替える）。各項目の provisional を外して差し替えるだけでよい。中身Z：必須情報のカタログを改訂版の筋で組み直した（3〜7日目）。3日目は 3日目_ニュース.md の4本。4〜7日目は仮の記事に新しい印を付け替えただけ（文と印が合わない所がある。文は各日の台本と一緒に入れる）。",
   "must_info": [
 	{ "id": "strike_started",       "day": 1, "label": "第八码頭で夜間荷役のストが始まった" },
 	{ "id": "checkpoints",          "day": 2, "label": "検問・警備が始まり物流が滞っている" },
-	{ "id": "nightlife_spillover",  "day": 3, "label": "ストが夜の街・金の流れへ波及している" },
-	{ "id": "video_spread",         "day": 4, "label": "噂と映像が外部へ拡散している" },
-	{ "id": "night_removal",        "day": 5, "label": "夜間に不審な搬出がある" },
-	{ "id": "rights_shift",         "day": 5, "label": "港湾利権の移動が検討されている" },
-	{ "id": "clash_fire",           "day": 6, "label": "衝突と倉庫火災が起きた" },
-	{ "id": "official_arson_claim", "day": 7, "label": "警察は「暴動による放火」と発表、労働者側は否定" },
-	{ "id": "truth_unresolved",     "day": 7, "label": "真相は確定しない" }
+	{ "id": "new_window_cargo",           "day": 3, "label": "新しい窓口から荷が動き始めた" },
+	{ "id": "old_warehouse_load",         "day": 4, "label": "旧倉庫に荷と夜勤が集中している" },
+	{ "id": "contract_shift",             "day": 5, "label": "仕事の窓口と下請けの契約が移っている" },
+	{ "id": "warehouse_fire",             "day": 6, "label": "旧倉庫で深夜に火災が起きた" },
+	{ "id": "police_wiring_probe",        "day": 7, "label": "警察は仮設配線付近を調査中。放火の証拠は確認されていない" },
+	{ "id": "window_changed_before_fire", "day": 7, "label": "火災の前から窓口は替わっていた" },
+	{ "id": "truth_unresolved",           "day": 7, "label": "原因は確定しない" }
   ],
   "days": {
 	"1": {
@@ -65,9 +65,23 @@
 	},
 	"3": {
 	  "news": [
-		{ "id": "d3_spillover", "headline": "迂回輸送で市内の物流が混乱。歓楽街でも仕入れと支払いが滞っている",
-		  "body": ["ストの影響が夜の街と金の流れにまで及んでいる。"],
-		  "must_info": ["nightlife_spillover"], "provisional": true }
+		{ "id": "d3_windows", "headline": "【港湾】第八码頭の作業停止続く　迂回便、複数の窓口で受付",
+		  "body": ["第八码頭の二倉庫を受け持つ下請け夜勤班の作業停止が続いている。争点は、呼び出しから作業開始までの待機時間への賃金の支払い。",
+			"荷の一部は別の搬入口や旧倉庫へ回されている。迂回便の配達依頼は複数の窓口から出ており、引受先の確認に時間がかかる例もある。",
+			"現時点で、スト班との協議がまとまったとの発表はない。"],
+		  "must_info": ["new_window_cargo"], "provisional": false },
+		{ "id": "d3_rain", "headline": "【交通】湾岸地区は終日雨　市場周辺、荷車のすれ違いに時間",
+		  "body": ["湾岸地区では朝から雨が続いている。码頭周辺の検問を避ける車と、搬入先を探す荷車が周辺の路地へ入り、市場と歓楽街の間ではすれ違い待ちが生じている。",
+			"市場管理所は、建物の出入口に荷を止めたままにしないよう呼びかけている。"],
+		  "must_info": [], "provisional": false },
+		{ "id": "d3_body_aid", "headline": "【暮らし】旧型の身体補助、雨天の点検依頼増える",
+		  "body": ["雨の影響で、身体補助機器の接続部の点検を頼む人が増えている。修理店は、型番や交換歴の分かる記録を見積もりの際に持参してほしいとしている。",
+			"交換部品が見つかっても、取り付けと調整の費用は別になる場合がある。中古の規格品を長く使う人には、部品代だけでは判断しづらい出費だ。"],
+		  "must_info": [], "provisional": false },
+		{ "id": "d3_umbrellas", "headline": "【街】雨傘の取り違え、忘れ物窓口へ　名前のない黒傘が並ぶ",
+		  "body": ["市場の忘れ物窓口に、雨傘が集まっている。同じ色や形の傘が多く、係は「持ち手の傷や、骨を直した跡も教えてほしい」と話す。",
+			"自分の傘が見つかるまで、よく似た別の傘を持って帰らないよう呼びかけている。"],
+		  "must_info": [], "provisional": false }
 	  ],
 	  "events": []
 	},
@@ -75,7 +89,7 @@
 	  "news": [
 		{ "id": "d4_video", "headline": "現場を撮った動画が拡散、外部メディアが注目",
 		  "body": ["噂と映像が街の外へ広がっている。"],
-		  "must_info": ["video_spread"], "provisional": true }
+		  "must_info": ["old_warehouse_load"], "provisional": true }
 	  ],
 	  "events": []
 	},
@@ -83,10 +97,10 @@
 	  "news": [
 		{ "id": "d5_removal", "headline": "夜間、倉庫から荷が運び出されるのを見たという話が複数",
 		  "body": ["搬出の目的や運び出した者は分かっていない。"],
-		  "must_info": ["night_removal"], "provisional": true },
+		  "must_info": [], "provisional": true },
 		{ "id": "d5_rights", "headline": "（経済面）第八码頭の荷役業務、運営会社の変更を検討との観測",
 		  "body": ["港湾の利権の移動が検討されているという。"],
-		  "must_info": ["rights_shift"], "provisional": true }
+		  "must_info": ["contract_shift"], "provisional": true }
 	  ],
 	  "events": []
 	},
@@ -99,21 +113,21 @@
 	  "events": [
 		{ "id": "d6_clash", "at": "宵の口",
 		  "lines": ["（遠くで怒号が上がった。ピケの列と会社側がぶつかったらしい。）"],
-		  "must_info": ["clash_fire"], "provisional": true },
+		  "must_info": [], "provisional": true },
 		{ "id": "d6_fire", "at": "夜半",
 		  "lines": ["（遠方の空が赤い。サイレンが重なって聞こえる。）", "（倉庫が燃えている、と誰かが言った。）"],
-		  "must_info": ["clash_fire"], "provisional": true }
+		  "must_info": ["warehouse_fire"], "provisional": true }
 	  ]
 	},
 	"7": {
 	  "news": [
 		{ "id": "d7_official", "headline": "警察は暴動に伴う放火の疑いで捜査。労働組合側はこれを否定",
 		  "body": ["発表と否定が食い違っている。"],
-		  "must_info": ["official_arson_claim"], "provisional": true },
+		  "must_info": ["police_wiring_probe"], "provisional": true },
 		{ "id": "d7_unresolved", "headline": "火災の原因をめぐり、複数の説が並ぶ",
 		  "body": ["警察：暴動に伴う放火の疑い。", "労働組合側：関与を否定。",
 				   "配信者：出回った映像を撤回。", "いずれも裏付けは取れていない。"],
-		  "must_info": ["truth_unresolved"], "provisional": true }
+		  "must_info": ["window_changed_before_fire", "truth_unresolved"], "provisional": true }
 	  ],
 	  "events": []
 	}

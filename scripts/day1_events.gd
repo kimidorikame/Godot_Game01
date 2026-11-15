@@ -213,9 +213,11 @@ static func prep_after_tier_events(tier: Dictionary, scraps_base: bool = false) 
 	# あとで炭代・水代・水道代を払う（PlaySession.exit_market はその日の運営費・水道代を払わない）。ほかの日は今までどおり
 	# 市場を出るときにまとめて払い、表示だけ炭代と水代に分ける。中身X：2日目の市場の場面は着いたときの会話だけ（when:"exit" が無い）
 	# なので、払い方は今までどおり（has_market_exit_scene が false）。
+	# 中身Z：3日目の市場を出るときの場面（梁伯）は払う印を持たない＝払い方は今までどおり（「市場を出る」でまとめて払う）。
+	# 会話のあとに、今までどおりの「水を汲み、炭を買った」を出す。
 	if has_market_exit_scene():
 		events.append_array(market_scene_events("exit"))
-	else:
+	if not market_exit_pays_in_scene():
 		events.append({ "type": "TEXT", "text": "水を汲み、炭を買った（%s）。" % Rules.operating_cost_parts_text("−") })
 	# 仕込み: 在庫を減らす責務は REMOVE_ITEM のまま（鍋作成を混ぜない）。
 	events.append({ "type": "REMOVE_ITEM", "item": "soup_base", "amount": 1,
@@ -698,6 +700,9 @@ static func _cups_events(customer_id: String, scene_id: String) -> Array:
 			"is_mob": false, "aggregate": true }
 		if bool(cup.get("favorite", true)):
 			react["favorite"] = flavor["favorite"]
+		# 中身Z：その杯を出したときに残す事実（1日目の阿強の3杯目＝持ち帰り）。断った杯には付かない（PlaySession._serve_customer）
+		if cup.get("sets_facts") is Dictionary:
+			react["sets_facts"] = (cup["sets_facts"] as Dictionary).duplicate(true)
 		events.append(react)
 		events.append_array(_talk(customer_id, cup.get("after_talk", [])))
 	return events
@@ -776,12 +781,24 @@ static func has_market_scene() -> bool:
 	return not ScheduleData.talk_data(market_scene_id()).is_empty()
 
 
-## 市場を出たあとの場面（when:"exit" の部分）がある日か（1日目。炭屋・水場の会話のあとで払う）。中身X：2日目の市場の場面は
-## 着いたときの会話（張姐）だけなので false＝払い方は今までどおり（「市場を出る」でまとめて払う）。
+## 市場を出たあとの場面（when:"exit" の部分）がある日か（1日目の炭屋・水場、3日目の梁伯〔中身Z〕）。中身X：2日目の市場の場面は
+## 着いたときの会話（張姐）だけなので false。
 static func has_market_exit_scene() -> bool:
 	for part in ScheduleData.talk_data(market_scene_id()).get("parts", []):
 		if part is Dictionary and str(part.get("when", "")) == "exit":
 			return true
+	return false
+
+
+## 市場を出たあとの場面が払う印（{ pay } / { pay_bills }）を持つ日か（1日目。会話ごとに払い、PlaySession.exit_market は払わない）。
+## 中身Z：3日目の梁伯の場面は払う印を持たない＝ false＝払い方は今までどおり（「市場を出る」でまとめて払う。月の水道代は無い日）。
+static func market_exit_pays_in_scene() -> bool:
+	for part in ScheduleData.talk_data(market_scene_id()).get("parts", []):
+		if not (part is Dictionary) or str(part.get("when", "")) != "exit":
+			continue
+		for line in part.get("lines", []):
+			if line is Dictionary and ((line as Dictionary).has("pay") or (line as Dictionary).has("pay_bills")):
+				return true
 	return false
 
 
@@ -924,7 +941,8 @@ static func closing_events(customer_id: String, scene_id: String) -> Array:
 ## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。
 static func _scene_lines(part: String, customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in ScheduleData.spoken_lines_with_reveal(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）。名乗りの印は行に付ける（UI準備Y）
+	# 〔演出〕の行は会話枠に出さない（中身U1）。名乗りの印は行に付ける（UI準備Y）。条件付きの行は今の事実で選ぶ（中身Z）
+	for line in ScheduleData.spoken_lines_with_reveal(CustomerMemory.resolve_lines(lines, customer_id)):
 		var ev := { "type": "GREET", "customer": customer_id, "text": str(line["text"]), "part": part }
 		if line.has(ScheduleData.REVEAL_NAME_KEY):
 			ev[ScheduleData.REVEAL_NAME_KEY] = line[ScheduleData.REVEAL_NAME_KEY]
@@ -993,9 +1011,11 @@ static func today_request_of(customer_id: String, episode_id: String) -> Diction
 
 ## 会話行（発話・ト書き）を、1行1Eventの GREET にして積む（既存の接客と同じ形）。
 ## 名乗りの印（{ "reveal_name": 名前 }。UI準備Y）は直前の行の Event に reveal_name として付ける（その行が出たときに PlaySession が名前を残す）。
+## 条件付きの行（{ "if": {...}, "lines": [...] }。中身Z）は、列を組む時点の事実（CustomerMemory.resolve_lines）で出す行を選ぶ。
 static func _talk(customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in ScheduleData.spoken_lines_with_reveal(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
+	# 〔演出〕の行は会話枠に出さない（中身U1）。条件付きの行（中身Z）は今の事実で選ぶ
+	for line in ScheduleData.spoken_lines_with_reveal(CustomerMemory.resolve_lines(lines, customer_id)):
 		var ev := { "type": "GREET", "customer": customer_id, "text": str(line["text"]) }
 		if line.has(ScheduleData.REVEAL_NAME_KEY):
 			ev[ScheduleData.REVEAL_NAME_KEY] = line[ScheduleData.REVEAL_NAME_KEY]
@@ -1123,7 +1143,11 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 			return _unknown_customer_flavor()
 		var count := int(inst.get("count", 0))
 		var greet := []
-		for line in ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(mob.get("greet", []), count)):
+		# 中身Z：同じ晩に同じ職種の2組目（この組より前のモブの組に同じ種類がいる）は、その日の予備の一言（spare_greet）があればそれ
+		var greet_source = mob.get("greet", [])
+		if is_repeat_mob_group(customer_id) and mob.get("spare_greet", []) is Array and not (mob.get("spare_greet", []) as Array).is_empty():
+			greet_source = mob["spare_greet"]
+		for line in ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(greet_source, count)):
 			greet.append(_format_mob_greet(str(line), count))
 		return { "greet": greet, "reactions": mob.get("reactions", {}),
 			"servings": count, "is_mob": true,
@@ -1151,6 +1175,22 @@ static func _customer_flavor(customer_id: String, mob_count: int = 0, scene_id: 
 		flavor["base_wanted_tags"] = (flavor["wanted_tags"] as Array).duplicate()
 		flavor["wanted_tags"] = (today["tags"] as Array).duplicate()
 	return flavor
+
+
+## 同じ晩の、この組より前の組（モブのインスタンス id の番号が小さい＝先に来る組。customer_schedule が時間帯の順に番号を振る）に、
+## 同じ職種がいるか（中身Z「四組目が来る晩の、予備の一言」）。モブでない・計画に無い id は false。状態を読むだけ。
+static func is_repeat_mob_group(customer_id: String) -> bool:
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	if not instances.has(customer_id) or not customer_id.begins_with("mob#"):
+		return false
+	var mine := int(customer_id.trim_prefix("mob#"))
+	var type_id := str((instances[customer_id] as Dictionary).get("type", ""))
+	for other in instances:
+		var other_id := str(other)
+		if other_id != customer_id and other_id.begins_with("mob#") and int(other_id.trim_prefix("mob#")) < mine \
+				and str((instances[other] as Dictionary).get("type", "")) == type_id:
+			return true
+	return false
 
 
 ## モブのgreet 1行を仕上げる（旧_format_dock_greetを改名。dock_workers専用ではなく

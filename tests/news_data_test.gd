@@ -4,14 +4,14 @@ extends RefCounted
 ## （客・モブ・評判に依存しない経路）で、概要表の日に届くこと、場面データの must_info が未知の
 ## 識別子を使えないこと、仮データの印（provisional）。
 
-# SEVEN_DAY_OUTLINE.md §11 の表（必須情報の id → 届く日）。データがこの表から外れたら落とす。
+# 必須情報の id → 届く日。中身Z：1〜2日目は SEVEN_DAY_OUTLINE.md §11 のまま、3〜7日目は改訂版の筋で組み直した9項目。データがこの表から外れたら落とす。
 const EXPECTED_DAYS := {
-	"strike_started": 1, "checkpoints": 2, "nightlife_spillover": 3, "video_spread": 4,
-	"night_removal": 5, "rights_shift": 5, "clash_fire": 6, "official_arson_claim": 7,
+	"strike_started": 1, "checkpoints": 2, "new_window_cargo": 3, "old_warehouse_load": 4,
+	"contract_shift": 5, "warehouse_fire": 6, "police_wiring_probe": 7, "window_changed_before_fire": 7,
 	"truth_unresolved": 7,
 }
-# 共通イベントで届ける項目（朝のニュースではない）。
-const EVENT_ONLY := ["clash_fire"]
+# 共通イベントで届ける項目（朝のニュースではない）。6日目の火災（夜半の共通イベント d6_fire）。
+const EVENT_ONLY := ["warehouse_fire"]
 
 
 func _fresh() -> Dictionary:
@@ -44,8 +44,8 @@ func run(_t: SceneTree) -> int:
 		for ev in News.day_entry(day)["events"]:
 			for id in ev["must_info"]:
 				event_ids.append(id)
-	c.check("共通イベントで届ける項目は clash_fire だけ（他は朝のニュース）", Array(event_ids).filter(
-		func(id): return not EVENT_ONLY.has(id)).is_empty() and event_ids.has("clash_fire"))
+	c.check("共通イベントで届ける項目は warehouse_fire だけ（他は朝のニュース。中身Z：6日目の「衝突」の共通イベントは印を外した）", Array(event_ids).filter(
+		func(id): return not EVENT_ONLY.has(id)).is_empty() and event_ids.has("warehouse_fire"))
 	var day7_unresolved := false
 	for item in News.day_entry(7)["news"]:
 		day7_unresolved = day7_unresolved or (item["must_info"] as Array).has("truth_unresolved")
@@ -56,16 +56,24 @@ func run(_t: SceneTree) -> int:
 			truth_item = item
 	c.check("#9：複数の説を並べる（本文が3行以上）", (truth_item.get("body", []) as Array).size() >= 3)
 
-	# --- 3. 仮データの印：Day3〜7 の全項目に provisional が付いている（脚本で差し替える）。Day1・2 は本番の文（中身U1・中身X）で付かない ---
+	# --- 3. 仮データの印：Day4〜7 の全項目に provisional が付いている（脚本で差し替える）。Day1〜3 は本番の文（中身U1・中身X・中身Z）で付かない ---
 	var all_provisional := true
 	var any_items := 0
-	for day in range(3, 8):
+	for day in range(4, 8):
 		var entry := News.day_entry(day)
 		for kind in ["news", "events"]:
 			for item in entry[kind]:
 				any_items += 1
 				all_provisional = all_provisional and bool(item.get("provisional", false))
-	c.check("Day3〜7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+	c.check("Day4〜7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+	var day3_news: Array = News.day_entry(3)["news"]
+	c.check("Day3 は本番の4本（3日目_ニュース.md。中身Z）：provisional なし・1本目は迂回便の見出しで must_info（new_window_cargo）・ほかは必須情報なし・共通イベントなし",
+		day3_news.size() == 4 and day3_news.all(func(i): return not bool(i.get("provisional", false)))
+			and str(day3_news[0]["headline"]) == "【港湾】第八码頭の作業停止続く　迂回便、複数の窓口で受付"
+			and day3_news[0]["must_info"] == ["new_window_cargo"] and (day3_news[0]["body"] as Array).size() == 3
+			and day3_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty())
+			and (News.day_entry(3)["events"] as Array).is_empty(),
+		str(day3_news.map(func(i): return i["headline"])))
 	var day2_news: Array = News.day_entry(2)["news"]
 	c.check("Day2 は本番の4本（2日目_ニュース.md。中身X）：provisional なし・1本目は検問の見出しで must_info ②（checkpoints）・ほかは必須情報なし",
 		day2_news.size() == 4 and day2_news.all(func(i): return not bool(i.get("provisional", false)))
@@ -85,14 +93,14 @@ func run(_t: SceneTree) -> int:
 	# --- 4. 担保が崩れるデータは落ちる ---
 	var removed := _fresh()
 	for item in removed["days"]["5"]["news"]:
-		if (item["must_info"] as Array).has("night_removal"):
-			(item["must_info"] as Array).erase("night_removal")
-	c.check("ニュースから項目を外す（客の場面にだけ残る状態）と落ちる：%s" % "night_removal",
-		not News.problems(removed).is_empty() and str(News.problems(removed)).contains("night_removal"))
+		if (item["must_info"] as Array).has("contract_shift"):
+			(item["must_info"] as Array).erase("contract_shift")
+	c.check("ニュースから項目を外す（客の場面にだけ残る状態）と落ちる：%s" % "contract_shift",
+		not News.problems(removed).is_empty() and str(News.problems(removed)).contains("contract_shift"))
 	var moved := _fresh()
 	moved["days"]["6"]["events"][0]["must_info"] = []
 	moved["days"]["6"]["events"][1]["must_info"] = []
-	c.check("共通イベントから clash_fire を外すと落ちる", str(News.problems(moved)).contains("clash_fire"))
+	c.check("共通イベントから warehouse_fire を外すと落ちる", str(News.problems(moved)).contains("warehouse_fire"))
 	var wrong_day := _fresh()
 	wrong_day["days"]["3"]["news"][0]["must_info"] = ["strike_started"]
 	c.check("表と違う日に現れると落ちる（strike_started をDay3へ）", str(News.problems(wrong_day)).contains("strike_started"))
@@ -131,7 +139,15 @@ func run(_t: SceneTree) -> int:
 			c.check("%s：場面は must_info を持たない（客の場面は補強。担保の根拠にしない）" % eid,
 				ScheduleData.episode_must_info(cid, eid).is_empty())
 	c.check("実データ21場面：未知の must_info は無い", scenes == 21 and scene_problems.is_empty(), str(scene_problems))
-	c.check("場面の must_info がカタログにある id なら通る", News.scene_problems({ "must_info": ["night_removal"] }).is_empty())
+	c.check("場面の must_info がカタログにある id なら通る", News.scene_problems({ "must_info": ["contract_shift"] }).is_empty())
+	# 中身Z：市場の場面（data/talks）の must_info の印（その会話で伝わる必須情報。担保はニュース）もカタログにある id だけ
+	var talk_ids := []
+	for talk_id in ["day1_market", "day2_market", "day3_market"]:
+		for part in ScheduleData.talk_data(talk_id).get("parts", []):
+			for id in (part as Dictionary).get("must_info", []):
+				talk_ids.append(str(id))
+	c.check("市場の場面の must_info の印はカタログにある（3日目の張姐＝new_window_cargo だけ）",
+		talk_ids == ["new_window_cargo"] and News.scene_problems({ "must_info": talk_ids }).is_empty(), str(talk_ids))
 	c.check("場面の must_info が未知の id なら弾く", not News.scene_problems({ "must_info": ["no_such_info"] }).is_empty())
 	c.check("場面に must_info が無ければ問題なし", News.scene_problems({}).is_empty())
 

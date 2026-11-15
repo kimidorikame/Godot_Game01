@@ -78,6 +78,57 @@ func _day2_texts() -> Array:
 	return texts
 
 
+## 条件付きの行を両方の道で開いた行（中身Z。どちらの道で出る行も含める）。
+func _both_paths(lines: Array) -> Array:
+	var out := []
+	for line in lines:
+		if ScheduleData.is_condition_group(line):
+			out.append_array(_both_paths(line["lines"]))
+		elif line is String:
+			out.append(line)
+	return ScheduleData.spoken_lines(out)
+
+
+## 反応の行（OK_MISSING の札ごとの文を含む）。
+func _reaction_lines(reactions: Dictionary) -> Array:
+	var out := []
+	for key in reactions:
+		var r = reactions[key]
+		if r is Array:
+			out.append_array(r)
+		elif r is Dictionary:
+			for v in (r as Dictionary).values():
+				out.append_array(v)
+	return out
+
+
+## 3日目の会話枠に出る文（中身Z。名前を除いた本文）：常連3人の場面（条件付きの行は両方の道）・モブ3組の3日目の文（2杯以上の行・予備の一言を含む）・市場の会話・朝のニュース。
+func _day3_texts() -> Array:
+	var raw := []
+	for pair in [["delivery_man", "delivery_man_02"], ["streamer", "streamer_01"], ["hooker", "hooker_02"]]:
+		var ep := ScheduleData.episode_data(pair[0], pair[1])
+		for key in ["greet", "body"]:
+			raw.append_array(_both_paths(ep.get(key, [])))
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
+	for mob in ["inn_clerk", "general_store_clerk", "street_cleaners"]:
+		var form := ScheduleData.mob_data_for_day(mob, 3)
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines([form["spare_greet"][0]]))
+		raw.append_array(ScheduleData.spoken_lines(form["after_talk"]))
+		raw.append_array(_reaction_lines(form["reactions"]))
+	for part in ScheduleData.talk_data("day3_market")["parts"]:
+		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
+	var texts := []
+	for line in raw:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts.has(text):
+			texts.append(text)
+	# 朝のニュース（会話枠に1行ずつ出る。見出しは「ニュース：」付き）
+	for ev in News.morning_events(3):
+		texts.append(str(ev["text"]))
+	return texts
+
+
 func run(_t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
@@ -125,6 +176,19 @@ func run(_t: SceneTree) -> int:
 			multi2.append(text)
 	c.check("2日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts2.size(), texts2.size() > 200 and bad2.is_empty(), str(bad2))
 	print("  2日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts2.size(), multi2.size(), str(multi2)])
+
+	# --- 4. 3日目の会話枠に出る文（中身Z） ---
+	var texts3 := _day3_texts()
+	var bad3 := {}
+	var multi3 := []
+	for text in texts3:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad3[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi3.append(text)
+	c.check("3日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts3.size(), texts3.size() > 200 and bad3.is_empty(), str(bad3))
+	print("  3日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts3.size(), multi3.size(), str(multi3)])
 
 	ScheduleData.clear_cache()
 	return c.finish()

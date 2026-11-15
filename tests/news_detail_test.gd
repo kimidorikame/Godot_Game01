@@ -38,9 +38,9 @@ func run(t: SceneTree) -> int:
 	var unread_before := s.news_unread_count()
 	root.open_phone("news")
 	var rows := _rows(content)
-	c.check("一覧：その日までのニュースを新しい日が上で並べる（同じ日はデータの順。Day4 より先は出ない）", rows == ["d3_spillover", "d2_checkpoints", "d2_rain", "d2_reader_arm", "d2_socks", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(rows))
+	c.check("一覧：その日までのニュースを新しい日が上で並べる（同じ日はデータの順。Day4 より先は出ない）", rows == ["d3_windows", "d3_rain", "d3_body_aid", "d3_umbrellas", "d2_checkpoints", "d2_rain", "d2_reader_arm", "d2_socks", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(rows))
 	var d3: Dictionary = News.day_entry(3)["news"][0]
-	var row3: Button = content.get_node("NewsRow_d3_spillover")
+	var row3: Button = content.get_node("NewsRow_d3_windows")
 	var row1: Button = content.get_node("NewsRow_d1_strike")
 	c.check("一覧の行：日付（Calendar.label。今日には「（今日）」）と見出しだけ（本文は出さない）",
 		_texts(row3).has("%s（今日）" % Calendar.label(3)) and _texts(row3).any(func(x): return str(x).ends_with(str(d3["headline"])))
@@ -51,18 +51,18 @@ func run(t: SceneTree) -> int:
 	# --- 2. 詳細・戻る ---
 	_press(row3)
 	var labels := _texts(content)
-	c.check("行を押すと詳細：見出し・日付・本文の全部（一覧の行は消える）", phone.news_open == "d3_spillover" and _rows(content).is_empty()
+	c.check("行を押すと詳細：見出し・日付・本文の全部（一覧の行は消える）", phone.news_open == "d3_windows" and _rows(content).is_empty()
 		and content.has_node("NewsBack") and (content.get_node("NewsHeadline") as Label).text == str(d3["headline"])
 		and (content.get_node("NewsDate") as Label).text == "%s（今日）" % Calendar.label(3)
 		and (d3["body"] as Array).all(func(line): return labels.has(str(line))), str(labels))
 	_press(content.get_node("NewsBack"))
-	c.check("「戻る」で一覧に戻る", phone.news_open == "" and _rows(content) == ["d3_spillover", "d2_checkpoints", "d2_rain", "d2_reader_arm", "d2_socks", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(_rows(content)))
+	c.check("「戻る」で一覧に戻る", phone.news_open == "" and _rows(content) == ["d3_windows", "d3_rain", "d3_body_aid", "d3_umbrellas", "d2_checkpoints", "d2_rain", "d2_reader_arm", "d2_socks", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(_rows(content)))
 
 	# --- 3. 長い本文（Day7 の d7_unresolved は4行）：縦に送れる ---
 	root.close_overlay()
 	GameState.day_count = 7
 	root.open_phone("news")
-	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1・2 は4本＝中身U1・中身X）", _rows(content).size() == 15 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
+	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1〜3 は4本＝中身U1・中身X・中身Z）", _rows(content).size() == 18 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
 	_press(content.get_node("NewsRow_d7_unresolved"))
 	var long: Dictionary = News.day_entry(7)["news"][1]
 	labels = _texts(content)

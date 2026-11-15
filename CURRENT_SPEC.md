@@ -2559,8 +2559,9 @@ GameState.try_pay(amount) -> bool
 
 - **データ**：`data/news/week7.json`（`Rules.news()`＝`week7.json`の`"news"`が指すid。**宣言済み・未使用だった項目が
   使われ始めた**）。`must_info`＝カタログ`[{id, day, label}]`（9項目: strike_started D1・checkpoints D2・
-  nightlife_spillover D3・video_spread D4・night_removal D5・rights_shift D5・clash_fire D6・
-  official_arson_claim D7・truth_unresolved D7）、`days.<日>`＝`{news:[{id, headline, body[], must_info[], provisional}],
+  ~~nightlife_spillover D3・video_spread D4・night_removal D5・rights_shift D5・clash_fire D6・
+  official_arson_claim D7・truth_unresolved D7~~ **【中身Zで組み直し】new_window_cargo D3・old_warehouse_load D4・contract_shift D5・
+  warehouse_fire D6（共通イベント d6_fire）・police_wiring_probe D7・window_changed_before_fire D7・truth_unresolved D7**）、`days.<日>`＝`{news:[{id, headline, body[], must_info[], provisional}],
   dm:[{from, text, provisional}], events:[{id, at, lines[], must_info[], provisional}]}`。日番号はデータが指す
   （コードに書かない）。**文面はすべて仮案**（`provisional: true`。SEVEN_DAY_OUTLINEの仮案。概要表に文面の無い
   `night_removal`（Day5）と`truth_unresolved`（Day7）は実装側が仮の1項目を補った）。脚本で差し替えるときは
@@ -2582,7 +2583,7 @@ GameState.try_pay(amount) -> bool
 - **共通イベント**（`at`で出す場所を決める。TEXT・`part:"common_event"`・`event_id`付き）：`wake`＝朝のニュースの後／
   時間帯名（宵の口・夜半・明け方）＝その時間帯の**最初の客の接客の前**（`DebugPanel._slot_start_events`。
   客の列の前に前置）／`close`＝閉店の語りの前。現行データはDay6だけ：衝突（`d6_clash`）が宵の口の始め、
-  火災（`d6_fire`、`clash_fire`）が夜半の始め。
+  火災（`d6_fire`、`clash_fire`）が夜半の始め。**【中身Z】必須情報の印は火災（`d6_fire`）の`warehouse_fire`だけ（衝突の`d6_clash`は印なし。文は仮のまま）。**
 - **二重再生の防止**：`_played_events`（再生済みのid）と`_slot_event_ids`（時間帯の位置`slot_index:index`→前置したid）は
   **保存しない実行時の値**で、WAKE・再挑戦・[新しい周]でリセット。`_load_current_customer`が同じ客で何度呼ばれても
   同じ列を組み直すだけで二重にならない。
@@ -2597,7 +2598,7 @@ GameState.try_pay(amount) -> bool
 - **既知の制約・未対応**：
   ・時間帯の共通イベントは「その時間帯の最初の客の前」に出るため、**客のいない時間帯は飛ばされ**（`OpenController`の
     `_skip_finished_slots`）、そのイベントはCLOSEでの取り戻しになる。宵の口が0人で夜半に客がいると、火災が先に出て
-    衝突が閉店時になり**時系列が逆**になりうる（`clash_fire`の担保は崩れない）。現行の固定日程では起きにくい。
+    衝突が閉店時になり**時系列が逆**になりうる（`clash_fire`〔中身Zから`warehouse_fire`〕の担保は崩れない）。現行の固定日程では起きにくい。
     直すなら「時間帯の頭に、データ順でそれより前の未再生イベントも一緒に出す」。
   ・ゲームオーバーでCLOSEに来ない周には取り戻しが届かない（Day6には営業中の支払いが無く、現行ルールでは起きない）。
   ・文面・見出し・DMの差出人は仮案。日別の市場の変化（Day7の海鮮の閉鎖・傷みなど）は別タスク。
@@ -3308,6 +3309,52 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
 - テスト：`tests/day2_script_test.gd`（データ・市場の並びと払い方・2杯以上の行・2日目を本番の画面で通す：元の文の行が順に出る・反応は1行・名前の札・朝のDM・
   14:10 の表示）。`dm_preview_test`（まだ会っていない客の予告）、`sns_timeline_test`（2日目の確かめ a〜e）、`kinsoku_dialogue_test`（2日目の文の行頭禁則）。
   2日目の仮の文を前提にしていたテストを直した（仮の文の確かめは6日目の`thug_03`へ。件数・差出人・行数を2日目の本番の文に合わせた）。
+
+### 3日目の本番の文（中身Z・実装済み・2026-11-15。判定・評判・乱数・経済の式は変えない。4日目以降は仮の文のまま。雨で客数や食材は変えない）
+
+- **元の文**：`planning/scenario/day3/` の8本（昼市場・運び屋・配信者・夜の女・モブ3組・DM・ニュース・タイムライン）。表記は1・2日目と同じ。
+- **昼市場**：`day_overrides."3".market_scene`＝`data/talks/day3_market.json`。張姐（市場に着いたとき。「で、今日はどれ位仕込む？」が仕込む量を選ぶ場面の文。
+  選んだあとに2行＝1日目と同じく「%sにした。」は出さない）と、梁伯（`when:"exit"`。「市場を出る」のあと）。梁伯の場面は払う印（`pay`・`pay_bills`）を
+  持たないので、**払い方と額は今までどおり**（「市場を出る」で炭代・水代をまとめて払う。月の水道代は取らない日）。会話のあとに今までどおりの
+  「水を汲み、炭を買った（炭代−¥40・水代−¥35）。」。`Day1Events.market_exit_pays_in_scene()`（出るときの場面が払う印を持つ日＝1日目だけ）を足し、
+  `PlaySession.exit_market`・市場の画面の注記はこれで分ける（`has_market_exit_scene()`は「出るときの場面がある日」＝1日目・3日目）。
+  市場の場面の部分に`must_info`（その会話で伝わる必須情報の印。担保はニュース）を置ける（3日目の張姐＝`new_window_cargo`）。ミン・海叔は入れていない。
+- **常連の場面**：`delivery_man_02`（阿強）・`streamer_01`（ニカ）・`hooker_02`（セティヤ）。欄の割り当ては2日目と同じ（`greet`＝来店〜注文、`reactions`、
+  `body`＝食事〜会計・退店）。**OK の文の2通り**：1日目の港湾労働者の`reactions.OK_MISSING.<札>`（その札だけが外れたときの文）を常連の場面でも使う。
+  `reactions.OK`は1つ目の文（札が2つとも外れた・減点の OK）。`ScheduleData.scene_problems`は、`OK_MISSING`の札がその場面の注文
+  （今日の頼み、無ければ基本の注文）にあることを検査する。
+- **条件付きの行**（新しい仕組み）：場面の行の配列（greet・market_talk・pre_order・body・body_unserved・closing・cups の after_talk）に
+  `{ "if": { "fact": "<キー>" }, "lines": [...] }`（その客の事実が真のときだけ）／`{ "if": { "not_fact": "<キー>" }, "lines": [...] }`（偽＝無いときだけ）を置ける。
+  `if.customer`で別の客の事実を見られる。入れ子も可。行を Event にするところ（`Day1Events._talk`・`_scene_lines`）で`CustomerMemory.resolve_lines`が
+  今の事実で開く（状態を読むだけ）。朝のDMも同じ`if`を持てる（`Dm.condition_allows`。客は`requires.customer`）。形は`ScheduleData.condition_problems`が検査する。
+- **最初の条件**：「1日目に阿強の3杯目（持ち帰り）を出した」＝`facts.day1_takeout_served`。今までどこにも残っていなかったので、複数杯の場面の杯に
+  `sets_facts`（その杯を出したときに facts へ書く事実）を足し、`delivery_man_01`の3杯目に`{ "day1_takeout_served": true }`を置いた
+  （`PlaySession._serve_customer`が書く。断った杯は書かない＝偽）。facts はもともと朝のセーブに入るので、**セーブの形・版（6）は変えていない**。
+  3日目の阿強：真のときだけ「来店・容器」の節の全部と退店の最後の3行。偽のときは最初の行が「まだやってる？　布貸して。脚の端子、拭くから」、
+  「返事を待つ間は、雨の当たらんとこにいろ」のあとに「うん。行ってくる」。朝のDMも同じ条件で2通（`d3_delivery_man`／`d3_delivery_man_declined`）。
+- **名乗る前の名前**：客のプロフィールに`name_before_reveal`（配信者＝「初めての客」）を置くと、名乗るまで`CustomerMemory.display_name`がそれを返す
+  （名乗ったあとは facts.revealed_name）。`streamer_01`の「客「ニカ。配信では、その名前」」のあとに`{ "reveal_name": "ニカ" }`。会話の名前の札は行の頭の「客」のまま。
+  新人警官は今のまま（「新人警官」→「リン」）。表示名を出す所はどれも`display_name`を通る（客ノート・連絡先のカード・DMの相手・結果画面・会話ログ・
+  請求の行・デバッグ画面の見込み）。本番の画面の朝には今夜の客の一覧は無い（デバッグ画面の見込みだけ）。
+- **予備の一言**：モブの`days.<日>.spare_greet`＝同じ晩に同じ職種の2組目が来たとき、`greet`の代わりに出す行（予備の一言＋注文の行＋「…分も」の行）。
+  2組目かどうかは、その晩のモブの組（`mob#N`の番号が小さい＝先に来る組）に同じ種類がいるか（`Day1Events.is_repeat_mob_group`）。反応・椀のあとの会話は1組目と同じ。
+- **モブ3組**（`days."3"`）：安宿の夜勤受付・雑貨屋の夜番・夜間清掃員。「2杯以上のときだけ」の行は`min_count`、OK は`OK_MISSING`で2通り。注文の札はデータのまま。
+- **DM**（3日目）：仮の3件（`d3_market`〔魚〕・`d3_market_quiet`〔hint:few〕・`d3_officer`〔hint:many〕）を外し、張姐 6:35・阿強 7:10（条件付きの2通の片方）・
+  セティヤ 7:45。来店予告の`pools.<客>.no_preview_days`（その日はその客の予告を出さない）を足し、阿強・セティヤに`[3]`（このDMが代わり）。
+  外した hint は、本番の画面の表示には効かず、自動試遊の「予報を読まない」遊び方（`info:visible`）の見込み杯数を±1するだけ（基準の計測〔予報を読む〕には効かない）。
+- **ニュース**（3日目）：4本（迂回便〔`d3_windows`。must_info `new_window_cargo`〕・終日雨・身体補助の点検・雨傘の取り違え）。
+- **必須情報の組み直し**（1〜2日目は今のまま）：3日目`new_window_cargo`（新しい窓口から荷が動き始めた）・4日目`old_warehouse_load`（旧倉庫に荷と夜勤が集中している）・
+  5日目`contract_shift`（仕事の窓口と下請けの契約が移っている）・6日目`warehouse_fire`（旧倉庫で深夜に火災が起きた）・7日目`police_wiring_probe`
+  （警察は仮設配線付近を調査中。放火の証拠は確認されていない）・`window_changed_before_fire`（火災の前から窓口は替わっていた）・`truth_unresolved`（原因は確定しない）。
+  4〜7日目の記事は仮の文のまま印だけ付け替えた（`d4_video`→old_warehouse_load、`d5_rights`→contract_shift、`d5_removal`は印なし、`d6_clash`〔共通イベント〕は印なし、
+  `d6_fire`〔共通イベント〕→warehouse_fire、`d7_official`→police_wiring_probe、`d7_unresolved`→window_changed_before_fire・truth_unresolved）。
+- **タイムライン**（3日目）：新しいアカウント4つ（粉まみれ・贈り物覚え書き・棚の奥〔持ち主 general_store_clerk〕・二階の住人）と投稿24件（朝5／市場・準備10／宵の口5／夜半4）。
+  リンの「・」2件は暗号文のまま（原文と意味は`truth`。「誰かへの報告」。報告先・組織の名前は書かない）。**新しい表示条件**`requires.visited`（その日、その客の接客が
+  済んでから。閉店のあとは来なかった日も見える）。`PlaySession.visits_done_today()`（開店のあいだは今の客より前の客、閉店のあとは今日の計画の名前あり客）を
+  `Sns.is_visible`に渡す。ニカの 23:00 に`{ "visited": "streamer" }`。
+- テスト：`tests/day3_script_test.gd`（データ・条件付きの行・名乗る前の名前・予備の一言・市場の並びと払い方・DM・3日目を本番の画面で通す〔3杯目を出した道・断った道〕）。
+  `tests/ui_autoplay.gd`に`decline_when`（断る杯を決める台本）を足した。`kinsoku_dialogue_test`（3日目の文と朝のニュースの行頭禁則）、`sns_timeline_test`（3日目の確かめ a〜e・
+  visited）、`news_data_test`（組み直した必須情報）。3日目を「いつもの日」として使っていたテスト（市場の場面なし・prep_talk・仮のDM・予告の選び方）は4日目・6日目へ移した。
 
 ---
 

@@ -37,9 +37,12 @@ const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "ch
 # 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
 # ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
 # 中身X：2日目の本番の文（officer_01・thug_02・hooker_01）も同じ形（食後の本文 body を持つ。文だけ替えた）。
+# 中身Z：3日目の本番の文（delivery_man_02・streamer_01・hooker_02）も同じ形。
 const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"],
-	"officer_01": ["body"], "thug_02": ["body"], "hooker_01": ["body"] }
-const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker"]
+	"officer_01": ["body"], "thug_02": ["body"], "hooker_01": ["body"],
+	"delivery_man_02": ["body"], "streamer_01": ["body"], "hooker_02": ["body"] }
+const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker",
+	"3:delivery_man", "3:streamer", "3:hooker"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
@@ -53,7 +56,8 @@ const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "stre
 # 日番号で引くのをやめたため、日程に無い客はその客の最後の場面（通常の1杯）を返す＝
 # 要求タグ・会話・杯数が入る。ゲーム内では呼ばれない組み合わせ（意図した差）。
 # 中身X：2日目のセティヤ（中身Wで日程に入った）は本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
-const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer", "3:streamer"]
+# 中身Z：3日目のニカは本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
+const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer"]
 
 
 ## JSONを通した形（整数が小数になる差を避けて比べるため）にそろえる。
@@ -178,7 +182,8 @@ func run(_t: SceneTree) -> int:
 func _expected_value_events(d: int, cid: String, recorded) -> Array:
 	# 2日目のセティヤは4-3の日程に無かった（記録に会話データが無い）。中身Wで日程に入った場面なので、同じ客の仮の文の場面
 	# （最後の場面）と、文以外の Event が同じことを確かめる。
-	if d == 2 and cid == "hooker":
+	# 中身Z：3日目のニカも、4-3の記録は会話データの無い組だった（記録の札が空）。同じ客の最後の場面と比べる。
+	if (d == 2 and cid == "hooker") or (d == 3 and cid == "streamer"):
 		return _value_events(_events_at(cid, _scheduled_day(cid)))
 	var values := _value_events(recorded)
 	# 中身X：2日目のレックスの注文を まろやか＋やさしい → まろやか＋スタミナ（今日の頼み）に変えた（意図した差）

@@ -1,7 +1,7 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。",
-  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。",
+  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md",
   "accounts": {
 	"after_shift": {
 	  "name": "夜勤あけ",
@@ -338,6 +338,54 @@
 	  "owner": "town",
 	  "profile": "降りた先を歩いています。",
 	  "note": "書き手用（画面に出さない）。層：上の街（固定）／持ち主：富裕層／街歩き配信者"
+	},
+	"min": {
+	  "name": "粉まみれ",
+	  "handle": "@flour_daily",
+	  "icon": {
+		"color": "#8a5a3a",
+		"text": "粉"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "麺と豆腐を作っています。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：ミン（福生豆腐麺房。客ではない）"
+	},
+	"hao_gifts": {
+	  "name": "贈り物覚え書き",
+	  "handle": "@hao_gifts",
+	  "icon": {
+		"color": "#e0913a",
+		"text": "贈"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "家族と買い物。",
+	  "note": "書き手用（画面に出さない）。層：上の街（1回きり）／持ち主：富裕層／家族の身体補助を買う人"
+	},
+	"back_shelf": {
+	  "name": "棚の奥",
+	  "handle": "@back_shelf",
+	  "icon": {
+		"color": "#5a3a24",
+		"text": "棚"
+	  },
+	  "kind": "main",
+	  "owner": "general_store_clerk",
+	  "profile": "店番中。閉める前に棚を見ます。",
+	  "note": "書き手用（画面に出さない）。層：客・市場の人／持ち主：雑貨屋の夜番"
+	},
+	"second_floor": {
+	  "name": "二階の住人",
+	  "handle": "@second_floor",
+	  "icon": {
+		"color": "#8a5bc0",
+		"text": "二"
+	  },
+	  "kind": "main",
+	  "owner": "town",
+	  "profile": "窓の外と部屋の中。",
+	  "note": "書き手用（画面に出さない）。層：労働者（1回きり）／持ち主：市民／商店の向かいに住む人"
 	}
   },
   "posts": [
@@ -775,6 +823,217 @@
 	  "text": "検問の列、あと二時間。乾麺を水で戻しはじめた。四十分後に会おう。",
 	  "provisional": false,
 	  "truth": "長距離運転手。明け方に来る前の投稿。会話の「水で戻して四十分」と同じ。"
+	},
+	{
+	  "id": "d3_east_news_0700",
+	  "account": "east_news",
+	  "day": 3,
+	  "time": "07:00",
+	  "text": "第八码頭の夜勤班、作業停止続く。迂回便は複数の窓口で受付。湾岸地区は終日雨。",
+	  "provisional": false,
+	  "truth": "ニュース1本目と同じ（複数の窓口）。"
+	},
+	{
+	  "id": "d3_akiang_0730",
+	  "account": "akiang",
+	  "day": 3,
+	  "time": "07:30",
+	  "text": "雨の日の「到着予定」、誰の脚で計算してんのか、そろそろ教えてほしい。",
+	  "provisional": false,
+	  "truth": "阿強。1日目の「二十七階、一分四十秒」の続き。今夜の「次の休憩が読めない」の前振り。"
+	},
+	{
+	  "id": "d3_celine_view_0805",
+	  "account": "celine_view",
+	  "day": 3,
+	  "time": "08:05",
+	  "text": "窓の山は晴れのままにした。雨音を付けたら合わなかったので、鳥の声に戻した。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_commute_40_0840",
+	  "account": "commute_40",
+	  "day": 3,
+	  "time": "08:40",
+	  "text": "傘を差すと手すりが持てない。手すりを持つと、右の肩だけ濡れる。今日は右の肩で行く。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_ayu_0920",
+	  "account": "ayu",
+	  "day": 3,
+	  "time": "09:20",
+	  "text": "店先の雨だれが、値札の数字だけ消していく。名前は残る。青菜、言い値で売る店みたいになった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_han_repairs_1015",
+	  "account": "han_repairs",
+	  "day": 3,
+	  "time": "10:15",
+	  "text": "濡れたまま持ち込んでも構いません。型番の紙だけは別の袋で。紙がいちばん先に読めなくなります。",
+	  "provisional": false,
+	  "truth": "阿強の端子の見積もり、ニュース3本目と同じ修理屋の世界。"
+	},
+	{
+	  "id": "d3_min_1110",
+	  "account": "min",
+	  "day": 3,
+	  "time": "11:10",
+	  "text": "「麺、取りに来る」を音声で受けた。機械が回ってて「年取りに来る」になってた。俺も毎年来てる。",
+	  "provisional": false,
+	  "truth": "ミン。人物設定の「音声で返事をすると機械の音まで拾われる」。"
+	},
+	{
+	  "id": "d3_hao_gifts_1140",
+	  "account": "hao_gifts",
+	  "day": 3,
+	  "time": "11:40",
+	  "text": "父に新しい義膝を贈った。階段が楽になったらしいが、本人は「前の修理屋に会う口実がなくなる」と言っている。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_anne_life_1220",
+	  "account": "anne_life",
+	  "day": 3,
+	  "time": "12:20",
+	  "text": "改造なしの一週間、三日目。翻訳なしでパンを買えた。思ったより大きい。袋が二つ来た理由は、帰ってから分かった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_shiwei_1305",
+	  "account": "shiwei",
+	  "day": 3,
+	  "time": "13:05",
+	  "text": "濡れた箱ごと持って来なくて大丈夫です。中の使える物だけ、乾いた方へ。箱の写真だけ送る人も、いったん中を見てください。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_sou_jobhunt_1410",
+	  "account": "sou_jobhunt",
+	  "day": 3,
+	  "time": "14:10",
+	  "text": "昨日の問い合わせ、返事が来た。「眼鏡は身体補助に含みません」。次の欄に「視力補正の有無」が増えていた。",
+	  "provisional": false,
+	  "truth": "2日目の「明日返事が来る」の続き。"
+	},
+	{
+	  "id": "d3_lin_alt_1500",
+	  "account": "lin_alt",
+	  "day": 3,
+	  "time": "15:00",
+	  "text": "QHZ QDPH RQ ROG ZDUHKRXVH FDUJR. SDVVHG ZLWKRXW VWRS. DV LQVWUXFWHG.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「NEW NAME ON OLD WAREHOUSE CARGO. PASSED WITHOUT STOP. AS INSTRUCTED.」＝「旧倉庫の荷に新しい名義。止めずに通した。指示どおり。」。リンが検問で、新しい名義の荷を止めずに通していると分かる。誰の指示かは書かない。社名も書かない（「新しい名義」まで）。張姐の伝票・阿強の依頼元・ニカの荷札と同じ日に置いた。"
+	},
+	{
+	  "id": "d3_ren_design_1535",
+	  "account": "ren_design",
+	  "day": 3,
+	  "time": "15:35",
+	  "text": "庭園の雨と同じつもりで歩いたら、靴の中まで濡れました。あちらは足元まで管理してくれていたんですね。",
+	  "provisional": false,
+	  "truth": "1日目「庭園の雨の予約が取れない」→ 2日目「下の街は予約なしで降る」→ 3日目、本物の雨に濡れる。"
+	},
+	{
+	  "id": "d3_face_savings_1620",
+	  "account": "face_savings",
+	  "day": 3,
+	  "time": "16:20",
+	  "text": "雨漏りの修理代を、左右どっちの口座から出すかで止まってる。天井は真ん中。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_two_hours_1710",
+	  "account": "two_hours",
+	  "day": 3,
+	  "time": "17:10",
+	  "text": "店に着いて、靴下を替えた。帰りの分も欲しい。今から出勤する人、靴下は多めに。",
+	  "provisional": false,
+	  "truth": "セティヤと同じ店。裏口が荷車で使えず、全員が表から来た（セティヤの会話と同じ出来事を、黒服の側から）。"
+	},
+	{
+	  "id": "d3_south_blocks_1805",
+	  "account": "south_blocks",
+	  "day": 3,
+	  "time": "18:05",
+	  "text": "廊下の雨漏りの下に鍋が三つ。音が違うので、奥の部屋にいても、どこが増えたか分かる。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_exposure_test_1915",
+	  "account": "exposure_test",
+	  "day": 3,
+	  "time": "19:15",
+	  "text": "荷札を拡大したら、雨粒の方にピントが来てた。社名、一文字ずつ拾ってる。いま一文字。",
+	  "photo": "荷札の一部と、表面の雨粒。字は読み取れない",
+	  "provisional": false,
+	  "truth": "ニカ。屋台に来る前の投稿。夜の会話の「一文字目だけ。『曜』」と合う。投稿では字を言わない。"
+	},
+	{
+	  "id": "d3_backdoor_2000",
+	  "account": "backdoor",
+	  "day": 3,
+	  "time": "20:00",
+	  "text": "店の傘立てに、客の傘より従業員の傘が多い。今日は裏口が使えなかったので、全員が表から来た。",
+	  "provisional": false,
+	  "truth": "セティヤと同じ店。裏口が荷車で使えず、全員が表から来た（セティヤの会話と同じ出来事を、黒服の側から）。"
+	},
+	{
+	  "id": "d3_laundry_3_2045",
+	  "account": "laundry_3",
+	  "day": 3,
+	  "time": "20:45",
+	  "text": "傘は乾燥機に入れないでください。入る大きさでも、入れないでください。",
+	  "provisional": false
+	},
+	{
+	  "id": "d3_dock_b_2125",
+	  "account": "dock_b",
+	  "day": 3,
+	  "time": "21:25",
+	  "text": "班の端末に、知らない名前から夜の仕事の募集。日当はいい。待ち時間の欄が、最初から無い。",
+	  "provisional": false,
+	  "truth": "港湾労働者B。スト班ではない班にも、知らない名前から募集が来た。「待ち時間の欄が無い」＝スト班が求めているものが、新しい窓口には最初から無い。阿強の「荷待ちの分が書いてない」と同じ。5日目の「今日は呼ぶまで待て」への前振り。"
+	},
+	{
+	  "id": "d3_back_shelf_2210",
+	  "account": "back_shelf",
+	  "day": 3,
+	  "time": "22:10",
+	  "text": "品物が減った棚、こんなに奥行きがあったのか。後ろの壁の色を、三年ぶりに見た。",
+	  "provisional": false,
+	  "truth": "雑貨屋の夜番。会話の「三年寝てた箱」「奥の壁が見えるままにしとく」と同じ。夜番が来なかった晩でも、品物は売れている。"
+	},
+	{
+	  "id": "d3_exposure_test_2300",
+	  "account": "exposure_test",
+	  "day": 3,
+	  "time": "23:00",
+	  "text": "車の列を少し撮った。動いてるの、ワイパーばっかり。待ってる人も映ると、ただの夜景には見えなくなる。",
+	  "photo": "歩道から見た車列。運転席の窓ごしに弁当箱が見える。顔は分からない（動画）",
+	  "provisional": false,
+	  "truth": "ニカ。退店のあとに撮った車列。4日目の長距離運転手（家から「また揚げ物？」）につながる。表示は、夜半のニカの接客が済んでから（requires.visited。時刻だけだと、夜半に入った時点〔ニカが来る前〕に見えてしまう）。",
+	  "requires": {
+		"visited": "streamer"
+	  }
+	},
+	{
+	  "id": "d3_lin_alt_2335",
+	  "account": "lin_alt",
+	  "day": 3,
+	  "time": "23:35",
+	  "text": "UHDU PDUNHW URXWH VWLOO RSHQ. QR FRQWDFW ZLWK VWDOO RZQHU WRGDB.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「REAR MARKET ROUTE STILL OPEN. NO CONTACT WITH STALL OWNER TODAY.」＝「市場裏の経路は引き続き通行可能。本日は屋台の店主との接触なし。」。来なかった日も、店主を接触相手として数えている。リンは3日目に来ない日なので、来店の条件は付けない（時刻の決まりだけ）。"
+	},
+	{
+	  "id": "d3_second_floor_2350",
+	  "account": "second_floor",
+	  "day": 3,
+	  "time": "23:50",
+	  "text": "向かいの看板が消灯した。故障かと思ったら店主が旅行中だった。部屋が暗い。こんなにあの店の明かりで暮らしてたのか。",
+	  "provisional": false
 	}
   ]
 }

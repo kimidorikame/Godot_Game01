@@ -256,7 +256,8 @@ func run(t: SceneTree) -> int:
 	var now_values := now_events.filter(func(e): return e["type"] != "GREET")
 	var rec_values := recorded_events.filter(func(e): return e["type"] != "GREET")
 	for i in range(mini(now_values.size(), rec_values.size())):
-		var a: Array = (now_values[i] as Dictionary).keys()
+		# 中身Z：3杯目（持ち帰り）の REACT に、出したときに残す事実（sets_facts）を足した（意図した差）
+		var a: Array = (now_values[i] as Dictionary).keys().filter(func(k): return not (i == now_values.size() - 1 and k == "sets_facts"))
 		var b: Array = (rec_values[i] as Dictionary).keys()
 		a.sort()
 		b.sort()
@@ -272,7 +273,8 @@ func run(t: SceneTree) -> int:
 	c.check("3杯目のREACTに favorite が付かない（記録と同じ）。1・2杯目は付く（tofu）",
 		recorded_reacts.size() == 3 and now_reacts.size() == 3 and not (now_reacts[2] as Dictionary).has("favorite")
 			and now_reacts[0]["favorite"] == "tofu" and now_reacts[1]["favorite"] == "tofu"
-			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size())
+			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size() + 1
+			and now_reacts[2].get("sets_facts", {}) == { "day1_takeout_served": true } and not now_reacts[0].has("sets_facts") and not now_reacts[1].has("sets_facts"))
 	c.check("3杯目の注文は SAVORY/GENTLE（中身U1：うましお＋やさしい）・反応は元の文（GOOD・OK・BAD の3段。GREAT は無い）",
 		now_reacts[2]["wanted_tags"] == ["SAVORY", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK"])
 	c.check("1・2杯目の要求タグはプロフィール（HOT/POWER）で、反応は各結果1パターンのまま",

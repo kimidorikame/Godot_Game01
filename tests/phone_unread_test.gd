@@ -18,9 +18,9 @@ func run(t: SceneTree) -> int:
 	var news_total := 0
 	for section in s.phone_news():
 		news_total += (section["news"] as Array).size()
-	c.check("Day3：今日までのニュースが9件（Day1・2の各4本＝中身U1・中身X・Day3の1件）で、すべてid・未読つき", news_total == 9
+	c.check("Day3：今日までのニュースが12件（Day1〜3の各4本＝中身U1・中身X・中身Z）で、すべてid・未読つき", news_total == 12
 		and s.phone_news().all(func(sec): return (sec["news"] as Array).all(func(n): return str(n["id"]) != "" and bool(n["unread"]))))
-	c.check("ニュースの未読の数＝9、スマホの未読の合計＝DM＋ニュース＋タイムライン", s.news_unread_count() == 9
+	c.check("ニュースの未読の数＝12、スマホの未読の合計＝DM＋ニュース＋タイムライン", s.news_unread_count() == 12
 		and s.phone_unread_count() == s.dm_unread_count() + s.news_unread_count() + s.timeline_unread_count(), "%d/%d" % [s.news_unread_count(), s.dm_unread_count()])
 	c.check("必須情報を持つ未読のニュース（3件）を数えられる", (s.unread_must_info_news() as Array).size() == 3, str(s.unread_must_info_news()))
 	s.mark_news_read()

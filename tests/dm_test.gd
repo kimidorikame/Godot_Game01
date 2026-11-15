@@ -32,11 +32,12 @@ func run(t: SceneTree) -> int:
 	c.check("仮の文の種類：名前あり客の条件が最低1通", all_items.any(func(x): return str(x["from_kind"]) == "customer" and (x["requires"] as Dictionary).has("customer")))
 	c.check("仮の文の種類：モブの条件が最低1通", all_items.any(func(x): return str(x["from_kind"]) == "mob" and (x["requires"] as Dictionary).has("mob_type")))
 	c.check("仮の文の種類：hint:many が最低1通", all_items.any(func(x): return str(x["hint"]) == "many"))
-	c.check("仮の文の種類：hint:few が最低1通", all_items.any(func(x): return str(x["hint"]) == "few"))
+	# 中身Z：few を持っていたのは3日目の仮のDM（d3_market_quiet）だけで、外した。few の仕組みは下で差し込んだデータで確かめる
+	c.check("本番の hint:few は無い（中身Z：3日目の仮のDMを外した）", not all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	c.check("2日目のDMは本番の文（provisional なし。中身X）、3日目以降は仮の文（provisional）",
-		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 3)))
+	c.check("2・3日目のDMは本番の文（provisional なし。中身X・中身Z）、4日目以降は仮の文（provisional）",
+		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 4)))
 	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
 		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
 			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))
@@ -113,11 +114,11 @@ func run(t: SceneTree) -> int:
 	c.check("来ただけで1杯も提供していない客のDMは届かない", not _ids(Dm.delivered_for_day(2)).has("d2_delivery_man"))
 	# 条件が後から満たされても、過去の日のDMは届かない
 	_state(5, 30)
-	GameState.customer_memory["officer"] = { "favorite_known": false, "visits": [{ "day": 3, "served": 1, "grade": "GOOD" }], "facts": {},
+	GameState.customer_memory["hooker"] = { "favorite_known": false, "visits": [{ "day": 3, "served": 1, "grade": "GOOD" }], "facts": {},
 		"seen_episodes": [] }
 	GameState.day_records = [{ "day": 2, "opening_reputation": 50 }]
 	c.check("Day3に初めて提供した客のDM（Day3の項目）は、あとから条件が満たされても届かない",
-		not _ids(Dm.inbox(5)).has("d3_officer"), str(_ids(Dm.inbox(5))))
+		not _ids(Dm.inbox(5)).has("d3_hooker"), str(_ids(Dm.inbox(5))))
 	# モブ：同じ種類に2夜提供した翌日から
 	_state(4, 50)
 	GameState.today_plan["demand_center"] = 11
@@ -144,10 +145,14 @@ func run(t: SceneTree) -> int:
 	c.check("過ぎた日の中心は、その朝の評判から需要表で引く（Day3は評判10→少ない行）", Dm.center_of_day(3) == few_max and Dm.center_of_day(4) == many_min)
 	c.check("今日の中心は朝に確定した値（today_plan）", Dm.center_of_day(6) == 14)
 	c.check("Day1は固定需要の値", Dm.center_of_day(1) == int(Rules.day_overrides(1)["fixed_demand"]))
-	var inbox_ids := _ids(Dm.inbox(6))
-	c.check("Day3は中心が少ない日だった：few のDM（d3_market_quiet）は読み返せる", inbox_ids.has("d3_market_quiet"), str(inbox_ids))
+	# 中身Z：本番の few（3日目の仮のDM）は外したので、few のDMを差し込んだデータで確かめる
+	var with_few: Dictionary = (Dm.data() as Dictionary).duplicate(true)
+	(with_few["days"]["3"] as Array).append({ "id": "test_d3_few", "from": "テスト", "from_kind": "npc", "time": "7:10",
+		"text": "少ない日のテスト用のDM", "hint": "few", "provisional": true })
+	var inbox_ids := _ids(Dm.inbox(6, with_few))
+	c.check("Day3は中心が少ない日だった：few のDM（差し込んだ test_d3_few）は読み返せる", inbox_ids.has("test_d3_few"), str(inbox_ids))
 	GameState.day_records[1]["opening_reputation"] = 50
-	c.check("同じ日が中心の多い日なら few は届かなかった扱い（過去の日も、その朝の状態で決まる）", not _ids(Dm.inbox(6)).has("d3_market_quiet"))
+	c.check("同じ日が中心の多い日なら few は届かなかった扱い（過去の日も、その朝の状態で決まる）", not _ids(Dm.inbox(6, with_few)).has("test_d3_few"))
 	c.check("一覧は新しい日が上", _day_sorted_desc(Dm.inbox(6)))
 
 	# --- 4. 未読（ReadState。保存とは別）---
@@ -200,7 +205,7 @@ func run(t: SceneTree) -> int:
 		int(seer.previous_day_record()["planned_cups"]) == 11 and str(talk[1]["text"]).contains("11杯"))
 	seer.free()
 	# 組み立て：クズ野菜ベースの日は会話を入れない。通常の日は PREP_TIER の直前
-	_state(3, 30)   # 中身X：2日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは3日目で確かめる
+	_state(4, 30)   # 中身X・中身Z：2日目・3日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは4日目で確かめる
 	var normal := Day1Events.prep_events({}, false)
 	c.check("通常の日：食肉売場のあと PREP_TIER の直前に会話が並ぶ",
 		str(normal[normal.size() - 1]["type"]) == "PREP_TIER" and str(normal[normal.size() - 2]["part"]) == "prep_talk")

@@ -196,9 +196,67 @@ static func _string_lines(value) -> Array:
 	var lines := []
 	if value is Array:
 		for line in value:
-			if (line is String and line != "") or is_reveal_mark(line):   # 名乗りの印（UI準備Y）は行の並びのまま残す
+			# 名乗りの印（UI準備Y）・条件付きの行のまとまり（中身Z）は行の並びのまま残す
+			if (line is String and line != "") or is_reveal_mark(line) or is_condition_group(line):
 				lines.append(line)
 	return lines
+
+
+## --- 条件付きの行（中身Z） ---
+## 場面の行の配列（greet・market_talk・pre_order・body・body_unserved・closing・cups の after_talk）に、
+##   { "if": { "fact": "<事実のキー>" }, "lines": [行…] }      … その客の事実（facts）が真のときだけ lines を出す
+##   { "if": { "not_fact": "<事実のキー>" }, "lines": [行…] }  … その事実が偽（無い・false・0・空）のときだけ出す
+## を置ける。if に "customer": <客id> を足すと、その客の事実を見る（省略＝場面の客）。lines の中には行・名乗りの印・
+## 条件付きの行のまとまりを置ける。どの行を出すかは、行を Event にするところ（Day1Events._talk・_scene_lines）で
+## CustomerMemory.resolve_lines が今の事実を読んで決める（状態を読むだけ）。朝のDMも同じ if を持てる（Dm.requires_met）。
+const CONDITION_KEY := "if"
+const CONDITION_KINDS := ["fact", "not_fact"]
+
+
+static func is_condition_group(line) -> bool:
+	return line is Dictionary and (line as Dictionary).get(CONDITION_KEY) is Dictionary and (line as Dictionary).get("lines") is Array
+
+
+## 条件（if の辞書）の形の問題（空なら問題なし）。where は説明に付ける位置。
+static func condition_problems(cond, where: String) -> Array:
+	var problems := []
+	if not (cond is Dictionary):
+		return ["%s：if が辞書でない" % where]
+	var kinds := 0
+	for key in cond:
+		if CONDITION_KINDS.has(key):
+			kinds += 1
+			if not (cond[key] is String) or str(cond[key]) == "":
+				problems.append("%s：if.%s が空でない文字列でない" % [where, str(key)])
+		elif str(key) == "customer":
+			if not _is_named_customer(str(cond[key])):
+				problems.append("%s：if.customer %s が名前あり客でない" % [where, str(cond[key])])
+		else:
+			problems.append("%s：if に未知のキー %s（fact・not_fact・customer だけ）" % [where, str(key)])
+	if kinds != 1:
+		problems.append("%s：if は fact か not_fact のどちらか1つ" % where)
+	return problems
+
+
+## 行の配列の中の条件付きのまとまりの形の問題（入れ子も見る）。
+static func _condition_group_problems(lines, where: String) -> Array:
+	var problems := []
+	if not (lines is Array):
+		return problems
+	for line in lines:
+		if not (line is Dictionary) or not (line as Dictionary).has(CONDITION_KEY):
+			continue
+		var group: Dictionary = line
+		problems.append_array(condition_problems(group[CONDITION_KEY], where))
+		for key in group:
+			if str(key) != CONDITION_KEY and str(key) != "lines":
+				problems.append("%s：条件付きの行に未知のキー %s" % [where, str(key)])
+		if not (group.get("lines") is Array) or (group["lines"] as Array).is_empty() or not _is_lines(group["lines"]):
+			problems.append("%s：条件付きの行の lines が空でない行の配列でない" % where)
+		else:
+			problems.append_array(_condition_group_problems(group["lines"], where))
+			problems.append_array(marker_problems(group["lines"], where))
+	return problems
 
 
 ## --- 名乗り（UI準備Y） ---
@@ -318,8 +376,10 @@ static func episode_sets_facts(customer_id: String, episode_id: String) -> Dicti
 ##   adjust / serve … ADJUST・SERVE の text（省略＝通常の場面の既定文）
 ##   reactions … その杯の反応（結果→文字列配列。省略または空＝反応を出さない）
 ##   after_talk … その杯の REACT の後の会話の行（最後の杯の分が退店の会話）
+##   sets_facts … その杯を出したとき（判定の結果に関係なく）に来店記録の facts へ書く事実（中身Z。1日目の阿強の3杯目＝
+##                持ち帰りを出したか。断った杯には書かない＝事実が無い＝偽）。値は真偽・数・文字列、キーは2個まで
 ## 杯数は cups の数（各杯 servings:1）。場面の greet が来店〜1杯目の注文。
-const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk"]
+const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk", "sets_facts"]
 ## 複数杯の場面で使えない場面のキー（黙って無視される書き間違いを作らないため scene_problems が弾く）。
 const _CUPS_FORBIDDEN_KEYS := ["reactions", "order", "callback", "pre_order", "body", "body_unserved",
 	"choices", "closing", "sets_facts", "card_today"]
@@ -368,10 +428,41 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 					problems.append("%sreactions.%s が配列でない" % [where, str(key)])
 	if cup.has("after_talk") and not _is_lines(cup["after_talk"]):
 		problems.append("%safter_talk が文字列の配列でない" % where)
+	if cup.has("sets_facts"):
+		if not (cup["sets_facts"] is Dictionary) or (cup["sets_facts"] as Dictionary).is_empty() \
+				or (cup["sets_facts"] as Dictionary).size() > _MAX_FACT_KEYS:
+			problems.append("%ssets_facts が1〜%d個の事実の辞書でない" % [where, _MAX_FACT_KEYS])
+		else:
+			for key in cup["sets_facts"]:
+				var value = cup["sets_facts"][key]
+				if not (key is String) or not (value is bool or value is int or value is float or value is String):
+					problems.append("%ssets_facts.%s の値が真偽・数・文字列でない" % [where, str(key)])
 	return problems
 
 
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
+## OK の反応を、外れた札で分ける（中身U1でモブに作った形を、中身Zで常連の場面にも）：reactions.OK_MISSING.<札>＝その札だけが
+## 外れたときの文。札が2つとも外れた・減点で OK になったときは、今までどおり reactions.OK（PlaySession.current_reaction_text）。
+const OK_MISSING_KEY := "OK_MISSING"
+
+
+## 場面の reactions.OK_MISSING の形の問題：{ 札: 文字列の配列 }。札は、その場面の注文（今日の頼みがあればそれ、無ければ
+## 客の基本の注文）のどれか。
+static func _ok_missing_problems(value, ep: Dictionary) -> Array:
+	if not (value is Dictionary):
+		return ["reactions.OK_MISSING が辞書でない"]
+	var problems := []
+	var effective: Array = customer_profile(str(ep.get("customer", ""))).get("wanted_tags", [])
+	var order = ep.get("order", {})
+	if order is Dictionary and (order as Dictionary).get("today_request") is Dictionary \
+			and ((order["today_request"] as Dictionary).get("tags", []) is Array) and not (order["today_request"]["tags"] as Array).is_empty():
+		effective = order["today_request"]["tags"]
+	for tag in value:
+		if not effective.has(str(tag)):
+			problems.append("reactions.OK_MISSING の札 %s が、その場面の注文 %s に無い" % [str(tag), str(effective)])
+		if not _is_lines(value[tag]) or (value[tag] as Array).is_empty():
+			problems.append("reactions.OK_MISSING.%s が空でない文字列の配列でない" % str(tag))
+	return problems
 const _MAX_CHOICES := 2
 const _MAX_FACT_KEYS := 2
 
@@ -401,7 +492,10 @@ static func _is_lines(value) -> bool:
 	if not (value is Array):
 		return false
 	for line in value:
-		if not ((line is String and line != "") or is_reveal_mark(line)):
+		if is_condition_group(line):
+			if (line["lines"] as Array).is_empty() or not _is_lines(line["lines"]):
+				return false
+		elif not ((line is String and line != "") or is_reveal_mark(line)):
 			return false
 	return true
 
@@ -495,16 +589,26 @@ static func scene_problems(ep: Dictionary) -> Array:
 			problems.append("reactions が辞書でない")
 		else:
 			for key in reactions:
-				if not _REACTION_KEYS.has(key):
+				if str(key) == OK_MISSING_KEY:
+					problems.append_array(_ok_missing_problems(reactions[key], ep))
+				elif not _REACTION_KEYS.has(key):
 					problems.append("reactions に未知のキー %s" % str(key))
 				elif not (reactions[key] is Array):
 					problems.append("reactions.%s が配列でない" % str(key))
 	for key in ["market_talk", "pre_order", "body", "body_unserved", "must_info"]:
 		if ep.has(key) and not _is_lines(ep[key]):
 			problems.append("%s が空でない文字列の配列でない" % key)
-	# 〔ゲーム〕〔演出〕の印（中身U1）：会話の行の配列と反応の行
+	# 〔ゲーム〕〔演出〕の印（中身U1）：会話の行の配列と反応の行。条件付きの行（中身Z）の形と、その中の行の印
 	for key in ["greet", "market_talk", "pre_order", "body", "body_unserved"]:
 		problems.append_array(marker_problems(ep.get(key, []), key))
+		problems.append_array(_condition_group_problems(ep.get(key, []), key))
+	if ep.get("closing") is Dictionary:
+		for key in ep["closing"]:
+			problems.append_array(_condition_group_problems(ep["closing"][key], "closing.%s" % str(key)))
+	if ep.get("cups") is Array:
+		for i in range((ep["cups"] as Array).size()):
+			if ep["cups"][i] is Dictionary:
+				problems.append_array(_condition_group_problems((ep["cups"][i] as Dictionary).get("after_talk", []), "cups[%d].after_talk" % i))
 	var reaction_sources := [ep.get("reactions", {})]
 	if ep.get("cups") is Array:
 		for i in range((ep["cups"] as Array).size()):
@@ -517,6 +621,10 @@ static func scene_problems(ep: Dictionary) -> Array:
 	for source in reaction_sources:
 		if source is Dictionary:
 			for key in source:
+				if str(key) == OK_MISSING_KEY and source[key] is Dictionary:
+					for tag in source[key]:
+						problems.append_array(marker_problems(source[key][tag], "reactions.OK_MISSING.%s" % str(tag)))
+					continue
 				problems.append_array(marker_problems(source[key], "reactions.%s" % str(key)))
 				for line in (source[key] if source[key] is Array else []):
 					if is_direction_line(line):
@@ -631,6 +739,11 @@ static func mob_data(id: String) -> Dictionary:
 ## モブ1種の、その日の文（中身U1）。mobs/<id>.json の days.<日> に greet・reactions・after_talk があれば、
 ## その日だけそれに替える（無いキー・無い日は、日をまたぐ文のまま）。注文（wanted_tags）は日で変えない。
 ## after_talk … 椀を出したあとの会話（出した人数が1以上のときだけ流す）。日をまたぐ文には無い。
+## spare_greet … 同じ晩に同じ職種の2組目が来たとき、greet の代わりに出す行（中身Z「四組目が来る晩の、予備の一言」。
+##               予備の一言と注文の行。反応・after_talk は1組目と同じ。Day1Events._customer_flavor）。日をまたぐ文には無い。
+const MOB_DAY_KEYS := ["greet", "reactions", "after_talk", "spare_greet"]
+
+
 static func mob_data_for_day(id: String, day: int) -> Dictionary:
 	var base := mob_data(id)
 	var result := {}
@@ -640,7 +753,7 @@ static func mob_data_for_day(id: String, day: int) -> Dictionary:
 	var days = base.get("days", {})
 	if days is Dictionary and (days as Dictionary).get(str(day)) is Dictionary:
 		var form: Dictionary = days[str(day)]
-		for key in ["greet", "reactions", "after_talk"]:
+		for key in MOB_DAY_KEYS:
 			if form.has(key):
 				result[key] = form[key]
 	return result

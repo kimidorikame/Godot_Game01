@@ -140,9 +140,59 @@ static func record_choice(customer_id, slot_name: String, episode_id: String, ch
 const REVEALED_NAME_FACT := "revealed_name"
 
 
+## 中身Z：名乗る前の名前。客のプロフィールに name_before_reveal（配信者＝「初めての客」）があれば、名乗るまではそれ
+## （プロフィールの name は名乗る前には出さない）。無い客（新人警官など）は今までどおりプロフィールの name。
+const NAME_BEFORE_REVEAL_KEY := "name_before_reveal"
+
+
 static func display_name(customer_id) -> String:
 	var revealed := str(fact(customer_id, REVEALED_NAME_FACT, ""))
-	return revealed if revealed != "" else ScheduleData.customer_display_name(str(customer_id))
+	if revealed != "":
+		return revealed
+	var before := str(ScheduleData.customer_profile(str(customer_id)).get(NAME_BEFORE_REVEAL_KEY, ""))
+	return before if before != "" else ScheduleData.customer_display_name(str(customer_id))
+
+
+## --- 条件付きの行・DM（中身Z。ScheduleData.CONDITION_KEY） ---
+
+## 条件（{ fact | not_fact: <キー>, customer?: <客id> }）を今の事実で満たすか。customer を省略したら default_customer の事実を見る。
+## 事実が真＝ true・0 でない数・空でない文字列。無い事実は偽。形の違う条件は偽（検査は ScheduleData.condition_problems）。状態を読むだけ。
+static func condition_met(cond, default_customer: String) -> bool:
+	if not (cond is Dictionary):
+		return false
+	var customer := str((cond as Dictionary).get("customer", default_customer))
+	if (cond as Dictionary).has("fact"):
+		return _truthy(fact(customer, str(cond["fact"]), null))
+	if (cond as Dictionary).has("not_fact"):
+		return not _truthy(fact(customer, str(cond["not_fact"]), null))
+	return false
+
+
+static func _truthy(value) -> bool:
+	if value == null:
+		return false
+	if value is bool:
+		return value
+	if value is int or value is float:
+		return value != 0
+	if value is String:
+		return value != ""
+	return true
+
+
+## 行の配列の条件付きのまとまりを、今の事実で開く（満たすまとまりの lines をその位置に入れ、満たさないものは捨てる。入れ子も開く）。
+## ほかの要素（行・名乗りの印）はそのまま。状態を読むだけ。
+static func resolve_lines(lines, customer_id: String) -> Array:
+	var out := []
+	if not (lines is Array):
+		return out
+	for line in lines:
+		if ScheduleData.is_condition_group(line):
+			if condition_met(line[ScheduleData.CONDITION_KEY], customer_id):
+				out.append_array(resolve_lines(line["lines"], customer_id))
+		else:
+			out.append(line)
+	return out
 
 
 ## その客が名乗った（場面の行の reveal_name）：今の表示名を変える。来店記録の facts に残す（朝のセーブに入る）。

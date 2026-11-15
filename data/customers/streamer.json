@@ -1,5 +1,6 @@
 {
   "name": "配信者",
+  "name_before_reveal": "初めての客",
   "is_mob": false,
   "favorite": "shrimp",
   "wanted_tags": [

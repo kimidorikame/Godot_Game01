@@ -8,6 +8,8 @@ class_name Dm
 ##   days.<日> … [ { id, from, from_kind:"customer|mob|npc", requires, time, text, hint:"many|few|none", provisional } ]
 ##   requires … { customer:<客id> }（その客に初めて提供した翌日から）／{ mob_type:<種類>, nights:<夜数> }（同じ種類のモブに
 ##              nights 夜提供した翌日から）／無し（市場の顔なじみなど客でない差出人。条件なし）
+##   if … 任意（中身Z）。場面の条件付きの行と同じ条件 { fact | not_fact: <事実のキー>, customer? }。customer を省略したら
+##        requires.customer の客の事実を見る。満たすときだけ届く（3日目の阿強＝1日目の3杯目〔持ち帰り〕を出したか）
 ##
 ## DMが「その日に届くか」は、その日の朝の時点の状態で決まる関数（保存する状態を増やさない）：
 ##   ・requires を満たす（名前あり客は customer_memory の来店記録、モブは日次ログの mob_types_served から数える）。
@@ -140,12 +142,19 @@ static func requires_met(requires: Dictionary, day: int) -> bool:
 	return false
 
 
+## DMの if（中身Z）を今の事実で満たすか。if が無ければ true。customer の既定は requires.customer。
+static func condition_allows(item: Dictionary) -> bool:
+	if not item.has(ScheduleData.CONDITION_KEY):
+		return true
+	return CustomerMemory.condition_met(item[ScheduleData.CONDITION_KEY], str((item.get("requires", {}) as Dictionary).get("customer", "")))
+
+
 ## その日の朝に届いているDM（条件を満たしたもの。データの並び順。最後に来店予告）。
 static func delivered_for_day(day: int, source: Dictionary = {}) -> Array:
 	var out := []
 	var center := center_of_day(day)
 	for item in items_for_day(day, source):
-		if requires_met(item.get("requires", {}), day) and hint_allows(str(item.get("hint", "none")), center, source):
+		if requires_met(item.get("requires", {}), day) and condition_allows(item) and hint_allows(str(item.get("hint", "none")), center, source):
 			out.append(item)
 	out.append_array(preview_items(day, out, source))
 	return out
@@ -246,6 +255,7 @@ static func preview_items(day: int, existing: Array, source: Dictionary = {}) ->
 		return []
 	var pools: Dictionary = cfg.get("pools", {})
 	var planned := planned_for_day(day)
+	# 中身Z：pools.<客>.no_preview_days に入っている日は、その客の予告を出さない（その朝のDMが予告の代わり。3日目の阿強・セティヤ）
 	var blocked := {}   # 既存DMの主語（客・モブの種類）と差出人名
 	for item in existing:
 		var requires: Dictionary = item.get("requires", {})
@@ -264,7 +274,7 @@ static func preview_items(day: int, existing: Array, source: Dictionary = {}) ->
 	var unknown := []
 	for id in planned["regulars"]:
 		var pool: Dictionary = pools.get(str(id), {})
-		if pool.is_empty() or blocked.has(str(id)) or blocked.has("from:" + str(pool.get("from", ""))):
+		if pool.is_empty() or blocked.has(str(id)) or blocked.has("from:" + str(pool.get("from", ""))) or _no_preview_on(pool, day):
 			continue
 		if regular_known_before(str(id), day):
 			known.append(str(id))
@@ -284,6 +294,15 @@ static func preview_items(day: int, existing: Array, source: Dictionary = {}) ->
 			"time": str(pool.get("time", "5:00")), "text": preview_text(pool, pair[0], day), "hint": "none",
 			"provisional": bool(pool.get("provisional", true)), "preview": true, "subject": pair[0] })
 	return out
+
+
+static func _no_preview_on(pool: Dictionary, day: int) -> bool:
+	var days = pool.get("no_preview_days", [])
+	if days is Array:
+		for d in days:
+			if (d is int or d is float) and int(d) == day:
+				return true
+	return false
 
 
 ## 今日までに届いたDM（新しい日が上。同じ日は時刻の遅い方が上）。[{ id, day, from, from_kind, time, text, hint, provisional }]
@@ -341,6 +360,11 @@ static func problems(source: Dictionary = {}) -> Array:
 				found.append("Day%d %s の hint が many／few／none でない" % [day, id])
 			if item.has("must_info"):
 				found.append("Day%d %s に must_info がある（必須情報はDMに置かない。10.5.5）" % [day, id])
+			if item.has(ScheduleData.CONDITION_KEY):
+				var cond = item[ScheduleData.CONDITION_KEY]
+				found.append_array(ScheduleData.condition_problems(cond, "Day%d %s" % [day, id]))
+				if cond is Dictionary and not (cond as Dictionary).has("customer") and not ((item.get("requires", {}) as Dictionary).has("customer") if item.get("requires", {}) is Dictionary else false):
+					found.append("Day%d %s：if の客が分からない（if.customer か requires.customer が要る）" % [day, id])
 			found.append_array(_requires_problems(item, day))
 	found.append_array(preview_problems(d))
 	return found
@@ -397,6 +421,10 @@ static func preview_problems(d: Dictionary) -> Array:
 			found.append(where + "：from_kind が " + expected[str(id)] + " でない")
 		if pool.has("before_first_visit") and (not (pool["before_first_visit"] is bool) or expected[str(id)] != "customer"):
 			found.append(where + "：before_first_visit は名前あり客だけの true／false")
+		if pool.has("no_preview_days"):
+			var npd = pool["no_preview_days"]
+			if not (npd is Array) or expected[str(id)] != "customer" or not (npd as Array).all(func(x): return (x is int or x is float) and int(x) >= 1 and int(x) <= Rules.final_day()):
+				found.append(where + "：no_preview_days は名前あり客だけの、1〜最終日の日の配列")
 		var hint := str(pool.get("tag_hint", ""))
 		if expected[str(id)] == "customer" and hint != "":
 			found.append(where + "：名前あり客に tag_hint がある（好みは初来店の挨拶で知る仕様）")
