@@ -1,0 +1,4 @@
+# 中身W のスクリーンショット（tools/ui_screens_W.gd が書き出す）
+01_day2_yahan_laundry.png  2日目の夜半：共同洗濯場の夜番（名前の札）（Day2・夜半・名前の札「共同洗濯場の夜番」）
+02_day2_akegata_setiya.png  2日目の明け方：セティヤ（名前の札）（Day2・明け方・名前の札「セティヤ」）
+03_day3_yahan_nika_first.png  3日目の夜半：ニカ（配信者）の初来店（Day3・夜半・名前の札「配信者」）

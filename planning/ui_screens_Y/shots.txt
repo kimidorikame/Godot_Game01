@@ -1,0 +1,7 @@
+# UI準備Y のスクリーンショット（tools/ui_screens_Y.gd が書き出す）
+01_day2_market_talk_pane.png  2日目の市場：新人警官の会話のあいだ（右の枠は市場の画面。張記の画面・店の一覧は出ない）
+02_day2_market_after_talk.png  2日目の市場：会話が終わって市場に着いた（いつもどおり店を選べる）
+03_day2_rin_note.png  2日目：リンの退店のあとの客メモ（連絡先のカードと同じ中身。表示名「リン」）
+04_dm_list_rin.png  5日目の朝：DMの相手の一覧（新人警官のDMの差出人は「リン」）
+05_rin_contact_card.png  5日目の朝：リンのDMと連絡先のカード
+06_result_story.png  結果画面の「物語」（店に来た常連・好物を知った客の名前はリン）
