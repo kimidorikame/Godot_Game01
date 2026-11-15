@@ -26,8 +26,9 @@ export const BASELINES = {
   v3: 'playthrough_baseline_v3.json',            // 阿強の3杯目の札の変更後（2026-11-09。3シード×13方針。コミット 307b769）
   v4: 'playthrough_baseline_v4.json',            // 中身W：改訂版の来店の予定とモブの職種表（2026-11-14。3シード×13方針。コミット c832b54）
   v5: 'playthrough_baseline_v5.json',            // 中身X：レックスの2日目の注文を まろやか＋スタミナ に（2026-11-14。3シード×13方針。コミット 44e7c4d）
+  v6: 'playthrough_baseline_v6.json',            // 中身Z：阿強・セティヤの3日目の注文（今日の頼み。2026-11-15。3シード×13方針。コミット 61fde74）
 };
-export const CURRENT_BASELINE = 'v5';
+export const CURRENT_BASELINE = 'v6';
 
 const DIR = new URL('./', import.meta.url);
 const load = (name) => JSON.parse(fs.readFileSync(new URL(name, DIR), 'utf8'));
