@@ -53,7 +53,7 @@ func run(t: SceneTree) -> int:
 	var invariant_ok := true
 	var detail := ""
 	var first_regular_step := -1
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 3000:
 		guard += 1
 		play.step()
 		var notes := s.phone_notes()
@@ -112,7 +112,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 4. 市場でスマホを開いて閉じても、かごが消えない ---
 	guard = 0
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 500:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 500:
 		guard += 1
 		play.step()
 	GameState.money = 1000

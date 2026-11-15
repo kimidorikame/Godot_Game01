@@ -108,7 +108,7 @@ func run(t: SceneTree) -> int:
 	_press(meat.get_node("%CartBox/ClearButton"))
 	_press(meat.get_node("%BackButton"))
 	guard = 0
-	while not root.pane_market.visible and guard < 3000:
+	while not (root.pane_market.visible and root.session.is_in_market()) and guard < 3000:   # UI準備Y：市場の会話のあいだも市場の画面が出る
 		guard += 1
 		play.step()
 

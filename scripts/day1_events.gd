@@ -752,8 +752,9 @@ static func market_talk_events() -> Array:
 		if done.has(key):
 			continue
 		done[key] = true
-		events.append_array(_talk(str(scene["customer"]),
-			ScheduleData.episode_market_talk(str(scene["customer"]), str(scene["episode_id"]))))
+		for ev in _talk(str(scene["customer"]), ScheduleData.episode_market_talk(str(scene["customer"]), str(scene["episode_id"]))):
+			ev["part"] = "market_talk"   # UI準備Y：このあいだは右の枠に店の画面を出さない（UiGameRoot._market_stage）
+			events.append(ev)
 	return events
 
 

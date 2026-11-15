@@ -60,7 +60,7 @@ func run(t: SceneTree) -> int:
 	var declined_cups := 0
 	var declined_units_ok := false
 	var declined_money_ok := false
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 3000:
 		guard += 1
 		var key := "%d|%d" % [s.open.slot_index, s.open.index] if s.open != null else ""
 		if s.open != null and s.is_choosing_ingredients() and (s.open.current_bowl.get("additions", []) as Array).is_empty() and start_key != key:

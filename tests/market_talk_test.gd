@@ -22,7 +22,7 @@ func _expected(recorded_events: Array, day: int, scraps: bool) -> Array:
 	for ev in _norm(recorded_events):
 		if str(ev.get("type", "")) == "GREET" and str(ev.get("text", "")) == OFFICER_LINE:
 			for line in ScheduleData.episode_market_talk("officer", "officer_01"):
-				out.append(_norm({ "type": "GREET", "customer": "officer", "text": line }))
+				out.append(_norm({ "type": "GREET", "customer": "officer", "text": line, "part": "market_talk" }))   # UI準備Y：part を付けた
 			continue
 		if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).begins_with("水を汲み、炭を買った"):
 			if day == 1:

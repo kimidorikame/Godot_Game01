@@ -189,6 +189,8 @@ func run(t: SceneTree) -> int:
 	var plan_slots: Array = []
 	var plan_mobs := {}
 	var name_at := {}   # UI準備Y：その行が出ているときの新人警官の表示名
+	var talk_panes := {}   # UI準備Y：市場の会話のあいだの右の枠（店の画面が出ていないこと）
+	var market_after_talk := false
 	guard = 0
 	while GameState.day_count == 2 and guard < 6000:
 		guard += 1
@@ -196,6 +198,12 @@ func run(t: SceneTree) -> int:
 		if box_text.contains("〔"):
 			bracket_shown.append(box_text)
 		var line := s.current_line()
+		var current_ev = s.flow.runner.current() if s.flow.runner != null else null
+		if GameState.phase == GameState.Phase.PREP and current_ev is Dictionary and str(current_ev.get("part", "")) == "market_talk":
+			talk_panes["market" if root.pane_market.visible else "other"] = true
+			talk_panes["shop_open"] = talk_panes.get("shop_open", false) or root.pane_buy_meat.visible or root.pane_buy_shop.visible 				or not s.market_stalls().is_empty()
+		if GameState.phase == GameState.Phase.PREP and s.is_in_market() and talk_panes.has("market"):
+			market_after_talk = market_after_talk or (root.pane_market.visible and not s.market_stalls().is_empty())
 		if GameState.phase == GameState.Phase.PREP:
 			var lin_visible := Sns.visible_ids(2, s.timeline_limit(), {}, s.market_talks_done()).has("d2_lin_alt_1410")
 			if str(line.get("speaker_name", "")) == "張姐" and lin_visible:
@@ -272,6 +280,8 @@ func run(t: SceneTree) -> int:
 		plate.get("警官", "") == "警官" and plate.get("リン", "") == "リン" and plate.get("セティヤ", "") == "セティヤ" and plate.get("張姐", "") == "張姐"
 			and rin_at >= 0 and shown_lines[rin_at + 1] == "店主「じゃあリン、捜される前に戻れ。先輩によろしくな」" and shown_lines[rin_at + 2] == "リン「はい。おやすみなさい」"
 			and not shown_lines.slice(0, rin_at).any(func(x): return str(x).begins_with("リン「")), str(plate))
+	c.check("UI準備Y：張記を出たあとの市場の会話のあいだは、右の枠は市場の画面（張記などの店の画面・店の一覧は出ない）。会話のあとは店を選べる市場の画面",
+		talk_panes.get("market", false) and not talk_panes.has("other") and not talk_panes.get("shop_open", true) and market_after_talk, str(talk_panes))
 	c.check("UI準備Y：新人警官の表示名は「名前は。」の行まで「新人警官」、「リンです。皆、そう呼びます」が出た時点から「リン」（3日目の朝も）",
 		name_at.get("店主「名前は。報告書には書かないから」", "") == "新人警官" and name_at.get("警官「リンです。皆、そう呼びます」", "") == "リン"
 			and name_at.get("リン「はい。おやすみなさい」", "") == "リン" and CustomerMemory.display_name("officer") == "リン", str(name_at.get("警官「リンです。皆、そう呼びます」", "")))

@@ -37,7 +37,7 @@ func run(t: SceneTree) -> int:
 	var records_seen := 0
 	var bad_or_ok_seen := false
 	var records_checked := false
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 3000:
 		guard += 1
 		play.step()
 		var line := s.current_line()

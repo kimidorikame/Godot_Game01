@@ -133,7 +133,7 @@ func run(t: SceneTree) -> int:
 	var session: PlaySession = root.session
 	var play = load("res://tests/ui_autoplay.gd").new(root)
 	var guard := 0
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 3000:
 		guard += 1
 		play.step()
 	c.check("Day2の市場（店選び）まで進んだ", GameState.day_count == 2 and session.is_in_market() and root.pane_market.visible)

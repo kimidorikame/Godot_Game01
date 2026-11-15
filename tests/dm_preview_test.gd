@@ -233,7 +233,7 @@ func run(t: SceneTree) -> int:
 	t.root.add_child(root)
 	var play = load("res://tests/ui_autoplay.gd").new(root)
 	var guard := 0
-	while not (GameState.day_count == 2 and root.pane_market.visible) and guard < 3000:
+	while not (GameState.day_count == 2 and root.pane_market.visible and root.session.is_in_market()) and guard < 3000:
 		guard += 1
 		play.step()
 	var record1: Dictionary = GameState.day_records[0] if not GameState.day_records.is_empty() else {}
