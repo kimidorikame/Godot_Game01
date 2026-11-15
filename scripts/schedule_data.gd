@@ -184,13 +184,7 @@ static func episode_callback(customer_id: String, episode_id: String) -> Diction
 ## 場面の「昼の市場の会話」（market_talk。PREPの市場の前に出す行の配列）。無い・形が不正なら空配列。
 ## 行は文字列だけを拾う（空文字は除く）。
 static func episode_market_talk(customer_id: String, episode_id: String) -> Array:
-	var talk = episode_data(customer_id, episode_id).get("market_talk", [])
-	var lines := []
-	if talk is Array:
-		for line in talk:
-			if line is String and line != "":
-				lines.append(line)
-	return lines
+	return _string_lines(episode_data(customer_id, episode_id).get("market_talk", []))
 
 
 ## --- 提供後の場面データ（システム整理C。DESIGN.md 10.5.3・10.8.6） ---
@@ -202,9 +196,35 @@ static func _string_lines(value) -> Array:
 	var lines := []
 	if value is Array:
 		for line in value:
-			if line is String and line != "":
+			if (line is String and line != "") or is_reveal_mark(line):   # 名乗りの印（UI準備Y）は行の並びのまま残す
 				lines.append(line)
 	return lines
+
+
+## --- 名乗り（UI準備Y） ---
+## 場面の行の配列（greet・market_talk・pre_order・body・closing・cups の after_talk）に、名乗った行のすぐあとへ
+## { "reveal_name": "<名前>" } を置くと、その行が出た時点からその客の表示名が <名前> になる（CustomerMemory.display_name。
+## 来店記録の facts.revealed_name に残すので、朝のセーブにも入る）。会話枠には何も出さない。
+const REVEAL_NAME_KEY := "reveal_name"
+
+
+static func is_reveal_mark(line) -> bool:
+	return line is Dictionary and (line as Dictionary).size() == 1 and (line as Dictionary).get(REVEAL_NAME_KEY) is String \
+		and str((line as Dictionary)[REVEAL_NAME_KEY]) != ""
+
+
+## 会話枠に出す行と、その行で名乗る名前：[{ text, reveal_name（その行で名乗るときだけ）}]。名乗りの印は直前の行に付ける
+## （前に行が無い印は捨てる＝scene_problems が弾く）。〔演出〕の行・空の行は spoken_lines と同じく落とす。
+static func spoken_lines_with_reveal(lines) -> Array:
+	var out := []
+	if lines is Array:
+		for line in lines:
+			if is_reveal_mark(line):
+				if not out.is_empty():
+					(out.back() as Dictionary)[REVEAL_NAME_KEY] = str(line[REVEAL_NAME_KEY])
+			elif line is String and line != "" and not is_direction_line(line):
+				out.append({ "text": line })
+	return out
 
 
 ## 注文の前の行（前回の2行と注文＝greet の間に出す）。無ければ空配列。
@@ -381,9 +401,38 @@ static func _is_lines(value) -> bool:
 	if not (value is Array):
 		return false
 	for line in value:
-		if not (line is String) or line == "":
+		if not ((line is String and line != "") or is_reveal_mark(line)):
 			return false
 	return true
+
+
+## 名乗りの印の検査（UI準備Y）：名前あり客の場面だけ・印の直前は会話の行（印が先頭・印が続くのは不可）。
+static func _reveal_problems(ep: Dictionary) -> Array:
+	var problems := []
+	var sources := {}
+	for key in ["greet", "market_talk", "pre_order", "body", "body_unserved"]:
+		sources[key] = ep.get(key, [])
+	if ep.get("cups") is Array:
+		for i in range((ep["cups"] as Array).size()):
+			if ep["cups"][i] is Dictionary:
+				sources["cups[%d].after_talk" % i] = (ep["cups"][i] as Dictionary).get("after_talk", [])
+	if ep.get("closing") is Dictionary:
+		for key in ep["closing"]:
+			sources["closing.%s" % str(key)] = ep["closing"][key]
+	for where in sources:
+		var lines = sources[where]
+		if not (lines is Array):
+			continue
+		for i in range((lines as Array).size()):
+			if not (lines[i] is Dictionary) or not (lines[i] as Dictionary).has(REVEAL_NAME_KEY):
+				continue
+			if not is_reveal_mark(lines[i]):
+				problems.append("%s：名乗りの印は reveal_name（空でない名前）だけを持つ辞書" % where)
+			elif not _is_named_customer(str(ep.get("customer", ""))):
+				problems.append("%s：名乗りは名前あり客の場面だけ（%s）" % [where, str(ep.get("customer", ""))])
+			elif i == 0 or not (lines[i - 1] is String):
+				problems.append("%s：名乗りの印の直前に会話の行が無い" % where)
+	return problems
 
 
 ## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
@@ -439,6 +488,7 @@ static func scene_problems(ep: Dictionary) -> Array:
 			problems.append("reveals_favorite があるのに memo が無い")
 	if ep.has("cups"):
 		problems.append_array(_cups_problems(ep))
+	problems.append_array(_reveal_problems(ep))
 	if ep.has("reactions") and not ep.has("cups"):
 		var reactions = ep["reactions"]
 		if not (reactions is Dictionary):

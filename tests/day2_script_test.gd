@@ -62,7 +62,7 @@ func run(t: SceneTree) -> int:
 	for ep in [officer, thug, hooker]:
 		c.check("%s：場面データの形・印に問題が無い・元の文の場所（source）がある" % ep["id"], ScheduleData.scene_problems(ep).is_empty()
 			and str(ep.get("source", "")).begins_with("planning/scenario/day2/"), str(ScheduleData.scene_problems(ep)))
-		var all_lines: Array = (ep["greet"] as Array) + (ep["body"] as Array) + (ep.get("market_talk", []) as Array)
+		var all_lines: Array = ScheduleData.spoken_lines(ep["greet"]) + ScheduleData.spoken_lines(ep["body"]) + ScheduleData.spoken_lines(ep.get("market_talk", []))
 		for grade in ep["reactions"]:
 			all_lines.append_array(ep["reactions"][grade])
 		c.check("%s：どの行も「名前「セリフ」」の形で、〔〕の印・行の終わりの空白を含まない" % ep["id"],
@@ -70,7 +70,7 @@ func run(t: SceneTree) -> int:
 		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行" % ep["id"], (ep["reactions"] as Dictionary).keys().size() == 4
 			and ["GREAT", "GOOD", "OK", "BAD"].all(func(g): return (ep["reactions"][g] as Array).size() == 1))
 	c.check("元の文の行がそろっている：警官（市場27・来店と注文24・食後44）・レックス（17・27）・セティヤ（20・21）",
-		(officer["market_talk"] as Array).size() == 27 and (officer["greet"] as Array).size() == 24 and (officer["body"] as Array).size() == 44
+		(officer["market_talk"] as Array).size() == 27 and (officer["greet"] as Array).size() == 24 and ScheduleData.spoken_lines(officer["body"]).size() == 44
 			and (thug["greet"] as Array).size() == 17 and (thug["body"] as Array).size() == 27
 			and (hooker["greet"] as Array).size() == 20 and (hooker["body"] as Array).size() == 21
 			and _md_spoken_count("2日目_昼市場.md", "張記を出たところ", "寄った店") == 27
@@ -188,6 +188,7 @@ func run(t: SceneTree) -> int:
 	var lin_seen_after_talk := false
 	var plan_slots: Array = []
 	var plan_mobs := {}
+	var name_at := {}   # UI準備Y：その行が出ているときの新人警官の表示名
 	guard = 0
 	while GameState.day_count == 2 and guard < 6000:
 		guard += 1
@@ -220,6 +221,8 @@ func run(t: SceneTree) -> int:
 			if not shown_keys.has(line_key):
 				shown_keys[line_key] = true
 				shown_lines.append(name + str(line.get("text", "")))
+				if str(line.get("speaker", "")) == "officer" or GameState.phase == GameState.Phase.OPEN:
+					name_at[name + str(line.get("text", ""))] = CustomerMemory.display_name("officer")
 		if GameState.phase == GameState.Phase.CLOSE and served_at_close.is_empty():
 			served_at_close = GameState.served.duplicate(true)
 		if play.step() == "":
@@ -269,6 +272,9 @@ func run(t: SceneTree) -> int:
 		plate.get("警官", "") == "警官" and plate.get("リン", "") == "リン" and plate.get("セティヤ", "") == "セティヤ" and plate.get("張姐", "") == "張姐"
 			and rin_at >= 0 and shown_lines[rin_at + 1] == "店主「じゃあリン、捜される前に戻れ。先輩によろしくな」" and shown_lines[rin_at + 2] == "リン「はい。おやすみなさい」"
 			and not shown_lines.slice(0, rin_at).any(func(x): return str(x).begins_with("リン「")), str(plate))
+	c.check("UI準備Y：新人警官の表示名は「名前は。」の行まで「新人警官」、「リンです。皆、そう呼びます」が出た時点から「リン」（3日目の朝も）",
+		name_at.get("店主「名前は。報告書には書かないから」", "") == "新人警官" and name_at.get("警官「リンです。皆、そう呼びます」", "") == "リン"
+			and name_at.get("リン「はい。おやすみなさい」", "") == "リン" and CustomerMemory.display_name("officer") == "リン", str(name_at.get("警官「リンです。皆、そう呼びます」", "")))
 	root.queue_free()
 
 	ReadState.reset(ReadState.path)

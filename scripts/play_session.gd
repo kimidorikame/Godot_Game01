@@ -794,6 +794,10 @@ func _apply_event(ev) -> void:
 				GameState.add_inventory(add_item_id, int(ev.get("amount", 1)), int(ev.get("unit_price", 0)))
 		"REMOVE_ITEM":
 			GameState.remove_inventory(ev.get("item", ""), int(ev.get("amount", 1)))
+		"GREET":
+			# 名乗った行（UI準備Y。場面の行の reveal_name）：その客の表示名をこの時点から変える（来店記録の facts に残す）
+			if str(ev.get(ScheduleData.REVEAL_NAME_KEY, "")) != "":
+				CustomerMemory.reveal_name(str(ev.get("customer", "")), str(ev[ScheduleData.REVEAL_NAME_KEY]))
 		"SCENE_END":
 			# 場面が終わった：sets_facts を来店記録の facts へ書く（システム整理C2）。締めを読み終えて
 			# ここに来た時だけ書く＝途中で閉店・再挑戦した場面は書かない。何度適用しても同じ値。
@@ -2555,7 +2559,7 @@ func set_runner_for_phase(phase: int) -> void:
 		flow.set_runner([
 			{ "type": "TEXT", "text": Result.format_report(summary) },
 			{ "type": "TEXT", "text": Result.format_goals(goal_results) },
-			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorite_ids()) },
+			{ "type": "TEXT", "text": Result.format_story(summary, GameState.known_favorite_ids(), display_names()) },
 		])
 	else:
 		flow.set_runner([])   # NEXT_DAY など未実装フェーズ（空 runner ＝即 DONE）
@@ -2797,7 +2801,7 @@ func log_speaker(customer_id: String) -> String:
 	if Day1Events.is_mob_customer(customer_id):
 		var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
 		return Day1Events.mob_display_name(str(inst.get("type", "")))
-	return ScheduleData.customer_display_name(customer_id)
+	return CustomerMemory.display_name(customer_id)
 
 
 ## ADJUST 中の名前あり客（モブの団体注文は対象外）の客id。それ以外は空文字。
@@ -3084,8 +3088,17 @@ static func dm_thread_key(item: Dictionary) -> String:
 	return "npc:" + str(item.get("from", ""))
 
 
+## 名前あり客の今の表示名（名乗ったあとの名前を含む。UI準備Y）：{ 客id: 名前 }。結果画面の物語欄に渡す。
+func display_names() -> Dictionary:
+	var out := {}
+	for path in DirAccess.get_files_at("res://data/customers/"):
+		if path.ends_with(".json"):
+			out[path.get_basename()] = CustomerMemory.display_name(path.get_basename())
+	return out
+
+
 ## DMを相手ごとにまとめる：[{ key, name, customer（名前あり客の id。ほかは ""）, messages:[{ id, day, time, text, unread }（古い順）],
-## last（最後のメッセージ）, unread（未読の数）}]。最後のメッセージが新しい相手が上。名前あり客の名前は今の表示名（customer_display_name）。
+## last（最後のメッセージ）, unread（未読の数）}]。最後のメッセージが新しい相手が上。名前あり客の名前は今の表示名（CustomerMemory.display_name。名乗ったあとの名前を含む）。
 ## 中身は Dm.inbox（DMの本文・来店予告の選び方・日付の出し方は変えない）。
 func dm_threads() -> Array:
 	var by_key := {}
@@ -3094,7 +3107,7 @@ func dm_threads() -> Array:
 		var customer := key.trim_prefix("customer:") if key.begins_with("customer:") else ""
 		if not by_key.has(key):
 			by_key[key] = { "key": key, "customer": customer, "messages": [],
-				"name": ScheduleData.customer_display_name(customer) if customer != "" else str(item.get("from", "")) }
+				"name": CustomerMemory.display_name(customer) if customer != "" else str(item.get("from", "")) }
 		(by_key[key]["messages"] as Array).append({ "id": str(item.get("id", "")), "day": int(item.get("day", 0)), "time": str(item.get("time", "")),
 			"text": str(item.get("text", "")), "unread": not ReadState.is_read(_dm_read_key(item)) })
 	var out := []
@@ -3132,7 +3145,7 @@ func contact_card(key: String) -> Dictionary:
 				name = str(thread["name"])
 		return { "name": name, "customer": "" }
 	var id := key.trim_prefix("customer:")
-	var card := { "name": ScheduleData.customer_display_name(id), "customer": id, "last_order": [], "days": [], "favorite_known": false, "favorite": "" }
+	var card := { "name": CustomerMemory.display_name(id), "customer": id, "last_order": [], "days": [], "favorite_known": false, "favorite": "" }
 	var note := {}
 	for item in phone_notes()["regulars"]:
 		if str(item["id"]) == id:
@@ -3282,7 +3295,7 @@ func phone_notes() -> Dictionary:
 		var usual_names := []
 		for ingredient in RecipeBook.usual_for(id):
 			usual_names.append(Ingredients.name_for(str(ingredient)))
-		regulars.append({ "id": id, "name": ScheduleData.customer_display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
+		regulars.append({ "id": id, "name": CustomerMemory.display_name(id), "tags": (profile.get("wanted_tags", []) as Array).duplicate(),
 			"last_order": last_order, "usual_ingredients": usual_names, "days": days, "favorite_known": known and favorite != "", "favorite": Ingredients.name_for(favorite) if known and favorite != "" else "",
 			"memo": memo_lines(id), "memo_new": memo_new_ids(id) })
 	var types := []

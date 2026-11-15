@@ -654,7 +654,7 @@ func _format_recipe_tab() -> String:
 		var usual := RecipeBook.usual_for(str(customer_id))
 		if not usual.is_empty():
 			any = true
-			lines.append("%s：%s" % [ScheduleData.customer_display_name(str(customer_id)), RecipeBook.ingredient_text(usual)])
+			lines.append("%s：%s" % [CustomerMemory.display_name(str(customer_id)), RecipeBook.ingredient_text(usual)])
 	if not any:
 		lines.append("まだありません")
 	return "\n".join(lines)
@@ -864,7 +864,7 @@ func _format_tonight_memo() -> String:
 					mob_types_shown.append(type_id)
 					parts.append("客層:%s（%s）" % [mob_name, mob_tag_text])
 			else:
-				var name: String = ScheduleData.customer_display_name(cid)
+				var name: String = CustomerMemory.display_name(cid)
 				var fav_text := ""
 				var fav_id := str(flavor.get("favorite", ""))
 				if fav_id != "" and GameState.knows_favorite(cid):

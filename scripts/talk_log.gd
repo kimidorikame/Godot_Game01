@@ -86,7 +86,7 @@ static func _summary_line(customer_id: String, visit: Dictionary) -> String:
 			parts.append("%s（%s）" % [RecipeBook.ingredient_text(cups[i] if i < cups.size() else []),
 				str(grades[i]) if str(grades[i]) != "" else "評価なし"])
 		served = "出した：%s" % "／".join(parts)
-	var name_text := ScheduleData.customer_display_name(customer_id)
+	var name_text := CustomerMemory.display_name(customer_id)
 	return "Day%d %s　%s：%s → %s" % [int(visit["day"]), str(visit["slot"]), name_text, order, served]
 
 

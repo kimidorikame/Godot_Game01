@@ -169,7 +169,8 @@ static func format_goals(results: Array) -> String:
 ## （GOOD率・杯数・現金・廃棄）は出さない**（DESIGN.md 10.6：料理成績を人間関係の善悪や
 ## 真エンド条件にしない）。4-2では今あるデータだけの最小の仮の文で、本文は後の手順
 ## （4-4〜4-8：来店記録・場面データ）で入る。known_favorite_idsは好物を知った客のid（知った順）。
-static func format_story(s: Dictionary, known_favorite_ids: Array) -> String:
+## names（省略可。UI準備Y）：客id → 今の表示名（名乗ったあとの名前）。無い客はプロフィールの名前。
+static func format_story(s: Dictionary, known_favorite_ids: Array, names: Dictionary = {}) -> String:
 	var rep_start := int(s.get("reputation_start", 0))
 	var rep_end := int(s.get("reputation_end", 0))
 	var rep_text := "評判は変わらなかった。"
@@ -183,14 +184,14 @@ static func format_story(s: Dictionary, known_favorite_ids: Array) -> String:
 	if not known_favorite_ids.is_empty():
 		var ids := PackedStringArray()
 		for id in known_favorite_ids:
-			ids.append(ScheduleData.customer_display_name(str(id)))
+			ids.append(str(names.get(str(id), ScheduleData.customer_display_name(str(id)))))
 		known_text = "好物を知った客: %s" % "、".join(ids)
 	var visit_days: Dictionary = s.get("regular_visit_days", {})
 	var visit_text := "店に来た常連はいなかった。"
 	if not visit_days.is_empty():
 		var parts := PackedStringArray()
 		for id in visit_days:
-			parts.append("%s（%d日）" % [ScheduleData.customer_display_name(str(id)), int(visit_days[id])])
+			parts.append("%s（%d日）" % [str(names.get(str(id), ScheduleData.customer_display_name(str(id)))), int(visit_days[id])])
 		visit_text = "店に来た常連: %s" % "、".join(parts)
 	return "\n".join(PackedStringArray([
 		"◆街で起きたこと◆",

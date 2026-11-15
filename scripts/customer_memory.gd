@@ -135,6 +135,22 @@ static func record_choice(customer_id, slot_name: String, episode_id: String, ch
 
 
 ## 次回へ残す事実（facts）。今は使わない（4-4b-2以降）。足す手段だけ用意している。
+## 客の今の表示名（UI準備Y）：その客が名乗っていれば（facts.revealed_name）その名前、無ければプロフィールの name
+## （ScheduleData.customer_display_name）。客ノート・連絡先のカード・DMの相手の名前・結果画面・会話ログの話し手などはこれを使う。
+const REVEALED_NAME_FACT := "revealed_name"
+
+
+static func display_name(customer_id) -> String:
+	var revealed := str(fact(customer_id, REVEALED_NAME_FACT, ""))
+	return revealed if revealed != "" else ScheduleData.customer_display_name(str(customer_id))
+
+
+## その客が名乗った（場面の行の reveal_name）：今の表示名を変える。来店記録の facts に残す（朝のセーブに入る）。
+static func reveal_name(customer_id, name: String) -> void:
+	if str(customer_id) != "" and name != "":
+		set_fact(customer_id, REVEALED_NAME_FACT, name)
+
+
 static func set_fact(customer_id, key: String, value) -> void:
 	(GameState.memory_entry(customer_id)["facts"] as Dictionary)[key] = value
 

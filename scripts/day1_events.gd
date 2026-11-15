@@ -923,8 +923,11 @@ static func closing_events(customer_id: String, scene_id: String) -> Array:
 ## 提供後の列の1部分（本文・締め）の行を GREET イベントにする。part は列の中の位置の印。
 static func _scene_lines(part: String, customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in ScheduleData.spoken_lines(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
-		events.append({ "type": "GREET", "customer": customer_id, "text": line, "part": part })
+	for line in ScheduleData.spoken_lines_with_reveal(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）。名乗りの印は行に付ける（UI準備Y）
+		var ev := { "type": "GREET", "customer": customer_id, "text": str(line["text"]), "part": part }
+		if line.has(ScheduleData.REVEAL_NAME_KEY):
+			ev[ScheduleData.REVEAL_NAME_KEY] = line[ScheduleData.REVEAL_NAME_KEY]
+		events.append(ev)
 	return events
 
 
@@ -988,10 +991,14 @@ static func today_request_of(customer_id: String, episode_id: String) -> Diction
 
 
 ## 会話行（発話・ト書き）を、1行1Eventの GREET にして積む（既存の接客と同じ形）。
+## 名乗りの印（{ "reveal_name": 名前 }。UI準備Y）は直前の行の Event に reveal_name として付ける（その行が出たときに PlaySession が名前を残す）。
 static func _talk(customer_id: String, lines: Array) -> Array:
 	var events := []
-	for line in ScheduleData.spoken_lines(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
-		events.append({ "type": "GREET", "customer": customer_id, "text": line })
+	for line in ScheduleData.spoken_lines_with_reveal(lines):   # 〔演出〕の行は会話枠に出さない（中身U1）
+		var ev := { "type": "GREET", "customer": customer_id, "text": str(line["text"]) }
+		if line.has(ScheduleData.REVEAL_NAME_KEY):
+			ev[ScheduleData.REVEAL_NAME_KEY] = line[ScheduleData.REVEAL_NAME_KEY]
+		events.append(ev)
 	return events
 
 
@@ -1193,5 +1200,5 @@ static func _customer_extra_events(customer_id: String) -> Array:
 	for bill in Rules.bills_for_scene(customer_id, GameState.day_count):
 		collected.append({ "type": "PAY", "customer": customer_id, "amount": int(bill["amount"]),
 			"kind": str(bill["id"]),
-			"text": "%s（%s）" % [ScheduleData.customer_display_name(customer_id), str(bill.get("label", bill["id"]))] })
+			"text": "%s（%s）" % [CustomerMemory.display_name(customer_id), str(bill.get("label", bill["id"]))] })
 	return collected
