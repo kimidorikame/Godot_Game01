@@ -1,0 +1,10 @@
+◆本日の客足予報（検証用）◆
+総杯数: 8〜10杯
+・宵の口：阿強（HOT/POWER）、客層:安宿の夜勤受付（MELLOW/GENTLE）
+・夜半：初めての客（MELLOW/BITE）、客層:市場横の雑貨屋の夜番（BITTER/GENTLE）
+・明け方：セティヤ（BITTER/TREAT）
+必要（平均案）: HOT1 MELLOW4 BITTER4 POWER1 GENTLE6 BITE1 TREAT1
+　在庫との過不足: HOTあと1個・MELLOWあと4個・BITTERあと4個・POWERあと1個・GENTLEあと6個・BITEあと1個・TREATあと1個
+必要（上限案）: HOT1 MELLOW5 BITTER4 POWER1 GENTLE7 BITE1 TREAT1
+　在庫との過不足: HOTあと1個・MELLOWあと5個・BITTERあと4個・POWERあと1個・GENTLEあと7個・BITEあと1個・TREATあと1個
+使える現金: 525円（残金600／確保75）
