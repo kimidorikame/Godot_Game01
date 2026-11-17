@@ -276,7 +276,8 @@ func run(t: SceneTree) -> int:
 			and (now_reacts[2] as Dictionary).keys().size() == (recorded_reacts[2] as Dictionary).keys().size() + 1
 			and now_reacts[2].get("sets_facts", {}) == { "day1_takeout_served": true } and not now_reacts[0].has("sets_facts") and not now_reacts[1].has("sets_facts"))
 	c.check("3杯目の注文は SAVORY/GENTLE（中身U1：うましお＋やさしい）・反応は元の文（GOOD・OK・BAD の3段。GREAT は無い）",
-		now_reacts[2]["wanted_tags"] == ["SAVORY", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK"])
+		now_reacts[2]["wanted_tags"] == ["SAVORY", "GENTLE"] and _sorted((now_reacts[2]["reactions"] as Dictionary).keys()) == ["BAD", "GOOD", "OK", "OK_MISSING"]
+		and _sorted((now_reacts[2]["reactions"]["OK_MISSING"] as Dictionary).keys()) == ["GENTLE", "SAVORY"])
 	c.check("1・2杯目の要求タグはプロフィール（HOT/POWER）で、反応は各結果1パターンのまま",
 		now_reacts[0]["wanted_tags"] == ["HOT", "POWER"] and now_reacts[1]["wanted_tags"] == ["HOT", "POWER"]
 			and (now_reacts[0]["reactions"]["GOOD"] as Array).size() == 1 and (now_reacts[1]["reactions"]["GREAT"] as Array).size() == 1)

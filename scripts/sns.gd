@@ -6,7 +6,7 @@ class_name Sns
 ## データ形：
 ##   accounts.<id> … { name（表示名）, handle（@〜）, icon:{ color（"#rrggbb"）, text（1文字か記号）}, profile, kind:"main|alt"（表／裏）,
 ##                    owner（書き手用。客の id か、モブの種類の id（中身U1）か "town"。画面に出さない）}
-##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, reply_to（任意。元の投稿の id）,
+##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, photo_kind（任意。"video" なら「［動画：…］」。中身Z2）, reply_to（任意。元の投稿の id）,
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから／{ market_talk:<客id> }＝その日の昼の市場で、その客の
 ##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）／{ visited:<客id> }＝その日、その客の接客が済んで
 ##              〔店を出て〕から。閉店のあとは来なかった日も見える。中身Z）, truth（任意。書き手用。画面に出さない）, provisional } ]
@@ -222,6 +222,8 @@ static func problems(source: Dictionary = {}) -> Array:
 				found.append("%s：本文に内部の札の名前 %s がある" % [where, str(tag)])
 		if post.has("photo") and (not (post["photo"] is String) or str(post["photo"]) == ""):
 			found.append(where + "：photo が空でない文字列でない")
+		if post.has("photo_kind") and (not post.has("photo") or not ["photo", "video"].has(str(post["photo_kind"]))):
+			found.append(where + "：photo_kind は photo のある投稿の \"photo\"／\"video\" だけ")
 		if post.has("reply_to"):
 			var parent = by_id.get(str(post["reply_to"]), null)
 			if parent == null:

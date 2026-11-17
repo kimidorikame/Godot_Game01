@@ -198,8 +198,9 @@ func run(t: SceneTree) -> int:
 				and (day3["reactions"]["OK_MISSING"] as Dictionary).size() == 2 and not (day3["reactions"] as Dictionary).has("GREAT")
 				and ScheduleData.marker_problems(two + day3["after_talk"] + day3["spare_greet"].filter(func(l): return l is String), mob_id).is_empty(),
 			"%s / %s" % [str(two.size() + (day3["after_talk"] as Array).size()), str(md.size())])
-		c.check("%s：予備の一言（spare_greet）は、表の一言＋注文の行＋「…分も」の行" % mob_id,
-			str(day3["spare_greet"][0]) != str(day3["greet"][0]) and (day3["spare_greet"] as Array).back() == (day3["greet"] as Array).back())
+		c.check("%s：予備の一言（spare_greet）は、表の一言＋注文の行＋「…分も」の行。予備の退店の文（spare_farewell。中身Z2）は1行" % mob_id,
+			str(day3["spare_greet"][0]) != str(day3["greet"][0]) and (day3["spare_greet"] as Array).back() == (day3["greet"] as Array).back()
+				and (day3["spare_farewell"] as Array).size() == 1 and not (day3["after_talk"] as Array).has(day3["spare_farewell"][0]))
 		c.check("%s：ほかの日（4日目）は日をまたぐ文のまま" % mob_id, not ScheduleData.mob_data_for_day(mob_id, 4).has("spare_greet"))
 	GameState.reset_for_new_game()
 	GameState.day_count = 3
@@ -213,7 +214,8 @@ func run(t: SceneTree) -> int:
 			and first["greet"] == ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(inn3["greet"], 2))
 			and second["greet"] == ["受付「濡れた傘を並べたら、どれが誰のか分からなくなりまして。札を作る前に、夕飯を買いに来ました」", "受付「持ち帰りでお願いします。まろやかな汁に、胃にやさしい具を」"]
 			and second["wanted_tags"] == first["wanted_tags"] and second["reactions"] == first["reactions"]
-			and Day1Events.mob_after_talk_events("mob#3").map(func(e): return str(e["text"])) == inn3["after_talk"], str(second["greet"]))
+			and Day1Events.mob_after_talk_events("mob#3").map(func(e): return str(e["text"])) == ["受付「ごちそうさまです。傘の札、戻ったら作ります」"]
+			and Day1Events.mob_after_talk_events("mob#0").map(func(e): return str(e["text"])) == inn3["after_talk"], str(second["greet"]))
 
 	# --- 5. DM（3日目）---
 	GameState.reset_for_new_game()
@@ -272,6 +274,8 @@ func _play_day3(t: SceneTree, c: TestCheck, takeout: bool) -> void:
 	c.check("（%s）Day1・Day2 を遊び、Day3 の朝へ進んだ・facts.%s は %s" % [label, FACT, str(takeout)],
 		GameState.day_count == 3 and bool(CustomerMemory.fact("delivery_man", FACT, false)) == takeout and bool(fact_on_day2) == takeout,
 		"day=%d fact=%s" % [GameState.day_count, str(CustomerMemory.fact("delivery_man", FACT, null))])
+	var day2_ids: Array = Dm.inbox(3).filter(func(x): return int(x["day"]) == 2).map(func(x): return str(x["id"]))
+	c.check("（%s）中身Z2：2日目の朝の阿強のDM（容器）は、3杯目を出した道だけ" % label, day2_ids.has("d2_delivery_man") == takeout, str(day2_ids))
 	var inbox := Dm.inbox(3).filter(func(x): return int(x["day"]) == 3)
 	c.check("（%s）Day3 の朝のDM：張姐・阿強（%s）・セティヤ。阿強・セティヤ・ニカの予告は無い" % [label, "容器の文" if takeout else "断った道の文"],
 		inbox.map(func(x): return str(x["id"])).has("d3_market") and inbox.map(func(x): return str(x["id"])).has("d3_delivery_man" if takeout else "d3_delivery_man_declined")

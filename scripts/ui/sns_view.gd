@@ -169,7 +169,8 @@ static func _add_post(content: VBoxContainer, item: Dictionary, indent: float, f
 		photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		photo.custom_minimum_size = Vector2(width, 72)
 		body.add_child(photo)
-		var caption := _label("［写真：%s］" % str(item["photo"]), &"LabelCaption")
+		# 中身Z2：photo_kind が "video" の投稿は「［動画：…］」（無い・"photo" は今までどおり「［写真：…］」）
+		var caption := _label("［%s：%s］" % ["動画" if str(item.get("photo_kind", "photo")) == "video" else "写真", str(item["photo"])], &"LabelCaption")
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

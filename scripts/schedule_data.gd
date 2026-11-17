@@ -422,7 +422,17 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 			problems.append("%sreactions が辞書でない" % where)
 		else:
 			for key in cup["reactions"]:
-				if not _REACTION_KEYS.has(key):
+				if str(key) == OK_MISSING_KEY:
+					# 中身Z2：杯の OK も外れた札で2通り。札はその杯の注文（tags）のどれか（tags の無い杯は検査しない）
+					if not (cup["reactions"][key] is Dictionary):
+						problems.append("%sreactions.OK_MISSING が辞書でない" % where)
+					else:
+						for tag in cup["reactions"][key]:
+							if cup.has("tags") and cup["tags"] is Array and not (cup["tags"] as Array).has(str(tag)):
+								problems.append("%sreactions.OK_MISSING の札 %s が、その杯の注文 %s に無い" % [where, str(tag), str(cup["tags"])])
+							if not _is_lines(cup["reactions"][key][tag]) or (cup["reactions"][key][tag] as Array).is_empty():
+								problems.append("%sreactions.OK_MISSING.%s が空でない文字列の配列でない" % [where, str(tag)])
+				elif not _REACTION_KEYS.has(key):
 					problems.append("%sreactions に未知のキー %s" % [where, str(key)])
 				elif not (cup["reactions"][key] is Array):
 					problems.append("%sreactions.%s が配列でない" % [where, str(key)])
@@ -740,8 +750,9 @@ static func mob_data(id: String) -> Dictionary:
 ## その日だけそれに替える（無いキー・無い日は、日をまたぐ文のまま）。注文（wanted_tags）は日で変えない。
 ## after_talk … 椀を出したあとの会話（出した人数が1以上のときだけ流す）。日をまたぐ文には無い。
 ## spare_greet … 同じ晩に同じ職種の2組目が来たとき、greet の代わりに出す行（中身Z「四組目が来る晩の、予備の一言」。
-##               予備の一言と注文の行。反応・after_talk は1組目と同じ。Day1Events._customer_flavor）。日をまたぐ文には無い。
-const MOB_DAY_KEYS := ["greet", "reactions", "after_talk", "spare_greet"]
+##               予備の一言と注文の行。反応は1組目と同じ。Day1Events._customer_flavor）。日をまたぐ文には無い。
+## spare_farewell … その2組目の退店の文（中身Z2。after_talk の代わり。Day1Events.mob_after_talk_events）。日をまたぐ文には無い。
+const MOB_DAY_KEYS := ["greet", "reactions", "after_talk", "spare_greet", "spare_farewell"]
 
 
 static func mob_data_for_day(id: String, day: int) -> Dictionary:

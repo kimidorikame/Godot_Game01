@@ -104,7 +104,8 @@ func run(t: SceneTree) -> int:
 	_state(2, 30)
 	c.check("市場の顔なじみ（条件なし）は、その日に届く。Day2は配達員のDMはまだ（まだ誰にも提供していない）",
 		_ids(Dm.delivered_for_day(2)) == ["d2_market"], str(_ids(Dm.delivered_for_day(2))))
-	GameState.customer_memory["delivery_man"] = { "favorite_known": false, "visits": [{ "day": 1, "served": 3, "grade": "GOOD" }], "facts": {},
+	# 中身Z2：2日目の阿強のDMは、1日目の3杯目（持ち帰り）を出したとき（facts.day1_takeout_served）だけ
+	GameState.customer_memory["delivery_man"] = { "favorite_known": false, "visits": [{ "day": 1, "served": 3, "grade": "GOOD" }], "facts": { "day1_takeout_served": true },
 		"seen_episodes": [] }
 	c.check("名前あり客に初めて提供した翌日から、その客のDMが届く（Day1に提供→Day2）",
 		_ids(Dm.delivered_for_day(2)) == ["d2_market", "d2_delivery_man"], str(_ids(Dm.delivered_for_day(2))))
@@ -112,6 +113,10 @@ func run(t: SceneTree) -> int:
 	c.check("提供した当日は届かない（翌日から）", not _ids(Dm.delivered_for_day(2)).has("d2_delivery_man"))
 	GameState.customer_memory["delivery_man"]["visits"] = [{ "day": 1, "served": 0, "grade": "" }]
 	c.check("来ただけで1杯も提供していない客のDMは届かない", not _ids(Dm.delivered_for_day(2)).has("d2_delivery_man"))
+	GameState.customer_memory["delivery_man"]["visits"] = [{ "day": 1, "served": 2, "grade": "GOOD" }]
+	GameState.customer_memory["delivery_man"]["facts"] = {}
+	c.check("中身Z2：1日目の3杯目を断った道（facts.day1_takeout_served が無い）では、2日目の阿強のDMは届かない", not _ids(Dm.delivered_for_day(2)).has("d2_delivery_man"),
+		str(_ids(Dm.delivered_for_day(2))))
 	# 条件が後から満たされても、過去の日のDMは届かない
 	_state(5, 30)
 	GameState.customer_memory["hooker"] = { "favorite_known": false, "visits": [{ "day": 3, "served": 1, "grade": "GOOD" }], "facts": {},

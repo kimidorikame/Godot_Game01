@@ -28,14 +28,12 @@ func _day1_texts() -> Array:
 		var ep := ScheduleData.episode_data(pair[0], pair[1])
 		for key in ["greet", "body"]:
 			raw.append_array(ScheduleData.spoken_lines(ep.get(key, [])))
-		for r in (ep.get("reactions", {}) as Dictionary).values():
-			raw.append_array(r)
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
 		for cup in ScheduleData.episode_cups(pair[0], pair[1]):
 			raw.append_array(ScheduleData.spoken_lines(cup.get("after_talk", [])))
 			if cup.has("serve"):
 				raw.append(str(cup["serve"]))
-			for r in (cup.get("reactions", {}) as Dictionary).values():
-				raw.append_array(r)
+			raw.append_array(_reaction_lines(cup.get("reactions", {})))
 	for mob in ["dock_workers", "inn_clerk"]:
 		var form := ScheduleData.mob_data_for_day(mob, 1)
 		raw.append_array(ScheduleData.spoken_lines(form["greet"]))
@@ -62,14 +60,12 @@ func _day2_texts() -> Array:
 		var ep := ScheduleData.episode_data(pair[0], pair[1])
 		for key in ["greet", "body", "market_talk"]:
 			raw.append_array(ScheduleData.spoken_lines(ep.get(key, [])))
-		for r in (ep.get("reactions", {}) as Dictionary).values():
-			raw.append_array(r)
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
 	for mob in ["market_porter", "laundry_night", "long_haul_driver"]:
 		var form := ScheduleData.mob_data_for_day(mob, 2)
 		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
 		raw.append_array(ScheduleData.spoken_lines(form["after_talk"]))
-		for r in (form["reactions"] as Dictionary).values():
-			raw.append_array(r)
+		raw.append_array(_reaction_lines(form["reactions"]))
 	for part in ScheduleData.talk_data("day2_market")["parts"]:
 		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
 	var texts := []
@@ -124,8 +120,9 @@ func _day3_texts() -> Array:
 		if not texts.has(text):
 			texts.append(text)
 	# 朝のニュース（会話枠に1行ずつ出る。見出しは「ニュース：」付き）
-	for ev in News.morning_events(3):
-		texts.append(str(ev["text"]))
+	for day in [1, 2, 3]:   # 中身Z2：1〜3日目のニュースの本文も入れ直した
+		for ev in News.morning_events(day):
+			texts.append(str(ev["text"]))
 	return texts
 
 
@@ -186,7 +183,7 @@ func run(_t: SceneTree) -> int:
 		if not b.is_empty():
 			bad3[text] = b
 		if UiLeftSide.paginate(text).size() > 1:
-			multi3.append(text)
+			multi3.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
 	c.check("3日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts3.size(), texts3.size() > 200 and bad3.is_empty(), str(bad3))
 	print("  3日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts3.size(), multi3.size(), str(multi3)])
 

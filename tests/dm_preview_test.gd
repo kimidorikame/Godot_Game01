@@ -85,6 +85,7 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 2
 	_plan(2, ["officer", "delivery_man", "thug"], ["dock_workers", "inn_clerk"])
 	_visited("delivery_man", 1)
+	CustomerMemory.set_fact("delivery_man", "day1_takeout_served", true)   # 中身Z2：2日目の阿強のDMは3杯目を出した道だけ
 	var inbox := Dm.inbox(2)
 	var existing_delivery := inbox.any(func(x): return str(x["id"]) == "d2_delivery_man")
 	subs = _subjects(inbox)

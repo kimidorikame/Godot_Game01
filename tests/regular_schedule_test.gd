@@ -134,8 +134,8 @@ func run(_t: SceneTree) -> int:
 			var want = { "pool": [mob_table[d][i]] } if mob_table[d][i] != "" else false
 			table_ok = table_ok and ScheduleData.mob_rule_for(d, SLOTS[i]) == want
 	c.check("Day2〜7は職種表どおり（時間帯ごとに職種1つ）", table_ok)
-	c.check("新しいモブ「共同洗濯場の夜番」（laundry_night）：好み 酸っぱい・やさしい（仮）",
-		str(ScheduleData.mob_data("laundry_night").get("name", "")) == "共同洗濯場の夜番"
+	c.check("モブ「港のホテルの夜番」（laundry_night。中身Z2で「共同洗濯場の夜番」から名前を変えた。id はそのまま）：好み 酸っぱい・やさしい",
+		str(ScheduleData.mob_data("laundry_night").get("name", "")) == "港のホテルの夜番"
 			and ScheduleData.mob_data("laundry_night")["wanted_tags"] == ["SOUR", "GENTLE"])
 	c.check("定義の無い日（Day8）は常連の枠が空（Day1へのフォールバックはしない）",
 		ScheduleData.regular_slots(8).is_empty())

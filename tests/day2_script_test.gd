@@ -64,11 +64,16 @@ func run(t: SceneTree) -> int:
 			and str(ep.get("source", "")).begins_with("planning/scenario/day2/"), str(ScheduleData.scene_problems(ep)))
 		var all_lines: Array = ScheduleData.spoken_lines(ep["greet"]) + ScheduleData.spoken_lines(ep["body"]) + ScheduleData.spoken_lines(ep.get("market_talk", []))
 		for grade in ep["reactions"]:
-			all_lines.append_array(ep["reactions"][grade])
+			if ep["reactions"][grade] is Dictionary:   # 中身Z2：OK_MISSING（外れた札ごとの OK の文）
+				for tag in ep["reactions"][grade]:
+					all_lines.append_array(ep["reactions"][grade][tag])
+			else:
+				all_lines.append_array(ep["reactions"][grade])
 		c.check("%s：どの行も「名前「セリフ」」の形で、〔〕の印・行の終わりの空白を含まない" % ep["id"],
 			all_lines.all(func(x): return str(x).contains("「") and str(x).ends_with("」") and not str(x).contains("〔") and not str(x).ends_with(" ")))
-		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行" % ep["id"], (ep["reactions"] as Dictionary).keys().size() == 4
-			and ["GREAT", "GOOD", "OK", "BAD"].all(func(g): return (ep["reactions"][g] as Array).size() == 1))
+		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行・OK は外れた札で2通り（OK_MISSING。中身Z2）" % ep["id"], (ep["reactions"] as Dictionary).keys().size() == 5
+			and ["GREAT", "GOOD", "OK", "BAD"].all(func(g): return (ep["reactions"][g] as Array).size() == 1)
+			and (ep["reactions"]["OK_MISSING"] as Dictionary).size() == 2 and ep["reactions"]["OK_MISSING"].values().has(ep["reactions"]["OK"]))
 	c.check("元の文の行がそろっている：警官（市場27・来店と注文24・食後44）・レックス（17・27）・セティヤ（20・21）",
 		(officer["market_talk"] as Array).size() == 27 and (officer["greet"] as Array).size() == 24 and ScheduleData.spoken_lines(officer["body"]).size() == 44
 			and (thug["greet"] as Array).size() == 17 and (thug["body"] as Array).size() == 27
@@ -89,7 +94,7 @@ func run(t: SceneTree) -> int:
 			and ScheduleData.customer_profile("hooker")["wanted_tags"] == ["BITTER", "TREAT"] and str(ScheduleData.customer_profile("hooker")["favorite"]) == "pickled_lime"
 			and str(ScheduleData.customer_profile("thug")["favorite"]) == "meat_ball")
 	var mob_tags := { "market_porter": ["HOT", "FILLING"], "laundry_night": ["SOUR", "GENTLE"], "long_haul_driver": ["SAVORY", "TREAT"] }
-	var mob_counts := { "market_porter": [8, 1, 1], "laundry_night": [11, 1, 1], "long_haul_driver": [10, 1, 2] }
+	var mob_counts := { "market_porter": [8, 1, 1], "laundry_night": [12, 1, 1], "long_haul_driver": [10, 1, 2] }   # 中身Z2：ホテルの夜番は挨拶12行
 	for mob_id in mob_tags:
 		var day2 := ScheduleData.mob_data_for_day(mob_id, 2)
 		var raw: Array = ScheduleData.mob_data(mob_id)["days"]["2"]["greet"]
@@ -97,7 +102,8 @@ func run(t: SceneTree) -> int:
 		var conditional: Array = raw.filter(func(x): return x is Dictionary)
 		c.check("%s：2日目の文（挨拶%d行＋2杯以上の1行・反応 GOOD/OK/BAD 各1行・退店%d行）・注文の札はデータのまま %s" % [mob_id, mob_counts[mob_id][0], mob_counts[mob_id][2], str(mob_tags[mob_id])],
 			plain.size() == mob_counts[mob_id][0] and conditional.size() == mob_counts[mob_id][1] and int(conditional[0]["min_count"]) == 2
-				and (day2["reactions"] as Dictionary).keys().size() == 3 and not (day2["reactions"] as Dictionary).has("GREAT")
+				and (day2["reactions"] as Dictionary).keys().size() == 4 and not (day2["reactions"] as Dictionary).has("GREAT")
+				and (day2["reactions"]["OK_MISSING"] as Dictionary).keys().all(func(k): return (mob_tags[mob_id] as Array).has(k))
 				and (day2["after_talk"] as Array).size() == mob_counts[mob_id][2] and day2["wanted_tags"] == mob_tags[mob_id]
 				and ScheduleData.marker_problems(plain + day2["after_talk"], mob_id).is_empty())
 		var day3 := ScheduleData.mob_data_for_day(mob_id, 3)
@@ -271,7 +277,10 @@ func run(t: SceneTree) -> int:
 			str(expected[first_diff]) if first_diff >= 0 and first_diff < expected.size() else "（無い）"])
 	var react_ok := true
 	for r in reactions:
-		var pool: Array = (r["pool"] as Dictionary).get(r["grade"], [])
+		var pool: Array = (r["pool"] as Dictionary).get(r["grade"], []).duplicate()
+		if r["grade"] == "OK" and (r["pool"] as Dictionary).get("OK_MISSING") is Dictionary:   # 中身Z2：外れた札の OK の文
+			for tag in r["pool"]["OK_MISSING"]:
+				pool.append_array(r["pool"]["OK_MISSING"][tag])
 		react_ok = react_ok and pool.has(r["text"]) and not str(r["text"]).contains("\n") and not str(r["text"]).contains("〔")
 	c.check("反応は、判定の結果の段の元の文の1行だけ（%d回）" % reactions.size(), react_ok and reactions.size() >= 4,
 		str(reactions.map(func(r): return "%s %s %s" % [r["customer"], r["grade"], r["text"]])))

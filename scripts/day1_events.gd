@@ -853,6 +853,9 @@ static func mob_after_talk_events(customer_id: String) -> Array:
 	if inst.is_empty():
 		return []
 	var mob := ScheduleData.mob_data_for_day(str(inst.get("type", "")), GameState.day_count)
+	# 中身Z2：同じ晩の同じ職種の2組目（予備の一言で来た組）は、その日の予備の退店の文（spare_farewell）があればそれ
+	if is_repeat_mob_group(customer_id) and mob.get("spare_farewell", []) is Array and not (mob.get("spare_farewell", []) as Array).is_empty():
+		return _scene_lines("body", customer_id, mob["spare_farewell"])
 	return _scene_lines("body", customer_id, mob.get("after_talk", []) if mob.get("after_talk", []) is Array else [])
 
 

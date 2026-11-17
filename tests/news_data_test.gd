@@ -70,7 +70,7 @@ func run(_t: SceneTree) -> int:
 	c.check("Day3 は本番の4本（3日目_ニュース.md。中身Z）：provisional なし・1本目は迂回便の見出しで must_info（new_window_cargo）・ほかは必須情報なし・共通イベントなし",
 		day3_news.size() == 4 and day3_news.all(func(i): return not bool(i.get("provisional", false)))
 			and str(day3_news[0]["headline"]) == "【港湾】第八码頭の作業停止続く　迂回便、複数の窓口で受付"
-			and day3_news[0]["must_info"] == ["new_window_cargo"] and (day3_news[0]["body"] as Array).size() == 3
+			and day3_news[0]["must_info"] == ["new_window_cargo"] and (day3_news[0]["body"] as Array).size() == 4
 			and day3_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty())
 			and (News.day_entry(3)["events"] as Array).is_empty(),
 		str(day3_news.map(func(i): return i["headline"])))
@@ -78,14 +78,14 @@ func run(_t: SceneTree) -> int:
 	c.check("Day2 は本番の4本（2日目_ニュース.md。中身X）：provisional なし・1本目は検問の見出しで must_info ②（checkpoints）・ほかは必須情報なし",
 		day2_news.size() == 4 and day2_news.all(func(i): return not bool(i.get("provisional", false)))
 			and str(day2_news[0]["id"]) == "d2_checkpoints" and str(day2_news[0]["headline"]) == "【港湾】第八码頭の周辺で検問始まる　市場への搬入に遅れ"
-			and day2_news[0]["must_info"] == ["checkpoints"] and day2_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty() and (i["body"] as Array).size() == 3)
+			and day2_news[0]["must_info"] == ["checkpoints"] and day2_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty() and (i["body"] as Array).size() == 4)
 			and not day2_news.any(func(i): return str(i["headline"]).contains("物別れ")),
 		str(day2_news.map(func(i): return i["headline"])))
 	var day1_news: Array = News.day_entry(1)["news"]
 	c.check("Day1 は本番の4本（1日目_ニュース.md）：provisional なし・1本目はストの見出しで must_info ①（strike_started）",
 		day1_news.size() == 4 and day1_news.all(func(i): return not bool(i.get("provisional", false)))
 			and str(day1_news[0]["headline"]) == "【港湾】第八码頭、二倉庫で夜間作業停止" and day1_news[0]["must_info"] == ["strike_started"]
-			and day1_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty() and (i["body"] as Array).size() == 3),
+			and day1_news.slice(1).all(func(i): return (i["must_info"] as Array).is_empty() and (i["body"] as Array).size() == 4),
 		str(day1_news.map(func(i): return i["headline"])))
 	c.check("毎日ニュースが1件以上ある（Day1〜7）", range(1, 8).all(func(d): return not News.day_entry(d)["news"].is_empty()))
 	c.check("日程の無い日・未来の日は空（Day8）", News.day_entry(8)["news"].is_empty() and News.day_entry(8)["events"].is_empty())
