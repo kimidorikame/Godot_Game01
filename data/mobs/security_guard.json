@@ -5,18 +5,18 @@
     "夜勤警備員 %d人（うましお・歯ごたえ）"
   ],
   "reactions": {
-    "GOOD": [
+	"GOOD": [
       "GOOD"
-    ],
-    "OK": [
+	],
+	"OK": [
       "OK"
-    ],
-    "BAD": [
+	],
+	"BAD": [
       "BAD"
-    ]
+	]
   },
   "wanted_tags": [
-    "SAVORY",
+	"SAVORY",
     "BITE"
   ]
 }
