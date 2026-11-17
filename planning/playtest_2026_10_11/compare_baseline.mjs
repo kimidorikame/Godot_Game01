@@ -41,7 +41,7 @@ export function playResult(run) {
   const r = JSON.parse(JSON.stringify(run));
   delete r.clicks;
   delete r.steps;
-  if (r.actions) delete r.actions.next_text_event;
+  if (r.actions) for (const k of ['next_text_event', 'pot_open', 'pot_back']) delete r.actions[k];   // EXCLUDED の actions.* と同じ
   if (Array.isArray(r.rows)) for (const row of r.rows) delete row.actions_cumulative;
   if (r.day1_cash) for (const k of ['after_wake', 'after_kit', 'after_tier', 'after_market']) delete r.day1_cash[k];
   return r;
