@@ -13,6 +13,8 @@ export const EXCLUDED = [
   { path: 'clicks', why: 'クリックの回数（セリフの行を読む操作を含む）。会話の行数で変わる' },
   { path: 'steps', why: '自動試遊の手数（会話の行数で変わる）' },
   { path: 'actions.next_text_event', why: 'セリフの行を読み進めた回数（会話の行数で変わる）。ほかの actions（仕入れ・具材・水・だし・断る など）は比べる' },
+  { path: 'actions.pot_open', why: '鍋の画面を開いた回数（2026-11-17・中身AA）。鍋が空で直せない晩は、会話の1行ごとに開けて何もせず戻るので、会話の行数で変わる。水・だしの回数は比べる' },
+  { path: 'actions.pot_back', why: '鍋の画面から戻った回数（同上）' },
   { path: 'rows[].actions_cumulative', why: 'その日までの操作の回数の累計（セリフの行を読む操作を含む）' },
   { path: 'day1_cash.after_wake', why: 'Day1 の途中の残高（仕込みに入った時点）。支払いの順番で変わる' },
   { path: 'day1_cash.after_kit', why: 'Day1 の途中の残高（初日セットのあと）。水道代を朝の会話で払うと下がる' },

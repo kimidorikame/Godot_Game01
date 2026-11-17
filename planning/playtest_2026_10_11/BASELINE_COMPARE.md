@@ -33,19 +33,20 @@
 
 - 判定（各日の `grades`・`quality`・`regular_good_plus`・`regular_great`）
 - 売上・チップ（各日の `sales`。最終の `result_summary`）
-- 仕入れ（`purchases`・各日の `spend`・`stock`・`dashi`・`water`、`actions` の仕入れ・具材・水・だし・断る などの操作の回数）
+- 仕入れ（`purchases`・各日の `spend`・`stock`・`dashi`・`water`、`actions` の仕入れ・具材・水・だし・断る などの操作の回数。鍋の画面を開いた・戻った回数は比べない）
 - その日の終わりの現金（各日の `cash`・最終の `cash`・`day1_cash.end`・`day1_cash.tier`）
 - 評判（各日の `open_rep`・`next_rep`・最終の `rep`）
 - 提供と未提供の数（各日の `served`・`unserved`・`declined_records`・`demand`・`judged_demand`・`regular_cups`・`soup_left`）
 - 最終の結果（`result_summary`・`result_phase`・`completed`・`stalled`・`incidents`・`failures`・`closing_stock_units`）
 
-## 比べない項目（2026-11-09 に外した）
+## 比べない項目（2026-11-09 に外した。鍋の画面の開け閉めは 2026-11-17 に足した）
 
 | 項目 | 理由 |
 |---|---|
 | `clicks` | クリックの回数（セリフの行を読む操作を含む）。会話の行数で変わる |
 | `steps` | 自動試遊の手数。会話の行数で変わる |
 | `actions.next_text_event` | セリフの行を読み進めた回数。ほかの `actions` は比べる |
+| `actions.pot_open`・`actions.pot_back` | 鍋の画面を開いた・戻った回数（2026-11-17 に外した）。鍋が空で水もだしも足せない晩は、自動試遊が会話の1行ごとに開けて何もせず戻るので、会話の行数で変わる。`actions` の水（`water`）・だし（`dashi`）の回数と、各日の結果は比べる |
 | `rows[].actions_cumulative` | その日までの操作の回数の累計（セリフの行を読む操作を含む） |
 | `day1_cash.after_wake` | Day1 の途中の残高（仕込みに入った時点） |
 | `day1_cash.after_kit` | Day1 の途中の残高（初日セットのあと）。水道代を朝の会話で払うと下がる |
@@ -190,3 +191,6 @@
   作業ツリーに他の道具が足した字下げだけの変更があったので、`c832b54` を別の作業ツリー（git worktree）に取り出して流した（`tracked_changes` は空）。
 - 同じ日、中身X のレックスの2日目の注文の変更（`44e7c4d`）を意図した変更として受け入れ、基準 v5 を作った（同じく別の作業ツリーで流した）。
 - 2026-11-15、中身Z の阿強・セティヤの3日目の注文の変更（`61fde74`）を意図した変更として受け入れ、基準 v6 を作った（同じく別の作業ツリーで流した。`tracked_changes` は空）。
+- 2026-11-17、中身AA（4日目の文）で always_small の2周（シード2・3）の `actions.pot_open`・`actions.pot_back` が 14 → 29 になった（所持金・各日の結果は同じ）。
+  4日目に鍋が空になり水も使い切る晩、自動試遊は会話の1行ごとに鍋の画面を開けて何もせず戻るので、来店の行が増えた分だけ数が増えた。
+  遊びの結果に効かない「途中の数」として、この2項目を比べない項目に移した（v6 はそのまま。自動試遊の動きは直していない）。
