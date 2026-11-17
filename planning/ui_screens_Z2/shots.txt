@@ -1,0 +1,8 @@
+# 中身Z2 のスクリーンショット（tools/ui_screens_Z2.gd が書き出す）
+01_day1_achang_ok.png  1日目の阿強の1杯目：OK（辛さは合った＝スタミナが外れた）の文
+02_day2_dm_hotel.png  2日目の朝：港のホテルの夜番の予告DM（差出人と本文）
+03_day2_hotel_night.png  2日目の夜半：港のホテルの夜番（名前の札は「夜番」）
+04_day2_setiya_ok.png  2日目のセティヤ：OK（苦いは合った＝ごちそうが外れた）の文
+05_news_list.png  3日目の朝：ニュースの一覧（1〜3日目の12本）
+06_news_longest.png  いちばん長い記事（3日目の d3_windows。本文 392字）の本文（スクロールせずに全部見える）
+07_timeline_video.png  3日目の夜半・ニカのあと：タイムラインのニカの 23:00（「［動画：…］」）
