@@ -122,7 +122,7 @@ func run(t: SceneTree) -> int:
 	# --- 4. ニカの 23:00 は動画 ---
 	var nika23: Array = Sns.posts().filter(func(x): return str(x["id"]) == "d3_exposure_test_2300")
 	c.check("ニカの 23:00：photo_kind は video・説明は元の文のとおり・データの検査に問題なし",
-		nika23.size() == 1 and str(nika23[0]["photo_kind"]) == "video" and str(nika23[0]["photo"]) == "歩道から見た車列。運転席の窓ごしに弁当箱が見える。顔は分からない"
+		nika23.size() == 1 and str(nika23[0]["photo_kind"]) == "video" and str(nika23[0]["photo"]) == "車列。運転席の窓ごしに弁当箱。顔は分からない"
 			and Sns.problems().is_empty())
 	var bad_kind: Dictionary = (Sns.data() as Dictionary).duplicate(true)
 	(bad_kind["posts"] as Array)[0]["photo_kind"] = "video"
@@ -136,7 +136,7 @@ func run(t: SceneTree) -> int:
 	game.open_phone("sns")
 	var texts := _labels(game.pane_phone)
 	c.check("スマホのタイムライン：ニカの 23:00 は「［動画：…］」、ほかの写真は「［写真：…］」のまま",
-		texts.has("［動画：歩道から見た車列。運転席の窓ごしに弁当箱が見える。顔は分からない］")
+		texts.has("［動画：車列。運転席の窓ごしに弁当箱。顔は分からない］")
 			and texts.any(func(x): return str(x).begins_with("［写真：")), str(texts.filter(func(x): return str(x).begins_with("［"))))
 	game.queue_free()
 
