@@ -74,14 +74,14 @@ func run(t: SceneTree) -> int:
 		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行・OK は外れた札で2通り（OK_MISSING。中身Z2）" % ep["id"], (ep["reactions"] as Dictionary).keys().size() == 5
 			and ["GREAT", "GOOD", "OK", "BAD"].all(func(g): return (ep["reactions"][g] as Array).size() == 1)
 			and (ep["reactions"]["OK_MISSING"] as Dictionary).size() == 2 and ep["reactions"]["OK_MISSING"].values().has(ep["reactions"]["OK"]))
-	c.check("元の文の行がそろっている：警官（市場27・来店と注文24・食後44）・レックス（17・27）・セティヤ（20・21）",
+	c.check("元の文の行がそろっている：警官（市場27・来店と注文24・食後44）・レックス（17・27）・セティヤ（18・21）",
 		(officer["market_talk"] as Array).size() == 27 and (officer["greet"] as Array).size() == 24 and ScheduleData.spoken_lines(officer["body"]).size() == 44
 			and (thug["greet"] as Array).size() == 17 and (thug["body"] as Array).size() == 27
-			and (hooker["greet"] as Array).size() == 20 and (hooker["body"] as Array).size() == 21
+			and (hooker["greet"] as Array).size() == 18 and (hooker["body"] as Array).size() == 21
 			and _md_spoken_count("2日目_昼市場.md", "張記を出たところ", "寄った店") == 27
 			and _md_spoken_count("2日目_新人警官.md", "本編", "実装メモ") == 24 + 44
 			and _md_spoken_count("2日目_チンピラ.md", "本編", "実装メモ") == 17 + 27
-			and _md_spoken_count("2日目_夜の女.md", "本編", "実装メモ") == 20 + 21)
+			and _md_spoken_count("2日目_夜の女.md", "本編", "実装メモ") == 18 + 21)
 	var talk := ScheduleData.talk_data("day2_market")
 	var zhang: Array = ScheduleData.spoken_lines(talk["parts"][0]["lines"])
 	c.check("市場の場面 day2_market：張姐の会話（着いたときだけ）8行・最後は仕込む量の問い・市場を出たあとの部分は無い",

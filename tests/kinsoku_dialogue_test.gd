@@ -184,8 +184,8 @@ func run(_t: SceneTree) -> int:
 		if UiLeftSide.paginate(text).size() > 1:
 			multi += 1
 	c.check("1日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts.size(), texts.size() > 250 and bad.is_empty(), str(bad))
-	for line in ["「俺が探してるの覚えててさ。『あったよ』って写真が来たんだよ。缶と瓶の真ん中に、こいつが置いてあんの」",
-			"「お、残業の明細来た。八番の荷、ちゃんとうちの班についてる！」"]:
+	# 「俺が探してるの覚えててさ…」の行は、2026-11-19 の台本の書き直しで1日目から無くなった。
+	for line in ["「お、残業の明細来た。八番の荷、ちゃんとうちの班についてる！」"]:
 		c.check("UI準備V の報告の行が直った：%s" % line.substr(0, 12), texts.has(line) and _bad_heads(line).is_empty(), str(UiLeftSide.paginate(line)))
 	c.check("1日目の文で、2ページ以上になるのは %d 本（追い出しで行が増えた分も含む）" % multi, multi <= 3)
 	print("  1日目の会話枠の文：%d本・2ページ以上：%d本" % [texts.size(), multi])
