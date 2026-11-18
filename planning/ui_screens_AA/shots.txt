@@ -1,0 +1,14 @@
+# 中身AA のスクリーンショット（tools/ui_screens_AA.gd が書き出す）
+01_day3_timeline_video.png  3日目の夜半：ニカの 23:00（「［動画：車列。運転席の窓ごしに弁当箱。顔は分からない］」が写真の枠に収まる）
+02_day4_dm_list.png  4日目の朝：DMの相手の一覧（張姐・リン・阿強・ターニャ婆。常連3人の来店予告は無い）
+03_day4_news_list.png  4日目の朝：ニュースの一覧（4日目の4本）
+04_day4_news_first.png  4日目の1本目の本文（5段落）
+05_zhang_after_tier.png  4日目の市場：張姐（仕込む量を選んだあと）
+06_liang.png  4日目の市場を出るとき：梁伯
+07_lin_order.png  4日目の宵の口：リンの注文（米麺の話）
+08_timeline_before_lin.png  4日目の宵の口・リンの接客中：タイムライン（リンの 21:25 はまだ見えない）
+09_timeline_after_lin.png  4日目の宵の口・リンのあと：タイムライン（21:25 が見える）
+10_fourth_group_driver.png  四組目の運転手（会話ログ）：予備の一言 → 予備の注文の文 → 予備の退店の文
+11_achang_roadbike.png  4日目の夜半：阿強のロードバイクの写真の場面
+12_granny_hilltop.png  4日目の明け方：ターニャ婆の高台の話
+13_hotel_night.png  4日目の明け方：港のホテルの夜番
