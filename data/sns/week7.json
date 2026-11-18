@@ -1,7 +1,7 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。",
-  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。",
+  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md",
   "accounts": {
 	"after_shift": {
 	  "name": "夜勤あけ",
@@ -1035,6 +1035,216 @@
 	  "time": "23:50",
 	  "text": "向かいの看板が消灯した。故障かと思ったら店主が旅行中だった。部屋が暗い。こんなにあの店の明かりで暮らしてたのか。",
 	  "provisional": false
+	},
+	{
+	  "id": "d4_east_news_0700",
+	  "account": "east_news",
+	  "day": 4,
+	  "time": "07:00",
+	  "text": "第八码頭の作業停止続く。旧倉庫への夜間搬入が増加。市場周辺の迂回路では、車幅と曲がり角の確認を。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_cold_noodle_0735",
+	  "account": "cold_noodle",
+	  "day": 4,
+	  "time": "07:35",
+	  "text": "家から送られてきた車列の動画に、俺の弁当箱がいた。車より先に、そっちを見つけるんだな。",
+	  "provisional": false,
+	  "truth": "長距離運転手。3日目のニカの車列の動画に弁当箱が映った。今夜この人が来なくても成り立つ。"
+	},
+	{
+	  "id": "d4_celine_view_0805",
+	  "account": "celine_view",
+	  "day": 4,
+	  "time": "08:05",
+	  "text": "窓の景色を港に替えた。夜景の灯りが多すぎたので、半分にした。部屋の方が落ち着いた。",
+	  "provisional": false,
+	  "truth": "上の街。窓の景色を「港」に替え、灯りが多すぎるので半分にした。下の街で灯りが増えていることを、知らずに言っている。"
+	},
+	{
+	  "id": "d4_commute_40_0840",
+	  "account": "commute_40",
+	  "day": 4,
+	  "time": "08:40",
+	  "text": "昨日の靴、右だけまだ乾かない。左を履いて待っていたけど、出発が早くなるわけではなかった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_ayu_0920",
+	  "account": "ayu",
+	  "day": 4,
+	  "time": "09:20",
+	  "text": "青菜に隣の赤い看板が映らないようにした。今日は葉っぱの色で見てもらえる。茎も見てね。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_han_repairs_1015",
+	  "account": "han_repairs",
+	  "day": 4,
+	  "time": "10:15",
+	  "text": "点検の紙、字が薄くても捨てずに持って来てください。読める所をつなぎます。写真がある方は、それも。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_min_1110",
+	  "account": "min",
+	  "day": 4,
+	  "time": "11:10",
+	  "text": "自分の昼飯を先に茹でた。ちゃんと腹が減る時間に食えたので、午後の俺に少し期待している。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_face_savings_1140",
+	  "account": "face_savings",
+	  "day": 4,
+	  "time": "11:40",
+	  "text": "天井の修理代は、左右の口座から半分ずつ出した。顔より先に、部屋の上半分が仕上がった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_anne_life_1220",
+	  "account": "anne_life",
+	  "day": 4,
+	  "time": "12:20",
+	  "text": "改造なしの一週間、四日目。昨日多く買ったパンを隣へ持っていった。翻訳なしで礼を言えた。帰りに、違うパンをもらった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_shiwei_1305",
+	  "account": "shiwei",
+	  "day": 4,
+	  "time": "13:05",
+	  "text": "古い箱の寸法は、外側か内側かも書いてください。「入るはずだった物」の写真だけ来ても、箱は広がりません。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_ren_design_1410",
+	  "account": "ren_design",
+	  "day": 4,
+	  "time": "14:10",
+	  "text": "昨日濡れた靴を修理に出した。庭園の雨は靴に合わせてあったんだと、初めて知った。雨の料金に、そういう分も入っていたのか。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_lin_alt_1500",
+	  "account": "lin_alt",
+	  "day": 4,
+	  "time": "15:00",
+	  "text": "QHZ QDPH FOHDUHG DJDLQ. DV LQVWUXFWHG. ROG ZDUHKRXVH TXHXH JURZLQJ.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「NEW NAME CLEARED AGAIN. AS INSTRUCTED. OLD WAREHOUSE QUEUE GROWING.」＝「新しい名義を再び通した。指示どおり。旧倉庫の待機列が伸びている。」。3日目の「止めずに通した」が一度きりでないと分かる。誰の指示か、どの会社かは書かない。"
+	},
+	{
+	  "id": "d4_dock_b_1620",
+	  "account": "dock_b",
+	  "day": 4,
+	  "time": "16:20",
+	  "text": "仕事の通知は来る。前の待ち時間の話への返事は、まだ来ない。同じ端末で、片方だけよく鳴る。",
+	  "provisional": false,
+	  "truth": "港湾労働者B。仕事の通知は来るのに、待ち時間の問い合わせには返事が来ない。3日目の「待ち時間の欄が最初から無い」の続き。"
+	},
+	{
+	  "id": "d4_two_hours_1710",
+	  "account": "two_hours",
+	  "day": 4,
+	  "time": "17:10",
+	  "text": "昨日濡れた靴に紙を詰めた。片方だけ、今朝の港湾ニュースが入ってる。帰るまでに乾いてほしい。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_south_blocks_1805",
+	  "account": "south_blocks",
+	  "day": 4,
+	  "time": "18:05",
+	  "text": "雨漏りの鍋を戻したら、台所に同じ大きさの輪が三つ。拭く前に、ちゃんと働いた跡だなと思ってしまった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_setiya_1840",
+	  "account": "setiya",
+	  "day": 4,
+	  "time": "18:40",
+	  "text": "裏口、通れるうちに入れた。今日は自分の靴の音で出勤した。昨日は荷車の音に全部持っていかれた。",
+	  "provisional": false,
+	  "truth": "セティヤ。今日は来ない。3日目に塞がれた裏口は、今日は通れた。"
+	},
+	{
+	  "id": "d4_exposure_test_1915",
+	  "account": "exposure_test",
+	  "day": 4,
+	  "time": "19:15",
+	  "text": "荷札の一文字から、住所まで着いた。見つけた途端、地図を見なくなるの、よくない。帰り道を見失った。",
+	  "provisional": false,
+	  "truth": "ニカ。今日は来ない。荷札の一文字（曜）から、新しい窓口の事務所の住所まで行き着いた。事務所の前で撮った映像は、まだ出さない（5日目に屋台で見せる）。"
+	},
+	{
+	  "id": "d4_rex_2000",
+	  "account": "rex",
+	  "day": 4,
+	  "time": "20:00",
+	  "text": "腕の点検の帰りに瓶の蓋を頼まれた。開いた。店の兄さんの方が喜んでた。点検代は俺。",
+	  "provisional": false,
+	  "truth": "レックス。今日は来ない。義腕の点検。兄貴分の話はしない。"
+	},
+	{
+	  "id": "d4_laundry_3_2045",
+	  "account": "laundry_3",
+	  "day": 4,
+	  "time": "20:45",
+	  "text": "片方の靴下を探す方は、お手元のもう片方をお持ちください。色の説明より早く見つかります。今日は三組、揃って帰りました。",
+	  "provisional": false
+	},
+	{
+	  "id": "d4_lin_alt_2125",
+	  "account": "lin_alt",
+	  "day": 4,
+	  "time": "21:25",
+	  "text": "FRQWDFW ZLWK VWDOO RZQHU FRPSOHWH. UHDU URXWH RSHQ RQ IRRW. YHKLFOH DFFHVV XQFRQILUPHG. KLOOWRS ORW OLW. QR SDWURO DVVLJQHG.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「CONTACT WITH STALL OWNER COMPLETE. REAR ROUTE OPEN ON FOOT. VEHICLE ACCESS UNCONFIRMED. HILLTOP LOT LIT. NO PATROL ASSIGNED.」＝「屋台の店主との接触完了。裏の経路は徒歩で通行可能。車両の通行は未確認。高台の空き地に灯り。巡回の割り当てなし。」。屋台での食事が「接触」として報告されている。高台のことは、明け方にターニャ婆が話すより前の時刻。リンが先に灯りを確認し、確認した担当表では高台に巡回の割り当てがないと分かる（「警察の誰も見ていない」「常に巡回がない」までは意味しない）。表示は、宵の口のリンの接客が済んでから（requires.visited）。",
+	  "requires": {
+		"visited": "officer"
+	  }
+	},
+	{
+	  "id": "d4_back_shelf_2210",
+	  "account": "back_shelf",
+	  "day": 4,
+	  "time": "22:10",
+	  "text": "点けた灯りの写真だと、留め具が見えません。消した灯りを、別の灯りで照らしてください。自分で書いてて変な文だけど、お願いします。",
+	  "provisional": false,
+	  "truth": "雑貨屋の夜番。作業灯の留め具の写真を頼む文。会話と同じ。"
+	},
+	{
+	  "id": "d4_exposure_test_2300",
+	  "account": "exposure_test",
+	  "day": 4,
+	  "time": "23:00",
+	  "text": "今夜は門まで撮れた。車が入ると、奥の明かりがいったん隠れる。映像を止めても、見えてない所は見えてないままだった。",
+	  "photo": "門へ入っていく車。奥の明かりが隠れる",
+	  "photo_kind": "video",
+	  "provisional": false,
+	  "truth": "ニカ。旧倉庫への搬入を公道から撮った。映っているのは門と車まで。「映像を止めても、見えてない所は見えてないまま」＝6日目に言い切ってしまう前の、本人の自覚。"
+	},
+	{
+	  "id": "d4_akiang_2335",
+	  "account": "akiang",
+	  "day": 4,
+	  "time": "23:35",
+	  "text": "車体の傷の写真を頼んだら、ちゃんと傷の写真が来た。前より欲しくなった。今のところ、見るだけだけど。",
+	  "photo": "ロードバイクのハンドルの端。擦った傷",
+	  "provisional": false,
+	  "truth": "阿強。欲しいロードバイクの傷の写真。まだ買っていない。"
+	},
+	{
+	  "id": "d4_desk_2350",
+	  "account": "desk",
+	  "day": 4,
+	  "time": "23:50",
+	  "text": "宿への道順の写真、角に停まってた荷車を目印にしてた。今日いない。階段の手すりまで写して撮り直した。",
+	  "provisional": false,
+	  "truth": "安宿の受付。道順の写真の目印にしていた荷車が、今日はいない。置かれる物が日ごとに変わる。"
 	}
   ]
 }

@@ -147,10 +147,11 @@ func run(t: SceneTree) -> int:
 	var past := Dm.preview_items(4, [])
 	c.check("過去の日（Day4）の予告は、日次ログの planned_* から同じ内容で出る（計画は作り直されている）", JSON.stringify(past) == JSON.stringify(day4_items) and not past.is_empty())
 	c.check("スマホの一覧にも、過去の日の予告が日付つきで残る", Dm.inbox(5).any(func(x): return str(x["id"]).begins_with("preview_d4_") and int(x["day"]) == 4))
-	GameState.day_records = [{ "day": 4, "opening_reputation": 40, "mob_types_served": [] }]
-	for id in ["officer", "delivery_man", "granny"]:
+	# 中身AA：4日目は常連3人とも予告を出さない日（no_preview_days）になったので、旧セーブの確かめは6日目（セティヤ・ニカ・レックス）で
+	GameState.day_records = [{ "day": 6, "opening_reputation": 40, "mob_types_served": [] }]
+	for id in ["hooker", "streamer", "thug"]:
 		_visited(id, 1)
-	var old := Dm.preview_items(4, [])
+	var old := Dm.preview_items(6, [])
 	c.check("旧セーブ（planned_* が無い日）：モブの予告は出さず、名前あり客は日程データから", old.all(func(x): return str(x["from_kind"]) == "customer") and not old.is_empty(), str(_subjects(old)))
 
 	# --- 4. 再挑戦・続きから（朝の封筒）で同じ内容 ---

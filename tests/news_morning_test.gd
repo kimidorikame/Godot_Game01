@@ -110,7 +110,7 @@ func run(t: SceneTree) -> int:
 	GameState.day_count = 4      # 先へ進んだことにして、Day4の時点のタブを見る
 	p6._phone_tab = "news"
 	var tab: String = p6._format_phone()
-	c.check("ニュースタブに今日（Day4）の見出しと本文が出る", tab.contains("◆今日（Day4）◆") and tab.contains("現場を撮った動画が拡散"))
+	c.check("ニュースタブに今日（Day4）の見出しと本文が出る", tab.contains("◆今日（Day4）◆") and tab.contains("旧倉庫への夜間搬入増える"))   # 中身AA：4日目の本番の記事
 	c.check("過ぎた日（Day1〜3）の分も読み返せる",
 		tab.contains("◆Day3◆") and tab.contains("◆Day2◆") and tab.contains("◆Day1◆")
 			and tab.contains("【港湾】第八码頭、二倉庫で夜間作業停止") and tab.contains("検問が始まった"))
@@ -119,7 +119,8 @@ func run(t: SceneTree) -> int:
 	c.check("新しい日が上（Day4 → Day3 → Day2 → Day1）",
 		tab.find("◆今日（Day4）◆") < tab.find("◆Day3◆") and tab.find("◆Day3◆") < tab.find("◆Day2◆")
 			and tab.find("◆Day2◆") < tab.find("◆Day1◆"))
-	c.check("ニュースタブにDMは出さない（SNSタブへ移した）。仮の印は付く", not tab.contains("DM（") and tab.contains("【仮】"))
+	c.check("ニュースタブにDMは出さない（SNSタブへ移した）。1〜4日目は本番の文なので仮の印は付かない（5日目の仮の記事には付く。中身AA）",
+		not tab.contains("DM（") and not tab.contains("【仮】") and News.tab_text(5).contains("【仮】"))
 	# 再挑戦で戻した朝より後の日は見えない
 	GameState.day_count = 6
 	p6.session.retry_from_morning(2)

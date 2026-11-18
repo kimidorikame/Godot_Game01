@@ -201,7 +201,7 @@ func run(t: SceneTree) -> int:
 		c.check("%s：予備の一言（spare_greet）は、表の一言＋注文の行＋「…分も」の行。予備の退店の文（spare_farewell。中身Z2）は1行" % mob_id,
 			str(day3["spare_greet"][0]) != str(day3["greet"][0]) and (day3["spare_greet"] as Array).back() == (day3["greet"] as Array).back()
 				and (day3["spare_farewell"] as Array).size() == 1 and not (day3["after_talk"] as Array).has(day3["spare_farewell"][0]))
-		c.check("%s：ほかの日（4日目）は日をまたぐ文のまま" % mob_id, not ScheduleData.mob_data_for_day(mob_id, 4).has("spare_greet"))
+		c.check("%s：ほかの日（5日目）は日をまたぐ文のまま" % mob_id, not ScheduleData.mob_data_for_day(mob_id, 5).has("spare_greet"))
 	GameState.reset_for_new_game()
 	GameState.day_count = 3
 	GameState.today_plan = { "day": 3, "slots": [], "mob_instances": { "mob#0": { "type": "inn_clerk", "count": 2 }, "mob#1": { "type": "general_store_clerk", "count": 2 },

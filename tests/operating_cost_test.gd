@@ -41,7 +41,7 @@ func run(t: SceneTree) -> int:
 
 	# --- 1. 朝：払えるかだけを見る。運営費は支払い予定として確保（まだ引かない） ---
 	GameState.reset_for_new_game()
-	GameState.day_count = 4   # 中身Z：3日目は市場を出るときの場面（梁伯）があるので、いつもの日の語りは4日目で確かめる
+	GameState.day_count = 5   # 中身Z・中身AA：3・4日目は市場を出るときの場面（梁伯）があるので、いつもの日の語りは5日目で確かめる
 	var s := PlaySession.new()
 	t.root.add_child(s)
 	s.start()

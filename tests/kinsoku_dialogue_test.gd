@@ -126,6 +126,35 @@ func _day3_texts() -> Array:
 	return texts
 
 
+## 4日目の会話枠に出る文（中身AA。名前を除いた本文）：常連3人の場面（条件付きの行は両方の道）・モブ3組の3日目の文（2杯以上の行・予備の一言を含む）・市場の会話・朝のニュース。
+func _day4_texts() -> Array:
+	var raw := []
+	for pair in [["officer", "officer_02"], ["delivery_man", "delivery_man_03"], ["granny", "granny_02"]]:
+		var ep := ScheduleData.episode_data(pair[0], pair[1])
+		for key in ["greet", "body"]:
+			raw.append_array(_both_paths(ep.get(key, [])))
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
+	for mob in ["long_haul_driver", "general_store_clerk", "laundry_night"]:
+		var form := ScheduleData.mob_data_for_day(mob, 4)
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(form["spare_greet"]))
+		raw.append_array(ScheduleData.spoken_lines(form["spare_farewell"]))
+		raw.append_array(ScheduleData.spoken_lines(form["after_talk"]))
+		raw.append_array(_reaction_lines(form["reactions"]))
+	for part in ScheduleData.talk_data("day4_market")["parts"]:
+		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
+	var texts := []
+	for line in raw:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts.has(text):
+			texts.append(text)
+	# 朝のニュース（会話枠に1行ずつ出る。見出しは「ニュース：」付き）
+	for day in [4]:
+		for ev in News.morning_events(day):
+			texts.append(str(ev["text"]))
+	return texts
+
+
 func run(_t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
@@ -186,6 +215,19 @@ func run(_t: SceneTree) -> int:
 			multi3.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
 	c.check("3日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts3.size(), texts3.size() > 200 and bad3.is_empty(), str(bad3))
 	print("  3日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts3.size(), multi3.size(), str(multi3)])
+
+	# --- 5. 4日目の会話枠に出る文（中身AA） ---
+	var texts4 := _day4_texts()
+	var bad4 := {}
+	var multi4 := []
+	for text in texts4:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad4[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi4.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
+	c.check("4日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts4.size(), texts4.size() > 200 and bad4.is_empty(), str(bad4))
+	print("  4日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts4.size(), multi4.size(), str(multi4)])
 
 	ScheduleData.clear_cache()
 	return c.finish()

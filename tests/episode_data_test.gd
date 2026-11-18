@@ -40,9 +40,10 @@ const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "ch
 # 中身Z：3日目の本番の文（delivery_man_02・streamer_01・hooker_02）も同じ形。
 const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"],
 	"officer_01": ["body"], "thug_02": ["body"], "hooker_01": ["body"],
-	"delivery_man_02": ["body"], "streamer_01": ["body"], "hooker_02": ["body"] }
+	"delivery_man_02": ["body"], "streamer_01": ["body"], "hooker_02": ["body"],
+	"officer_02": ["body"], "delivery_man_03": ["body"], "granny_02": ["body"] }   # 中身AA：4日目
 const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker",
-	"3:delivery_man", "3:streamer", "3:hooker"]
+	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
@@ -57,7 +58,8 @@ const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "stre
 # 要求タグ・会話・杯数が入る。ゲーム内では呼ばれない組み合わせ（意図した差）。
 # 中身X：2日目のセティヤ（中身Wで日程に入った）は本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
 # 中身Z：3日目のニカは本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
-const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer"]
+# 中身AA：阿強の最後の場面（delivery_man_03）が本番の文になったので、日程に無い日（2・5・6・7日目）の阿強も「最後の場面を返す」組で確かめる。
+const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer", "2:delivery_man", "5:delivery_man", "6:delivery_man", "7:delivery_man"]
 
 
 ## JSONを通した形（整数が小数になる差を避けて比べるため）にそろえる。

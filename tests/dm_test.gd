@@ -30,14 +30,15 @@ func run(t: SceneTree) -> int:
 			all_items.append(item)
 	c.check("DMは Day2〜7 に毎日1通以上（Day1は無し）", range(2, 8).all(func(d): return not Dm.items_for_day(d).is_empty()) and Dm.items_for_day(1).is_empty())
 	c.check("仮の文の種類：名前あり客の条件が最低1通", all_items.any(func(x): return str(x["from_kind"]) == "customer" and (x["requires"] as Dictionary).has("customer")))
-	c.check("仮の文の種類：モブの条件が最低1通", all_items.any(func(x): return str(x["from_kind"]) == "mob" and (x["requires"] as Dictionary).has("mob_type")))
-	c.check("仮の文の種類：hint:many が最低1通", all_items.any(func(x): return str(x["hint"]) == "many"))
+	# 中身AA：モブの条件（d4_dock_workers）と hint:many を持っていたのは4日目の仮のDMだけで、外した。仕組みは下で差し込んだデータで確かめる
+	c.check("本番のDMに、モブの条件・hint:many は無い（中身AA：4日目の仮のDMを外した）", not all_items.any(func(x): return str(x["from_kind"]) == "mob")
+		and not all_items.any(func(x): return str(x["hint"]) == "many"))
 	# 中身Z：few を持っていたのは3日目の仮のDM（d3_market_quiet）だけで、外した。few の仕組みは下で差し込んだデータで確かめる
 	c.check("本番の hint:few は無い（中身Z：3日目の仮のDMを外した）", not all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	c.check("2・3日目のDMは本番の文（provisional なし。中身X・中身Z）、4日目以降は仮の文（provisional）",
-		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 4)))
+	c.check("2〜4日目のDMは本番の文（provisional なし。中身X・中身Z・中身AA）、5日目以降は仮の文（provisional）",
+		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 5)))
 	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
 		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
 			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))
@@ -124,19 +125,22 @@ func run(t: SceneTree) -> int:
 	GameState.day_records = [{ "day": 2, "opening_reputation": 50 }]
 	c.check("Day3に初めて提供した客のDM（Day3の項目）は、あとから条件が満たされても届かない",
 		not _ids(Dm.inbox(5)).has("d3_hooker"), str(_ids(Dm.inbox(5))))
-	# モブ：同じ種類に2夜提供した翌日から
+	# モブ：同じ種類に2夜提供した翌日から（中身AA：本番の d4_dock_workers は外したので、同じ項目を差し込んだデータで）
+	var with_mob: Dictionary = (Dm.data() as Dictionary).duplicate(true)
+	(with_mob["days"]["4"] as Array).append({ "id": "d4_dock_workers", "from": "港湾労働者の組", "from_kind": "mob", "requires": { "mob_type": "dock_workers", "nights": 2 },
+		"time": "5:20", "text": "港の連中が噂してる。今夜は覗きに行くやつが増えそうだ", "hint": "many", "provisional": true })
 	_state(4, 50)
 	GameState.today_plan["demand_center"] = 11
 	GameState.day_records = [{ "day": 1, "opening_reputation": 30, "mob_types_served": ["dock_workers"] },
 		{ "day": 2, "opening_reputation": 30, "mob_types_served": ["inn_clerk"] },
 		{ "day": 3, "opening_reputation": 30, "mob_types_served": [] }]
-	c.check("モブは同じ種類に2夜提供するまで届かない（dock_workers は1夜だけ）", not _ids(Dm.delivered_for_day(4)).has("d4_dock_workers"))
+	c.check("モブは同じ種類に2夜提供するまで届かない（dock_workers は1夜だけ）", not _ids(Dm.delivered_for_day(4, with_mob)).has("d4_dock_workers"))
 	GameState.day_records[1]["mob_types_served"] = ["dock_workers"]
 	c.check("同じ種類（dock_workers）に2夜提供した翌日（Day4）から届く（今日の中心が多め以上のとき）",
-		_ids(Dm.delivered_for_day(4)).has("d4_dock_workers"), str(_ids(Dm.delivered_for_day(4))))
+		_ids(Dm.delivered_for_day(4, with_mob)).has("d4_dock_workers"), str(_ids(Dm.delivered_for_day(4, with_mob))))
 	GameState.today_plan["demand_center"] = 9
-	c.check("条件を満たしていても、匂わせ（many）が今日の中心と矛盾する日（中心9）には届かない", not _ids(Dm.delivered_for_day(4)).has("d4_dock_workers"))
-	c.check("同じ日・同じ状態の npc のDMは、中心に関わらず届く", _ids(Dm.delivered_for_day(4)).has("d4_market"))
+	c.check("条件を満たしていても、匂わせ（many）が今日の中心と矛盾する日（中心9）には届かない", not _ids(Dm.delivered_for_day(4, with_mob)).has("d4_dock_workers"))
+	c.check("同じ日・同じ状態の npc のDMは、中心に関わらず届く", _ids(Dm.delivered_for_day(4, with_mob)).has("d4_market"))
 	GameState.day_records[1]["mob_types_served"] = ["dock_workers"]
 	GameState.day_records.append({ "day": 4, "opening_reputation": 30, "mob_types_served": ["dock_workers"] })
 	c.check("2夜の数え方は「その日より前」の夜だけ（Day4の夜は Day4 には数えない）", Dm.mob_nights_before("dock_workers", 4) == 2
@@ -210,7 +214,7 @@ func run(t: SceneTree) -> int:
 		int(seer.previous_day_record()["planned_cups"]) == 11 and str(talk[1]["text"]).contains("11杯"))
 	seer.free()
 	# 組み立て：クズ野菜ベースの日は会話を入れない。通常の日は PREP_TIER の直前
-	_state(4, 30)   # 中身X・中身Z：2日目・3日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは4日目で確かめる
+	_state(5, 30)   # 中身X・中身Z・中身AA：2〜4日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは5日目で確かめる
 	var normal := Day1Events.prep_events({}, false)
 	c.check("通常の日：食肉売場のあと PREP_TIER の直前に会話が並ぶ",
 		str(normal[normal.size() - 1]["type"]) == "PREP_TIER" and str(normal[normal.size() - 2]["part"]) == "prep_talk")

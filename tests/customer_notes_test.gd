@@ -175,7 +175,7 @@ func run(t: SceneTree) -> int:
 			kind = "mob"
 		elif row_texts.has(ScheduleData.customer_display_name("hooker")):
 			kind = "customer"
-		elif row_texts.has("市場の顔なじみ"):
+		elif row_texts.has("市場の顔なじみ") or row_texts.has("張姐"):   # 中身AA：4日目の市場のDMの差出人は張姐
 			kind = "npc"
 		if kind == "":
 			continue

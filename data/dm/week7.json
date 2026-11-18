@@ -27,10 +27,14 @@
 		"text": "今夜、帰りに寄るわ。こういう雨の日は冷えるのよね。あんたの鍋の前を、少し空けといて。", "hint": "none", "provisional": false }
 	],
 	"4": [
-	  { "id": "d4_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:35",
-		"text": "うちの店が映り込んでる。勘弁してくれ", "hint": "none", "provisional": true },
-	  { "id": "d4_dock_workers", "from": "港湾労働者の組", "from_kind": "mob", "requires": { "mob_type": "dock_workers", "nights": 2 }, "time": "5:20",
-		"text": "港の連中が噂してる。今夜は覗きに行くやつが増えそうだ", "hint": "many", "provisional": true }
+	  { "id": "d4_market", "from": "張姐", "from_kind": "npc", "time": "6:35",
+		"text": "雨は上がったけど、袋は昨日のまま使わないでね。底も見なよ。骨は届いてるから、いつもどおりおいで。", "hint": "none", "provisional": false },
+	  { "id": "d4_officer", "from": "リン", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "7:10",
+		"text": "今夜、休憩で寄ります。前に頼んだ酸っぱい汁を、歩いていると時々思い出します。米の麺があれば、うれしいです。今日は市場の正面へは行きません。", "hint": "none", "provisional": false },
+	  { "id": "d4_delivery_man", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "7:40",
+		"text": "今夜寄る。昨日の仕事、話すことある。今日はいつもの肉の方で頼む。雨の日の腹もちも助かったけど、そろそろ戻したい。", "hint": "none", "provisional": false },
+	  { "id": "d4_granny", "from": "ターニャ婆", "from_kind": "customer", "requires": { "customer": "granny" }, "time": "8:05",
+		"text": "今夜、明るくなる前に寄るよ。瓶はまだそのまま取っといておくれ。濡れてるうちは箱にしまわないでね。", "hint": "none", "provisional": false }
 	],
 	"5": [
 	  { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
@@ -51,13 +55,13 @@
 	"_note": "来店予告（UI準備E）。その夜に来る予定の客・モブの種類を朝のDMで知らせる。texts は本番の本文（UI準備E2）。from・from_kind・time は仮（差し替えるときはデータだけ直す）。本文の {hint} は tag_hint（モブの好み2つのうち1つ）の言葉に置き換わる。名前あり客は tag_hint を持たない。名前あり客の予告は、その客がもう来たことがある朝だけ出す（店主がまだ会っていない客から予告は来ない。中身X）。before_first_visit:true の客（セティヤ。店主とは前からの付き合い）は初来店の前の朝にも出す。本文に数字と「客足」は入れない。",
 	"max_per_morning": 3, "mob_max": 2, "first_day": 2,
 	"pools": {
-	  "delivery_man": { "from": "阿強", "from_kind": "customer", "no_preview_days": [3], "time": "4:50", "tag_hint": "", "provisional": false,
+	  "delivery_man": { "from": "阿強", "from_kind": "customer", "no_preview_days": [3, 4], "time": "4:50", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
 	  "thug": { "from": "レックス", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
 		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
-	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "time": "4:30", "tag_hint": "", "provisional": false,
+	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "no_preview_days": [4], "time": "4:30", "tag_hint": "", "provisional": false,
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
-	  "officer": { "from": "新人警官", "from_kind": "customer", "time": "4:55", "tag_hint": "", "provisional": false,
+	  "officer": { "from": "新人警官", "from_kind": "customer", "no_preview_days": [4], "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
 	  "hooker": { "from": "セティヤ", "from_kind": "customer", "no_preview_days": [3], "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
