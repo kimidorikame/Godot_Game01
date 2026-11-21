@@ -1,0 +1,14 @@
+# 中身AB のスクリーンショット（tools/ui_screens_AB.gd が書き出す）
+01_day5_dm_list.png  5日目の朝：DMの相手の一覧（張姐・セティヤ・ニカ・リン。常連3人の来店予告は無い）
+02_day5_news_list.png  5日目の朝：ニュースの一覧（5日目の5本）
+03_day5_news_third.png  5日目の3本目の本文（消防の注意。5段落）
+04_zhang_after_tier.png  5日目の市場：張姐（仕込む量を選んだあと）
+05_liang.png  5日目の市場を出るとき：梁伯
+06_setiya_bill.png  5日目の宵の口：セティヤの「勘定の宛先」
+07_nika_brother.png  5日目の夜半：ニカが映像の男を見せる場面
+08_guard.png  5日目の夜半：夜勤警備員（1組目）
+09_fourth_group_guard.png  四組目の晩の夜勤警備員（会話ログ）：予備の一言 → 予備の注文の文
+10_timeline_midnight.png  5日目の夜半：タイムライン（リンの 23:35 まで見える）
+11_lin_route.png  5日目の明け方：リン（店主から道を聞く）
+12_lin_exit.png  5日目の明け方：リンの退店（旧倉庫の灯り）
+13_dock_a.png  5日目の明け方：港湾労働者（2杯以上の晩だけ労働者Aが出る。食事の終わり）
