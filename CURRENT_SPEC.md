@@ -2087,17 +2087,19 @@ GameState.try_pay(amount) -> bool
   **意図して一致しなくなった**（上書きしていない）。新しい基準は運営費75・`reach_true`の13方針×30シード
   （`playthrough_results_regulars_v2.json`。引数で明示して取る）。
   **【2026-11-09・計測】コミット前の基準との照合は「遊びの結果」だけを比べる**（`planning/playtest_2026_10_11/compare_baseline.mjs`・説明は同じフォルダの`BASELINE_COMPARE.md`）。
-  **今の基準は v6**（2026-11-15。`playthrough_baseline_v6.json`。中身Zの阿強・セティヤの3日目の注文〔辛い＋腹もち・まろやか＋ごちそう〕のあと・コミット`61fde74`・
+  **今の基準は v7**（2026-11-21。`playthrough_baseline_v7.json`。中身ABの5日目の本番の文と、自動試遊が part の無い食後の行でも鍋を直さない直しのあと・コミット`1387446`・
+  3シード×13方針。v6 とは2周〔strength_neglect#2・decline_once#2〕の5日目の水 2→1・鍋の残り 2→0 だけが違い、所持金・杯数・評価は39周とも同じ）。
+  v6（`playthrough_baseline_v6.json`。中身Zの阿強・セティヤの3日目の注文〔辛い＋腹もち・まろやか＋ごちそう〕のあと・コミット`61fde74`・
   3シード×13方針。v5 とは Day1・Day2 は全周同じ、24周で最終現金が変わった〔上がった16・下がった8〕。36周の平均 1433.1 → 1424.4。完走 36/39 のまま）。
   v5（`playthrough_baseline_v5.json`。中身Xのレックスの2日目の注文〔まろやか＋スタミナ〕のあと・コミット`44e7c4d`。
   v4 とは Day1 は全周同じ、27周で2日目の常連の GREAT が1つ増え、17周で最終現金が増えた。36周の平均 1419.9 → 1433.1）、
   v4（`playthrough_baseline_v4.json`。中身Wの来店の予定とモブの職種表のあと・コミット`c832b54`。v3 とは36周で最終現金が変わり、平均 1396.0 → 1419.9）、
   v3（`playthrough_baseline_v3.json`。阿強の3杯目の札の変更後・コミット`307b769`。v2 とは39周のうち11周で最終現金が変わり、平均 −11.1）と v2 は昔の記録として残す。
-  意図した変更で遊びの結果が変わったら、新しい基準（v7…）を作る（手順は`BASELINE_COMPARE.md`）。
+  意図した変更で遊びの結果が変わったら、新しい基準（v8…）を作る（手順は`BASELINE_COMPARE.md`）。
   「基準 v3」は、下の「予報を使わない前提でも測った（v3）」（`playthrough_results_regulars_v3.json`）とは別のもの。
   比べないのは、会話の行数や支払いの順番で変わる途中の数（`clicks`・`steps`・`actions.next_text_event`・`rows[].actions_cumulative`・`day1_cash`の
   `after_wake`／`after_kit`／`after_tier`／`after_market`）。あわせて、自動試遊は食後の行（`part`が`body`・`after_bill`・`closing`）では鍋を直さない
-  （`playthroughs.gd`の`AFTER_MEAL_PARTS`）。基準のファイルは上書きしていない。
+  （`playthroughs.gd`の`AFTER_MEAL_PARTS`）。【2026-11-21】part の無い食後の行（その客の REACT がもう残っていない行。仮の文の場面の椀のあとの行など）でも直さない（`is_after_meal_line`）。基準のファイルは上書きしていない。
 - **【2026-10-25・UI準備C⑤】予報を使わない前提でも測った（v3）**：上の結果はすべて「予報で仕込みと仕入れを決める」基準方針（v2）での値。
   本番UIは予報を出さなくなったので、予報を読まないハーネス（引数`info=visible`／`visible_improvise`）でも測った。基本GOODの平均最終現金は
   v2の1636に対して、既定版418・補う版1316（どちらも1500達成0/30）。**この「75は暫定値」の結論は、予報を使わない前提では変わる可能性がある**
