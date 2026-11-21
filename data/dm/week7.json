@@ -1,6 +1,6 @@
 {
   "id": "week7",
-  "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。",
+  "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。 中身AE：1〜7日目のDMの本文は、どれも本番の文になった（provisional が残るのは来店予告の laundry_night だけ）。",
   "hints": {
 	"many": { "demand_word": "多め" },
 	"few": { "demand_word": "少ない" }
@@ -73,8 +73,32 @@
 		"text": "こっちも、まだ確認してる。分かったら送る。まず帰って休みな。", "hint": "none", "provisional": false }
 	],
 	"7": [
-	  { "id": "d7_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:50",
-		"text": "第八码頭は当面封鎖。魚は入らない", "hint": "none", "provisional": true }
+	  { "id": "d7_market", "from": "張姐", "from_kind": "npc", "time": "7:10",
+		"text": "骨、着いたよ。大きい車は港へ入れずに、別の口から小分けで運んだ。今日売る分は、もう冷やしてある。全部の便が戻ったわけじゃないから、細かい話は来てからね。で、アンタ、少しは寝たの？", "hint": "none", "provisional": false },
+	  { "id": "d7_delivery_man_1", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "7:40",
+		"text": "買った。マジで買った。これ、俺の。端子を直す分は、ちゃんと別に残してあるって。", "photo": "中古のロードバイク。ハンドルの端に傷。会社の番号の札は付いていない", "hint": "none", "provisional": false },
+	  { "id": "d7_delivery_man_2", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "7:41",
+		"text": "初乗り、結局仕事だったんだけど。新しい荷捌き場まで。上りは押した。最初は空で走るって言ったのにな。", "hint": "none", "provisional": false },
+	  { "id": "d7_delivery_man_3", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "if": { "fact": "day1_takeout_served" }, "time": "7:43",
+		"text": "第八の門、封鎖で入れなくなってた。容器を返してくれた門のおっさんも、もういなかった。どこへ移ったかは、まだ聞けてない。", "hint": "none", "provisional": false },
+	  { "id": "d7_delivery_man_3_declined", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "if": { "not_fact": "day1_takeout_served" }, "time": "7:43",
+		"text": "第八の門、封鎖で入れなくなってた。前に車輪の紐を外してくれた門のおっさんも、あそこにはいなかった。どこへ移ったかは、まだ聞けてない。", "hint": "none", "provisional": false },
+	  { "id": "d7_delivery_man_4", "from": "阿強", "from_kind": "customer", "requires": { "customer": "delivery_man" }, "time": "7:45",
+		"text": "でも下りは空だった。そこだけは、ちゃんと俺のだった。鍵の輪っか、替えたよ。番号の札が付いてないやつ。今度見せる。", "hint": "none", "provisional": false },
+	  { "id": "d7_hooker", "from": "セティヤ", "from_kind": "customer", "requires": { "customer": "hooker" }, "time": "8:20",
+		"text": "帰ったわ。最後は表を大回り。靴を履き替えてから出て正解だった。今夜も店は開けるつもり。港のお客のツケはまだ戻さないけど、いつもの席は片づけておくわ。ゆうべの「あとでね」は、また今度使う。あんたも少しは寝なさい。", "hint": "none", "provisional": false },
+	  { "id": "d7_granny", "from": "ターニャ婆", "from_kind": "customer", "requires": { "customer": "granny" }, "time": "8:50",
+		"text": "今夜、明るくなる前に寄るよ。瓶も持っていくつもりだ。箱は店で使うなら取っときな。移す袋は、あたしが持っていくからね。", "hint": "none", "provisional": false },
+	  { "id": "d7_officer", "from": "リン", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "9:00",
+		"text": "今夜、休憩で寄ります。港側の通れない道は、昨日と同じとは限りません。市場の案内も確かめてください。酸っぱい汁を食べる時間は、取ってから行きます。", "hint": "none", "provisional": false },
+	  { "id": "d7_streamer", "from": "ニカ", "from_kind": "customer", "requires": { "customer": "streamer" }, "time": "9:20",
+		"text": "今夜、行く。朝の発表を読んで、自分の映像を最初から見直してる。昨日の投稿、直す。会ってからじゃなくて、先に出す。", "hint": "none", "provisional": false },
+	  { "id": "d7_thug", "from": "レックス", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "10:05",
+		"text": "昨日は遅くに悪かったな。……上の荷捌き場に顔を出せって、俺にも来た。今日は腕の点検だって返した。点検は本当だ。兄貴には、まだ何も聞いてねえ。", "hint": "none", "provisional": false },
+	  { "id": "d7_dock_0010", "from": "港湾労働者", "from_kind": "npc", "time": "00:10", "after_visit": "streamer",
+		"text": "大将、訂正の方、来た。だから俺、言ったろ、さすがに放火はねえって。……いや、半分は信じてた。元のを二人に回しちまったから、そっちにも訂正を送っとく。", "hint": "none", "provisional": false },
+	  { "id": "d7_dock_0012", "from": "港湾労働者", "from_kind": "npc", "time": "00:12", "after_visit": "streamer",
+		"text": "窓口が替わってた話まで嘘になったわけじゃねえんだよな。火をつけたかどうかは、別ってことで。俺は明日、上の受付に並んでみる。前の分の金は、それとは別に聞く。卵は帰りに買う。帰りがあるって分かったからな。", "hint": "none", "provisional": false }
 	]
   },
   "previews": {
@@ -85,13 +109,13 @@
 		"texts": ["今夜、配達の帰りに寄る予定だ", "夜に顔出すかもな。腹すかせて行くぜ"] },
 	  "thug": { "from": "レックス", "from_kind": "customer", "time": "4:40", "tag_hint": "", "provisional": false,
 		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
-	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "no_preview_days": [4], "time": "4:30", "tag_hint": "", "provisional": false,
+	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "no_preview_days": [4, 7], "time": "4:30", "tag_hint": "", "provisional": false,
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
-	  "officer": { "from": "新人警官", "from_kind": "customer", "no_preview_days": [4, 5], "time": "4:55", "tag_hint": "", "provisional": false,
+	  "officer": { "from": "新人警官", "from_kind": "customer", "no_preview_days": [4, 5, 7], "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
 	  "hooker": { "from": "セティヤ", "from_kind": "customer", "no_preview_days": [3, 5, 6], "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
-	  "streamer": { "from": "配信者", "from_kind": "customer", "no_preview_days": [5, 6], "time": "4:35", "tag_hint": "", "provisional": false,
+	  "streamer": { "from": "配信者", "from_kind": "customer", "no_preview_days": [5, 6, 7], "time": "4:35", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },
 	  "dock_workers": { "from": "港湾労働者の組", "from_kind": "mob", "time": "4:20", "tag_hint": "POWER", "provisional": false,
 		"texts": ["港の連中、夜に寄る予定だ。{hint}のつくもんを頼むぞ", "仕事のあと、顔を出すかもしれん。{hint}がつくやつを頼む"] },

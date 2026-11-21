@@ -151,7 +151,7 @@ func run(t: SceneTree) -> int:
 	c.check("CLOSEで火災の場面を取り戻しても数値は不変（所持金・評判・在庫・鍋・DayPlan・帳簿）", _numbers() == numbers_before)
 	p6.free()
 
-	# --- 6. Day6以外は何も前置されず、従来と同一 ---
+	# --- 6. Day6以外は何も前置されず、従来と同一（中身AE：Day7 は閉店の前の場面〔d7_close〕だけ。営業中の共通イベントは無い） ---
 	for day in [1, 2, 3, 4, 5, 7]:
 		var p7 = _wake_panel(t, day)
 		_start_open(p7)
@@ -159,7 +159,13 @@ func run(t: SceneTree) -> int:
 		c.check("Day%d：最初の客の列は customer_events のまま（共通イベントなし）" % day,
 			_norm(p7.session.flow.runner.events) == _norm(Day1Events.customer_events(customer7)) and p7.session.played_events.is_empty())
 		p7.session.flow.force_phase(GameState.Phase.CLOSE)
-		c.check("Day%d：CLOSEは従来の閉店の列" % day, _norm(p7.session.flow.runner.events) == _norm(Day1Events.close_events()))
+		if day == 7:
+			var close7: Array = p7.session.flow.runner.events
+			c.check("Day7：CLOSEは閉店の前の場面（店主の3行。中身AE）のあと、従来の閉店の列",
+				_common_texts(close7) == ["店主「……箱は、またここだな」", "店主「明日の道は、明日見るか」", "店主「よし。今日はここまで」"]
+					and _norm(close7.slice(3)) == _norm(Day1Events.close_events()) and p7.session.played_events == ["d7_close"], str(_common_texts(close7)))
+		else:
+			c.check("Day%d：CLOSEは従来の閉店の列" % day, _norm(p7.session.flow.runner.events) == _norm(Day1Events.close_events()))
 		p7.free()
 
 	# --- 7. 再挑戦（朝へ戻す）：再生済みがリセットされ、最初から再生し直す ---

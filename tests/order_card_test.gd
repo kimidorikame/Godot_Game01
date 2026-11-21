@@ -8,7 +8,14 @@ extends RefCounted
 ## 画面に残るのは好物の行（知らない客・モブ・客がいないときは「—」）。
 
 
+## 中身AE：ターニャ婆の最後の場面（granny_03。日程に無い日〔3日目〕に返る場面）が本番の文（来店の会話19行）になったので、
+## このテストでは来店の会話が1行の仮の場面を差し込んで確かめる（欄が入る時点の確かめ。文の長さには関わらない）。
+const PLACEHOLDER_GRANNY := { "id": "granny_03", "customer": "granny", "greet": ["老婆（うましお・腹もち）"],
+	"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+
+
 func _open(t: SceneTree, customers: Array, setup: Callable = Callable(), mob: Dictionary = {}, day: int = 3) -> UiGameRoot:
+	ScheduleData._episode_cache["granny/granny_03"] = PLACEHOLDER_GRANNY.duplicate(true)
 	GameState.reset_for_new_game()
 	GameState.day_count = day
 	var root: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
@@ -228,4 +235,5 @@ func run(t: SceneTree) -> int:
 	root.queue_free()
 
 	GameState.reset_for_new_game()
+	ScheduleData.clear_cache()
 	return c.finish()

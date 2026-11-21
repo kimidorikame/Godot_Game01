@@ -43,9 +43,11 @@ const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "gra
 	"delivery_man_02": ["body"], "streamer_01": ["body"], "hooker_02": ["body"],
 	"officer_02": ["body"], "delivery_man_03": ["body"], "granny_02": ["body"],   # 中身AA：4日目
 	"hooker_03": ["body"], "streamer_02": ["body"], "officer_03": ["body"],   # 中身AB：5日目
-	"hooker_04": ["body"], "streamer_03": ["body"], "thug_03": ["body"] }   # 中身AD：6日目
+	"hooker_04": ["body"], "streamer_03": ["body"], "thug_03": ["body"],   # 中身AD：6日目
+	"officer_04": ["body"], "streamer_04": ["body"], "granny_03": ["body"] }   # 中身AE：7日目
 const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker",
-	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny", "5:hooker", "5:streamer", "5:officer", "6:hooker", "6:streamer", "6:thug"]
+	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny", "5:hooker", "5:streamer", "5:officer", "6:hooker", "6:streamer", "6:thug",
+	"7:officer", "7:streamer", "7:granny"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]
@@ -62,8 +64,11 @@ const CUSTOMERS := ["delivery_man", "thug", "granny", "officer", "hooker", "stre
 # 中身Z：3日目のニカは本番の文になったので、文だけ替えた組（DAY1_SCRIPT_DIFFS）で確かめる。
 # 中身AA：阿強の最後の場面（delivery_man_03）が本番の文になったので、日程に無い日（2・5・6・7日目）の阿強も「最後の場面を返す」組で確かめる。
 # 中身AD：レックス（thug_03）・セティヤ（hooker_04）の最後の場面も本番の文になったので、日程に無い日（レックス 3・4・5・7日目、セティヤ 4・7日目）も同じ組で確かめる。
+# 中身AE：リン（officer_04）・ニカ（streamer_04）・ターニャ婆（granny_03）の最後の場面も本番の文になったので、日程に無い日（リン 3・6日目、
+# ニカ 4日目、ターニャ婆 2・3・5・6日目）も同じ組で確かめる。
 const KNOWN_DIFFS := ["1:officer", "1:hooker", "1:streamer", "2:streamer", "2:delivery_man", "5:delivery_man", "6:delivery_man", "7:delivery_man",
-	"3:thug", "4:thug", "5:thug", "7:thug", "4:hooker", "7:hooker"]
+	"3:thug", "4:thug", "5:thug", "7:thug", "4:hooker", "7:hooker",
+	"3:officer", "6:officer", "4:streamer", "2:granny", "3:granny", "5:granny", "6:granny"]
 
 
 ## JSONを通した形（整数が小数になる差を避けて比べるため）にそろえる。

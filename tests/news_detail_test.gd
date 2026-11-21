@@ -58,16 +58,30 @@ func run(t: SceneTree) -> int:
 	_press(content.get_node("NewsBack"))
 	c.check("「戻る」で一覧に戻る", phone.news_open == "" and _rows(content) == ["d3_windows", "d3_rain", "d3_body_aid", "d3_umbrellas", "d2_checkpoints", "d2_rain", "d2_reader_arm", "d2_socks", "d1_strike", "d1_egg_shop", "d1_signboard", "d1_break_detect"], str(_rows(content)))
 
-	# --- 3. 長い本文（Day7 の d7_unresolved は4行）：縦に送れる ---
+	# --- 3. 長い本文（Day7 の d7_wiring_probe は5段落。中身AE）：縦に送れる ---
 	root.close_overlay()
 	GameState.day_count = 7
 	root.open_phone("news")
-	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1〜4 は4本＝中身U1・中身X・中身Z・中身AA。Day5 は5本＝中身AB。Day6 は朝の4本と火事のあとの速報2本＝中身AD）", _rows(content).size() == 29 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
-	_press(content.get_node("NewsRow_d7_unresolved"))
-	var long: Dictionary = News.day_entry(7)["news"][1]
-	labels = _texts(content)
+	c.check("Day7 の一覧：7日分の見出しが全部（Day1〜4 は4本＝中身U1・中身X・中身Z・中身AA。Day5 は5本＝中身AB。Day6 は朝の4本と火事のあとの速報2本＝中身AD。Day7 は朝の6本＝中身AE）。Day7 の6本が上から順に",
+		_rows(content).size() == 33 and _rows(content).slice(0, 6) == ["d7_wiring_probe", "d7_upper_yard", "d7_next_stop", "d7_market_arrivals", "d7_inn_routes", "d7_umbrella"], str(_rows(content)))
+	# 中身AE：Day7 の6本が一覧の枠に収まるか（収まらなければ、縦に送って全部読めること）
 	var scroll: ScrollContainer = phone.get_node("%Scroll")
-	c.check("本文が長くても全部出る（4行）・一覧は縦に送れる枠の中", (long["body"] as Array).size() == 4 and (long["body"] as Array).all(func(line): return labels.has(str(line)))
+	var bottom6 := 0.0   # 6本目の下端（一覧の上からの高さ。並べる前でも測れるよう、行の最小の高さと間隔を足す）
+	for child in content.get_children():
+		if not (child is Control) or not (child as Control).visible:
+			continue
+		if bottom6 > 0.0:
+			bottom6 += content.get_theme_constant(&"separation")
+		bottom6 += (child as Control).get_combined_minimum_size().y
+		if child.name == "NewsRow_d7_umbrella":
+			break
+	print("  Day7 のニュースの一覧：6本目の下端 %d／枠の高さ %d（一覧の全体 %d）" % [int(bottom6), int(scroll.size.y), int(content.get_combined_minimum_size().y)])
+	c.check("Day7 の6本：枠に収まる、または一覧が縦に送れて6本目まで届く",
+		bottom6 <= scroll.size.y or (scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED and content.get_combined_minimum_size().y >= bottom6), "%d / %d" % [int(bottom6), int(scroll.size.y)])
+	_press(content.get_node("NewsRow_d7_wiring_probe"))
+	var long: Dictionary = News.day_entry(7)["news"][0]
+	labels = _texts(content)
+	c.check("本文が長くても全部出る（5段落）・一覧は縦に送れる枠の中", (long["body"] as Array).size() == 5 and (long["body"] as Array).all(func(line): return labels.has(str(line)))
 		and content.get_parent() == scroll and scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED)
 	var body_label: Label = null
 	for child in content.get_children():

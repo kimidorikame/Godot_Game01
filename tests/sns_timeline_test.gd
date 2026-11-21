@@ -52,11 +52,11 @@ func run(t: SceneTree) -> int:
 
 	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿152（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24・Day6 31。中身X・中身Z・中身AA・中身AB・中身AD）。7日目の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 152
+	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿181（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24・Day6 31・Day7 29。中身X・中身Z・中身AA・中身AB・中身AD・中身AE）", Sns.accounts().size() == 32 and Sns.posts().size() == 181
 		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26
 		and Sns.posts().filter(func(x): return int(x["day"]) == 3).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 4).size() == 24
 		and Sns.posts().filter(func(x): return int(x["day"]) == 5).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 6).size() == 31
-			and not Sns.posts().any(func(x): return int(x["day"]) >= 7),
+			and Sns.posts().filter(func(x): return int(x["day"]) == 7).size() == 29 and not Sns.posts().any(func(x): return int(x["day"]) >= 8),
 		"%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
 	var used := {}
 	for x in Sns.posts():
@@ -73,11 +73,11 @@ func run(t: SceneTree) -> int:
 	var real_by_id := {}
 	for x in Sns.posts():
 		real_by_id[str(x["id"])] = x
-	c.check("本番：返信は5件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目、6日目 02:47・03:25→02:42 のニカ）・写真は8件（6日目のニカの 02:42 を足した）・裏アカの原文と意味は truth に",
+	c.check("本番：返信は8件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目、6日目 02:47・03:25→02:42 のニカ、7日目 13:20→12:45 の通行人・22:10・23:30→14:30 のニカ）・写真は11件（7日目の 07:45・09:20・14:30〔動画〕を足した）・裏アカの原文と意味は truth に",
 		str(real_by_id["d1_passer1_1735"]["reply_to"]) == "d1_akiang_1720" and str(real_by_id["d1_dock_a_2152"]["reply_to"]) == "d1_dock_b_2140"
 			and str(real_by_id["d2_passer1_1735"]["reply_to"]) == "d2_rex_1710"
-			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 5
-			and Sns.posts().filter(func(x): return x.has("photo")).size() == 8
+			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 8
+			and Sns.posts().filter(func(x): return x.has("photo")).size() == 11
 			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW.")
 			and not str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("スパイはいない"))
 	# --- 0b. 2日目（中身X：2日目_タイムライン.md の26件）の確かめ a〜e ---
@@ -241,6 +241,66 @@ func run(t: SceneTree) -> int:
 	c.check("6日目：火事のあとの投稿は、明け方の時刻でも火事の場面が済むまで見えない。済んだら見える。次の日の朝は条件なし",
 		not after6.any(func(x): return Sns.is_visible(x, 6, Sns.LIMIT_DAY_END)) and after6.all(func(x): return Sns.is_visible(x, 6, Sns.LIMIT_DAY_END, [], [], ["d6_fire"]))
 			and after6.all(func(x): return Sns.is_visible(x, 7, Sns.LIMIT_MORNING)))
+	# --- 0g. 7日目（中身AE：7日目_タイムライン.md の29件）の確かめ a〜e と、訂正の印・動画の全文（UI準備AE） ---
+	var day7 := Sns.posts().filter(func(x): return int(x["day"]) == 7)
+	c.check("7日目 a：新しいアカウントは無く、投稿のアカウントはどれもある・ターニャ婆の投稿は無い・投稿の id は重ならない",
+		Sns.accounts().size() == 32 and day7.all(func(x): return Sns.accounts().has(str(x["account"])) and str(Sns.accounts()[str(x["account"])].get("owner", "")) != "granny")
+			and real_by_id.size() == Sns.posts().size())
+	c.check("7日目 b：返信は3件（通行人 13:20 → 東塔NEWS 12:45、ニカ 22:10・23:30 → 14:30。23:30 の返信先は表では 22:10 だが、返信への返信は持たないので 14:30 の下に時刻の順で並べる）・写真は K4172 07:45・葉っぱの番 09:20・ニカ 14:30（動画）",
+		day7.filter(func(x): return x.has("reply_to")).map(func(x): return "%s>%s" % [x["id"], x["reply_to"]]) == ["d7_passer1_1320>d7_east_news_1245", "d7_exposure_test_2210>d7_exposure_test_1430", "d7_exposure_test_2330>d7_exposure_test_1430"]
+			and day7.filter(func(x): return x.has("photo")).map(func(x): return str(x["id"])) == ["d7_akiang_0745", "d7_ayu_0920", "d7_exposure_test_1430"]
+			and str(real_by_id["d7_exposure_test_1430"].get("photo_kind", "")) == "video",
+		str(day7.filter(func(x): return x.has("reply_to")).map(func(x): return x["id"])))
+	c.check("7日目 c：時刻は HH:MM（07:00〜23:50。明け方の投稿は無い）", day7.all(func(x): return Sns.minutes(str(x["time"])) >= 7 * 60 and str(x["time"]).length() == 5))
+	var pairs7 := {}
+	for x in day7:
+		pairs7["%s %s" % [x["time"], x["account"]]] = true
+	c.check("7日目 d：同じ時刻・同じアカウントの投稿は重ならない", pairs7.size() == day7.size())
+	var count7 := func(lo: int, hi: int) -> int: return day7.filter(func(x): return Sns.day_minutes(str(x["time"])) >= lo and Sns.day_minutes(str(x["time"])) <= hi).size()
+	c.check("7日目 e：件数 朝4／市場・準備13／宵の口7／夜半5／明け方0／合計29",
+		count7.call(0, Sns.LIMIT_MORNING) == 4 and count7.call(Sns.LIMIT_MORNING + 1, Sns.LIMIT_MARKET) == 13
+			and count7.call(Sns.LIMIT_MARKET + 1, Sns.LIMIT_EVENING) == 7 and count7.call(Sns.LIMIT_EVENING + 1, Sns.LIMIT_MIDNIGHT) == 5
+			and count7.call(Sns.LIMIT_MIDNIGHT + 1, Sns.LIMIT_DAY_END) == 0 and day7.size() == 29)
+	c.check("7日目：条件はリン（・）21:25＝リンの接客のあと・ニカ 23:30＝ニカの接客のあとの2件だけ",
+		day7.filter(func(x): return x.has("requires")).map(func(x): return [x["id"], x["requires"]]) == [["d7_lin_alt_2125", { "visited": "officer" }], ["d7_exposure_test_2330", { "visited": "streamer" }]])
+	var lin7 := day7.filter(func(x): return str(x["account"]) == "lin_alt")
+	c.check("7日目：リンの「・」は2件（15:10・21:25）。暗号文は原文を3文字ずらしたもの・truth は「誰かへの報告」で、報告先・組織の名前は書かない",
+		lin7.map(func(x): return str(x["time"])) == ["15:10", "21:25"]
+			and str(lin7[0]["text"]) == _shift3("NEW DESK AND UPPER YARD ACTIVE. FIRE QUERY STILL UNANSWERED. ASKING AGAIN.")
+			and str(lin7[1]["text"]) == _shift3("STALL CONTACT MAINTAINED. OWNER USEFUL FOR ROUTES AND LOCAL REPORTS. SAME SOUP.")
+			and lin7.all(func(x): return str(x["truth"]).contains("誰かへの報告") and not str(x["truth"]).contains("新興")))
+	var fix: Dictionary = real_by_id["d7_exposure_test_1430"]
+	var stall_video := (ScheduleData.episode_data("streamer", "streamer_04")["body"] as Array).filter(func(l): return l is String and (str(l).begins_with("ニカ「昨夜、") or str(l).begins_with("ニカ「新しい窓口の") or str(l).begins_with("ニカ「顔をぼかしても")))
+	c.check("UI準備AE：14:30 の訂正の動画の全文は6行（transcript。名前と「」を除いたニカのセリフ。アカウントの持ち主は画面に出さない）で、屋台の3行は全文の第1・2・5行と同じ文",
+		fix.get("transcript") is Array and (fix["transcript"] as Array).size() == 6
+			and stall_video.map(func(l): return str(PlaySession.split_speaker(str(l))["text"]).trim_prefix("「").trim_suffix("」")) == [fix["transcript"][0], fix["transcript"][1], fix["transcript"][4]]
+			and not (fix["transcript"] as Array).any(func(l): return str(l).contains("ニカ「")), str(stall_video))
+	c.check("UI準備AE：6日目のニカの 02:42・03:25 だけが corrected_by（7日目 14:30）を持つ。本文は6日目のまま（転送の DM と同じ文）",
+		Sns.posts().filter(func(x): return x.has("corrected_by")).map(func(x): return [x["id"], x["corrected_by"]]) == [["d6_exposure_test_0242", "d7_exposure_test_1430"], ["d6_exposure_test_0325", "d7_exposure_test_1430"]]
+			and Dm.item_by_id(6, "d6_dock_0305")["text"].contains(str(real_by_id["d6_exposure_test_0242"]["text"])))
+	var marks_at := func(day: int, limit: int) -> Array:
+		var out := []
+		for section in Sns.timeline(day, limit):
+			for item in section["posts"]:
+				for p in [item] + (item["replies"] as Array):
+					if p.has("correction"):
+						out.append("%s>%s" % [p["id"], p["correction"]["id"]])
+		return out
+	c.check("UI準備AE：「訂正あり」の印は、訂正の投稿（7日目 14:30）が見えているときだけ（6日目の夜・7日目の朝はまだ無い・7日目の市場から・次の日も）",
+		marks_at.call(6, Sns.LIMIT_DAY_END).is_empty() and marks_at.call(7, Sns.LIMIT_MORNING).is_empty()
+			and marks_at.call(7, Sns.LIMIT_MARKET) == ["d6_exposure_test_0242>d7_exposure_test_1430", "d6_exposure_test_0325>d7_exposure_test_1430"]
+			and marks_at.call(7, Sns.LIMIT_DAY_END).size() == 2, str(marks_at.call(7, Sns.LIMIT_MARKET)))
+	var bad_fix := Sns.data().duplicate(true)
+	for x in bad_fix["posts"]:
+		if str(x["id"]) == "d6_exposure_test_0242":
+			x["corrected_by"] = "d1_strike_none"
+		if str(x["id"]) == "d7_exposure_test_1430":
+			x["transcript"] = ["", 3]
+		if str(x["id"]) == "d7_ayu_0920":
+			x["transcript"] = ["写真の投稿の全文"]
+	var bad_fix_problems := str(Sns.problems(bad_fix))
+	c.check("UI準備AE：データの検査で、無い訂正の投稿・空の全文・動画でない投稿の全文を弾く",
+		bad_fix_problems.contains("corrected_by") and bad_fix_problems.contains("transcript が空でない") and bad_fix_problems.contains("transcript は動画"), bad_fix_problems)
 	var broken_visit: Dictionary = (Sns.data() as Dictionary).duplicate(true)
 	(broken_visit["posts"] as Array)[0]["requires"] = { "visited": "no_such_customer" }
 	c.check("requires.visited の客が無いと落ちる", not Sns.problems(broken_visit).is_empty())

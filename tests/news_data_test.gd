@@ -2,7 +2,7 @@ extends RefCounted
 ## 日別ニュースと必須情報の担保（システム整理D-①。DESIGN.md 10.5.5。SEVEN_DAY_OUTLINE.md §11）の検証。
 ## data/news/week7.json の形、必須情報9項目のカタログ、すべての項目が「ニュースまたは共通イベント」
 ## （客・モブ・評判に依存しない経路）で、概要表の日に届くこと、場面データの must_info が未知の
-## 識別子を使えないこと、仮データの印（provisional）。
+## 識別子を使えないこと、仮データの印（provisional。中身AE で1〜7日目とも本番の文になり、どこにも付かない）。
 
 # 必須情報の id → 届く日。中身Z：1〜2日目は SEVEN_DAY_OUTLINE.md §11 のまま、3〜7日目は改訂版の筋で組み直した9項目。データがこの表から外れたら落とす。
 const EXPECTED_DAYS := {
@@ -56,16 +56,27 @@ func run(_t: SceneTree) -> int:
 			truth_item = item
 	c.check("#9：複数の説を並べる（本文が3行以上）", (truth_item.get("body", []) as Array).size() >= 3)
 
-	# --- 3. 仮データの印：Day7 の全項目に provisional が付いている（脚本で差し替える）。Day1〜6 は本番の文（中身U1・中身X・中身Z・中身AA・中身AB・中身AD）で付かない ---
-	var all_provisional := true
-	var any_items := 0
-	for day in range(7, 8):
+	# --- 3. 仮データの印：Day1〜7 は本番の文（中身U1・中身X・中身Z・中身AA・中身AB・中身AD・中身AE）で、どの項目にも provisional が付かない ---
+	var any_provisional := []
+	for day in range(1, 8):
 		var entry := News.day_entry(day)
 		for kind in ["news", "events"]:
 			for item in entry[kind]:
-				any_items += 1
-				all_provisional = all_provisional and bool(item.get("provisional", false))
-	c.check("Day7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+				if bool(item.get("provisional", false)):
+					any_provisional.append(str(item.get("id", "")))
+	c.check("Day1〜7 のニュース・共通イベントに provisional は無い（中身AE で7日目も本番の文）", any_provisional.is_empty(), str(any_provisional))
+	var day7_news: Array = News.day_entry(7)["news"]
+	c.check("Day7 は本番の6本（7日目_ニュース.md。中身AE）：1本目（仮設配線付近を調査）に police_wiring_probe・truth_unresolved、2本目（高台の荷捌き場）に window_changed_before_fire、ほかは必須情報なし・速報は無い・仮の d7_official／d7_unresolved は無い",
+		day7_news.map(func(i): return str(i["id"])) == ["d7_wiring_probe", "d7_upper_yard", "d7_next_stop", "d7_market_arrivals", "d7_inn_routes", "d7_umbrella"]
+			and day7_news[0]["must_info"] == ["police_wiring_probe", "truth_unresolved"] and day7_news[1]["must_info"] == ["window_changed_before_fire"]
+			and day7_news.slice(2).all(func(i): return (i["must_info"] as Array).is_empty())
+			and day7_news.all(func(i): return not i.has("after_event") and not i.has("time"))
+			and str(day7_news[0]["headline"]).contains("仮設配線付近を調査"),
+		str(day7_news.map(func(i): return i["id"])))
+	var day7_events: Array = News.day_entry(7)["events"]
+	c.check("Day7 の共通イベントは閉店の前の場面（d7_close・at=close・店主の3行・必須情報なし）だけ",
+		day7_events.size() == 1 and str(day7_events[0]["id"]) == "d7_close" and str(day7_events[0]["at"]) == "close"
+			and (day7_events[0]["lines"] as Array).size() == 3 and (day7_events[0]["must_info"] as Array).is_empty())
 	var day4_news: Array = News.day_entry(4)["news"]
 	c.check("Day4 は本番の4本（4日目_ニュース.md。中身AA）：provisional なし・1本目は旧倉庫の見出しで must_info（old_warehouse_load。5段落）・ほかは4段落で必須情報なし・仮の d4_video は無い",
 		day4_news.size() == 4 and day4_news.all(func(i): return not bool(i.get("provisional", false)))

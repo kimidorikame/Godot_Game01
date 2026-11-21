@@ -5,7 +5,7 @@ extends RefCounted
 ##   2. 市場：張姐の会話（仕込む量の前。最後の問いが仕込む量を選ぶ場面の文）→ 出汁を受け取る → 新人警官の会話（買い物の前）→ 市場。
 ##      払い方は今までどおり（市場を出るときにまとめて払う。市場の場面の行に支払いは無い）
 ##   3. モブの「2杯以上のときだけ」の1行（min_count）：組の杯数が2以上のときだけ出る
-##   4. 新人警官：食後の本文が会計・退店まで持つので、仮の行（_OFFICER_AFTER）は出ない（仮の文の officer_03〜 は今までどおり）
+##   4. 新人警官：食後の本文が会計・退店まで持つので、仮の行（_OFFICER_AFTER）は出ない（仮の文の場面は今までどおり。中身AE からはテストの中で差し込んだ場面で確かめる）
 ##   5. 2日目を朝から閉店まで本番の画面で通す：元の文の行が順に出る・〔〕の文が出ない・反応は判定どおりの1行だけ・名前の札
 ##      （警官→会計のあとの「リンです」のあとからリン・セティヤ）・朝のDM（レックス2通・阿強・張姐。新人警官の予告なし）・
 ##      タイムラインのリンの 14:10 は市場の会話のあとから
@@ -162,8 +162,12 @@ func run(t: SceneTree) -> int:
 	c.check("officer_01：REACT のあとに仮の行（「警官（提供後・共通会話）」など）を出さない（食後の本文が会計・退店まで持つ）",
 		str(officer_events.back()["type"]) == "REACT" and not officer_events.any(func(e): return str(e.get("text", "")).contains("（提供後"))
 			and str(Day1Events.after_serve_events("officer", "officer_01", { "served": true, "grade": "GOOD" }).back()["text"]) == "店主「仕事が終わってから言いな」")
-	GameState.day_count = 7   # 中身AA・中身AB：officer_02・officer_03 は本番の文になったので、仮の文の確かめは7日目の officer_04 で
-	c.check("仮の文の officer_04 は今までどおり（仮の行が出る）", Day1Events.customer_events("officer").any(func(e): return str(e.get("text", "")).contains("（提供後")))
+	# 中身AE：officer_04 も本番の文になったので、仮の文の確かめはテストの中で差し込んだ仮の場面（本文の無い場面）で
+	GameState.day_count = 7
+	ScheduleData._episode_cache["officer/officer_04"] = { "id": "officer_04", "customer": "officer", "greet": ["警官（酸っぱい・歯ごたえ）"],
+		"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+	c.check("仮の文の場面（本文の無い officer_04 を差し込む）は今までどおり（仮の行が出る）", Day1Events.customer_events("officer").any(func(e): return str(e.get("text", "")).contains("（提供後")))
+	ScheduleData.clear_cache()
 
 	# --- 5. 2日目を本番の画面で通す ---
 	ReadState.reset("user://test_read_day2_script.json")

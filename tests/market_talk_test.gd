@@ -34,7 +34,7 @@ func _expected(recorded_events: Array, day: int, scraps: bool) -> Array:
 		if str(ev.get("text", "")).begins_with("鶏の出汁が立ってきた。"):
 			ev["text"] = str(ev["text"]).replace("鶏の出汁", "豚骨の出汁")
 		# 中身Z：3日目も張姐の会話に選んだあとの行がある（「%sにした。」は出さず、鍋の素の受け取りは文を出さない＝1日目と同じ）
-		if (day == 1 or day == 3 or day == 4 or day == 5 or day == 6) and not scraps:   # 中身AA・中身AB・中身AD：4〜6日目も選んだあとの行がある
+		if (day == 1 or day >= 3 and day <= 7) and not scraps:   # 中身AA・中身AB・中身AD・中身AE：4〜7日目も選んだあとの行がある
 			if str(ev.get("type", "")) == "TEXT" and str(ev.get("text", "")).ends_with("にした。"):
 				continue
 			if str(ev.get("type", "")) == "ADD_ITEM" and str(ev.get("item", "")) == "soup_base":

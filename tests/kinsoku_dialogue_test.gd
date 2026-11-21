@@ -217,6 +217,38 @@ func _day6_texts() -> Array:
 	return texts
 
 
+## 7日目の会話枠に出る文（中身AE。名前を除いた本文）：常連3人の場面（リンの夜勤警備員の5行も）・モブ2組の7日目の文・市場の会話・
+## 朝のニュース・閉店の場面。
+func _day7_texts() -> Array:
+	var raw := []
+	for pair in [["officer", "officer_04"], ["streamer", "streamer_04"], ["granny", "granny_03"]]:
+		var ep := ScheduleData.episode_data(pair[0], pair[1])
+		for key in ["greet", "body"]:
+			raw.append_array(_both_paths(ep.get(key, [])))
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
+	for mob in ["inn_clerk", "market_porter"]:
+		var form := ScheduleData.mob_data_for_day(mob, 7)
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["spare_greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(form["spare_farewell"]))
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["after_talk"], 2)))
+		raw.append_array(_reaction_lines(form["reactions"]))
+	for part in ScheduleData.talk_data("day7_market")["parts"]:
+		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
+	for item in News.day_entry(7)["events"]:
+		for line in _both_paths(item["lines"]):
+			if line is String:
+				raw.append(line)
+	var texts := []
+	for line in raw:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts.has(text):
+			texts.append(text)
+	for ev in News.morning_events(7):
+		texts.append(str(ev["text"]))
+	return texts
+
+
 func run(_t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
@@ -316,6 +348,19 @@ func run(_t: SceneTree) -> int:
 			multi6.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
 	c.check("6日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts6.size(), texts6.size() > 200 and bad6.is_empty(), str(bad6))
 	print("  6日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts6.size(), multi6.size(), str(multi6)])
+
+	# --- 8. 7日目の会話枠に出る文（中身AE） ---
+	var texts7 := _day7_texts()
+	var bad7 := {}
+	var multi7 := []
+	for text in texts7:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad7[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi7.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
+	c.check("7日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts7.size(), texts7.size() > 200 and bad7.is_empty(), str(bad7))
+	print("  7日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts7.size(), multi7.size(), str(multi7)])
 
 	ScheduleData.clear_cache()
 	return c.finish()
