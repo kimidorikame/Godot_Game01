@@ -423,8 +423,11 @@ func play(p: String, run_seed: int) -> Dictionary:
 			# 食後の行（提供後の本文 body・請求を払ったあとの会話 after_bill・締め closing。モブの椀のあとの会話も part:"body"）では
 			# 鍋を直さない（2026-11-09・計測）。その客の椀はもう出し終えていて、行の数だけ「直前の客の杯数」で鍋を見てしまうため
 			# （中身U1で食後の行が増え、空の鍋に水とだしを足して次の日の仕入れまで変わっていた）。
+			# part の無い食後の行（仮の文の場面が椀のあとに出す「警官（提供後・共通会話）」など、
+			# 複数杯の場面の最後の杯のあとの会話、請求の支払い）でも鍋を直さない（2026-11-21・計測。中身AB）。
+			# その客の椀（REACT）がもう残っていない行＝その客の食後の行とみなす。
 			if typ not in ["SERVE", "REACT"] and panel.session.can_touch_pot() \
-					and not AFTER_MEAL_PARTS.has(str(ev.get("part", ""))):
+					and not AFTER_MEAL_PARTS.has(str(ev.get("part", ""))) and not is_after_meal_line(r, ev):
 				fix_pot()
 		if typ == "CHOICE":
 			# 店主の距離感の選択（システム整理C2）：先頭の選択肢を押す。現行の21場面には無い（通らない分岐）
@@ -1175,6 +1178,30 @@ func first_day(id: String) -> int:
 		if GameState.day_count - int(batch.day) < 2:
 			return int(batch.day)
 	return 999
+
+
+## 今の行が、その客の食後の行か（2026-11-21・計測。中身AB）：行に客があり、その客の REACT を一度出したあとで、
+## この行より後にその客の REACT がもう無い（＝その客の椀はすべて出し終えた）。part の印の無い行（仮の文の場面の
+## 椀のあとの行・複数杯の場面の最後の杯のあとの会話・請求の支払い）を、part:"body" と同じく鍋を直さない行にする。
+func is_after_meal_line(r: EventRunner, ev) -> bool:
+	if not (ev is Dictionary):
+		return false
+	var cid := str((ev as Dictionary).get("customer", ""))
+	if cid == "":
+		return false
+	var reacted := false
+	for i in range(r.index - 1, -1, -1):
+		var e = r.events[i]
+		if e is Dictionary and str(e.get("type", "")) == "REACT" and str(e.get("customer", "")) == cid:
+			reacted = true
+			break
+	if not reacted:
+		return false
+	for i in range(r.index + 1, r.events.size()):
+		var e = r.events[i]
+		if e is Dictionary and str(e.get("type", "")) == "REACT" and str(e.get("customer", "")) == cid:
+			return false
+	return true
 
 
 ## 鍋の調整。濃さ1/5は減点なので、水は「先にだしで濃さを上げてから」入れる
