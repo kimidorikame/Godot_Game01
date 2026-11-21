@@ -2740,7 +2740,7 @@ func record_visible_event() -> void:
 	# 話し手の名前（中身U1）：行の頭に「名前「セリフ」」があれば、その名前を話し手に、残りを本文に（会話枠の札と同じ）
 	var split := split_speaker(text)
 	if str(split["name"]) != "":
-		speaker = str(split["name"])
+		speaker = dm_speaker_name(ev, str(split["name"]))
 		text = str(split["text"])
 	if text == "":
 		last_shown_unread = false   # 本文の無いイベント（効果のみ・入力待ち・反応なしのREACT）は未読の行ではない
@@ -3392,8 +3392,16 @@ func current_line() -> Dictionary:
 				text += "　具だくさん +¥%d" % last_serve_hearty
 	# 話し手の名前の札（中身U1）：行の頭に「名前「セリフ」」があれば、その名前を札に、残り（「」から）を本文に。
 	var split := split_speaker(text)
-	return { "type": type, "speaker": speaker, "speaker_name": str(split["name"]), "text": str(split["text"]),
+	return { "type": type, "speaker": speaker, "speaker_name": dm_speaker_name(ev, str(split["name"])), "text": str(split["text"]),
 		"part": str(ev.get("part", "")) }
+
+
+## 共通イベントの show_dm で会話枠に出した DM（dm_id のある行）は、名前の札を「差出人（DM）」にする（UI準備AD：人物のセリフと見分ける）。
+## 本文はそのまま。会話ログの話し手も同じ。
+static func dm_speaker_name(ev, name: String) -> String:
+	if name != "" and ev is Dictionary and str((ev as Dictionary).get("dm_id", "")) != "":
+		return name + "（DM）"
+	return name
 
 
 ## 入力待ち（WAITING_INPUT）か。
