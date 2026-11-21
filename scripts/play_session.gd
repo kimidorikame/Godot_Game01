@@ -2956,9 +2956,23 @@ func phone_news() -> Array:
 
 
 ## 今日までに届いたDM（Dm.inbox）。今日の夜のDM（UI準備AC：after_event・after_visit）は、再生した共通イベント（played_events）と
-## 接客が済んだ客（visits_done_today）で決まる。
+## 接客が済んだ客（dm_visits_done_today）で決まる。
 func dm_inbox() -> Array:
-	return Dm.inbox(GameState.day_count, {}, played_events, visits_done_today())
+	return Dm.inbox(GameState.day_count, {}, played_events, dm_visits_done_today())
+
+
+## 夜のDM（after_visit）の「接客が済んだ客」（UI準備AE）。開店のあいだは visits_done_today と同じ。閉店のあと（CLOSE より先）は、
+## 今日ほんとうに来た名前あり客（来店記録に今日の来店がある客）だけ：鍋が尽きて早く閉め、来なかった客の退店のあとのDMは届かない
+## （タイムラインの requires.visited は今までどおり、閉店のあとは来なかった客も済んだ扱い）。状態を読むだけ。
+func dm_visits_done_today() -> Array:
+	if GameState.phase == GameState.Phase.OPEN or GameState.phase == GameState.Phase.WAKE or GameState.phase == GameState.Phase.PREP:
+		return visits_done_today()
+	var out := []
+	for id in visits_done_today():
+		for visit in CustomerMemory.visits_of(str(id)):
+			if visit is Dictionary and int(visit.get("day", -1)) == GameState.day_count and not out.has(str(id)):
+				out.append(str(id))
+	return out
 
 
 ## スマホのSNSタブ：今日までに届いたDM（新しい順）。[{ id, day, from, from_kind, time, text, hint, provisional, unread }]

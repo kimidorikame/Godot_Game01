@@ -10,7 +10,10 @@ class_name Sns
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから／{ market_talk:<客id> }＝その日の昼の市場で、その客の
 ##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）／{ visited:<客id> }＝その日、その客の接客が済んで
 ##              〔店を出て〕から。閉店のあとは来なかった日も見える。中身Z）／{ after_event:<その日の共通イベントの id> }＝その日、その共通イベントを
-##              再生してから。次の日からは条件なし。UI準備AC）, truth（任意。書き手用。画面に出さない）, provisional } ]
+##              再生してから。次の日からは条件なし。UI準備AC）, truth（任意。書き手用。画面に出さない）,
+##              corrected_by（任意。訂正の投稿の id。その訂正の投稿が見えているときだけ、この投稿の本文の前に「訂正あり」の印を出し、
+##              押すと訂正の投稿へ移る。元の本文は消さない・書き換えない。UI準備AE）,
+##              transcript（任意。動画〔photo_kind:"video"〕の全文の行の配列。投稿の「全文を読む」で開く。UI準備AE）, provisional } ]
 ## アカウントの持ち主は画面に出さない（どれが誰のアカウントかはプレイヤーが推理する）。DMの差出人とも結びつけない。
 ## いいね・拡散・表示回数などの数字は持たない。
 ##
@@ -123,15 +126,23 @@ static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END,
 
 ## 見えている投稿を、画面の形にまとめる：[{ day, posts:[ 投稿＋{ account（アカウントの辞書）, replies:[返信…] } ] }]。
 ## 新しい日が上。同じ日の中は新しい時刻が上。返信は元の投稿のすぐ下に古い順（元の投稿が見えていないときは出さない）。
+## UI準備AE：corrected_by の訂正の投稿が見えていれば、その投稿に correction:{ id, day, time }（訂正の投稿）を足す。
 static func timeline(today: int, limit: int = LIMIT_DAY_END, source: Dictionary = {}, talked: Array = [], visited: Array = [], played: Array = []) -> Array:
 	var accts := accounts(source)
 	var tops := []
 	var replies := {}   # 元の投稿の id -> [返信]
+	var shown := {}   # 見えている投稿の id -> 投稿
 	for post in posts(source):
-		if not (post is Dictionary) or not is_visible(post, today, limit, talked, visited, played):
+		if post is Dictionary and is_visible(post, today, limit, talked, visited, played):
+			shown[str(post.get("id", ""))] = post
+	for post in posts(source):
+		if not (post is Dictionary) or not shown.has(str(post.get("id", ""))):
 			continue
 		var item: Dictionary = (post as Dictionary).duplicate(true)
 		item["account_data"] = (accts.get(str(item.get("account", "")), {}) as Dictionary).duplicate(true)
+		var fix := str(item.get("corrected_by", ""))
+		if fix != "" and shown.has(fix):
+			item["correction"] = { "id": fix, "day": int(shown[fix].get("day", 0)), "time": str(shown[fix].get("time", "")) }
 		var parent := str(item.get("reply_to", ""))
 		if parent != "":
 			(replies.get_or_add(parent, []) as Array).append(item)
@@ -238,6 +249,19 @@ static func problems(source: Dictionary = {}) -> Array:
 				found.append("%s：返信先 %s も返信（返信への返信は持たない）" % [where, str(post["reply_to"])])
 			elif order_value(day, str(post.get("time", ""))) < order_value(int(parent.get("day", 0)), str(parent.get("time", ""))):
 				found.append("%s：返信が元の投稿 %s より前の時刻" % [where, str(post["reply_to"])])
+		# UI準備AE：訂正の印（corrected_by）と動画の全文（transcript）
+		if post.has("corrected_by"):
+			var fix = by_id.get(str(post["corrected_by"]), null)
+			if fix == null or str(post["corrected_by"]) == id:
+				found.append("%s：corrected_by の訂正の投稿 %s が無い" % [where, str(post["corrected_by"])])
+			elif order_value(int(fix.get("day", 0)), str(fix.get("time", ""))) <= order_value(day, str(post.get("time", ""))):
+				found.append("%s：訂正の投稿 %s が元の投稿より前の時刻" % [where, str(post["corrected_by"])])
+		if post.has("transcript"):
+			var lines = post["transcript"]
+			if str(post.get("photo_kind", "")) != "video":
+				found.append(where + "：transcript は動画（photo_kind:\"video\"）の投稿だけ")
+			if not (lines is Array) or (lines as Array).is_empty() or not (lines as Array).all(func(l): return l is String and l != ""):
+				found.append(where + "：transcript が空でない文字列の配列でない")
 		var requires = post.get("requires", {})
 		if not (requires is Dictionary):
 			found.append(where + "：requires が辞書でない")

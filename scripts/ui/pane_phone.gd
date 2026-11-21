@@ -152,6 +152,13 @@ func show_timeline() -> void:
 	refresh()
 
 
+## タイムラインの投稿（id）が一覧の上に来るように動かす（UI準備AE：「訂正あり」の印から訂正の投稿へ）。見えていなければ何もしない。
+func scroll_to_post(id: String) -> void:
+	var row := _content.get_node_or_null("Post_%s" % id) as Control
+	if row != null:
+		_scroll.scroll_vertical = int(maxf(row.position.y - 8.0, 0.0))
+
+
 ## SNSタブの切り替え：DMの相手の一覧へ。
 func show_dm_list() -> void:
 	sns_mode = "dm"

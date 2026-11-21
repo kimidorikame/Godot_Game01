@@ -157,6 +157,20 @@ static func _add_post(content: VBoxContainer, item: Dictionary, indent: float, f
 	var time := _label(Calendar.stamp(int(item["day"]), str(item["time"])), &"LabelCaption")
 	time.name = "Time"
 	head.add_child(time)
+	# UI準備AE：訂正の投稿が見えていれば、本文の前に「訂正あり」の印。押すと訂正の投稿へ移る（元の本文はそのまま出す）
+	if item.get("correction") is Dictionary:
+		var fix: Dictionary = item["correction"]
+		var mark := Button.new()
+		mark.name = "CorrectionMark"
+		mark.text = "【訂正あり】%s の投稿で訂正 ▶" % Calendar.stamp(int(fix["day"]), str(fix["time"]))
+		mark.theme_type_variation = &"ButtonSmall"
+		mark.focus_mode = Control.FOCUS_NONE
+		mark.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		mark.add_theme_color_override(&"font_color", palette.get_theme_color(&"warn", &"UiPalette"))
+		mark.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		if palette.has_method("scroll_to_post"):
+			mark.pressed.connect(Callable(palette, "scroll_to_post").bind(str(fix["id"])))
+		body.add_child(mark)
 	var text := _label(str(item["text"]), &"LabelPhoneBody")
 	text.name = "Text"
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # UI準備V：行頭禁則（「。」「、」「」」などを行の頭に置かない。ICU の改行規則）
@@ -175,6 +189,28 @@ static func _add_post(content: VBoxContainer, item: Dictionary, indent: float, f
 		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		caption.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		photo.add_child(caption)
+	# UI準備AE：動画の全文（transcript）。「全文を読む」で開き、もう一度押すと閉じる（開いたかは描き直すと戻る）
+	if item.get("transcript") is Array and not (item["transcript"] as Array).is_empty():
+		var open := Button.new()
+		open.name = "TranscriptButton"
+		open.text = "▼ 動画の全文を読む"
+		open.toggle_mode = true
+		open.theme_type_variation = &"ButtonSmall"
+		open.focus_mode = Control.FOCUS_NONE
+		open.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		open.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		body.add_child(open)
+		var lines := PackedStringArray()
+		for line in item["transcript"]:
+			lines.append(str(line))
+		var full := _label("\n".join(lines), &"LabelPhoneBody")
+		full.name = "Transcript"
+		full.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		full.custom_minimum_size = Vector2(width, 0)
+		full.visible = false
+		body.add_child(full)
+		open.toggled.connect(func(on: bool): full.visible = on)
+		open.toggled.connect(func(on: bool): open.text = "▲ 全文を閉じる" if on else "▼ 動画の全文を読む")
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 4)
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
