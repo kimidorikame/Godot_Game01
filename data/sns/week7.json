@@ -1,6 +1,6 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 中身AB：5日目_タイムライン.md の24件（新しいアカウントは無い）を足した。",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 中身AB：5日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 UI準備AC：6日目の火事のあとの投稿3件（requires.after_event・仮の文）を足した。",
   "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md・planning/scenario/day5/5日目_タイムライン.md",
   "accounts": {
 	"after_shift": {
@@ -1452,6 +1452,39 @@
 	  "text": "「起こす時刻が決まったら連絡する」と言って寝たお客がいる。目覚ましは預かった。何時に鳴らすかが、まだ来ない。",
 	  "provisional": false,
 	  "truth": "安宿の受付。「起こす時刻が決まったら連絡する」と言って寝た客。3日目の「二時間だけ寝たい」と対。寝る場所はあっても、起きる時刻を決める連絡が来ない。"
+	},
+	{
+	  "id": "d6_east_news_0223",
+	  "account": "east_news",
+	  "day": 6,
+	  "time": "02:23",
+	  "text": "第八码頭の構内で火災。消防が出動。（仮）",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": true
+	},
+	{
+	  "id": "d6_exposure_test_0250",
+	  "account": "exposure_test",
+	  "day": 6,
+	  "time": "02:50",
+	  "text": "港の方、空が明るい。（仮）",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": true
+	},
+	{
+	  "id": "d6_desk_0430",
+	  "account": "desk",
+	  "day": 6,
+	  "time": "04:30",
+	  "text": "受付の前、サイレンが止まらない。（仮）",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": true
 	}
   ]
 }

@@ -9,7 +9,13 @@ class_name Dm
 ##   requires … { customer:<客id> }（その客に初めて提供した翌日から）／{ mob_type:<種類>, nights:<夜数> }（同じ種類のモブに
 ##              nights 夜提供した翌日から）／無し（市場の顔なじみなど客でない差出人。条件なし）
 ##   if … 任意（中身Z）。場面の条件付きの行と同じ条件 { fact | not_fact: <事実のキー>, customer? }。customer を省略したら
-##        requires.customer の客の事実を見る。満たすときだけ届く（3日目の阿強＝1日目の3杯目〔持ち帰り〕を出したか）
+##        requires.customer の客の事実を見る。満たすときだけ届く（3日目の阿強＝1日目の3杯目〔持ち帰り〕を出したか）。
+##        モブの条件 { mob_served | not_mob_served: <種類>, day? } も置ける（UI準備AC）
+##   after_event … 任意（UI準備AC）。その日の共通イベントの id。その日は、その共通イベントを再生したあとから届く（営業中に届くDM）
+##   after_visit … 任意（UI準備AC）。客の id。その日は、その客の接客が済んで（店を出て）から届く（7日目に使う）
+##        after_event・after_visit を持つDM（夜のDM）は、時刻を SNS と同じ数え方（00:00〜04:59 はその日の24時以降）で並べる。
+##        朝のDM（どちらも持たない）の時刻（04:45 など）は、その日の朝として並べる。次の日からは条件なしに残る。
+##   photo … 任意（UI準備AC）。写真の説明の文字（転送された投稿など）。本文のあとに「［写真：…］」で出す
 ##
 ## DMが「その日に届くか」は、その日の朝の時点の状態で決まる関数（保存する状態を増やさない）：
 ##   ・requires を満たす（名前あり客は customer_memory の来店記録、モブは日次ログの mob_types_served から数える）。
@@ -59,6 +65,50 @@ static func data() -> Dictionary:
 				_cache = parsed
 		_loaded_id = id
 	return _cache
+
+
+## その日のDMの1件（条件を見ない。無ければ空辞書。UI準備AC：共通イベントの show_dm）。
+static func item_by_id(day: int, id: String, source: Dictionary = {}) -> Dictionary:
+	for item in items_for_day(day, source):
+		if str(item.get("id", "")) == id:
+			return item
+	return {}
+
+
+## 夜のDMか（after_event・after_visit を持つ。UI準備AC）。
+static func is_night(item: Dictionary) -> bool:
+	return str(item.get("after_event", "")) != "" or str(item.get("after_visit", "")) != ""
+
+
+## その日の中での並びの値（分）。夜のDMは 00:00〜04:59 を24時以降として数える（SNS と同じ）。朝のDMは時刻のまま。
+static func order_minutes(item: Dictionary) -> int:
+	var time := str(item.get("time", ""))
+	return Sns.day_minutes(time) if is_night(item) else maxi(Sns.minutes(time), 0)
+
+
+## 本文（写真があれば「［写真：…］」を足す。UI準備AC）。
+static func body_text(item: Dictionary) -> String:
+	var text := str(item.get("text", ""))
+	if str(item.get("photo", "")) != "":
+		text += "\n［写真：%s］" % str(item["photo"])
+	return text
+
+
+## 共通イベントの show_dm で会話枠に出す1行：「差出人「本文」」（名前の札は差出人。UI準備AC）。
+static func shown_line(item: Dictionary) -> String:
+	return "%s「%s」" % [str(item.get("from", "")), body_text(item).replace("\n", "　")]
+
+
+## 夜のDMが今届いているか（UI準備AC）。day が今日より前なら条件なし。今日は after_event が played（再生した共通イベントの id）に、
+## after_visit が visited（今日の接客が済んだ客の id）にあるときだけ。朝のDMは常に true。
+static func night_gate_ok(item: Dictionary, day: int, played: Array, visited: Array) -> bool:
+	if not is_night(item) or day < GameState.day_count:
+		return true
+	if str(item.get("after_event", "")) != "" and not played.has(str(item["after_event"])):
+		return false
+	if str(item.get("after_visit", "")) != "" and not visited.has(str(item["after_visit"])):
+		return false
+	return true
 
 
 ## その日のDMの候補（条件を見ない。形の整ったものだけ）。
@@ -149,15 +199,22 @@ static func condition_allows(item: Dictionary) -> bool:
 	return CustomerMemory.condition_met(item[ScheduleData.CONDITION_KEY], str((item.get("requires", {}) as Dictionary).get("customer", "")))
 
 
-## その日の朝に届いているDM（条件を満たしたもの。データの並び順。最後に来店予告）。
-static func delivered_for_day(day: int, source: Dictionary = {}) -> Array:
+## その日に届いているDM（条件を満たしたもの。データの並び順。朝のDMのあとに来店予告、最後に夜のDM）。
+## played・visited は今日の夜のDM（UI準備AC）の条件に使う（PlaySession.played_events・visits_done_today）。省略したら今日の夜のDMは届いていない。
+## 来店予告の「同じ差出人を外す」は朝のDMだけで決める（夜のDMが届いても、その朝の予告は変わらない）。
+static func delivered_for_day(day: int, source: Dictionary = {}, played: Array = [], visited: Array = []) -> Array:
 	var out := []
+	var night := []
 	var center := center_of_day(day)
 	for item in items_for_day(day, source):
 		if requires_met(item.get("requires", {}), day) and condition_allows(item) and hint_allows(str(item.get("hint", "none")), center, source):
-			out.append(item)
+			if is_night(item):
+				if night_gate_ok(item, day, played, visited):
+					night.append(item)
+			else:
+				out.append(item)
 	out.append_array(preview_items(day, out, source))
-	return out
+	return out + night
 
 
 ## 計画（today_plan）の名前あり客（枠の並び。重複なし）。
@@ -306,16 +363,18 @@ static func _no_preview_on(pool: Dictionary, day: int) -> bool:
 
 
 ## 今日までに届いたDM（新しい日が上。同じ日は時刻の遅い方が上）。[{ id, day, from, from_kind, time, text, hint, provisional }]
-static func inbox(today: int, source: Dictionary = {}) -> Array:
+## 時刻は数で比べる（UI準備AC：以前は文字のまま比べていて「7:10」が「10:05」より遅い扱いだった）。夜のDMの 00:00〜04:59 はその日の24時以降。
+## played・visited は今日の夜のDMの条件（delivered_for_day）。
+static func inbox(today: int, source: Dictionary = {}, played: Array = [], visited: Array = []) -> Array:
 	var out := []
 	for day in range(1, today + 1):
-		for item in delivered_for_day(day, source):
+		for item in delivered_for_day(day, source, played if day == today else [], visited if day == today else []):
 			item["day"] = day
 			out.append(item)
 	out.sort_custom(func(a, b):
 		if int(a["day"]) != int(b["day"]):
 			return int(a["day"]) > int(b["day"])
-		return str(a.get("time", "")) > str(b.get("time", "")))
+		return order_minutes(a) > order_minutes(b))
 	return out
 
 
@@ -363,8 +422,20 @@ static func problems(source: Dictionary = {}) -> Array:
 			if item.has(ScheduleData.CONDITION_KEY):
 				var cond = item[ScheduleData.CONDITION_KEY]
 				found.append_array(ScheduleData.condition_problems(cond, "Day%d %s" % [day, id]))
-				if cond is Dictionary and not (cond as Dictionary).has("customer") and not ((item.get("requires", {}) as Dictionary).has("customer") if item.get("requires", {}) is Dictionary else false):
+				var mob_cond: bool = cond is Dictionary and ScheduleData.MOB_CONDITION_KINDS.any(func(k): return (cond as Dictionary).has(k))
+				if cond is Dictionary and not mob_cond and not (cond as Dictionary).has("customer") and not ((item.get("requires", {}) as Dictionary).has("customer") if item.get("requires", {}) is Dictionary else false):
 					found.append("Day%d %s：if の客が分からない（if.customer か requires.customer が要る）" % [day, id])
+			# 夜のDM（UI準備AC）
+			if item.has("after_event") and News.event_by_id(day, str(item["after_event"])).is_empty():
+				found.append("Day%d %s の after_event %s がその日の共通イベントに無い" % [day, id, str(item["after_event"])])
+			if item.has("after_visit") and not FileAccess.file_exists("res://data/customers/%s.json" % str(item["after_visit"])):
+				found.append("Day%d %s の after_visit %s が客でない" % [day, id, str(item["after_visit"])])
+			if item.has("after_event") and item.has("after_visit"):
+				found.append("Day%d %s：after_event と after_visit は片方だけ" % [day, id])
+			if Sns.minutes(str(item.get("time", ""))) < 0:
+				found.append("Day%d %s の time が H:MM／HH:MM でない" % [day, id])
+			if item.has("photo") and (not (item["photo"] is String) or str(item["photo"]) == ""):
+				found.append("Day%d %s の photo が空でない文字列でない" % [day, id])
 			found.append_array(_requires_problems(item, day))
 	found.append_array(preview_problems(d))
 	return found

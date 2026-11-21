@@ -160,6 +160,12 @@ static func display_name(customer_id) -> String:
 static func condition_met(cond, default_customer: String) -> bool:
 	if not (cond is Dictionary):
 		return false
+	# UI準備AC：モブの条件（その日に、その種類のモブへ1杯以上出したか。day を省略したら今日）
+	if (cond as Dictionary).has("mob_served") or (cond as Dictionary).has("not_mob_served"):
+		var type_id := str(cond.get("mob_served", cond.get("not_mob_served", "")))
+		var day := int(cond.get("day", GameState.day_count))
+		var served := Day1Events.mob_types_served_on(day).has(type_id)
+		return served if (cond as Dictionary).has("mob_served") else not served
 	var customer := str((cond as Dictionary).get("customer", default_customer))
 	if (cond as Dictionary).has("fact"):
 		return _truthy(fact(customer, str(cond["fact"]), null))

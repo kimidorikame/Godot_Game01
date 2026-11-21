@@ -209,8 +209,13 @@ static func _string_lines(value) -> Array:
 ## を置ける。if に "customer": <客id> を足すと、その客の事実を見る（省略＝場面の客）。lines の中には行・名乗りの印・
 ## 条件付きの行のまとまりを置ける。どの行を出すかは、行を Event にするところ（Day1Events._talk・_scene_lines）で
 ## CustomerMemory.resolve_lines が今の事実を読んで決める（状態を読むだけ）。朝のDMも同じ if を持てる（Dm.requires_met）。
+## UI準備AC：モブの条件も置ける（共通イベントの行・場面の行・DMで同じ）。
+##   { "if": { "mob_served": "<モブの種類>" } }      … その日（今日）に、その種類のモブへ1杯以上出したときだけ
+##   { "if": { "not_mob_served": "<モブの種類>" } }  … 出していないときだけ
+##   "day": N を足すと、その日（N日目）に出したか（過ぎた日は日次ログの mob_types_served、今日は今夜の提供の記録から読む）。
 const CONDITION_KEY := "if"
-const CONDITION_KINDS := ["fact", "not_fact"]
+const CONDITION_KINDS := ["fact", "not_fact", "mob_served", "not_mob_served"]
+const MOB_CONDITION_KINDS := ["mob_served", "not_mob_served"]
 
 
 static func is_condition_group(line) -> bool:
@@ -223,18 +228,31 @@ static func condition_problems(cond, where: String) -> Array:
 	if not (cond is Dictionary):
 		return ["%s：if が辞書でない" % where]
 	var kinds := 0
+	var mob_kind := false
 	for key in cond:
 		if CONDITION_KINDS.has(key):
 			kinds += 1
 			if not (cond[key] is String) or str(cond[key]) == "":
 				problems.append("%s：if.%s が空でない文字列でない" % [where, str(key)])
+			elif MOB_CONDITION_KINDS.has(key):
+				mob_kind = true
+				if not FileAccess.file_exists(_MOBS_DIR + str(cond[key]) + ".json"):
+					problems.append("%s：if.%s のモブの種類 %s が無い" % [where, str(key), str(cond[key])])
 		elif str(key) == "customer":
 			if not _is_named_customer(str(cond[key])):
 				problems.append("%s：if.customer %s が名前あり客でない" % [where, str(cond[key])])
+		elif str(key) == "day":
+			var d = cond[key]
+			if not (d is int or d is float) or float(d) != float(int(d)) or int(d) < 1 or int(d) > Rules.final_day():
+				problems.append("%s：if.day が 1〜最終日の日でない" % where)
 		else:
-			problems.append("%s：if に未知のキー %s（fact・not_fact・customer だけ）" % [where, str(key)])
+			problems.append("%s：if に未知のキー %s（fact・not_fact・mob_served・not_mob_served・customer・day だけ）" % [where, str(key)])
 	if kinds != 1:
-		problems.append("%s：if は fact か not_fact のどちらか1つ" % where)
+		problems.append("%s：if は fact・not_fact・mob_served・not_mob_served のどれか1つ" % where)
+	elif mob_kind and cond.has("customer"):
+		problems.append("%s：if.customer は fact・not_fact だけに付ける" % where)
+	elif not mob_kind and cond.has("day"):
+		problems.append("%s：if.day は mob_served・not_mob_served だけに付ける" % where)
 	return problems
 
 

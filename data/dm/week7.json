@@ -48,7 +48,16 @@
 	],
 	"6": [
 	  { "id": "d6_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:20",
-		"text": "今日は早仕舞いも考えな", "hint": "none", "provisional": true }
+		"text": "今日は早仕舞いも考えな", "hint": "none", "provisional": true },
+	  { "id": "d6_zhang_0218", "from": "張姐", "from_kind": "npc", "time": "02:18", "after_event": "d6_fire",
+		"text": "起きてる？　港の火事、うちの骨の便が止まった。（仮）", "hint": "none", "provisional": true },
+	  { "id": "d6_liang_0226", "from": "梁伯", "from_kind": "npc", "time": "02:26", "after_event": "d6_fire",
+		"text": "港側の水場は閉めた。市場の方は出とる。（仮）", "hint": "none", "provisional": true },
+	  { "id": "d6_dock_0305", "from": "港湾労働者", "from_kind": "npc", "time": "03:05", "after_event": "d6_dawn",
+		"text": "これ回ってきた。（転送）旧倉庫の火事、事故で片づけないでほしい。（仮）", "photo": "事務所の前の映像の1コマ。顔はぼかしてある（仮）",
+		"hint": "none", "provisional": true },
+	  { "id": "d6_zhang_0455", "from": "張姐", "from_kind": "npc", "time": "04:55", "after_event": "d6_close",
+		"text": "骨の便、まだ時刻が出ない。分かったら連絡する。（仮）", "hint": "none", "provisional": true }
 	],
 	"7": [
 	  { "id": "d7_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:50",

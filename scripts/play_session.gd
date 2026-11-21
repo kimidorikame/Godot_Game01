@@ -610,19 +610,7 @@ func mob_types_met_tonight() -> Array:
 ## その夜に1杯以上提供したモブの種類（重複なし・並びは種類idの順）。モブの客は instance id（"mob#N"）で記録されるので、
 ## 今夜の計画（today_plan の mob_instances）から種類を引く。
 func mob_types_served_tonight() -> Array:
-	var types := []
-	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
-	for record in GameState.served:
-		if not (record is Dictionary) or bool(record.get("discarded", false)) or int(record.get("servings", 0)) <= 0:
-			continue
-		var customer := str(record.get("customer", ""))
-		if not Day1Events.is_mob_customer(customer):
-			continue
-		var type_id := str((instances.get(customer, {}) as Dictionary).get("type", ""))
-		if type_id != "" and not types.has(type_id):
-			types.append(type_id)
-	types.sort()
-	return types
+	return Day1Events.mob_types_served_on(GameState.day_count)   # UI準備AC：条件付きの行（mob_served）と同じ読み方にまとめた
 
 
 ## 画面に出す内訳（素材が足りない／鍋が足りない／断った）。閉店のあと来られなかった客の分は「鍋が足りない」に含める。
@@ -2768,6 +2756,9 @@ func record_visible_event() -> void:
 		return
 	logged_positions[key] = true
 	TalkLog.add(GameState.day_count, kind, speaker, text)
+	# UI準備AC：共通イベントの show_dm で会話枠に出したDMは、既読にする（スマホの未読の印から外れる）
+	if str(ev.get("dm_id", "")) != "":
+		ReadState.mark(_dm_read_key({ "id": str(ev["dm_id"]) }))
 	# 既読（ReadState）：見えた行を既読にする。それまで未読だったかをスキップの停止条件として覚える。
 	var read_key := ReadState.line_key(kind, speaker, str(ev.get("part", "")), text)
 	last_shown_unread = not ReadState.is_read(read_key)
@@ -2946,8 +2937,10 @@ func phone_news() -> Array:
 	for day in range(today, 0, -1):
 		var entry := News.day_entry(day)
 		var section := { "day": day, "is_today": day == today, "news": [], "events": [] }
-		for item in entry["news"]:
+		# UI準備AC：速報（after_event のニュース）は、その日は共通イベントを再生したあとから。朝の記事より上に、時刻の新しい順（News.visible_news）
+		for item in News.visible_news(day, today, played_events):
 			section["news"].append({ "id": str(item.get("id", "")), "headline": str(item.get("headline", "")),
+				"flash": News.is_flash(item), "time": str(item.get("time", "")),
 				"body": (item.get("body", []) as Array).duplicate() if item.get("body") is Array else [],
 				"must_info": (item.get("must_info", []) as Array).duplicate() if item.get("must_info") is Array else [],
 				"provisional": bool(item.get("provisional", false)),
@@ -2955,18 +2948,24 @@ func phone_news() -> Array:
 		for item in entry["events"]:
 			if day < today or played_events.has(str(item.get("id", ""))):
 				if item.get("lines") is Array:
-					section["events"].append({ "lines": (item["lines"] as Array).duplicate(),
+					section["events"].append({ "lines": News.event_texts(item, day),   # UI準備AC：画面に出る文（条件付きの行・show_dm・show_news を開いた形）
 						"provisional": bool(item.get("provisional", false)) })
 		if not (section["news"].is_empty() and section["events"].is_empty()):
 			out.append(section)
 	return out
 
 
+## 今日までに届いたDM（Dm.inbox）。今日の夜のDM（UI準備AC：after_event・after_visit）は、再生した共通イベント（played_events）と
+## 接客が済んだ客（visits_done_today）で決まる。
+func dm_inbox() -> Array:
+	return Dm.inbox(GameState.day_count, {}, played_events, visits_done_today())
+
+
 ## スマホのSNSタブ：今日までに届いたDM（新しい順）。[{ id, day, from, from_kind, time, text, hint, provisional, unread }]
 ## 届く条件は Dm（名前あり客に初めて提供した翌日から／同じ種類のモブに2夜提供した翌日から／客でない差出人は条件なし。
 ## 匂わせの向きは需要の中心と矛盾しない日だけ）。未読は ReadState（保存とは別のファイル）で持つ。
 func phone_dm() -> Array:
-	var out := Dm.inbox(GameState.day_count)
+	var out := dm_inbox()
 	for item in out:
 		item["unread"] = not ReadState.is_read(_dm_read_key(item))
 	return out
@@ -2975,7 +2974,7 @@ func phone_dm() -> Array:
 ## 未読のDMの数（スマホのSNSタブに出す）。
 func dm_unread_count() -> int:
 	var n := 0
-	for item in Dm.inbox(GameState.day_count):
+	for item in dm_inbox():
 		if not ReadState.is_read(_dm_read_key(item)):
 			n += 1
 	return n
@@ -2983,7 +2982,7 @@ func dm_unread_count() -> int:
 
 ## いま届いているDMを、読んだ扱いにする（SNSタブを開いて表示した時点で呼ぶ）。
 func mark_dms_read() -> void:
-	for item in Dm.inbox(GameState.day_count):
+	for item in dm_inbox():
 		ReadState.mark(_dm_read_key(item))
 
 
@@ -3077,7 +3076,7 @@ func visits_done_today() -> Array:
 
 ## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
 func sns_timeline() -> Array:
-	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today())
+	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events)
 	for section in sections:
 		for item in section["posts"]:
 			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
@@ -3089,7 +3088,7 @@ func sns_timeline() -> Array:
 ## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
 func timeline_unread_count() -> int:
 	var n := 0
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events):
 		if not ReadState.is_read(_post_read_key(str(id))):
 			n += 1
 	return n
@@ -3097,7 +3096,7 @@ func timeline_unread_count() -> int:
 
 ## タイムラインを表示した：見えている投稿を読んだ扱いにする。
 func mark_timeline_read() -> void:
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today()):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events):
 		ReadState.mark(_post_read_key(str(id)))
 
 
@@ -3131,14 +3130,14 @@ func display_names() -> Dictionary:
 ## 中身は Dm.inbox（DMの本文・来店予告の選び方・日付の出し方は変えない）。
 func dm_threads() -> Array:
 	var by_key := {}
-	for item in Dm.inbox(GameState.day_count):
+	for item in dm_inbox():
 		var key := dm_thread_key(item)
 		var customer := key.trim_prefix("customer:") if key.begins_with("customer:") else ""
 		if not by_key.has(key):
 			by_key[key] = { "key": key, "customer": customer, "messages": [],
 				"name": CustomerMemory.display_name(customer) if customer != "" else str(item.get("from", "")) }
 		(by_key[key]["messages"] as Array).append({ "id": str(item.get("id", "")), "day": int(item.get("day", 0)), "time": str(item.get("time", "")),
-			"text": str(item.get("text", "")), "unread": not ReadState.is_read(_dm_read_key(item)) })
+			"text": Dm.body_text(item), "night": Dm.is_night(item), "unread": not ReadState.is_read(_dm_read_key(item)) })
 	var out := []
 	for key in by_key:
 		var thread: Dictionary = by_key[key]
@@ -3151,14 +3150,15 @@ func dm_threads() -> Array:
 	return out
 
 
-## DMの並びの値：日と時刻そのまま（DMの朝の時刻〔04:45 など〕はその日の朝。タイムラインの「夜中は24時以降」の数え方は使わない）。
+## DMの並びの値：朝のDMは日と時刻そのまま（朝の時刻〔04:45 など〕はその日の朝）。夜のDM（UI準備AC）は 00:00〜04:59 をその日の24時以降として数える。
 static func _dm_order(message: Dictionary) -> int:
-	return int(message["day"]) * 10000 + maxi(Sns.minutes(str(message["time"])), 0)
+	var time := str(message["time"])
+	return int(message["day"]) * 10000 + (Sns.day_minutes(time) if bool(message.get("night", false)) else maxi(Sns.minutes(time), 0))
 
 
 ## その相手とのやりとりを開いた：その相手のDMを読んだ扱いにする（相手ごとの未読）。
 func mark_dm_thread_read(key: String) -> void:
-	for item in Dm.inbox(GameState.day_count):
+	for item in dm_inbox():
 		if dm_thread_key(item) == key:
 			ReadState.mark(_dm_read_key(item))
 

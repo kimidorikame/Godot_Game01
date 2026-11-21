@@ -603,6 +603,30 @@ static func is_mob_customer(customer_id: String) -> bool:
 	return bool(_customer_flavor(customer_id).get("is_mob", false))
 
 
+## その日（day）に1杯以上提供したモブの種類（重複なし・種類idの順。UI準備AC：条件 mob_served）。
+## 今日は今夜の提供の記録（GameState.served と today_plan の mob_instances）から、過ぎた日は日次ログの mob_types_served から読む
+## （新しく保存する状態は無い）。
+static func mob_types_served_on(day: int) -> Array:
+	if day != GameState.day_count:
+		for record in GameState.day_records:
+			if record is Dictionary and int(record.get("day", -1)) == day:
+				return (record.get("mob_types_served", []) as Array).duplicate()
+		return []
+	var types := []
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	for record in GameState.served:
+		if not (record is Dictionary) or bool(record.get("discarded", false)) or int(record.get("servings", 0)) <= 0:
+			continue
+		var customer := str(record.get("customer", ""))
+		if not instances.has(customer):
+			continue
+		var type_id := str((instances[customer] as Dictionary).get("type", ""))
+		if type_id != "" and not types.has(type_id):
+			types.append(type_id)
+	types.sort()
+	return types
+
+
 ## 1人の客の接客 Event 列。GREET→ADJUST→SERVE→REACT の4ステップは全客共通（DESIGN.md 4章）。
 ## データのみ。処理は受け側 = DebugPanel._apply_event（GREET/ADJUST/SERVE は表示だけ、
 ## REACT で仮の売上を計上）。

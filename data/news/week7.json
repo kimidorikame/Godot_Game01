@@ -171,15 +171,26 @@
 	  "news": [
 		{ "id": "d6_forced", "headline": "今夜、会社側が強行搬出に踏み切るとの情報",
 		  "body": ["ピケと会社側の緊張が高まっている。"],
+		  "must_info": [], "provisional": true },
+		{ "id": "d6_flash_fire", "headline": "【速報】第八码頭・旧倉庫で火災（仮）", "after_event": "d6_fire", "time": "02:12",
+		  "body": ["第八码頭の構内で火災。消防が出動している。（仮）"],
 		  "must_info": [], "provisional": true }
 	  ],
 	  "events": [
-		{ "id": "d6_clash", "at": "宵の口",
-		  "lines": ["（遠くで怒号が上がった。ピケの列と会社側がぶつかったらしい。）"],
+		{ "id": "d6_fire", "at": "明け方",
+		  "lines": ["店主「……港の方か」", "通行整理係「港側へ下りないでください。第八の構内で火災です。（仮）」",
+			{ "if": { "mob_served": "security_guard" }, "lines": ["店主「……さっきの飯、持って帰ったばかりだぞ」"] },
+			{ "if": { "not_mob_served": "security_guard" }, "lines": ["店主「……阿強、今夜はどこの門だ」"] }],
+		  "must_info": ["warehouse_fire"], "provisional": true },
+		{ "id": "d6_fire_news", "at": "明け方",
+		  "lines": [{ "show_news": "d6_flash_fire" }, "店主「明日の骨……」", { "show_dm": "d6_zhang_0218" }],
 		  "must_info": [], "provisional": true },
-		{ "id": "d6_fire", "at": "夜半",
-		  "lines": ["（遠方の空が赤い。サイレンが重なって聞こえる。）", "（倉庫が燃えている、と誰かが言った。）"],
-		  "must_info": ["warehouse_fire"], "provisional": true }
+		{ "id": "d6_dawn", "at": "明け方",
+		  "lines": ["通行人「放火だってよ。配信の子が書いてる。（仮）」", { "show_dm": "d6_dock_0305" }, "店主「……あの映像だ」"],
+		  "must_info": [], "provisional": true },
+		{ "id": "d6_close", "at": "close",
+		  "lines": ["店主「今日の帳面は、ここまでか」", "通行整理係「表へお願いします。（仮）」", { "show_dm": "d6_zhang_0455" }],
+		  "must_info": [], "provisional": true }
 	  ]
 	},
 	"7": {

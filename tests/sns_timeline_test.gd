@@ -52,10 +52,11 @@ func run(t: SceneTree) -> int:
 
 	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿121（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24。中身X・中身Z・中身AA・中身AB）。6日目以降の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 121
+	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿124（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24。中身X・中身Z・中身AA・中身AB。Day6 は火事のあとの仮の3件だけ＝UI準備AC）。7日目の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 124
 		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26
 		and Sns.posts().filter(func(x): return int(x["day"]) == 3).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 4).size() == 24
-		and Sns.posts().filter(func(x): return int(x["day"]) == 5).size() == 24 and not Sns.posts().any(func(x): return int(x["day"]) >= 6),
+		and Sns.posts().filter(func(x): return int(x["day"]) == 5).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 6).size() == 3
+			and not Sns.posts().any(func(x): return int(x["day"]) >= 7),
 		"%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
 	var used := {}
 	for x in Sns.posts():

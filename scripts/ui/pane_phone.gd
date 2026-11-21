@@ -199,9 +199,10 @@ func _fill_news() -> void:
 		unread_cleared.emit()
 
 
-## ニュースの日付（「Day3（今日）」。形は Calendar）。
-func _news_date(section: Dictionary) -> String:
-	return "%s%s" % [Calendar.label(int(section["day"])), "（今日）" if bool(section["is_today"]) else ""]
+## ニュースの日付（「Day3（今日）」。形は Calendar）。速報（UI準備AC）は「Day6（今日）・速報 02:12」。
+func _news_date(section: Dictionary, item: Dictionary = {}) -> String:
+	var flash := "・速報 %s" % str(item.get("time", "")) if bool(item.get("flash", false)) else ""
+	return "%s%s%s" % [Calendar.label(int(section["day"])), "（今日）" if bool(section["is_today"]) else "", flash]
 
 
 ## ニュースの一覧の1行（388幅のボタン）：日付・見出し（折り返す）。押すと詳細へ。未読だった行は見出しの頭に●。
@@ -212,7 +213,7 @@ func _add_news_row(item: Dictionary, section: Dictionary) -> void:
 	row.focus_mode = Control.FOCUS_NONE
 	_content.add_child(row)   # 先に木へ入れる（見出しの高さを、テーマのフォントで測るため）
 	var date := Label.new()
-	date.text = _news_date(section)
+	date.text = _news_date(section, item)
 	date.theme_type_variation = &"LabelCaption"
 	date.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	date.position = Vector2(12, 4)
@@ -252,7 +253,7 @@ func _fill_news_detail(item: Dictionary, section: Dictionary) -> void:
 	back.pressed.connect(close_news)
 	_content.add_child(back)
 	_add(str(item["headline"]), &"LabelPhoneHeadline").name = "NewsHeadline"
-	_add(_news_date(section), &"LabelCaption").name = "NewsDate"
+	_add(_news_date(section, item), &"LabelCaption").name = "NewsDate"
 	for line in item["body"]:
 		_add(str(line), &"LabelPhoneBody")
 
