@@ -155,6 +155,34 @@ func _day4_texts() -> Array:
 	return texts
 
 
+## 5日目の会話枠に出る文（中身AB。名前を除いた本文）：常連3人の場面・モブ3組の5日目の文（2杯以上の行・予備の一言・予備の退店の文を含む）・市場の会話・朝のニュース。
+func _day5_texts() -> Array:
+	var raw := []
+	for pair in [["hooker", "hooker_03"], ["streamer", "streamer_02"], ["officer", "officer_03"]]:
+		var ep := ScheduleData.episode_data(pair[0], pair[1])
+		for key in ["greet", "body"]:
+			raw.append_array(_both_paths(ep.get(key, [])))
+		raw.append_array(_reaction_lines(ep.get("reactions", {})))
+	for mob in ["market_porter", "security_guard", "dock_workers"]:
+		var form := ScheduleData.mob_data_for_day(mob, 5)
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["spare_greet"], 2)))
+		raw.append_array(ScheduleData.spoken_lines(form["spare_farewell"]))
+		raw.append_array(ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(form["after_talk"], 2)))
+		raw.append_array(_reaction_lines(form["reactions"]))
+	for part in ScheduleData.talk_data("day5_market")["parts"]:
+		raw.append_array(ScheduleData.spoken_lines(part["lines"]))
+	var texts := []
+	for line in raw:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts.has(text):
+			texts.append(text)
+	# 朝のニュース（会話枠に1行ずつ出る。見出しは「ニュース：」付き）
+	for ev in News.morning_events(5):
+		texts.append(str(ev["text"]))
+	return texts
+
+
 func run(_t: SceneTree) -> int:
 	var c := TestCheck.new()
 	ScheduleData.clear_cache()
@@ -228,6 +256,19 @@ func run(_t: SceneTree) -> int:
 			multi4.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
 	c.check("4日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts4.size(), texts4.size() > 200 and bad4.is_empty(), str(bad4))
 	print("  4日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts4.size(), multi4.size(), str(multi4)])
+
+	# --- 6. 5日目の会話枠に出る文（中身AB） ---
+	var texts5 := _day5_texts()
+	var bad5 := {}
+	var multi5 := []
+	for text in texts5:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad5[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi5.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
+	c.check("5日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts5.size(), texts5.size() > 200 and bad5.is_empty(), str(bad5))
+	print("  5日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts5.size(), multi5.size(), str(multi5)])
 
 	ScheduleData.clear_cache()
 	return c.finish()

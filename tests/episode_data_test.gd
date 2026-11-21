@@ -41,9 +41,10 @@ const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "ch
 const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "granny_01": ["body"],
 	"officer_01": ["body"], "thug_02": ["body"], "hooker_01": ["body"],
 	"delivery_man_02": ["body"], "streamer_01": ["body"], "hooker_02": ["body"],
-	"officer_02": ["body"], "delivery_man_03": ["body"], "granny_02": ["body"] }   # 中身AA：4日目
+	"officer_02": ["body"], "delivery_man_03": ["body"], "granny_02": ["body"],   # 中身AA：4日目
+	"hooker_03": ["body"], "streamer_02": ["body"], "officer_03": ["body"] }   # 中身AB：5日目
 const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker",
-	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny"]
+	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny", "5:hooker", "5:streamer", "5:officer"]
 const REACT_VALUE_KEYS := ["type", "customer", "wanted_tags", "favorite", "servings", "sale", "is_mob", "aggregate", "amount", "kind", "new_bowl"]
 # 複数杯の場面（cups。システム整理E）の必須キー：反応・杯数は cups の各杯が持つので reactions・servings は無い。
 const CUPS_EPISODE_KEYS := ["customer", "greet", "id"]

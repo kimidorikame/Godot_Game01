@@ -37,8 +37,8 @@ func run(t: SceneTree) -> int:
 	c.check("本番の hint:few は無い（中身Z：3日目の仮のDMを外した）", not all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	c.check("2〜4日目のDMは本番の文（provisional なし。中身X・中身Z・中身AA）、5日目以降は仮の文（provisional）",
-		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 5)))
+	c.check("2〜5日目のDMは本番の文（provisional なし。中身X・中身Z・中身AA・中身AB）、6日目以降は仮の文（provisional）",
+		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 6)))
 	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
 		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
 			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))
@@ -214,7 +214,7 @@ func run(t: SceneTree) -> int:
 		int(seer.previous_day_record()["planned_cups"]) == 11 and str(talk[1]["text"]).contains("11杯"))
 	seer.free()
 	# 組み立て：クズ野菜ベースの日は会話を入れない。通常の日は PREP_TIER の直前
-	_state(5, 30)   # 中身X・中身Z・中身AA：2〜4日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは5日目で確かめる
+	_state(6, 30)   # 中身X・中身Z・中身AA・中身AB：2〜5日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは6日目で確かめる
 	var normal := Day1Events.prep_events({}, false)
 	c.check("通常の日：食肉売場のあと PREP_TIER の直前に会話が並ぶ",
 		str(normal[normal.size() - 1]["type"]) == "PREP_TIER" and str(normal[normal.size() - 2]["part"]) == "prep_talk")

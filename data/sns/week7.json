@@ -1,7 +1,7 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。",
-  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 中身AB：5日目_タイムライン.md の24件（新しいアカウントは無い）を足した。",
+  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md・planning/scenario/day5/5日目_タイムライン.md",
   "accounts": {
 	"after_shift": {
 	  "name": "夜勤あけ",
@@ -1245,6 +1245,213 @@
 	  "text": "宿への道順の写真、角に停まってた荷車を目印にしてた。今日いない。階段の手すりまで写して撮り直した。",
 	  "provisional": false,
 	  "truth": "安宿の受付。道順の写真の目印にしていた荷車が、今日はいない。置かれる物が日ごとに変わる。"
+	},
+	{
+	  "id": "d5_east_news_0700",
+	  "account": "east_news",
+	  "day": 5,
+	  "time": "07:00",
+	  "text": "港湾の迂回先で受け入れ待ち。旧倉庫への搬入が続く。一部の取引先には、発注窓口の変更通知も。",
+	  "provisional": false,
+	  "truth": "ニュース1・2本目と同じ。"
+	},
+	{
+	  "id": "d5_commute_40_0735",
+	  "account": "commute_40",
+	  "day": 5,
+	  "time": "07:35",
+	  "text": "「混雑を避ける経路」を選んだ人と、同じ細い階段で待ってる。みんな考えることは似てる。補助脚でも列は飛ばせない。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_celine_view_0805",
+	  "account": "celine_view",
+	  "day": 5,
+	  "time": "08:05",
+	  "text": "港の景色、灯りを減らしたら管理用の注意まで暗くなった。表示は重ねてあるだけだと思ってた。別々に変えられないらしい。",
+	  "provisional": false,
+	  "truth": "上の街。4日目に港の景色の灯りを半分にしたら、管理用の注意まで暗くなった。見たい物だけ減らすことはできない。"
+	},
+	{
+	  "id": "d5_min_0840",
+	  "account": "min",
+	  "day": 5,
+	  "time": "08:40",
+	  "text": "音声入力を止めて、一文字だけ送った。「済」。今日は機械より先に、俺の返事が届いた。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_ayu_0920",
+	  "account": "ayu",
+	  "day": 5,
+	  "time": "09:20",
+	  "text": "取り置きの箱に名前を大きく書いた。野菜の名前より、お客さんの名前が目立つ売り場になった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_han_repairs_1010",
+	  "account": "han_repairs",
+	  "day": 5,
+	  "time": "10:10",
+	  "text": "見積もりだけの相談もどうぞ。部品を注文する前に、取り付けと調整を含めた額を出します。「部品がある」と「今日直る」は別です。",
+	  "provisional": false,
+	  "truth": "「部品がある」と「今日直る」は別＝阿強の端子、雑貨屋の留め具と同じ世界。"
+	},
+	{
+	  "id": "d5_shiwei_1100",
+	  "account": "shiwei",
+	  "day": 5,
+	  "time": "11:00",
+	  "text": "空箱、重なる型と重ならない型があります。上から撮った写真だけだと全部同じ顔なので、横もください。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_anne_life_1145",
+	  "account": "anne_life",
+	  "day": 5,
+	  "time": "11:45",
+	  "text": "改造なしの一週間、五日目。隣の方とパンのお返しが続いている。今日は空の皿を返して、一緒にお茶を飲んだ。言葉が少ないと、お茶はよく減る。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_face_savings_1230",
+	  "account": "face_savings",
+	  "day": 5,
+	  "time": "12:30",
+	  "text": "雨漏りは直った。残高も左右同じになった。鏡を見る前に、両方の口座を見る癖がついた。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_ren_design_1315",
+	  "account": "ren_design",
+	  "day": 5,
+	  "time": "13:15",
+	  "text": "靴の受け取りが延びたので、古い一足で外へ出た。こっちの方が歩ける場所が多い。新品を選んだときは、店の床しか歩いてなかった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_laundry_3_1410",
+	  "account": "laundry_3",
+	  "day": 5,
+	  "time": "14:10",
+	  "text": "記事を見て来た方へ。靴下を探すときは、もう片方もお持ちください。「右の足に合う方」だけだと、こちらにも難しいです。",
+	  "provisional": false,
+	  "truth": "ニュース5本目（靴下の棚）を読んで来た人への返事。街の洗濯場で、ホテルの夜番とは別。"
+	},
+	{
+	  "id": "d5_lin_alt_1500",
+	  "account": "lin_alt",
+	  "day": 5,
+	  "time": "15:00",
+	  "text": "QHZ QDPH FDUJR QRW KHOG. DV LQVWUXFWHG. WRPRUURZ QLJKW SDWURO: ROG ZDUHKRXVH VLGH GURSSHG. QR UHDVRQ JLYHQ.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「NEW NAME CARGO NOT HELD. AS INSTRUCTED. TOMORROW NIGHT PATROL: OLD WAREHOUSE SIDE DROPPED. NO REASON GIVEN.」＝「新しい名義の荷は留め置かず。指示どおり。明日の夜の巡回から、旧倉庫側が外れた。理由は示されず。」。前半は3・4日目の続き。後半が新しい。誰が外したのか（警察の人繰りか、誰かの手配か）は書かない。リン自身も理由を知らない。"
+	},
+	{
+	  "id": "d5_dock_b_1620",
+	  "account": "dock_b",
+	  "day": 5,
+	  "time": "16:20",
+	  "text": "「今日は呼ぶまで待て」が来た。何時まで待つのか聞いた。「連絡します」が来た。聞きたいことが、まだ残ってる。",
+	  "provisional": false,
+	  "truth": "港湾労働者B。「今日は呼ぶまで待て」。明け方に来るBの話と同じ。来なかった晩でも成り立つ。"
+	},
+	{
+	  "id": "d5_back_shelf_1710",
+	  "account": "back_shelf",
+	  "day": 5,
+	  "time": "17:10",
+	  "text": "作業灯の留め具、寸法が合った。取りに来た人に現物も当ててもらって渡した。昨日より、小さい返事で済んだ。",
+	  "provisional": false,
+	  "truth": "雑貨屋の夜番。4日目の留め具の続き。品物を渡した所まで。取り付けの出来は書かない。"
+	},
+	{
+	  "id": "d5_backdoor_1805",
+	  "account": "backdoor",
+	  "day": 5,
+	  "time": "18:05",
+	  "text": "入口と席で、勘定の説明を揃える話をしてる。揃う前に営業の時間が来る。先におしぼりを出す手だけは、揃ってる。",
+	  "provisional": false,
+	  "truth": "セティヤの店。勘定の説明をそろえる話。結論はまだ出ていない。"
+	},
+	{
+	  "id": "d5_cold_noodle_1845",
+	  "account": "cold_noodle",
+	  "day": 5,
+	  "time": "18:45",
+	  "text": "空の荷台を見せたあと、空の荷台の写真を送った。帰っていい返事を待つ間に、荷台の写真が二枚増えた。",
+	  "provisional": false,
+	  "truth": "長距離運転手。空の荷台の写真を足さないと仕事が終わらない（4日目の張姐の話の続き）。"
+	},
+	{
+	  "id": "d5_rex_1930",
+	  "account": "rex",
+	  "day": 5,
+	  "time": "19:30",
+	  "text": "店の子に、瓶を開けるときは先に布で包んでと言われた。俺の手より、瓶の方を心配してた。そりゃそうか。",
+	  "provisional": false,
+	  "truth": "レックス。今日は来ない。店の子に瓶の開け方を教わる。兄貴分の話はしない。"
+	},
+	{
+	  "id": "d5_two_hours_2010",
+	  "account": "two_hours",
+	  "day": 5,
+	  "time": "20:10",
+	  "text": "お客の好きな飲み方は覚えてる。今日はそれとは別に、勘定の話を先に聞く。最初の一杯まで、いつもより言葉が要る。",
+	  "provisional": false,
+	  "truth": "セティヤの店。勘定の説明をそろえる話。結論はまだ出ていない。"
+	},
+	{
+	  "id": "d5_south_blocks_2055",
+	  "account": "south_blocks",
+	  "day": 5,
+	  "time": "20:55",
+	  "text": "荷車の車輪の音で目が覚める。昨日と同じ時刻だと思ったら、まだ寝ついてから少ししかたってなかった。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_passer1_2140",
+	  "account": "passer1",
+	  "day": 5,
+	  "time": "21:40",
+	  "text": "路地で向かいの人に道を譲った。その人も譲った。後ろの人が先に通った。ひとまず一人進んだので、よかったことにした。",
+	  "provisional": false
+	},
+	{
+	  "id": "d5_exposure_test_2215",
+	  "account": "exposure_test",
+	  "day": 5,
+	  "time": "22:15",
+	  "text": "昨日の映像、見返すたびに違う所を見る。最初は看板。その次は人。見たい所を探してると、最初に撮った理由を忘れそうになる。",
+	  "provisional": false,
+	  "truth": "ニカ。屋台に来る前の投稿。男の素性も、店主から聞いたことも書かない。「最初に撮った理由を忘れそうになる」＝6日目の前振り。"
+	},
+	{
+	  "id": "d5_akiang_2300",
+	  "account": "akiang",
+	  "day": 5,
+	  "time": "23:00",
+	  "text": "修理に使う分をよけてから、残りを見てる。車体の写真は変わらないのに、こっちの計算ばっかり変わる。",
+	  "provisional": false,
+	  "truth": "阿強。今日は来ない。ロードバイクはまだ買っていない。"
+	},
+	{
+	  "id": "d5_lin_alt_2335",
+	  "account": "lin_alt",
+	  "day": 5,
+	  "time": "23:35",
+	  "text": "PDUNHW UHDU URXWH FKHFN LQ SURJUHVV. VWDOO FRQWDFW WR FRQWLQXH.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「MARKET REAR ROUTE CHECK IN PROGRESS. STALL CONTACT TO CONTINUE.」＝「市場裏の経路を確認中。屋台との接触を継続する。」。明け方に屋台へ来る前。このあと屋台で、店主に道を教える。"
+	},
+	{
+	  "id": "d5_desk_2350",
+	  "account": "desk",
+	  "day": 5,
+	  "time": "23:50",
+	  "text": "「起こす時刻が決まったら連絡する」と言って寝たお客がいる。目覚ましは預かった。何時に鳴らすかが、まだ来ない。",
+	  "provisional": false,
+	  "truth": "安宿の受付。「起こす時刻が決まったら連絡する」と言って寝た客。3日目の「二時間だけ寝たい」と対。寝る場所はあっても、起きる時刻を決める連絡が来ない。"
 	}
   ]
 }

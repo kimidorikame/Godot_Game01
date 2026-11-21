@@ -112,8 +112,12 @@ func run(t: SceneTree) -> int:
 	subs = _subjects(Dm.preview_items(3, []))
 	c.check("中身Z：3日目は阿強・セティヤの予告を出さない（その朝のDMが代わり。no_preview_days）・ニカも出ない", subs.is_empty(), str(subs))
 	_visited("streamer", 3)
+	_plan(6, ["hooker", "streamer", "thug"], [])
+	c.check("一度来たあとの日は、配信者の予告も出る（6日目で）", _subjects(Dm.preview_items(6, [])).has("streamer"))
 	_plan(5, ["hooker", "streamer", "officer"], [])
-	c.check("一度来たあとの日は、配信者の予告も出る", _subjects(Dm.preview_items(5, [])).has("streamer"))
+	_visited("hooker", 2)
+	_visited("officer", 2)
+	c.check("中身AB：5日目はセティヤ・ニカ・リンの予告を出さない（その朝のDMが代わり。no_preview_days）", _subjects(Dm.preview_items(5, [])).is_empty(), str(_subjects(Dm.preview_items(5, []))))
 	GameState.customer_memory.clear()
 	# Day1
 	GameState.reset_for_new_game()

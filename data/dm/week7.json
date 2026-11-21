@@ -37,10 +37,14 @@
 		"text": "今夜、明るくなる前に寄るよ。瓶はまだそのまま取っといておくれ。濡れてるうちは箱にしまわないでね。", "hint": "none", "provisional": false }
 	],
 	"5": [
-	  { "id": "d5_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:45",
-		"text": "明日は現場に近づくな", "hint": "none", "provisional": true },
-	  { "id": "d5_thug", "from": "レックス", "from_kind": "customer", "requires": { "customer": "thug" }, "time": "4:55",
-		"text": "この前の味、悪くなかった。……それだけだ", "hint": "none", "provisional": true }
+	  { "id": "d5_market", "from": "張姐", "from_kind": "npc", "time": "6:35",
+		"text": "骨は届いてるよ。今日は空箱を片づけながらだから、通りの真ん中に袋を置かないでね。呼べば出るから。", "hint": "none", "provisional": false },
+	  { "id": "d5_hooker", "from": "セティヤ", "from_kind": "customer", "requires": { "customer": "hooker" }, "time": "7:05",
+		"text": "今夜は出勤前に寄るわ。苦い方に戻してね。仕事の話をする前に、自分の夕飯を済ませたいの。", "hint": "none", "provisional": false },
+	  { "id": "d5_streamer", "from": "ニカ", "from_kind": "customer", "requires": { "customer": "streamer" }, "time": "7:35",
+		"text": "今夜、また食べに行く。昨日撮れたの、ちょっと見てもらいたい。今度は白い汁を冷ます前に食べる。たぶん。", "hint": "none", "provisional": false },
+	  { "id": "d5_officer", "from": "リン", "from_kind": "customer", "requires": { "customer": "officer" }, "time": "8:00",
+		"text": "今夜の勤務が終わったら寄ります。明るくなる前になると思います。前の酸っぱい汁を、もう一度お願いします。", "hint": "none", "provisional": false }
 	],
 	"6": [
 	  { "id": "d6_market", "from": "市場の顔なじみ", "from_kind": "npc", "time": "6:20",
@@ -61,11 +65,11 @@
 		"texts": ["……今夜、寄るかもしれん。それだけだ", "夜、顔を出す。たぶんな"] },
 	  "granny": { "from": "ターニャ婆", "from_kind": "customer", "no_preview_days": [4], "time": "4:30", "tag_hint": "", "provisional": false,
 		"texts": ["今夜あたり、寄らせてもらおうかね", "夜に顔を出すよ。待っておくれ"] },
-	  "officer": { "from": "新人警官", "from_kind": "customer", "no_preview_days": [4], "time": "4:55", "tag_hint": "", "provisional": false,
+	  "officer": { "from": "新人警官", "from_kind": "customer", "no_preview_days": [4, 5], "time": "4:55", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、巡回のあとに寄る予定です", "夜、顔を出すかもしれません。お邪魔でなければ"] },
-	  "hooker": { "from": "セティヤ", "from_kind": "customer", "no_preview_days": [3], "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
+	  "hooker": { "from": "セティヤ", "from_kind": "customer", "no_preview_days": [3, 5], "time": "4:45", "tag_hint": "", "provisional": false, "before_first_visit": true,
 		"texts": ["今夜、仕事が早く済んだら寄るわ", "夜、顔を出すかも。一杯だけね"] },
-	  "streamer": { "from": "配信者", "from_kind": "customer", "time": "4:35", "tag_hint": "", "provisional": false,
+	  "streamer": { "from": "配信者", "from_kind": "customer", "no_preview_days": [5], "time": "4:35", "tag_hint": "", "provisional": false,
 		"texts": ["今夜、配信の前に寄る予定です〜！", "夜、顔出すかもです！よろしく〜"] },
 	  "dock_workers": { "from": "港湾労働者の組", "from_kind": "mob", "time": "4:20", "tag_hint": "POWER", "provisional": false,
 		"texts": ["港の連中、夜に寄る予定だ。{hint}のつくもんを頼むぞ", "仕事のあと、顔を出すかもしれん。{hint}がつくやつを頼む"] },

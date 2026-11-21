@@ -163,8 +163,8 @@ func run(t: SceneTree) -> int:
 	c.check("Day2: MARKETより前に会話がある(officer talk挿入)", market_index >= 2, str(tail_day2))
 
 	# --- 8. 既存のprep_events()の先頭(傷み通知)は無改修で動く(回帰) ---
-	# 中身X・中身Z・中身AA：2〜4日目は市場の場面（張姐）があるので、食肉売場の文と会話（prep_talk）の並びは5日目で確かめる
-	GameState.day_count = 5
+	# 中身X・中身Z・中身AA・中身AB：2〜5日目は市場の場面（張姐）があるので、食肉売場の文と会話（prep_talk）の並びは6日目で確かめる
+	GameState.day_count = 6
 	var spoiled := { "tofu": { "count": 3, "value": 12 } }
 	var events: Array = Day1Events.prep_events(spoiled, false)
 	c.check("prep_eventsの先頭に破棄の一言が入る(既存動作の回帰)",

@@ -783,6 +783,7 @@ static func is_direction_line(line) -> bool:
 
 ## モブの行の配列のうち、杯数で出し分ける行（中身X）：{ "min_count": N, "line": "名前「…」" }＝組の杯数が N 以上のときだけ出す
 ## （2日目のモブの「仲間の分も頼む」の1行）。文字列の行はそのまま。形の違う要素はそのまま残す（spoken_lines が落とす）。
+## 中身AB：greet・spare_greet に加えて after_talk・spare_farewell にも置ける（Day1Events.mob_after_talk_events）。
 static func mob_lines_for_count(lines, count: int) -> Array:
 	var out := []
 	if lines is Array:

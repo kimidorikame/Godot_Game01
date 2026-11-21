@@ -848,15 +848,18 @@ static func _market_pay_events(mark: Dictionary, speaker: String, tier: Dictiona
 
 ## モブが椀を出したあとの会話（中身U1。その日だけの文 days.<日>.after_talk）。出した人数が1以上のときに
 ## PlaySession が最後の REACT の直後へ差し込む。モブでない・文が無い日は空配列。
+## 中身AB：after_talk の途中にも「2杯以上のときだけ」の行（{ min_count, line }）を置ける（挨拶と同じく組の杯数で選ぶ。
+## 5日目の港湾労働者の、食事の終わりの労働者Aの3行）。
 static func mob_after_talk_events(customer_id: String) -> Array:
 	var inst: Dictionary = GameState.today_plan.get("mob_instances", {}).get(customer_id, {})
 	if inst.is_empty():
 		return []
 	var mob := ScheduleData.mob_data_for_day(str(inst.get("type", "")), GameState.day_count)
+	var count := int(inst.get("count", 0))
 	# 中身Z2：同じ晩の同じ職種の2組目（予備の一言で来た組）は、その日の予備の退店の文（spare_farewell）があればそれ
 	if is_repeat_mob_group(customer_id) and mob.get("spare_farewell", []) is Array and not (mob.get("spare_farewell", []) as Array).is_empty():
-		return _scene_lines("body", customer_id, mob["spare_farewell"])
-	return _scene_lines("body", customer_id, mob.get("after_talk", []) if mob.get("after_talk", []) is Array else [])
+		return _scene_lines("body", customer_id, ScheduleData.mob_lines_for_count(mob["spare_farewell"], count))
+	return _scene_lines("body", customer_id, ScheduleData.mob_lines_for_count(mob.get("after_talk", []) if mob.get("after_talk", []) is Array else [], count))
 
 
 ## 提供後の列（DESIGN.md 10.5.3・10.8.6。システム整理C）。REACT の処理が済んだ後に DebugPanel が

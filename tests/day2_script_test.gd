@@ -128,8 +128,8 @@ func run(t: SceneTree) -> int:
 	var scraps := Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[0], true)
 	c.check("端材屋の日も新人警官の会話は出る（場面の会話は市場の解禁と無関係）",
 		scraps.filter(func(e): return str(e["type"]) == "GREET").map(func(e): return str(e["text"])) == ScheduleData.episode_market_talk("officer", "officer_01"))
-	GameState.day_count = 5   # 中身Z・中身AA：3日目・4日目は市場の場面（張姐・梁伯）を持つようになった
-	c.check("5日目は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
+	GameState.day_count = 6   # 中身Z・中身AA・中身AB：3〜5日目は市場の場面（張姐・梁伯）を持つようになった
+	c.check("6日目は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
 
 	# --- 3. モブの「2杯以上のときだけ」の1行 ---
 	for mob_id in mob_tags:
@@ -159,8 +159,8 @@ func run(t: SceneTree) -> int:
 	c.check("officer_01：REACT のあとに仮の行（「警官（提供後・共通会話）」など）を出さない（食後の本文が会計・退店まで持つ）",
 		str(officer_events.back()["type"]) == "REACT" and not officer_events.any(func(e): return str(e.get("text", "")).contains("（提供後"))
 			and str(Day1Events.after_serve_events("officer", "officer_01", { "served": true, "grade": "GOOD" }).back()["text"]) == "店主「仕事が終わってから言いな」")
-	GameState.day_count = 5   # 中身AA：officer_02 は本番の文になったので、仮の文の確かめは5日目の officer_03 で
-	c.check("仮の文の officer_03 は今までどおり（仮の行が出る）", Day1Events.customer_events("officer").any(func(e): return str(e.get("text", "")).contains("（提供後")))
+	GameState.day_count = 7   # 中身AA・中身AB：officer_02・officer_03 は本番の文になったので、仮の文の確かめは7日目の officer_04 で
+	c.check("仮の文の officer_04 は今までどおり（仮の行が出る）", Day1Events.customer_events("officer").any(func(e): return str(e.get("text", "")).contains("（提供後")))
 
 	# --- 5. 2日目を本番の画面で通す ---
 	ReadState.reset("user://test_read_day2_script.json")
