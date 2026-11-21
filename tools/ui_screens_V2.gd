@@ -1,6 +1,7 @@
 # UI準備V2（会話枠の行頭禁則・追い出し）のスクリーンショットを撮る（1280×720のPNG）。
 # ウィンドウありで起動する：godot --path . --resolution 1280x720 --script res://tools/ui_screens_V2.gd    → planning/ui_screens_V2/
-# 撮るもの：UI準備V の報告にあった9か所のうち2つ（阿強「…こいつが置いてあんの」」・労働者B「…班についてる！」」）。
+# 撮るもの：UI準備V の報告にあった9か所のうち1つ（労働者B「…班についてる！」」）。
+# 阿強「…こいつが置いてあんの」」の1枚は、2026-11-19 の台本の書き直しでその行が1日目から無くなったので外した（前に撮った 01 の画像は残してある）。
 extends SceneTree
 
 var out_dir := "res://planning/ui_screens_V2"
@@ -26,8 +27,6 @@ func _initialize() -> void:
 	play = load("res://tests/ui_autoplay.gd").new(ui)
 	var s = ui.session
 	var text_is := func(t: String): return str(s.current_line().get("speaker_name", "")) + str(s.current_line().get("text", "")) == t
-	await _until(func(): return text_is.call("阿強「俺が探してるの覚えててさ。『あったよ』って写真が来たんだよ。缶と瓶の真ん中に、こいつが置いてあんの」"))
-	await _shot("01_akiang_okiteannno", "阿強「…こいつが置いてあんの」」：「の」を連れて次の行へ（行の頭に「」」が来ない）")
 	await _until(func(): return text_is.call("労働者B「お、残業の明細来た。八番の荷、ちゃんとうちの班についてる！」"))
 	await _shot("02_dock_b_tsuiteru", "労働者B「…班についてる！」」：「る」を連れて次の行へ（行の頭に「！」が来ない）")
 	print("UI_SCREENS_DONE %d" % shots.size())
