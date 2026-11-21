@@ -1,0 +1,2 @@
+# 中身AD・UI準備AD のスクリーンショット（tools/ui_screens_AD.gd が書き出す）
+06b_fire_line_no_guard.png  火事の場面：夜勤警備員が来なかった晩の店主の1行

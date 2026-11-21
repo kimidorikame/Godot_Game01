@@ -1,0 +1,18 @@
+# 中身AD・UI準備AD のスクリーンショット（tools/ui_screens_AD.gd が書き出す）
+01_zhang.png  6日目の市場：張姐（仕込む量を選んだあと）
+02_liang.png  6日目の市場を出るとき：梁伯（慌てて答えを一つにするな）
+03_setiya.png  6日目の宵の口：セティヤ（ツケの話）
+04_nika_dates.png  6日目の夜半：ニカ（公開依頼と日付）
+05_fire_start.png  明け方の始め：火事の場面の始め
+06a_fire_line_guard.png  火事の場面：夜勤警備員が来た晩の店主の1行
+07_show_news.png  速報の行（02:12）
+08_show_dm_zhang.png  張姐の DM の行（名前の札に「（DM）」）
+09_show_dm_forward.png  転送の行（03:05。ニカの投稿の全文。1ページ目）
+09b_show_dm_forward_p2.png  転送の行（2ページ目）
+09c_show_dm_forward_p3.png  転送の行（3ページ目。写真の説明）
+10_rex_brother.png  明け方：レックス（兄貴分）
+11_cleaner.png  明け方：夜間清掃員（火事のあと）
+12_before_close.png  閉店の前の場面
+13_phone_dm.png  閉店のあとのスマホ：DM の一覧（火事のあとの DM）
+14_phone_news.png  閉店のあとのスマホ：ニュースの一覧（速報 02:55・02:12 が朝の記事より上）
+15_phone_timeline.png  閉店のあとのスマホ：タイムライン（火事のあとの投稿）
