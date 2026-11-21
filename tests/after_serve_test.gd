@@ -16,6 +16,11 @@ const GRADE_PICKS := {
 const STOCK := ["nam_prik_pao", "offal", "meat_ball", "coconut_milk", "tofu"]
 
 
+
+## 仮の文の場面（新しいキーを持たない場面）。中身AD：6日目の thug_03 も本番の文になったので、テストの中で差し込む（実データの日に頼らない）。
+const PLACEHOLDER_SCENE := { "id": "thug_03", "customer": "thug", "greet": ["チンピラ（まろやか・やさしい）"],
+	"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+
 func _scene(extra: Dictionary) -> Dictionary:
 	var ep := { "id": "thug_02", "customer": "thug", "greet": ["注文"], "servings": 1,
 		"reactions": {
@@ -100,9 +105,10 @@ func run(t: SceneTree) -> int:
 			str(next_event["type"]) == "GREET" and str(next_event["customer"]) == "thug")
 		panel.free()
 
-	# --- 2. 場面データにキーが無い（仮の文の場面）なら、従来と同一（何も差さない）。中身X：2日目の thug_02 は本番の文（body あり）に
-	#        なったので、仮の文のままの6日目（thug_03）で確かめる ---
+	# --- 2. 場面データにキーが無い（仮の文の場面）なら、従来と同一（何も差さない）。中身AD：6日目の thug_03 も本番の文になったので、
+	#        仮の場面をテストの中で差し込んで確かめる ---
 	ScheduleData.clear_cache()
+	ScheduleData._episode_cache["thug/thug_03"] = PLACEHOLDER_SCENE.duplicate(true)
 	var plain = _setup(t, 6)
 	var plain_before: int = plain.session.flow.runner.events.size()
 	_serve(plain, GRADE_PICKS["GOOD"])

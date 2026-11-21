@@ -52,10 +52,10 @@ func run(t: SceneTree) -> int:
 
 	# --- 0. 本番のデータ（中身U3：1日目_タイムライン.md の23件版） ---
 	c.check("本番のタイムラインに問題がない", Sns.problems().is_empty(), str(Sns.problems()))
-	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿124（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24。中身X・中身Z・中身AA・中身AB。Day6 は火事のあとの仮の3件だけ＝UI準備AC）。7日目の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 124
+	c.check("本番：アカウント32（1日目21＋2日目7＋3日目4。4・5日目は新しいアカウント無し）・投稿152（Day1 23・Day2 26・Day3 24・Day4 24・Day5 24・Day6 31。中身X・中身Z・中身AA・中身AB・中身AD）。7日目の投稿はまだ無い", Sns.accounts().size() == 32 and Sns.posts().size() == 152
 		and Sns.posts().filter(func(x): return int(x["day"]) == 1).size() == 23 and Sns.posts().filter(func(x): return int(x["day"]) == 2).size() == 26
 		and Sns.posts().filter(func(x): return int(x["day"]) == 3).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 4).size() == 24
-		and Sns.posts().filter(func(x): return int(x["day"]) == 5).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 6).size() == 3
+		and Sns.posts().filter(func(x): return int(x["day"]) == 5).size() == 24 and Sns.posts().filter(func(x): return int(x["day"]) == 6).size() == 31
 			and not Sns.posts().any(func(x): return int(x["day"]) >= 7),
 		"%d / %d" % [Sns.accounts().size(), Sns.posts().size()])
 	var used := {}
@@ -73,11 +73,11 @@ func run(t: SceneTree) -> int:
 	var real_by_id := {}
 	for x in Sns.posts():
 		real_by_id[str(x["id"])] = x
-	c.check("本番：返信は3件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目）・写真は7件（3日目・4日目に2件ずつ）・裏アカの原文と意味は truth に",
+	c.check("本番：返信は5件（17:35→17:20 の K4172、21:52→21:40 の荷役、2日目 17:35→17:10 の継ぎ目、6日目 02:47・03:25→02:42 のニカ）・写真は8件（6日目のニカの 02:42 を足した）・裏アカの原文と意味は truth に",
 		str(real_by_id["d1_passer1_1735"]["reply_to"]) == "d1_akiang_1720" and str(real_by_id["d1_dock_a_2152"]["reply_to"]) == "d1_dock_b_2140"
 			and str(real_by_id["d2_passer1_1735"]["reply_to"]) == "d2_rex_1710"
-			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 3
-			and Sns.posts().filter(func(x): return x.has("photo")).size() == 7
+			and Sns.posts().filter(func(x): return x.has("reply_to")).size() == 5
+			and Sns.posts().filter(func(x): return x.has("photo")).size() == 8
 			and str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("ARRIVED. DUTY STARTS TOMORROW.")
 			and not str(real_by_id["d1_lin_alt_2350"]["truth"]).contains("スパイはいない"))
 	# --- 0b. 2日目（中身X：2日目_タイムライン.md の26件）の確かめ a〜e ---
@@ -208,6 +208,39 @@ func run(t: SceneTree) -> int:
 			and not day5.any(func(x): return x.has("requires")))
 	c.check("5日目：リンの 23:35 は夜半に見える（明け方のリンの接客より前でよい。時刻の決まりだけ）",
 		not Sns.is_visible(lin5[1], 5, Sns.LIMIT_EVENING) and Sns.is_visible(lin5[1], 5, Sns.LIMIT_MIDNIGHT))
+	# --- 0f. 6日目（中身AD：6日目_タイムライン.md の31件）の確かめ a〜e ---
+	var day6 := Sns.posts().filter(func(x): return int(x["day"]) == 6)
+	c.check("6日目 a：新しいアカウントは無く、投稿のアカウントはどれもある（1〜3日目のアカウントだけ）・投稿の id は重ならない",
+		Sns.accounts().size() == 32 and day6.all(func(x): return Sns.accounts().has(str(x["account"]))) and real_by_id.size() == Sns.posts().size())
+	var nika242: Dictionary = real_by_id.get("d6_exposure_test_0242", {})
+	c.check("6日目 b：返信は2件（荷役 02:47・ニカ 03:25 → ニカ 02:42）で、返信先の時刻が前。写真はニカの 02:42 の1件",
+		day6.filter(func(x): return x.has("reply_to")).map(func(x): return "%s>%s" % [x["id"], x["reply_to"]]) == ["d6_dock_b_0247>d6_exposure_test_0242", "d6_exposure_test_0325>d6_exposure_test_0242"]
+			and day6.filter(func(x): return x.has("photo")).map(func(x): return str(x["id"])) == ["d6_exposure_test_0242"],
+		str(day6.filter(func(x): return x.has("reply_to")).map(func(x): return x["id"])))
+	c.check("6日目 c：時刻は HH:MM（23:59 まで。深夜は 02:05〜04:50）", day6.all(func(x): return Sns.minutes(str(x["time"])) >= 0 and str(x["time"]).length() == 5))
+	var pairs6 := {}
+	for x in day6:
+		pairs6["%s %s" % [x["time"], x["account"]]] = true
+	c.check("6日目 d：同じ時刻・同じアカウントの投稿は重ならない", pairs6.size() == day6.size())
+	var count6 := func(lo: int, hi: int) -> int: return day6.filter(func(x): return Sns.day_minutes(str(x["time"])) >= lo and Sns.day_minutes(str(x["time"])) <= hi).size()
+	c.check("6日目 e：件数 朝4／市場・準備6／宵の口4／夜半3／火事のあと（明け方の時刻）14／合計31",
+		count6.call(0, Sns.LIMIT_MORNING) == 4 and count6.call(Sns.LIMIT_MORNING + 1, Sns.LIMIT_MARKET) == 6
+			and count6.call(Sns.LIMIT_MARKET + 1, Sns.LIMIT_EVENING) == 4 and count6.call(Sns.LIMIT_EVENING + 1, Sns.LIMIT_MIDNIGHT) == 3
+			and count6.call(Sns.LIMIT_MIDNIGHT + 1, Sns.LIMIT_DAY_END) == 14 and day6.size() == 31)
+	var after6 := day6.filter(func(x): return x.has("requires"))
+	c.check("6日目：火事のあとの14件（02:05〜04:50）だけが requires.after_event（d6_fire）。火事の前の投稿に条件は無い",
+		after6.size() == 14 and after6.all(func(x): return x["requires"] == { "after_event": "d6_fire" } and Sns.day_minutes(str(x["time"])) > Sns.LIMIT_MIDNIGHT)
+			and day6.filter(func(x): return not x.has("requires")).all(func(x): return Sns.day_minutes(str(x["time"])) <= Sns.LIMIT_MIDNIGHT))
+	var lin6 := day6.filter(func(x): return str(x["account"]) == "lin_alt")
+	c.check("6日目：リンの「・」は3件（15:30・03:10・04:15）。暗号文は原文を3文字ずらしたもの・truth は「誰かへの報告」で、報告先・組織の名前は書かない",
+		lin6.map(func(x): return str(x["time"])) == ["15:30", "03:10", "04:15"]
+			and str(lin6[0]["text"]) == _shift3("GAVE STALL OWNER A CART ROUTE. HE TRUSTS THE MAP NOW. UPPER GATE PREPARATION OBSERVED. OPENING TIME UNCONFIRMED.")
+			and str(lin6[1]["text"]) == _shift3("FIRE AT OLD WAREHOUSE. NO ADVANCE NOTICE RECEIVED. PATROL WAS OFF THAT SIDE. DID YOU DO THIS?")
+			and str(lin6[2]["text"]) == _shift3("NO REPLY. WHARF CLOSED. ROUTE REPORT PENDING.")
+			and lin6.all(func(x): return str(x["truth"]).contains("誰かへの報告") and not str(x["truth"]).contains("新興")))
+	c.check("6日目：火事のあとの投稿は、明け方の時刻でも火事の場面が済むまで見えない。済んだら見える。次の日の朝は条件なし",
+		not after6.any(func(x): return Sns.is_visible(x, 6, Sns.LIMIT_DAY_END)) and after6.all(func(x): return Sns.is_visible(x, 6, Sns.LIMIT_DAY_END, [], [], ["d6_fire"]))
+			and after6.all(func(x): return Sns.is_visible(x, 7, Sns.LIMIT_MORNING)))
 	var broken_visit: Dictionary = (Sns.data() as Dictionary).duplicate(true)
 	(broken_visit["posts"] as Array)[0]["requires"] = { "visited": "no_such_customer" }
 	c.check("requires.visited の客が無いと落ちる", not Sns.problems(broken_visit).is_empty())

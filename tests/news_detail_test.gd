@@ -62,7 +62,7 @@ func run(t: SceneTree) -> int:
 	root.close_overlay()
 	GameState.day_count = 7
 	root.open_phone("news")
-	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1〜4 は4本＝中身U1・中身X・中身Z・中身AA。Day5 は5本＝中身AB。Day6 は朝の1本と火事のあとの速報1本＝UI準備AC）", _rows(content).size() == 25 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
+	c.check("Day7 の一覧：7日分の見出しが全部（同じ日の2本も。Day1〜4 は4本＝中身U1・中身X・中身Z・中身AA。Day5 は5本＝中身AB。Day6 は朝の4本と火事のあとの速報2本＝中身AD）", _rows(content).size() == 29 and _rows(content)[0] == "d7_official" and _rows(content)[1] == "d7_unresolved", str(_rows(content)))
 	_press(content.get_node("NewsRow_d7_unresolved"))
 	var long: Dictionary = News.day_entry(7)["news"][1]
 	labels = _texts(content)

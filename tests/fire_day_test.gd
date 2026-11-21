@@ -68,22 +68,25 @@ func run(t: SceneTree) -> int:
 	c.check("火災の場面のあと：張姐 02:18・梁伯 02:26 が届く（03:05 は明け方の始め d6_dawn のあと、04:55 は閉店の前 d6_close のあと）",
 		after_fire.has("d6_zhang_0218") and after_fire.has("d6_liang_0226") and not after_fire.has("d6_dock_0305") and not after_fire.has("d6_zhang_0455"), str(after_fire))
 	var all_played := _ids(Dm.inbox(6, {}, ["d6_fire", "d6_fire_news", "d6_dawn", "d6_close"]))
-	c.check("4件とも再生したあと：夜のDM4件が届き、新しい順（04:55 → 03:05 → 02:26 → 02:18 → 朝の 6:20）",
-		all_played.slice(0, 5) == ["d6_zhang_0455", "d6_dock_0305", "d6_liang_0226", "d6_zhang_0218", "d6_market"], str(all_played))
+	c.check("4件とも再生したあと：夜のDM（会っていない客の分を除く）が新しい順に届き、そのあとに朝のDM（04:55 → 03:40 → 03:12 → 03:05 → 02:26 → 02:20 → 02:18 → 朝の 6:35）",
+		all_played.slice(0, 8) == ["d6_zhang_0455", "d6_hai_0340", "d6_dock_0312", "d6_dock_0305", "d6_liang_0226", "d6_zhang_0220", "d6_zhang_0218", "d6_market"], str(all_played))
 	GameState.day_count = 7
 	var day7_inbox := Dm.inbox(7).filter(func(x): return int(x["day"]) == 6)
 	c.check("次の日（7日目）：6日目の夜のDMは条件なしに残る", night_ids.all(func(id): return _ids(day7_inbox).has(id)))
 	GameState.day_count = 6
-	c.check("速報：場面の前は一覧に無く、火災の場面のあとは朝の記事より上に出る。次の日は条件なし",
-		not _ids(News.visible_news(6, 6, [])).has("d6_flash_fire") and _ids(News.visible_news(6, 6, ["d6_fire"])) == ["d6_flash_fire", "d6_forced"]
-			and _ids(News.visible_news(6, 7, [])) == ["d6_flash_fire", "d6_forced"])
+	var morning6 := _ids(News.visible_news(6, 6, []))
+	c.check("速報：場面の前は一覧に無く、火災の場面のあとは朝の記事より上に、時刻の新しい順（02:55 → 02:12）で出る。次の日は条件なし",
+		not morning6.has("d6_flash_fire") and morning6.size() == 4
+			and _ids(News.visible_news(6, 6, ["d6_fire"])) == ["d6_flash_fire"] + morning6
+			and _ids(News.visible_news(6, 6, ["d6_fire", "d6_dawn"])) == ["d6_flash_closure", "d6_flash_fire"] + morning6
+			and _ids(News.visible_news(6, 7, [])) == ["d6_flash_closure", "d6_flash_fire"] + morning6)
 	c.check("速報は朝の語り（morning_events）に出ない・must_info を持たない",
 		not News.morning_events(6).any(func(e): return str(e["text"]).contains("速報")) and (News.news_by_id(6, "d6_flash_fire")["must_info"] as Array).is_empty())
-	var after_posts := ["d6_east_news_0223", "d6_exposure_test_0250", "d6_desk_0430"]
+	var after_posts: Array = Sns.posts().filter(func(x): return int(x["day"]) == 6 and (x.get("requires", {}) as Dictionary).has("after_event")).map(func(x): return str(x["id"]))
 	var vis_before := Sns.visible_ids(6, Sns.LIMIT_DAY_END)
 	var vis_after := Sns.visible_ids(6, Sns.LIMIT_DAY_END, {}, [], [], ["d6_fire"])
-	c.check("投稿：火事のあとの3件は、明け方の時刻でも場面の前は見えず、場面のあとは見える。次の日は条件なし",
-		not after_posts.any(func(id): return vis_before.has(id)) and after_posts.all(func(id): return vis_after.has(id))
+	c.check("投稿：火事のあとの %d 件は、明け方の時刻でも場面の前は見えず、場面のあとは見える。次の日は条件なし" % after_posts.size(),
+		after_posts.size() == 14 and not after_posts.any(func(id): return vis_before.has(id)) and after_posts.all(func(id): return vis_after.has(id))
 			and after_posts.all(func(id): return Sns.visible_ids(7, Sns.LIMIT_MORNING).has(id)))
 	c.check("投稿：場面のあとでも、見える時刻の決まりはそのまま（夜半の上限 00:59 では 02:23 以降は見えない）",
 		not after_posts.any(func(id): return Sns.visible_ids(6, Sns.LIMIT_MIDNIGHT, {}, [], [], ["d6_fire"]).has(id)))
@@ -128,7 +131,7 @@ func run(t: SceneTree) -> int:
 	var panel = load("res://scenes/debug_panel.tscn").instantiate()
 	t.root.add_child(panel)
 	panel.session.flow.force_phase(GameState.Phase.CLOSE)   # 客0人の晩：火災の場面から閉店の前まで、閉店の前に取り戻す
-	var dm_keys := ["d6_zhang_0218", "d6_dock_0305", "d6_zhang_0455"]
+	var dm_keys := ["d6_zhang_0218", "d6_zhang_0220", "d6_dock_0305", "d6_dock_0312", "d6_zhang_0455"]
 	c.check("（前提）場面を再生した：夜のDMが届いて、未読（会話枠に出す前）", dm_keys.all(func(id): return _ids(panel.session.dm_inbox()).has(id))
 		and dm_keys.all(func(id): return not ReadState.is_read(panel.session._dm_read_key({ "id": id }))))
 	var unread_before: int = panel.session.dm_unread_count()
@@ -137,11 +140,12 @@ func run(t: SceneTree) -> int:
 		guard += 1
 		panel.session.record_visible_event()
 		panel.session.flow.runner.advance()
-	c.check("会話枠に出した DM（張姐 02:18・転送 03:05・張姐 04:55）は既読になる。出していない梁伯 02:26 は未読のまま",
+	c.check("会話枠に出した DM（張姐 02:18・02:20・転送 03:05・03:12・張姐 04:55）は既読になる。出していない梁伯 02:26 は未読のまま",
 		dm_keys.all(func(id): return ReadState.is_read(panel.session._dm_read_key({ "id": id })))
-			and not ReadState.is_read(panel.session._dm_read_key({ "id": "d6_liang_0226" })) and panel.session.dm_unread_count() == unread_before - 3)
+			and not ReadState.is_read(panel.session._dm_read_key({ "id": "d6_liang_0226" })) and panel.session.dm_unread_count() == unread_before - 5)
 	var phone_news: Array = panel.session.phone_news()
-	c.check("スマホのニュース：今日の欄の先頭に速報（flash・時刻 02:12）", bool(phone_news[0]["news"][0]["flash"]) and str(phone_news[0]["news"][0]["time"]) == "02:12")
+	c.check("スマホのニュース：今日の欄の先頭に速報2本（flash・時刻 02:55 → 02:12）",
+		bool(phone_news[0]["news"][0]["flash"]) and str(phone_news[0]["news"][0]["time"]) == "02:55" and str(phone_news[0]["news"][1]["time"]) == "02:12")
 	panel.free()
 
 	# --- 6. データの検査 ---
@@ -149,7 +153,9 @@ func run(t: SceneTree) -> int:
 		str(News.problems()) + str(Dm.problems()) + str(Sns.problems()))
 	var bad_news: Dictionary = News.data().duplicate(true)
 	(bad_news["days"]["6"]["events"][1]["lines"] as Array).append({ "show_dm": "no_such_dm" })
-	(bad_news["days"]["6"]["news"][1] as Dictionary)["must_info"] = ["warehouse_fire"]
+	for item in bad_news["days"]["6"]["news"]:
+		if str(item["id"]) == "d6_flash_fire":
+			(item as Dictionary)["must_info"] = ["warehouse_fire"]
 	(bad_news["days"]["6"]["events"][0]["lines"] as Array).append({ "show_photo": "x" })
 	var news_problems := News.problems(bad_news)
 	c.check("ニュースの検査：無い DM の show_dm・速報の must_info・知らない形の行を弾く",

@@ -163,8 +163,9 @@ func run(t: SceneTree) -> int:
 	c.check("Day2: MARKETより前に会話がある(officer talk挿入)", market_index >= 2, str(tail_day2))
 
 	# --- 8. 既存のprep_events()の先頭(傷み通知)は無改修で動く(回帰) ---
-	# 中身X・中身Z・中身AA・中身AB：2〜5日目は市場の場面（張姐）があるので、食肉売場の文と会話（prep_talk）の並びは6日目で確かめる
+	# 中身AD：2〜6日目は市場の場面（張姐）があるので、食肉売場の文と会話（prep_talk）の並びは、市場の場面を外した日（テストの中で差し込む）で確かめる
 	GameState.day_count = 6
+	_without_market_scene(6)
 	var spoiled := { "tofu": { "count": 3, "value": 12 } }
 	var events: Array = Day1Events.prep_events(spoiled, false)
 	c.check("prep_eventsの先頭に破棄の一言が入る(既存動作の回帰)",
@@ -175,6 +176,16 @@ func run(t: SceneTree) -> int:
 			and str(events.back().get("type", "")) == "PREP_TIER" and events.size() >= 4
 			and events.slice(2, events.size() - 1).all(func(e): return str(e.get("part", "")) == "prep_talk"),
 		str(events))
+	Rules._loaded = false
 
 	TestCheck.free_added(t, root_before)
 	return c.finish()
+
+
+## 中身AD：その日の市場の場面（day_overrides.<日>.market_scene）を外した「市場の場面が無い日」にする（テストの中だけ。キャンペーンのデータを差し替える）。
+## 元に戻すときは Rules._loaded = false（次に読むときにファイルから読み直す）。実データのどの日に市場の場面があるかに頼らない。
+func _without_market_scene(day: int) -> void:
+	Rules._ensure_loaded()
+	var overrides: Dictionary = Rules._cache.get("day_overrides", {})
+	if overrides.get(str(day)) is Dictionary:
+		(overrides[str(day)] as Dictionary).erase("market_scene")

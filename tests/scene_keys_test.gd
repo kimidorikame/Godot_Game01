@@ -5,6 +5,11 @@ extends RefCounted
 ## 既存の21場面はこれらのキーを持たず、customer_events は従来と同一（episode_data_test の記録照合）。
 
 
+
+## 仮の文の場面（新しいキーを持たない場面）。中身AD：6日目の thug_03 も本番の文になったので、テストの中で差し込む（実データの日に頼らない）。
+const PLACEHOLDER_SCENE := { "id": "thug_03", "customer": "thug", "greet": ["チンピラ（まろやか・やさしい）"],
+	"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+
 func _scene(extra: Dictionary) -> Dictionary:
 	var ep := { "id": "x_01", "customer": "x", "greet": ["g"], "reactions": {}, "servings": 1 }
 	ep.merge(extra, true)
@@ -34,12 +39,15 @@ func run(_t: SceneTree) -> int:
 	ScheduleData.clear_cache()
 
 	# --- 1. 読み口：キーが無い・形が不正なら「無い」と同じ（クラッシュしない） ---
-	c.check("実データ（仮の文の場面 thug_03）：どの読み口も空（新キーを持たない）",
+	# 中身AD：6日目の thug_03 も本番の文になったので、仮の場面をテストの中で差し込んで確かめる
+	ScheduleData._episode_cache["thug/thug_03"] = PLACEHOLDER_SCENE.duplicate(true)
+	c.check("仮の文の場面（差し込んだ thug_03）：どの読み口も空（新キーを持たない）",
 		ScheduleData.episode_pre_order("thug", "thug_03").is_empty()
 			and ScheduleData.episode_body("thug", "thug_03").is_empty()
 			and ScheduleData.episode_body_unserved("thug", "thug_03").is_empty()
 			and ScheduleData.episode_closing("thug", "thug_03").is_empty()
 			and ScheduleData.episode_must_info("thug", "thug_03").is_empty())
+	ScheduleData.clear_cache()
 	var day2_ok := true
 	for pair in [["thug", "thug_02"], ["officer", "officer_01"], ["hooker", "hooker_01"]]:
 		day2_ok = day2_ok and not ScheduleData.episode_body(pair[0], pair[1]).is_empty() and ScheduleData.episode_pre_order(pair[0], pair[1]).is_empty() \

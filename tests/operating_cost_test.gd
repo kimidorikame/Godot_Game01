@@ -41,7 +41,8 @@ func run(t: SceneTree) -> int:
 
 	# --- 1. 朝：払えるかだけを見る。運営費は支払い予定として確保（まだ引かない） ---
 	GameState.reset_for_new_game()
-	GameState.day_count = 6   # 中身Z・中身AA・中身AB：3〜5日目は市場を出るときの場面（梁伯）があるので、いつもの日の語りは6日目で確かめる
+	GameState.day_count = 6   # 中身AD：3〜6日目は市場を出るときの場面（梁伯）があるので、市場の場面を外した日（テストの中で差し込む）で確かめる
+	_without_market_scene(6)
 	var s := PlaySession.new()
 	t.root.add_child(s)
 	s.start()
@@ -71,6 +72,7 @@ func run(t: SceneTree) -> int:
 	var next_text := str(s.current_line().get("text", ""))
 	c.check("市場を出たあとの語り：「水を汲み、炭を買った（炭代−¥40・水代−¥35）。」（中身U2）", next_text == "水を汲み、炭を買った（炭代−¥40・水代−¥35）。", next_text)
 	s.free()
+	Rules._loaded = false
 
 	# --- 3. 払えないときは今までどおり朝のゲームオーバー（所持金は動かない） ---
 	GameState.reset_for_new_game()
@@ -170,3 +172,12 @@ func run(t: SceneTree) -> int:
 
 	GameState.reset_for_new_game()
 	return c.finish()
+
+
+## 中身AD：その日の市場の場面（day_overrides.<日>.market_scene）を外した「市場の場面が無い日」にする（テストの中だけ。キャンペーンのデータを差し替える）。
+## 元に戻すときは Rules._loaded = false（次に読むときにファイルから読み直す）。実データのどの日に市場の場面があるかに頼らない。
+func _without_market_scene(day: int) -> void:
+	Rules._ensure_loaded()
+	var overrides: Dictionary = Rules._cache.get("day_overrides", {})
+	if overrides.get(str(day)) is Dictionary:
+		(overrides[str(day)] as Dictionary).erase("market_scene")

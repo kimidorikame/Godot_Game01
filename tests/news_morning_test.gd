@@ -119,8 +119,12 @@ func run(t: SceneTree) -> int:
 	c.check("新しい日が上（Day4 → Day3 → Day2 → Day1）",
 		tab.find("◆今日（Day4）◆") < tab.find("◆Day3◆") and tab.find("◆Day3◆") < tab.find("◆Day2◆")
 			and tab.find("◆Day2◆") < tab.find("◆Day1◆"))
-	c.check("ニュースタブにDMは出さない（SNSタブへ移した）。1〜4日目は本番の文なので仮の印は付かない（6日目の仮の記事には付く。中身AA・中身AB）",
-		not tab.contains("DM（") and not tab.contains("【仮】") and not News.tab_text(5).contains("【仮】") and News.tab_text(6).contains("【仮】"))
+	# 中身AD：仮の記事の日を前提にしない形に。仮の印の付き方は、仮の記事を差し込んだデータ（テストの中で作る）で確かめる
+	var with_provisional: Dictionary = News.data().duplicate(true)
+	(with_provisional["days"]["5"]["news"] as Array).append({ "id": "test_provisional", "headline": "仮の記事", "body": ["x"], "must_info": [], "provisional": true })
+	c.check("ニュースタブにDMは出さない（SNSタブへ移した）。本番の文の日は仮の印が付かず、仮の記事には付く（差し込んだデータで）",
+		not tab.contains("DM（") and not tab.contains("【仮】") and not News.tab_text(5).contains("【仮】") and not News.tab_text(6).contains("【仮】")
+			and News.tab_text(5, [], with_provisional).contains("【仮】仮の記事"))
 	# 再挑戦で戻した朝より後の日は見えない
 	GameState.day_count = 6
 	p6.session.retry_from_morning(2)

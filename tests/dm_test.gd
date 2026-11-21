@@ -37,8 +37,9 @@ func run(t: SceneTree) -> int:
 	c.check("本番の hint:few は無い（中身Z：3日目の仮のDMを外した）", not all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	c.check("2〜5日目のDMは本番の文（provisional なし。中身X・中身Z・中身AA・中身AB）、6日目以降は仮の文（provisional）",
-		all_items.all(func(x): return bool(x.get("provisional", false)) == (int(x["day"]) >= 6)))
+	# 中身AD：仮の文の日を前提にしない形に。本番の文を入れた日（2〜6日目）の DM に provisional は無い（まだ仮の日が残っていれば、その日の分だけ仮）
+	c.check("本番の文を入れた日（2〜6日目）のDMに provisional は無い（中身X・中身Z・中身AA・中身AB・中身AD）",
+		all_items.filter(func(x): return int(x["day"]) <= 6).all(func(x): return not bool(x.get("provisional", false))))
 	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
 		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
 			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))
@@ -214,12 +215,14 @@ func run(t: SceneTree) -> int:
 		int(seer.previous_day_record()["planned_cups"]) == 11 and str(talk[1]["text"]).contains("11杯"))
 	seer.free()
 	# 組み立て：クズ野菜ベースの日は会話を入れない。通常の日は PREP_TIER の直前
-	_state(6, 30)   # 中身X・中身Z・中身AA・中身AB：2〜5日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは6日目で確かめる
+	_state(6, 30)   # 中身AD：2〜6日目は市場の場面（張姐）があるので、会話（prep_talk）の並びは、市場の場面を外した日（テストの中で差し込む）で確かめる
+	_without_market_scene(6)
 	var normal := Day1Events.prep_events({}, false)
 	c.check("通常の日：食肉売場のあと PREP_TIER の直前に会話が並ぶ",
 		str(normal[normal.size() - 1]["type"]) == "PREP_TIER" and str(normal[normal.size() - 2]["part"]) == "prep_talk")
 	var scraps := Day1Events.prep_events({}, true)
 	c.check("クズ野菜ベースの日（鍋の素を選ばない日）は会話を入れない", not scraps.any(func(e): return str(e.get("part", "")) == "prep_talk"))
+	Rules._loaded = false
 	return c.finish()
 
 
@@ -235,3 +238,12 @@ func _day_sorted_desc(items: Array) -> bool:
 		if int(items[i]["day"]) < int(items[i + 1]["day"]):
 			return false
 	return true
+
+
+## 中身AD：その日の市場の場面（day_overrides.<日>.market_scene）を外した「市場の場面が無い日」にする（テストの中だけ。キャンペーンのデータを差し替える）。
+## 元に戻すときは Rules._loaded = false（次に読むときにファイルから読み直す）。実データのどの日に市場の場面があるかに頼らない。
+func _without_market_scene(day: int) -> void:
+	Rules._ensure_loaded()
+	var overrides: Dictionary = Rules._cache.get("day_overrides", {})
+	if overrides.get(str(day)) is Dictionary:
+		(overrides[str(day)] as Dictionary).erase("market_scene")

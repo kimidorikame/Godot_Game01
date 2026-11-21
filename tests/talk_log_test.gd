@@ -8,6 +8,11 @@ extends RefCounted
 const STOCK := ["nam_prik_pao", "offal", "meat_ball", "coconut_milk", "tofu"]
 
 
+
+## 仮の文の場面（新しいキーを持たない場面）。中身AD：6日目の thug_03 も本番の文になったので、テストの中で差し込む（実データの日に頼らない）。
+const PLACEHOLDER_SCENE := { "id": "thug_03", "customer": "thug", "greet": ["チンピラ（まろやか・やさしい）"],
+	"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+
 func _setup(t: SceneTree, day: int = 2):
 	GameState.reset_for_new_game()
 	GameState.day_count = day
@@ -73,7 +78,10 @@ func run(t: SceneTree) -> int:
 	panel.free()
 
 	# --- 3. 客の接客：同じ客を何度組み直しても二重にならず、台詞の順に記録される ---
-	# 中身X：2日目のレックス（thug_02）は本番の文（最初の行は店主の台詞）になったので、仮の文のままの6日目（thug_03）で確かめる
+	# 中身X：2日目のレックス（thug_02）は本番の文（最初の行は店主の台詞）になったので、6日目（thug_03）で確かめる。
+	# 中身AD：6日目の thug_03 も本番の文になったので、仮の場面（最初の行がレックスの台詞）をテストの中で差し込む
+	ScheduleData.clear_cache()
+	ScheduleData._episode_cache["thug/thug_03"] = PLACEHOLDER_SCENE.duplicate(true)
 	var p3 = _setup(t, 6)
 	TalkLog.clear()
 	p3.session.logged_positions = {}

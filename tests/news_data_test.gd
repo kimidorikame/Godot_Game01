@@ -56,16 +56,16 @@ func run(_t: SceneTree) -> int:
 			truth_item = item
 	c.check("#9：複数の説を並べる（本文が3行以上）", (truth_item.get("body", []) as Array).size() >= 3)
 
-	# --- 3. 仮データの印：Day6〜7 の全項目に provisional が付いている（脚本で差し替える）。Day1〜5 は本番の文（中身U1・中身X・中身Z・中身AA・中身AB）で付かない ---
+	# --- 3. 仮データの印：Day7 の全項目に provisional が付いている（脚本で差し替える）。Day1〜6 は本番の文（中身U1・中身X・中身Z・中身AA・中身AB・中身AD）で付かない ---
 	var all_provisional := true
 	var any_items := 0
-	for day in range(6, 8):
+	for day in range(7, 8):
 		var entry := News.day_entry(day)
 		for kind in ["news", "events"]:
 			for item in entry[kind]:
 				any_items += 1
 				all_provisional = all_provisional and bool(item.get("provisional", false))
-	c.check("Day6〜7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
+	c.check("Day7 の全項目に provisional が付いている（%d件）" % any_items, all_provisional and any_items > 0)
 	var day4_news: Array = News.day_entry(4)["news"]
 	c.check("Day4 は本番の4本（4日目_ニュース.md。中身AA）：provisional なし・1本目は旧倉庫の見出しで must_info（old_warehouse_load。5段落）・ほかは4段落で必須情報なし・仮の d4_video は無い",
 		day4_news.size() == 4 and day4_news.all(func(i): return not bool(i.get("provisional", false)))

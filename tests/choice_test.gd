@@ -9,6 +9,11 @@ const STOCK := ["nam_prik_pao", "offal", "meat_ball", "coconut_milk", "tofu"]
 const GOOD_PICKS := ["coconut_milk", "tofu"]
 
 
+
+## 仮の文の場面（新しいキーを持たない場面）。中身AD：6日目の thug_03 も本番の文になったので、テストの中で差し込む（実データの日に頼らない）。
+const PLACEHOLDER_SCENE := { "id": "thug_03", "customer": "thug", "greet": ["チンピラ（まろやか・やさしい）"],
+	"reactions": { "GREAT": ["GREAT"], "GOOD": ["GOOD"], "OK": ["OK"], "BAD": ["BAD"] }, "servings": 1 }
+
 func _choice(id: String, key: String) -> Dictionary:
 	return { "id": id, "options": [
 		{ "id": "yes", "label": "預かる", "set": { key: true } },
@@ -208,12 +213,13 @@ func run(t: SceneTree) -> int:
 	c.check("CHOICEは options を持つので EventRunner が入力待ちにする（条件分岐はRunnerに無い）",
 		EventRunner.new([first[1]]).status == EventRunner.Status.WAITING_INPUT)
 
-	# --- 7. 選択の無い実データの場面は何も出ない（中身X：2日目の thug_02 は本文を持つようになったので、仮の文のままの6日目 thug_03 で） ---
+	# --- 7. 選択の無い場面は何も出ない（中身AD：6日目の thug_03 も本番の文になったので、仮の場面をテストの中で差し込んで確かめる） ---
 	ScheduleData.clear_cache()
+	ScheduleData._episode_cache["thug/thug_03"] = PLACEHOLDER_SCENE.duplicate(true)
 	var pr = _setup(t, 6)
 	var count_before: int = pr.session.flow.runner.events.size()
 	_serve(pr, GOOD_PICKS)
-	c.check("実データ：CHOICEは出ず、イベント列も変わらない",
+	c.check("選択の無い場面：CHOICEは出ず、イベント列も変わらない",
 		pr.session.flow.runner.events.size() == count_before and not pr.session.is_in_story_choice())
 	pr.free()
 

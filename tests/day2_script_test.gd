@@ -128,8 +128,11 @@ func run(t: SceneTree) -> int:
 	var scraps := Day1Events.prep_after_tier_events(Day1Events.PREP_TIERS[0], true)
 	c.check("端材屋の日も新人警官の会話は出る（場面の会話は市場の解禁と無関係）",
 		scraps.filter(func(e): return str(e["type"]) == "GREET").map(func(e): return str(e["text"])) == ScheduleData.episode_market_talk("officer", "officer_01"))
-	GameState.day_count = 6   # 中身Z・中身AA・中身AB：3〜5日目は市場の場面（張姐・梁伯）を持つようになった
-	c.check("6日目は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
+	# 中身AD：3〜6日目は市場の場面を持つようになったので、市場の場面を外した日（テストの中で差し込む）で確かめる
+	GameState.day_count = 6
+	_without_market_scene(6)
+	c.check("市場の場面の無い日は今までどおり（食肉売場へ来た・市場の場面なし）", not Day1Events.has_market_scene() and str(Day1Events.prep_events({}, false)[0]["text"]) == "食肉売場へ来た")
+	Rules._loaded = false
 
 	# --- 3. モブの「2杯以上のときだけ」の1行 ---
 	for mob_id in mob_tags:
@@ -301,3 +304,11 @@ func run(t: SceneTree) -> int:
 	TestCheck.free_added(t, root_before)
 	return c.finish()
 
+
+## 中身AD：その日の市場の場面（day_overrides.<日>.market_scene）を外した「市場の場面が無い日」にする（テストの中だけ。キャンペーンのデータを差し替える）。
+## 元に戻すときは Rules._loaded = false（次に読むときにファイルから読み直す）。実データのどの日に市場の場面があるかに頼らない。
+func _without_market_scene(day: int) -> void:
+	Rules._ensure_loaded()
+	var overrides: Dictionary = Rules._cache.get("day_overrides", {})
+	if overrides.get(str(day)) is Dictionary:
+		(overrides[str(day)] as Dictionary).erase("market_scene")

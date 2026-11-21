@@ -43,10 +43,12 @@ func run(t: SceneTree) -> int:
 	c.check("設定：上限3・モブ最大2・Day2から（データで変えられる）", int(cfg["max_per_morning"]) == 3 and int(cfg["mob_max"]) == 2 and int(cfg["first_day"]) == 2)
 
 	# --- 1. 選び方 ---（中身Z：3日目は阿強・セティヤの予告を出さない日〔no_preview_days〕になったので、選び方は6日目で確かめる。モブの回り方は3日目と同じ）
+	# 中身AD：6日目もセティヤ・ニカの予告を出さない日になったので、選び方の確かめは no_preview_days を外したデータ（free。テストの中で作る）で
+	var free := _without_no_preview_days(Dm.data())
 	GameState.reset_for_new_game()
 	GameState.day_count = 6
 	_plan(6, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
-	var items := Dm.preview_items(6, [])
+	var items := Dm.preview_items(6, [], free)
 	var subs := _subjects(items)
 	var mob_pick := ["dock_workers", "inn_clerk", "market_porter"]
 	c.check("上限3件・モブ2件が先・次に名前あり客1件", subs.size() == 3 and mob_pick.has(subs[0]) and mob_pick.has(subs[1]) and not mob_pick.has(subs[2]), str(subs))
@@ -57,22 +59,22 @@ func run(t: SceneTree) -> int:
 	_visited("granny", 1)
 	_visited("officer", 2)
 	_plan(6, ["hooker", "granny", "officer"], ["dock_workers"])
-	subs = _subjects(Dm.preview_items(6, []))
+	subs = _subjects(Dm.preview_items(6, [], free))
 	c.check("モブが1種類の日：モブ1件＋名前あり客で上限3まで（空いた分を埋める）", subs.size() == 3 and subs[0] == "dock_workers", str(subs))
 	_plan(6, ["hooker", "granny", "officer"], [])
-	subs = _subjects(Dm.preview_items(6, []))
+	subs = _subjects(Dm.preview_items(6, [], free))
 	c.check("モブが無い日：名前あり客3件", subs.size() == 3 and not subs.has("dock_workers"), str(subs))
 	_plan(6, ["hooker"], [])
-	c.check("計画が小さい日：計画にいる分だけ（嘘を足さない）", _subjects(Dm.preview_items(6, [])) == ["hooker"])
+	c.check("計画が小さい日：計画にいる分だけ（嘘を足さない）", _subjects(Dm.preview_items(6, [], free)) == ["hooker"])
 	# 好みが分かっている客を先に
 	GameState.customer_memory.clear()
 	_plan(6, ["hooker", "granny", "officer"], ["dock_workers", "inn_clerk", "market_porter"])
 	_visited("officer", 2)
-	subs = _subjects(Dm.preview_items(6, []))
+	subs = _subjects(Dm.preview_items(6, [], free))
 	c.check("名前あり客は、すでに来たことがある客（好みが分かっている）を先に", subs[2] == "officer", str(subs))
 	GameState.customer_memory.clear()
 	# 上限をデータで変える
-	var source: Dictionary = Dm.data().duplicate(true)
+	var source: Dictionary = free.duplicate(true)
 	source["previews"]["max_per_morning"] = 1
 	c.check("上限をデータで変えられる（1件）", _subjects(Dm.preview_items(6, [], source)).size() == 1)
 	source["previews"]["max_per_morning"] = 5
@@ -106,14 +108,14 @@ func run(t: SceneTree) -> int:
 		not subs.has("officer") and not subs.has("thug") and setiya.size() == 1 and str(setiya[0]["from"]) == "セティヤ", str(subs))
 	_plan(6, ["delivery_man", "streamer", "hooker"], [])
 	_visited("delivery_man", 1)
-	subs = _subjects(Dm.preview_items(6, []))
+	subs = _subjects(Dm.preview_items(6, [], free))
 	c.check("初来店の前のニカ（配信者）の予告は出ない（会ったことのある阿強・セティヤは出る。6日目で）", not subs.has("streamer") and subs.has("delivery_man") and subs.has("hooker"), str(subs))
 	_plan(3, ["delivery_man", "streamer", "hooker"], [])
 	subs = _subjects(Dm.preview_items(3, []))
 	c.check("中身Z：3日目は阿強・セティヤの予告を出さない（その朝のDMが代わり。no_preview_days）・ニカも出ない", subs.is_empty(), str(subs))
 	_visited("streamer", 3)
 	_plan(6, ["hooker", "streamer", "thug"], [])
-	c.check("一度来たあとの日は、配信者の予告も出る（6日目で）", _subjects(Dm.preview_items(6, [])).has("streamer"))
+	c.check("一度来たあとの日は、配信者の予告も出る（6日目で）", _subjects(Dm.preview_items(6, [], free)).has("streamer"))
 	_plan(5, ["hooker", "streamer", "officer"], [])
 	_visited("hooker", 2)
 	_visited("officer", 2)
@@ -155,7 +157,7 @@ func run(t: SceneTree) -> int:
 	GameState.day_records = [{ "day": 6, "opening_reputation": 40, "mob_types_served": [] }]
 	for id in ["hooker", "streamer", "thug"]:
 		_visited(id, 1)
-	var old := Dm.preview_items(6, [])
+	var old := Dm.preview_items(6, [], free)
 	c.check("旧セーブ（planned_* が無い日）：モブの予告は出さず、名前あり客は日程データから", old.all(func(x): return str(x["from_kind"]) == "customer") and not old.is_empty(), str(_subjects(old)))
 
 	# --- 4. 再挑戦・続きから（朝の封筒）で同じ内容 ---
@@ -251,3 +253,12 @@ func run(t: SceneTree) -> int:
 	root.queue_free()
 	GameState.reset_for_new_game()
 	return c.finish()
+
+
+## 中身AD：来店予告の no_preview_days（その朝のDMが予告の代わりの日）を全部外したDMのデータの写し。予告の選び方そのものを、
+## 実データのどの日が予告を出さない日かに頼らずに確かめるため。
+func _without_no_preview_days(d: Dictionary) -> Dictionary:
+	var out: Dictionary = d.duplicate(true)
+	for id in out["previews"]["pools"]:
+		(out["previews"]["pools"][id] as Dictionary).erase("no_preview_days")
+	return out

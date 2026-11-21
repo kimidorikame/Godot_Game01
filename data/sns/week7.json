@@ -1,7 +1,7 @@
 {
   "id": "week7",
-  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 中身AB：5日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 UI準備AC：6日目の火事のあとの投稿3件（requires.after_event・仮の文）を足した。",
-  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md・planning/scenario/day5/5日目_タイムライン.md",
+  "provisional_note": "タイムライン（中身U3：1日目_タイムライン.md の23件版。中身X：2日目_タイムライン.md の26件を足した）。アカウントの持ち主（owner）・note（層と持ち主の書き込み）と本当の意味（truth）は書き手用で、画面に出さない。3日目以降の投稿はまだ無い（タイムライン_ストック.md に控え）。 中身Z：3日目_タイムライン.md の24件（新しいアカウント4つ）を足した。 中身AA：4日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 中身AB：5日目_タイムライン.md の24件（新しいアカウントは無い）を足した。 UI準備AC：6日目の火事のあとの投稿3件（requires.after_event・仮の文）を足した。 中身AD：6日目_タイムライン.md の31件（火事のあとの14件は requires.after_event。新しいアカウントは無い）に差し替えた。",
+  "source": "planning/scenario/day1/1日目_タイムライン.md・planning/scenario/day2/2日目_タイムライン.md・planning/scenario/day3/3日目_タイムライン.md・planning/scenario/day4/4日目_タイムライン.md・planning/scenario/day5/5日目_タイムライン.md・planning/scenario/day6/6日目_タイムライン.md",
   "accounts": {
 	"after_shift": {
 	  "name": "夜勤あけ",
@@ -1454,37 +1454,315 @@
 	  "truth": "安宿の受付。「起こす時刻が決まったら連絡する」と言って寝た客。3日目の「二時間だけ寝たい」と対。寝る場所はあっても、起きる時刻を決める連絡が来ない。"
 	},
 	{
-	  "id": "d6_east_news_0223",
+	  "id": "d6_east_news_0700",
 	  "account": "east_news",
 	  "day": 6,
-	  "time": "02:23",
-	  "text": "第八码頭の構内で火災。消防が出動。（仮）",
-	  "requires": {
-		"after_event": "d6_fire"
-	  },
-	  "provisional": true
+	  "time": "07:00",
+	  "text": "旧倉庫への夜間搬入続く。受領先の確認で待機が長引く便も。窓口変更前の精算について、問い合わせが続いています。",
+	  "provisional": false
 	},
 	{
-	  "id": "d6_exposure_test_0250",
+	  "id": "d6_anne_life_0800",
+	  "account": "anne_life",
+	  "day": 6,
+	  "time": "08:00",
+	  "text": "改造なしの一週間、六日目。隣の方のお名前を、紙に書いてもらった。翻訳の表示で見ていた字と違った。こっちを覚えたい。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_ayu_0900",
+	  "account": "ayu",
+	  "day": 6,
+	  "time": "09:00",
+	  "text": "値札を見やすくしたら、奥の空箱もよく見えるようになった。今日は布で隠さない。そこへ足を入れる人がいるから。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_celine_view_0940",
+	  "account": "celine_view",
+	  "day": 6,
+	  "time": "09:40",
+	  "text": "窓の港、夜の景色を朝まで残していた。カーテンを開けても時間が分からないので、時計の表示を戻した。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_shiwei_1020",
+	  "account": "shiwei",
+	  "day": 6,
+	  "time": "10:20",
+	  "text": "「全部取っといて」の方、取りに来る時刻もください。品物の取り置きと、床の貸し出しは、同じではありません。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_min_1115",
+	  "account": "min",
+	  "day": 6,
+	  "time": "11:15",
+	  "text": "手を洗ってから端末を触った。返事が来たのでまた手を洗った。今日は、麺より先に俺の手がよく水を通ってる。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_face_savings_1210",
+	  "account": "face_savings",
+	  "day": 6,
+	  "time": "12:10",
+	  "text": "雨漏りを直してから、天井を見て寝る時間が減った。その分、顔の見積もりを見てる。今はまだ、見るだけ。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_ren_design_1300",
+	  "account": "ren_design",
+	  "day": 6,
+	  "time": "13:00",
+	  "text": "古い靴を直して、しばらく履くことにした。前の修理跡の上から縫えるそうです。前より少し、手元にある物のことを聞いている。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_han_repairs_1420",
+	  "account": "han_repairs",
+	  "day": 6,
+	  "time": "14:20",
+	  "text": "預けた物を受け取るときは、動作の確認までお願いします。急いでいるときほど、店を出てから「ここも聞けばよかった」が増えます。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_lin_alt_1530",
+	  "account": "lin_alt",
+	  "day": 6,
+	  "time": "15:30",
+	  "text": "JDYH VWDOO RZQHU D FDUW URXWH. KH WUXVWV WKH PDS QRZ. XSSHU JDWH SUHSDUDWLRQ REVHUYHG. RSHQLQJ WLPH XQFRQILUPHG.",
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「GAVE STALL OWNER A CART ROUTE. HE TRUSTS THE MAP NOW. UPPER GATE PREPARATION OBSERVED. OPENING TIME UNCONFIRMED.」＝「屋台の店主に、荷車の道を教えた。店主はいま地図を信じている。高台の門の準備を確認。開門の時刻は未確認。」。前半は5日目の明け方の屋台の場面。温かい場面が、裏では「地図を信じている」と報告される。"
+	},
+	{
+	  "id": "d6_laundry_3_1805",
+	  "account": "laundry_3",
+	  "day": 6,
+	  "time": "18:05",
+	  "text": "乾いた物から、お名前を呼んでいます。番号を忘れた方は、袖の直した所でも分かることがあります。まず見せてください。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_setiya_1845",
+	  "account": "setiya",
+	  "day": 6,
+	  "time": "18:45",
+	  "text": "今夜は入口と席で、同じ説明をする。言葉は揃った。言うときの顔は、まだ練習してる。",
+	  "provisional": false,
+	  "truth": "セティヤ。入口と席で同じ説明をする。屋台での話と同じ。"
+	},
+	{
+	  "id": "d6_cold_noodle_1930",
+	  "account": "cold_noodle",
+	  "day": 6,
+	  "time": "19:30",
+	  "text": "上の門が開いたら呼ぶ、と来た。車へ戻れる所で飯を待ってる。今日は蓋がある方にした。",
+	  "provisional": false,
+	  "truth": "長距離運転手。高台の門が開くのを待っている。"
+	},
+	{
+	  "id": "d6_backdoor_2020",
+	  "account": "backdoor",
+	  "day": 6,
+	  "time": "20:20",
+	  "text": "帰りは裏を使う人が多そうなので、靴の箱を先に寄せた。人が通る幅、靴一足ぶんでも違う。",
+	  "provisional": false,
+	  "truth": "セティヤの店。帰りは裏を使う人が多そうなので、靴の箱を寄せた。火事のあと、その裏の道は使えなくなる。"
+	},
+	{
+	  "id": "d6_exposure_test_2210",
 	  "account": "exposure_test",
 	  "day": 6,
-	  "time": "02:50",
-	  "text": "港の方、空が明るい。（仮）",
-	  "requires": {
-		"after_event": "d6_fire"
-	  },
-	  "provisional": true
+	  "time": "22:10",
+	  "text": "公開依頼の日付と、録った映像の時刻を並べてる。名前が替わると、追いかける場所も替わる。今日はそこを一本にしたい。",
+	  "provisional": false,
+	  "truth": "ニカ。屋台に来る前後。「今日はそこを一本にしたい」。"
 	},
 	{
-	  "id": "d6_desk_0430",
+	  "id": "d6_dock_b_2305",
+	  "account": "dock_b",
+	  "day": 6,
+	  "time": "23:05",
+	  "text": "連絡の音だけ選んで鳴らしたい。仕事の通知を待ってると、売り込みの通知まで毎回開く。",
+	  "provisional": false
+	},
+	{
+	  "id": "d6_desk_2340",
 	  "account": "desk",
 	  "day": 6,
-	  "time": "04:30",
-	  "text": "受付の前、サイレンが止まらない。（仮）",
+	  "time": "23:40",
+	  "text": "目覚ましの時刻が決まったお客が、自分から番台に来た。「もう起きた」。起こす仕事は減ったので、よし。",
+	  "provisional": false,
+	  "truth": "安宿の受付。5日目の「起こす時刻が来ない客」の続き。火事の前の、最後の小さないい話。"
+	},
+	{
+	  "id": "d6_passer1_0205",
+	  "account": "passer1",
+	  "day": 6,
+	  "time": "02:05",
+	  "text": "港の方からサイレン。道を空けてって言われたので戻った。どこまで止まってるのか、まだ分からない。",
 	  "requires": {
 		"after_event": "d6_fire"
 	  },
-	  "provisional": true
+	  "provisional": false,
+	  "truth": "火事の最初の投稿。まだ何も分かっていない。"
+	},
+	{
+	  "id": "d6_east_news_0212",
+	  "account": "east_news",
+	  "day": 6,
+	  "time": "02:12",
+	  "text": "【速報】第八码頭の旧倉庫で火災。消防が対応中。周辺で通行規制。原因・被害の範囲は確認中。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false
+	},
+	{
+	  "id": "d6_back_shelf_0223",
+	  "account": "back_shelf",
+	  "day": 6,
+	  "time": "02:23",
+	  "text": "旧倉庫って出てる。あそこへ品物を持っていった人に連絡した。まだ返事がない。店で売ったあとのことが分からない。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "雑貨屋の夜番。作業灯と留め具を旧倉庫へ売った人。「店で売ったあとのことが分からない」。返事が無いことを、被害の証拠にしない。"
+	},
+	{
+	  "id": "d6_south_blocks_0231",
+	  "account": "south_blocks",
+	  "day": 6,
+	  "time": "02:31",
+	  "text": "団地の窓が、みんな港の方を向いてる。廊下で誰かが「火をつけたんだって」と言って、誰かが「まさか」と言った。どっちの声も、同じ階から聞こえた。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "「火をつけたんだって」「まさか」が、同じ階から聞こえる。ニカの投稿（02:42）より前。噂は、投稿より先に廊下で始まっている。"
+	},
+	{
+	  "id": "d6_exposure_test_0242",
+	  "account": "exposure_test",
+	  "day": 6,
+	  "time": "02:42",
+	  "text": "旧倉庫の火事、事故で片づけないでほしい。新しい窓口の担当者と、この組の幹部が会っていた。新名義の依頼が出始めた時期に、旧倉庫への搬入も増えている。火をつけるところを見た人がいるって話も来てる。仕事を新しい契約へ移して得をするこの人が、焼かせたんだ。",
+	  "photo": "事務所の前で話す二人。顔はぼかし。赤茶と金の上着は見える",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "ニカの言い切りの投稿。上の「ニカの投稿の本文」を参照。"
+	},
+	{
+	  "id": "d6_dock_b_0247",
+	  "account": "dock_b",
+	  "day": 6,
+	  "time": "02:47",
+	  "text": "放火って、さすがにそこまでやるか？　誰が見たんだ。……でも、この時に旧倉庫が燃えるの、気持ち悪い。今の俺が知ってるのは、港へ入るなって連絡だけ。",
+	  "reply_to": "d6_exposure_test_0242",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "港湾労働者B。「さすがにそこまでやるか？」と「この時に燃えるの、気持ち悪い」の両方。知っているのは「港へ入るな」の連絡だけ。"
+	},
+	{
+	  "id": "d6_east_news_0255",
+	  "account": "east_news",
+	  "day": 6,
+	  "time": "02:55",
+	  "text": "【続報】第八码頭の構内全体を立入規制。搬出入を停止。再開時刻は未定。原因は確認されていません。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false
+	},
+	{
+	  "id": "d6_lin_alt_0310",
+	  "account": "lin_alt",
+	  "day": 6,
+	  "time": "03:10",
+	  "text": "ILUH DW ROG ZDUHKRXVH. QR DGYDQFH QRWLFH UHFHLYHG. SDWURO ZDV RII WKDW VLGH. GLG BRX GR WKLV?",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「FIRE AT OLD WAREHOUSE. NO ADVANCE NOTICE RECEIVED. PATROL WAS OFF THAT SIDE. DID YOU DO THIS?」＝「旧倉庫で火災。事前の連絡は受けていない。旧倉庫側は巡回から外れていた。そちらがやったのか？」。リンは事前の連絡を受けていない。旧倉庫側の巡回が担当表から外れたことを、いま火事と結びつけて疑っている。相手への問いであって、関与を示す返答ではない。"
+	},
+	{
+	  "id": "d6_exposure_test_0325",
+	  "account": "exposure_test",
+	  "day": 6,
+	  "time": "03:25",
+	  "text": "見た人の名前は、まだ私には来てない。いま聞いてる。でも、窓口の前で会ってた映像は私が撮った。そこまで作り話みたいに言わないで。",
+	  "reply_to": "d6_exposure_test_0242",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "ニカの追記。資料は本物だ、と守ろうとして、言い切りも一緒に守ってしまう。"
+	},
+	{
+	  "id": "d6_min_0335",
+	  "account": "min",
+	  "day": 6,
+	  "time": "03:35",
+	  "text": "機械は、詰め込んだ日に止まる。だから事故だと思う。……ただ、うちの機械は、止まる日を自分で選んだことがない。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "ミン。職人の実感では事故。だが「止まる日を自分で選んだことがない」。事故説の側から出る、小さな疑い。"
+	},
+	{
+	  "id": "d6_celine_view_0345",
+	  "account": "celine_view",
+	  "day": 6,
+	  "time": "03:45",
+	  "text": "窓の港は、まだ灯りが並んでる。速報を見てから表示を切った。本当の方は、この部屋から見えない。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "上の街。窓に映していた港の景色は、まだ灯りが並んでいる。「本当の方は、この部屋から見えない」。"
+	},
+	{
+	  "id": "d6_lin_alt_0415",
+	  "account": "lin_alt",
+	  "day": 6,
+	  "time": "04:15",
+	  "text": "QR UHSOB. ZKDUI FORVHG. URXWH UHSRUW SHQGLQJ.",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "書き手用の真相：リンの、誰かへの報告（報告先・組織の名前は書かない）。英語を3文字ずらし（A→D）。原文「NO REPLY. WHARF CLOSED. ROUTE REPORT PENDING.」＝「返答なし。码頭は閉鎖。経路の報告は保留。」。返事は来ない。"
+	},
+	{
+	  "id": "d6_ayu_0430",
+	  "account": "ayu",
+	  "day": 6,
+	  "time": "04:30",
+	  "text": "朝の青菜の車が、どこで止まってるのか分からない。棚を空けて待つのも、埋めて待つのも違う気がして、照明だけ点けた。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "アユ。朝の青菜の車がどこにいるか分からない。仕入れの混乱を、売り場の側から。"
+	},
+	{
+	  "id": "d6_laundry_3_0450",
+	  "account": "laundry_3",
+	  "day": 6,
+	  "time": "04:50",
+	  "text": "作業の連絡を待つ方がいるので、今は呼び出しを一人ずつにしています。乾燥機の音で端末が聞こえないと言われました。洗い上がった分は、預かっておきます。",
+	  "requires": {
+		"after_event": "d6_fire"
+	  },
+	  "provisional": false,
+	  "truth": "洗濯場。作業の連絡を待つ人がいるので、呼び出しを一人ずつにした。火事の話はしていない。"
 	}
   ]
 }
