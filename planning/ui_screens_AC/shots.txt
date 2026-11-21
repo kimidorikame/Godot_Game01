@@ -1,0 +1,9 @@
+# UI準備AC のスクリーンショット（tools/ui_screens_AC.gd が書き出す）
+01_fire_start.png  6日目・明け方の最初の客の前：火事の場面の始め（店主「……港の方か」）
+02_show_news.png  火事の場面：show_news の行（速報の見出しを会話枠に出す）
+03_show_dm_forward.png  明け方の始め：show_dm の行（港湾労働者からの転送 03:05。本文と写真の説明。出したら既読）
+04_phone_dm.png  明け方の始めのスマホ：DM（火事のあとの張姐・梁伯に未読の印。会話枠に出した転送は既読）
+05_phone_news.png  明け方の始めのスマホ：ニュース（今日の欄の先頭に速報 02:12）
+06_phone_timeline.png  明け方の始めのスマホ：タイムライン（火事のあとの投稿 02:23・02:50・04:30）
+07_before_close.png  閉店の前の場面（at:close）
+08_close_dm.png  閉店の前：show_dm の行（張姐 04:55）
