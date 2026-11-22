@@ -200,7 +200,7 @@ static func condition_allows(item: Dictionary) -> bool:
 
 
 ## その日に届いているDM（条件を満たしたもの。データの並び順。朝のDMのあとに来店予告、最後に夜のDM）。
-## played・visited は今日の夜のDM（UI準備AC）の条件に使う（PlaySession.played_events・visits_done_today）。省略したら今日の夜のDMは届いていない。
+## played・visited は今日の夜のDM（UI準備AC）の条件に使う（PlaySession.played_events・phone_visits_done_today）。省略したら今日の夜のDMは届いていない。
 ## 来店予告の「同じ差出人を外す」は朝のDMだけで決める（夜のDMが届いても、その朝の予告は変わらない）。
 static func delivered_for_day(day: int, source: Dictionary = {}, played: Array = [], visited: Array = []) -> Array:
 	var out := []

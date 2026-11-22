@@ -2956,15 +2956,15 @@ func phone_news() -> Array:
 
 
 ## 今日までに届いたDM（Dm.inbox）。今日の夜のDM（UI準備AC：after_event・after_visit）は、再生した共通イベント（played_events）と
-## 接客が済んだ客（dm_visits_done_today）で決まる。
+## 接客が済んだ客（phone_visits_done_today）で決まる。
 func dm_inbox() -> Array:
-	return Dm.inbox(GameState.day_count, {}, played_events, dm_visits_done_today())
+	return Dm.inbox(GameState.day_count, {}, played_events, phone_visits_done_today())
 
 
-## 夜のDM（after_visit）の「接客が済んだ客」（UI準備AE）。開店のあいだは visits_done_today と同じ。閉店のあと（CLOSE より先）は、
-## 今日ほんとうに来た名前あり客（来店記録に今日の来店がある客）だけ：鍋が尽きて早く閉め、来なかった客の退店のあとのDMは届かない
-## （タイムラインの requires.visited は今までどおり、閉店のあとは来なかった客も済んだ扱い）。状態を読むだけ。
-func dm_visits_done_today() -> Array:
+## スマホの夜のDM（after_visit）と投稿（requires.visited）の「接客が済んだ客」（UI準備AE）。開店のあいだは visits_done_today と同じ。
+## 閉店のあと（CLOSE より先）は、今日ほんとうに来た名前あり客（来店記録に今日の来店がある客）だけ：鍋が尽きて早く閉め、来なかった客の
+## 接客のあとのDM・投稿は出ない。visits_done_today（閉店のあとは来なかった客も済んだ扱い）そのものは変えない。状態を読むだけ。
+func phone_visits_done_today() -> Array:
 	if GameState.phase == GameState.Phase.OPEN or GameState.phase == GameState.Phase.WAKE or GameState.phase == GameState.Phase.PREP:
 		return visits_done_today()
 	var out := []
@@ -3090,7 +3090,7 @@ func visits_done_today() -> Array:
 
 ## タイムライン（見えている投稿）：[{ day, posts:[ 投稿＋{ account_data, replies, unread } ] }]。Sns.timeline の形に未読を足したもの。
 func sns_timeline() -> Array:
-	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events)
+	var sections := Sns.timeline(GameState.day_count, timeline_limit(), {}, market_talks_done(), phone_visits_done_today(), played_events)
 	for section in sections:
 		for item in section["posts"]:
 			item["unread"] = not ReadState.is_read(_post_read_key(str(item["id"])))
@@ -3102,7 +3102,7 @@ func sns_timeline() -> Array:
 ## タイムラインのまだ見ていない投稿の数（返信を含む）。SNSタブとスマホのボタンの●。
 func timeline_unread_count() -> int:
 	var n := 0
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), phone_visits_done_today(), played_events):
 		if not ReadState.is_read(_post_read_key(str(id))):
 			n += 1
 	return n
@@ -3110,7 +3110,7 @@ func timeline_unread_count() -> int:
 
 ## タイムラインを表示した：見えている投稿を読んだ扱いにする。
 func mark_timeline_read() -> void:
-	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), visits_done_today(), played_events):
+	for id in Sns.visible_ids(GameState.day_count, timeline_limit(), {}, market_talks_done(), phone_visits_done_today(), played_events):
 		ReadState.mark(_post_read_key(str(id)))
 
 

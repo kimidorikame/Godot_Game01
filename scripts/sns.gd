@@ -9,7 +9,7 @@ class_name Sns
 ##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, photo_kind（任意。"video" なら「［動画：…］」。中身Z2）, reply_to（任意。元の投稿の id）,
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから／{ market_talk:<客id> }＝その日の昼の市場で、その客の
 ##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）／{ visited:<客id> }＝その日、その客の接客が済んで
-##              〔店を出て〕から。閉店のあとは来なかった日も見える。中身Z）／{ after_event:<その日の共通イベントの id> }＝その日、その共通イベントを
+##              〔店を出て〕から。来なかった日は、その日のうちは見えない＝UI準備AE。次の日からは見える。中身Z）／{ after_event:<その日の共通イベントの id> }＝その日、その共通イベントを
 ##              再生してから。次の日からは条件なし。UI準備AC）, truth（任意。書き手用。画面に出さない）,
 ##              corrected_by（任意。訂正の投稿の id。その訂正の投稿が見えているときだけ、この投稿の本文の前に「訂正あり」の印を出し、
 ##              押すと訂正の投稿へ移る。元の本文は消さない・書き換えない。UI準備AE）,
@@ -99,8 +99,8 @@ static func first_met_day(customer_id: String) -> int:
 ## met（その客に会ったあと）は、初来店の日の閉店のあと（limit が LIMIT_DAY_END）から。
 ## market_talk（その客の昼の市場の会話のあと。中身X）は、今日の投稿なら、市場・準備より先の時刻（開店のあと）か、
 ## talked（今日の市場の会話が済んだ客の id。PlaySession.market_talks_done）にその客がいるときだけ。前の日の投稿は見える。
-## visited（その日その客の接客が済んだあと。中身Z）は、今日の投稿なら、visited（今日の接客が済んだ客の id。PlaySession.visits_done_today。
-## 閉店のあとはその日の客の全部）にその客がいるときだけ。前の日の投稿は見える。
+## visited（その日その客の接客が済んだあと。中身Z）は、今日の投稿なら、visited（今日の接客が済んだ客の id。PlaySession.phone_visits_done_today。
+## 閉店のあとは、その日ほんとうに来た客だけ＝UI準備AE。来なかった客の接客のあとの投稿は出ない）にその客がいるときだけ。前の日の投稿は見える。
 ## after_event（その日の共通イベントのあと。UI準備AC）は、今日の投稿なら、played（今日再生した共通イベントの id。PlaySession.played_events）に
 ## その id があるときだけ。前の日の投稿は見える。
 static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END, talked: Array = [], visited: Array = [], played: Array = []) -> bool:

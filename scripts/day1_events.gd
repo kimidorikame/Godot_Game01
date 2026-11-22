@@ -894,7 +894,7 @@ static func mob_after_talk_events(customer_id: String) -> Array:
 ##
 ## outcome：{ served: bool, grade: String }
 ##   served=true  … 本文（body）→ 締め（closing.default）。反応は REACT の表示（reactions[出来]）
-##   served=false … 断った客。must_info を持つ場面だけ未提供版の本文（body_unserved）。反応は
+##   served=false … 断った客。must_info を持つ場面と、body_unserved を持つ場面（中身AE：granny_03）だけ未提供版の本文（body_unserved）。反応は
 ##                  REACT の表示（reactions.UNSERVED）。本文の無い場面は何も差さない
 ## 各行は { type:"GREET", customer, text, part:"body"|"closing" }。場面データに該当のキーが無い
 ## （現行の21場面）・モブ・配達員の3杯列は空配列＝従来のイベント列と同一。
@@ -921,7 +921,8 @@ static func after_serve_events(customer_id: String, scene_id: String, outcome: D
 		if not sets_facts.is_empty():
 			events.append({ "type": "SCENE_END", "customer": customer_id, "sets_facts": sets_facts,
 				"part": "end" })
-	elif not ScheduleData.episode_must_info(customer_id, scene_id).is_empty():
+	elif not ScheduleData.episode_must_info(customer_id, scene_id).is_empty() or not ScheduleData.episode_body_unserved(customer_id, scene_id).is_empty():
+		# 中身AE：must_info の無い場面でも、未提供版の本文（body_unserved）を持つ場面は断った晩にそれを出す（7日目のターニャ婆の瓶）
 		events.append_array(_scene_lines("body", customer_id,
 			ScheduleData.episode_body_unserved(customer_id, scene_id)))
 	return events
