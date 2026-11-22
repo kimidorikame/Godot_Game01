@@ -3,6 +3,7 @@
 # 撮るもの：朝のDM（阿強の写真）・ニュースの一覧（7日目の6本）・張姐・梁伯・タイムラインの 14:30（動画と全文）・6日目の 02:42 の「訂正あり」の印と、
 # 押したあと・リン（夜勤警備員の5行がある道）・ニカの訂正の動画（3行）・事務所からの返事の場面・余分の組の人夫・ターニャ婆の瓶の場面・
 # 閉店の場面・閉店のあとのスマホ（DM）・タイトル・結果の画面。
+#   「-- refuse」を付けると、7日目にターニャ婆の椀を断る晩を撮る（写真の説明2つ・断った晩の4行・閉店の場面のときのログ・タイトル。shots_refuse.txt）。
 # 遊び方は UIの通しテストと同じ台本（tests/ui_autoplay.gd）。撮影の道具の中だけで、5〜7日目の朝に所持金を足し、6日目の計画に夜勤警備員の組が
 # 無ければ足し（リンの5行の道にする）、7日目の計画の夜半に人夫の2組目（余分の組）を足し、7日目の開店で鍋を足す。ゲームのデータは変えない。
 extends SceneTree
@@ -45,6 +46,9 @@ func _initialize() -> void:
 			guard6 = true
 	print("6日目に夜勤警備員へ出した：", guard6)
 	_add_group("夜半", "mob#9", "market_porter", 1)   # 余分の組（夜半の2組目）
+	if OS.get_cmdline_user_args().has("refuse"):
+		await _refuse_run(s, phone, text_is)
+		return
 	# 朝のスマホ：DM（阿強の写真）とニュースの一覧
 	ui.open_phone("sns")
 	phone.show_dm_list()
@@ -109,6 +113,43 @@ func _initialize() -> void:
 	ui.full_result.get_node("TitleCard").gui_input.emit(click)
 	await _shot("16_result", "結果の画面（1 成績）")
 	_finish()
+
+
+## 7日目にターニャ婆の椀を断る晩（中身AE の続き）。写真の説明2つ（6日目 02:42・7日目 14:30）→ 断った晩の4行 → 閉店の場面のときのログ → タイトル。
+func _refuse_run(s, phone, text_is: Callable) -> void:
+	await _until(func(): return gs.phase == gs.Phase.OPEN and gs.soup != null, 20000)
+	gs.soup["remaining_servings"] = int(gs.soup["remaining_servings"]) + 10   # 撮影の道具の中だけ
+	ui.open_phone("sns")
+	phone.show_timeline()
+	await _frames(3)
+	phone.scroll_to_post("d6_exposure_test_0242")
+	await _shot("17_caption_d6_0242", "写真の説明：6日目 02:42（直した文。枠に収まる）")
+	phone.scroll_to_post("d7_exposure_test_1430")
+	await _shot("18_caption_d7_1430", "動画の説明：7日目 14:30（直した文。名前を出さない）")
+	ui.close_overlay()
+	play.decline_when = func(): return gs.day_count == 7 and s.open != null and str(s.open.current_customer()) == "granny"
+	await _until(func(): return text_is.call("店主「すまん。今夜は、婆さんの分を出せない」"), 12000)
+	await _shot("19_refuse_granny", "ターニャ婆を断った晩：断った晩の4行の1行目")
+	await _until(func(): return text_is.call("店主「よし。今日はここまで」"), 4000)
+	ui.left.toggle_log()
+	await _frames(3)
+	var log_content: Control = ui.left.get_node("%LogContent")
+	for child in log_content.get_children():
+		if child is Label and str((child as Label).text).contains("すまん。今夜は、婆さんの分を出せない"):
+			(ui.left.get_node("%LogScroll") as ScrollContainer).scroll_vertical = int((child as Control).position.y) - 60
+	await _frames(3)
+	await _shot("20a_refuse_log_top", "断った晩のログ（上）：ニカのあとの客 → ターニャ婆の来店と注文 → 断った晩の4行 → 瓶")
+	(ui.left.get_node("%LogScroll") as ScrollContainer).scroll_vertical = 100000
+	await _frames(3)
+	await _shot("20_refuse_log", "断った晩のログ（下）：瓶 → 退店 → 閉店の場面（店主の3行）の順")
+	ui.left.toggle_log()
+	await _until(func(): return gs.phase == gs.Phase.RESULT, 4000)
+	await _shot("21_refuse_title", "断った晩も、閉店の場面のあとに「夜湯」のタイトル")
+	print("UI_SCREENS_DONE %d" % shots.size())
+	var f := FileAccess.open("%s/shots_refuse.txt" % out_dir, FileAccess.WRITE)
+	f.store_string("# 中身AE の続き：ターニャ婆を断った晩（tools/ui_screens_AE.gd -- refuse が書き出す）\n" + "\n".join(PackedStringArray(shots)) + "\n")
+	f.close()
+	quit()
 
 
 func _print_news_fit(phone) -> void:
