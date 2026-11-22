@@ -1,0 +1,7 @@
+# UI準備AG・中身AF のスクリーンショット（tools/ui_screens_AG.gd が書き出す）
+01_day3_seafood_hai.png  3日目：海隆鮮貨を押したとき（海叔）
+02_day4_produce_ayu.png  4日目：永順青果を押したとき（アユ）
+03_day6_scraps_yoyo.png  6日目：半端市「拾味」を押したとき（ヨヨ）
+04_hearty_react.png  具だくさん：6日目のレックスの反応（チップの「具だくさん +¥10」）
+05_hearty_line.png  具だくさん：反応のすぐあとの具だくさんの一言
+06_decline_cup2.png  断ったとき：1日目の阿強の2杯目を断った道（断ったときの一言。このあと残りの杯は出ずに帰る）
