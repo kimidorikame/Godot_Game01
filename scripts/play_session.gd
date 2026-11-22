@@ -215,8 +215,37 @@ func select_stall(id: String) -> void:
 	match id:
 		"produce", "meat_wholesale", "dry_goods", "tofu_noodles", "seafood", "scraps":
 			market_shop = id
+			_queue_shop_talk(id)
 		_:
 			pass
+	changed.emit()
+
+
+## UI準備AG：その日のその店の会話を並べる（市場にいるとき・その日にまだ出していないときだけ）。
+func _queue_shop_talk(id: String) -> void:
+	if not is_in_market():
+		return
+	var key := "%d|%s" % [GameState.day_count, id]
+	if shop_talks_done.has(key):
+		return
+	var lines := Day1Events.shop_talk_lines(id)
+	if lines.is_empty():
+		return
+	shop_talks_done[key] = true
+	shop_talk_queue = []
+	for i in range(lines.size()):
+		shop_talk_queue.append({ "type": "TEXT", "text": str(lines[i]), "part": "shop_talk", "shop": id, "line_index": i })
+
+
+## UI準備AG：いま会話枠に出す店の会話があるか（市場にいる間だけ）。
+func has_shop_talk() -> bool:
+	return not shop_talk_queue.is_empty() and is_in_market()
+
+
+## UI準備AG：店の会話を1行送る（会話枠のクリック）。
+func advance_shop_talk() -> void:
+	if not shop_talk_queue.is_empty():
+		shop_talk_queue.pop_front()
 	changed.emit()
 
 
@@ -292,6 +321,7 @@ func visit_water_stall() -> bool:
 ## 訪問済み・未訪問に関わらず常に押せる（水汲み忘れで詰まらせない）。水道代が払えずゲームオーバーに
 ## なったら先へ進まず false（進んだら true）。
 func exit_market() -> bool:
+	shop_talk_queue = []   # UI準備AG：読み残した店の会話は持ち越さない
 	# 中身U2：市場を出たあとの場面のある日（1日目）は、市場を出たあとの炭屋・水場の会話のあとで払う（ここでは払わない）。
 	# 払う行が無いデータでも、運営費は開店に入るとき（pay_operating_cost）に引かれる。中身X：2日目の市場の場面（着いたときだけ）は今までどおり。
 	# 中身Z：3日目の梁伯の場面（払う印が無い）は、今までどおりここでまとめて払う（market_exit_pays_in_scene が false）。
@@ -432,6 +462,11 @@ var pending_group_result := {}
 ## 椀を出さないと決まったら（客を断る・モブの注文を0人で確定・鍋不足で閉店）、その1行をログから外す（_drop_unserved_adjust_log）。
 var _adjust_log_index := -1
 var _adjust_log_text := ""
+
+## UI準備AG：市場の店ごとの会話。店を押したとき、その日のその店の会話（市場の場面の when:"shop"）があれば並べ、市場にいる間だけ
+## 会話枠に出す（会話の列〔runner〕には触れない＝買い物・支払い・試遊の道具の進み方は変わらない）。1日に1回（shop_talks_done）。
+var shop_talk_queue: Array = []
+var shop_talks_done: Dictionary = {}   # "<日>|<店の id>" -> true
 
 # --- ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6。モブ客の団体オーダーだけが対象） ---
 # モブ客のADJUST中に選んだ具材を、在庫を引かずに一時記録するリスト（{"id":String,
@@ -1044,6 +1079,7 @@ func _serve_customer(ev: Dictionary) -> void:
 		# mark_favorite_known() を呼ばない（呼ぶと1杯目の直後から2杯目で使えてしまう）。
 		# flush_visit_tally() が退店の瞬間に1回だけ確定させる。
 		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite, -1, tip, hearty)
+		_insert_hearty_line(ev, hearty)
 		return
 	if judged and raw_favorite != "" and GameState.FAVORITE_REVEAL == "first_serve":
 		GameState.mark_favorite_known(customer_id)   # 好物を知る（favorite_reveal が "memo" なら、閉店のあとメモを足したとき。UI準備O2）
@@ -1060,6 +1096,7 @@ func _serve_customer(ev: Dictionary) -> void:
 	if sale > 0:
 		Ledger.record("sale", sale, customer_id, servings)
 	_insert_after_serve_events(ev, true, result)
+	_insert_hearty_line(ev, hearty)
 
 
 ## _pending_decline経由でREACTに到達したときの処理。判定（judge_bowl）を呼ばない・
@@ -1081,7 +1118,12 @@ func _serve_customer_decline(ev: Dictionary) -> void:
 			Day1Events.episode_id_of(customer_id))
 	if bool(ev.get("aggregate", false)):
 		_add_to_visit_tally(customer_id, false, 0, 0, "", "")
+		_drop_rest_of_cups(customer_id)   # UI準備AG：複数杯の場面で杯を断ったら、そこで帰る
 		return
+	# UI準備AG：断ったときの一言で名乗る場面（2日目のリン。場面の unserved_reveal_name）は、ここで名前を切り替える
+	var reveal := str(ScheduleData.episode_data(customer_id, Day1Events.episode_id_of(customer_id)).get("unserved_reveal_name", ""))
+	if reveal != "" and CustomerMemory.is_recordable(customer_id):
+		CustomerMemory.reveal_name(customer_id, reveal)
 	GameState.record_served({ "customer": customer_id, "sale": 0,
 		"servings": 0, "declined": true, "result": "" })
 	_insert_after_serve_events(ev, false, "")
@@ -1628,12 +1670,16 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int, reason: Strin
 	_add_unserved(reason, maxi(ordered - actual, 0))   # 出せなかった分（この団体の最後のレシピ）の理由別の記録
 	_apply_mob_recipe(ev, actual)
 	var served_any := int(visit_tally.get("servings", 0)) > 0
+	var group_hearty := int(visit_tally.get("hearty_tip", 0))
+	if not served_any:
+		declined_now = true   # UI準備AG：1杯も出さなかった組は、断ったときの一言（reactions.UNSERVED）を出す
 	flush_visit_tally()
 	# 椀を出したあとの会話（中身U1。その日だけの文の after_talk）：この団体に1杯以上出したときだけ、この REACT の直後へ。
 	if served_any and flow.runner != null:
 		var lines := Day1Events.mob_after_talk_events(str(ev.get("customer", "")))
 		for i in range(lines.size()):
 			flow.runner.events.insert(flow.runner.index + 1 + i, lines[i])
+	_insert_hearty_line(ev, group_hearty)   # UI準備AG：具だくさんの一言（組ごとに1行。反応のすぐあと）
 
 
 ## 「挑戦する」を選んだ場合の処理：レシピ1（achievable人分）をその場で確定・積算し、
@@ -2400,6 +2446,8 @@ func set_runner_for_phase(phase: int) -> void:
 		logged_positions = {}
 		played_events = []   # 共通イベントはその日ごと（朝へ戻したら最初から再生し直す）
 		slot_event_ids = {}
+		shop_talks_done = {}   # UI準備AG：店の会話もその日ごと（朝へ戻したら、また1回出る）
+		shop_talk_queue = []
 		# 日次ログ：その日の開始時点として、所持金・評判を記録し、当日ぶんのカウンタを
 		# 初期化する（前日の day_ending 発火はもう終わっている＝直前のログには影響しない）。
 		# opening_moneyは日々の運営費を引く前の値（その日入ってきた素の所持金）にする。
@@ -2724,6 +2772,14 @@ var recipe_save_slot := -1
 ## 同じ位置・同じ本文は1回だけ（logged_positions）。REACT は判定後に決まる反応文が空でなくなってから、
 ## current_reaction_text() が読む（reaction_variant は判定時に固定済みの値で、ここでは抽選しない）。
 func record_visible_event() -> void:
+	if has_shop_talk():   # UI準備AG：店の会話の行（1行1回）
+		var talk: Dictionary = shop_talk_queue[0]
+		var talk_key := "shop|%d|%s|%d" % [GameState.day_count, str(talk["shop"]), int(talk["line_index"])]
+		if not logged_positions.has(talk_key):
+			logged_positions[talk_key] = true
+			var talk_split := split_speaker(str(talk["text"]))
+			TalkLog.add(GameState.day_count, "talk", str(talk_split["name"]), str(talk_split["text"]))
+		return
 	if flow.runner == null:
 		return
 	var ev = flow.runner.current()
@@ -3402,6 +3458,9 @@ func day_info() -> Dictionary:
 ## text（speaker_name があれば名前を除いた「」から）, part（"news" など） }。
 ## REACT は判定後に決まる反応文（判定前は空）。runner が無い・Event が無いときは空。
 func current_line() -> Dictionary:
+	if has_shop_talk():   # UI準備AG：市場にいる間の店の会話
+		var talk_split := split_speaker(str(shop_talk_queue[0]["text"]))
+		return { "type": "TEXT", "speaker": "", "speaker_name": str(talk_split["name"]), "text": str(talk_split["text"]), "part": "shop_talk" }
 	var ev = _current_event()
 	if not (ev is Dictionary):
 		return {}
@@ -3426,6 +3485,32 @@ func current_line() -> Dictionary:
 	var split := split_speaker(text)
 	return { "type": type, "speaker": speaker, "speaker_name": dm_speaker_name(ev, str(split["name"])), "text": str(split["text"]),
 		"part": str(ev.get("part", "")) }
+
+
+## UI準備AG：具だくさんのチップが付いた提供（hearty>0）のとき、反応（REACT）のすぐあとに具だくさんの一言（reactions.HEARTY の1行）を差す。
+## 文の無い場面・職種は何も差さない。料金・評判・鍋には触れない。
+func _insert_hearty_line(ev: Dictionary, hearty: int) -> void:
+	if hearty <= 0 or flow.runner == null or not (ev.get("reactions", {}) is Dictionary):
+		return
+	var pool = (ev["reactions"] as Dictionary).get("HEARTY", [])
+	if not (pool is Array) or (pool as Array).is_empty() or str(pool[0]) == "":
+		return
+	flow.runner.events.insert(flow.runner.index + 1, { "type": "GREET", "customer": str(ev.get("customer", "")), "text": str(pool[0]), "part": "hearty" })
+
+
+## UI準備AG：複数杯の場面（1日目の阿強）で杯を断ったら、そこで帰る：今の位置より後の、この客の杯（ADJUST・SERVE・REACT）と会話（GREET）を外す。
+## 出した杯の売上はその場で入っている（aggregate）。退店のときの集計は今までどおり。ほかの Event（PAY など）は残す。
+func _drop_rest_of_cups(customer_id: String) -> void:
+	if flow.runner == null:
+		return
+	var keep := []
+	for i in range(flow.runner.events.size()):
+		var e = flow.runner.events[i]
+		var cup_line: bool = e is Dictionary and str(e.get("customer", "")) == customer_id and ["GREET", "ADJUST", "SERVE", "REACT"].has(str(e.get("type", "")))
+		if i > flow.runner.index and cup_line:
+			continue
+		keep.append(e)
+	flow.runner.events = keep
 
 
 ## UI準備AF：椀を出さない SERVE か（名前あり客を断った〔pending_decline〕・モブの注文を0人で確定した〔pending_group_result.servings=0〕）。

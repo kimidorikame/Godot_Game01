@@ -239,6 +239,9 @@ func advance() -> void:
 		_page += 1
 		_show_page()
 		return
+	if session.has_shop_talk():   # UI準備AG：市場の店の会話を1行送る
+		session.advance_shop_talk()
+		return
 	if session.can_next_event():
 		session.next_event()
 	_skip_silent_events()

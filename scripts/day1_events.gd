@@ -801,6 +801,15 @@ static func market_scene_id() -> String:
 	return str(Rules.day_overrides(GameState.day_count).get("market_scene", ""))
 
 
+## UI準備AG：その日の市場の場面の、店ごとの会話（when:"shop"・shop:<店の id>）の会話の行。無ければ空。状態を読むだけ。
+static func shop_talk_lines(shop_id: String) -> Array:
+	var out := []
+	for part in ScheduleData.talk_data(market_scene_id()).get("parts", []):
+		if part is Dictionary and str(part.get("when", "")) == "shop" and str(part.get("shop", "")) == shop_id:
+			out.append_array(ScheduleData.spoken_lines(part.get("lines", [])))
+	return out
+
+
 static func has_market_scene() -> bool:
 	return not ScheduleData.talk_data(market_scene_id()).is_empty()
 
@@ -941,7 +950,12 @@ static func unserved_exit_events(customer_id: String, scene_id: String) -> Array
 	if reactions is Dictionary and (reactions as Dictionary).get("UNSERVED", []) is Array:
 		var pool: Array = (reactions as Dictionary).get("UNSERVED", [])
 		if not pool.is_empty() and pool[0] is String and pool[0] != "":
-			events.append({ "type": "GREET", "customer": customer_id, "text": pool[0], "part": "reaction" })
+			var line := { "type": "GREET", "customer": customer_id, "text": pool[0], "part": "reaction" }
+			# UI準備AG：断ったときの一言で名乗る場面（2日目のリン）は、この行で名前を切り替える（GREET の名乗りの印）
+			var reveal := str(ScheduleData.episode_data(customer_id, scene_id).get("unserved_reveal_name", ""))
+			if reveal != "":
+				line[ScheduleData.REVEAL_NAME_KEY] = reveal
+			events.append(line)
 	events.append_array(after_serve_events(customer_id, scene_id, { "served": false, "grade": "" }))
 	return events
 

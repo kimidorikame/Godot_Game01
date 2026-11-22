@@ -468,7 +468,8 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 	return problems
 
 
-const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED"]
+## UI準備AG：HEARTY＝具だくさんの一言（具だくさんのチップが付いた提供のとき、反応のあとに1行）。UNSERVED＝断ったときの一言。
+const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED", "HEARTY"]
 ## OK の反応を、外れた札で分ける（中身U1でモブに作った形を、中身Zで常連の場面にも）：reactions.OK_MISSING.<札>＝その札だけが
 ## 外れたときの文。札が2つとも外れた・減点で OK になったときは、今までどおり reactions.OK（PlaySession.current_reaction_text）。
 const OK_MISSING_KEY := "OK_MISSING"
@@ -559,7 +560,8 @@ static func _reveal_problems(ep: Dictionary) -> Array:
 
 ## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
 ## 配列を返す（空なら問題なし）。検査するのは新しいキーと反応のキーだけ：
-##   reactions … 4段階＋UNSERVED。値は文字列の配列
+##   reactions … 4段階＋UNSERVED（断ったときの一言）＋HEARTY（具だくさんの一言。UI準備AG）。値は文字列の配列
+##   unserved_reveal_name … 断ったときの一言で名乗る名前（UI準備AG。2日目のリン）。名前あり客の場面だけ。空でない文字列
 ##   market_talk / pre_order / body / body_unserved … 空でない文字列の配列
 ##   行の印（中身U1）… 〔ゲーム〕の行は持たない。〔演出〕は行の頭だけ（会話の行の配列の中。反応の行には持たない）
 ##   choices … 最大2。各 { id, options:[2つ { id, label, set(辞書・任意) }] }。idは一意
@@ -610,6 +612,11 @@ static func scene_problems(ep: Dictionary) -> Array:
 			problems.append("reveals_favorite があるのに memo が無い")
 	if ep.has("cups"):
 		problems.append_array(_cups_problems(ep))
+	if ep.has("unserved_reveal_name"):
+		if not (ep["unserved_reveal_name"] is String) or str(ep["unserved_reveal_name"]) == "":
+			problems.append("unserved_reveal_name が空でない文字列でない")
+		elif not _is_named_customer(str(ep.get("customer", ""))):
+			problems.append("unserved_reveal_name は名前あり客の場面だけ")
 	problems.append_array(_reveal_problems(ep))
 	if ep.has("reactions") and not ep.has("cups"):
 		var reactions = ep["reactions"]
