@@ -428,6 +428,11 @@ var pending_group_choice := false
 # なので既存の経路のまま無影響）。
 var pending_group_result := {}
 
+## UI準備AF：いま出している ADJUST（椀を作る入力待ち。「（味を調える）」など）を会話ログに足したときの位置と本文。
+## 椀を出さないと決まったら（客を断る・モブの注文を0人で確定・鍋不足で閉店）、その1行をログから外す（_drop_unserved_adjust_log）。
+var _adjust_log_index := -1
+var _adjust_log_text := ""
+
 # --- ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6。モブ客の団体オーダーだけが対象） ---
 # モブ客のADJUST中に選んだ具材を、在庫を引かずに一時記録するリスト（{"id":String,
 # "damaged":bool}の配列）。人数が確定した瞬間（_serve_mob_partial）まで在庫消費を遅らせる
@@ -1453,6 +1458,7 @@ func _auto_close_kitchen() -> void:
 		return
 	closed_early_reason = reason
 	_add_unserved("pot", _cups_left_for_current_customer())
+	_drop_unserved_adjust_log()
 	queue_unserved_exit()
 	log_closed_early = true   # 日次ログ：鍋が尽きて自動的に閉店した
 	flow.force_phase(GameState.Phase.CLOSE)
@@ -1754,6 +1760,7 @@ func close_shop() -> void:
 	if reason == "":
 		return
 	_add_unserved("pot", _cups_left_for_current_customer())   # 閉店で打ち切った今の客の分（鍋が足りない）
+	_drop_unserved_adjust_log()
 	pending_shortage_ev = null
 	pot_open = false
 	closed_early_reason = reason
@@ -1815,6 +1822,8 @@ func group_serve(n: int, ordered: int) -> void:
 		mob_original_ordered = ordered
 	pending_group_result = { "servings": n, "ordered": ordered, "reason": _mob_shortfall_reason(ordered, n) }
 	pending_group_choice = false
+	if n <= 0:
+		_drop_unserved_adjust_log()
 	complete_input_and_advance()
 
 
@@ -1824,6 +1833,7 @@ func group_decline(ordered: int) -> void:
 		mob_original_ordered = ordered
 	pending_group_result = { "servings": 0, "ordered": ordered, "reason": _mob_shortfall_reason(ordered, 0) }
 	pending_group_choice = false
+	_drop_unserved_adjust_log()
 	complete_input_and_advance()
 
 
@@ -1846,6 +1856,7 @@ func group_retry(achievable: int, ordered: int) -> void:
 ## 発生させず、_pending_group_serveと同じ「ADJUST側で確定させてREACT到達時に反映する」
 ## パターンでSERVE→REACTへ進める。
 func decline_customer() -> void:
+	_drop_unserved_adjust_log()
 	pending_decline = true
 	pending_decline_reason = _bowl_block_reason()
 	complete_input_and_advance()
@@ -2727,6 +2738,8 @@ func record_visible_event() -> void:
 			speaker = log_speaker(str(ev.get("customer", "")))
 		"SERVE":
 			kind = "serve"
+			if is_unserved_serve(ev):
+				text = ""   # UI準備AF：椀を出さない SERVE（「はいよ、お待ち。」など）はログに載せない
 		"REACT":
 			kind = "reaction"
 			speaker = log_speaker(str(ev.get("customer", "")))
@@ -2756,6 +2769,9 @@ func record_visible_event() -> void:
 		return
 	logged_positions[key] = true
 	TalkLog.add(GameState.day_count, kind, speaker, text)
+	if str(ev.get("type", "")) == "ADJUST":
+		_adjust_log_index = TalkLog.entries.size() - 1
+		_adjust_log_text = text
 	# UI準備AC：共通イベントの show_dm で会話枠に出したDMは、既読にする（スマホの未読の印から外れる）
 	if str(ev.get("dm_id", "")) != "":
 		ReadState.mark(_dm_read_key({ "id": str(ev["dm_id"]) }))
@@ -3394,6 +3410,8 @@ func current_line() -> Dictionary:
 	var text := str(ev.get("text", ""))
 	if type == "GREET" or type == "REACT":
 		speaker = str(ev.get("customer", ""))
+	if type == "SERVE" and is_unserved_serve(ev):
+		text = ""   # UI準備AF：椀を出さない SERVE（断った・0人で確定）は会話枠に出さない
 	if type == "REACT":
 		text = current_reaction_text()
 		if text != "" and last_serve_bad_sale > 0 and not declined_now:
@@ -3408,6 +3426,31 @@ func current_line() -> Dictionary:
 	var split := split_speaker(text)
 	return { "type": type, "speaker": speaker, "speaker_name": dm_speaker_name(ev, str(split["name"])), "text": str(split["text"]),
 		"part": str(ev.get("part", "")) }
+
+
+## UI準備AF：椀を出さない SERVE か（名前あり客を断った〔pending_decline〕・モブの注文を0人で確定した〔pending_group_result.servings=0〕）。
+## そのときは椀を出すときの行（「はいよ、お待ち。」・杯ごとの serve の文）を会話枠にもログにも出さない。状態を読むだけ。
+func is_unserved_serve(ev) -> bool:
+	if not (ev is Dictionary) or str((ev as Dictionary).get("type", "")) != "SERVE":
+		return false
+	return pending_decline or (not pending_group_result.is_empty() and int(pending_group_result.get("servings", 0)) <= 0)
+
+
+## UI準備AF：いまの Event が椀を出さない SERVE なら、1つ進めて反応（REACT）へ（画面の「断る」ボタンから呼ぶ。SERVE には効き目が無い）。
+## 会話枠が空のまま1回クリックを待つことにならないように。セッションの decline_customer・group_decline 自体は今までどおり SERVE で止まる。
+func skip_unserved_serve() -> void:
+	if flow.runner != null and is_unserved_serve(flow.runner.current()):
+		next_event()
+
+
+## UI準備AF：椀を出さないと決まったとき、いま入力待ちの ADJUST（「（味を調える）」など）の行を会話ログから外す。
+## ログの最後の行がその ADJUST の行のときだけ外す（ほかの行は触らない）。
+func _drop_unserved_adjust_log() -> void:
+	var cur = flow.runner.current() if flow.runner != null else null
+	if cur is Dictionary and str((cur as Dictionary).get("type", "")) == "ADJUST" and _adjust_log_index >= 0 and _adjust_log_index == TalkLog.entries.size() - 1 and str(TalkLog.entries[_adjust_log_index].get("text", "")) == _adjust_log_text:
+		TalkLog.entries.remove_at(_adjust_log_index)
+	_adjust_log_index = -1
+	_adjust_log_text = ""
 
 
 ## 共通イベントの show_dm で会話枠に出した DM（dm_id のある行）は、名前の札を「差出人（DM）」にする（UI準備AD：人物のセリフと見分ける）。

@@ -3361,7 +3361,7 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
   リンの「・」2件は暗号文のまま（原文と意味は`truth`。「誰かへの報告」。報告先・組織の名前は書かない）。**新しい表示条件**`requires.visited`（その日、その客の接客が
   済んでから。閉店のあとは来なかった日も見える）。`PlaySession.visits_done_today()`（開店のあいだは今の客より前の客、閉店のあとは今日の計画の名前あり客）を
   `Sns.is_visible`に渡す。**【中身AE】投稿と DM には`PlaySession.phone_visits_done_today()`を渡す形に変えた（閉店のあとは、今日ほんとうに来た客だけ。
-  来なかった客の接客のあとの投稿は、その日のうちは出ない。下の7日目の節）。**ニカの 23:00 に`{ "visited": "streamer" }`。
+  来なかった客の接客のあとの投稿は、その日のうちは出ない。下の7日目の節）。【UI準備AF】あとの日も出ない（来店記録で決める）。**ニカの 23:00 に`{ "visited": "streamer" }`。
 - テスト：`tests/day3_script_test.gd`（データ・条件付きの行・名乗る前の名前・予備の一言・市場の並びと払い方・DM・3日目を本番の画面で通す〔3杯目を出した道・断った道〕）。
   `tests/ui_autoplay.gd`に`decline_when`（断る杯を決める台本）を足した。`kinsoku_dialogue_test`（3日目の文と朝のニュースの行頭禁則）、`sns_timeline_test`（3日目の確かめ a〜e・
   visited）、`news_data_test`（組み直した必須情報）。3日目を「いつもの日」として使っていたテスト（市場の場面なし・prep_talk・仮のDM・予告の選び方）は4日目・6日目へ移した。
@@ -3502,7 +3502,7 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
 - **スマホの「接客が済んだ客」（UI準備AE）**：DM の `after_visit` と投稿の `requires.visited` は、開店のあいだは今までどおり（今の客より前の客）。
   閉店のあとは、今日ほんとうに来た名前あり客だけ（`PlaySession.phone_visits_done_today`。来店記録に今日の来店がある客）。鍋が尽きて早く閉めた晩は、
   来なかった客の接客のあとの DM・投稿（7日目のリン 21:25・ニカ 23:30・港湾労働者 00:10・00:12、3日目のニカ 23:00、4日目のリン 21:25 など）はその日のうちは出ない
-  （次の日からは前の日の投稿として見える）。`visits_done_today`（閉店のあとは来なかった客も済んだ扱い）そのもの・ほかの所への効き目は変えない。
+  （【UI準備AF】あとの日も出ない。下の UI準備AF の節）。`visits_done_today`（閉店のあとは来なかった客も済んだ扱い）そのもの・ほかの所への効き目は変えない。
 - **ニュース**（7日目）：朝の記事6本（仮の `d7_official`・`d7_unresolved` を外した）。1本目 `d7_wiring_probe` に `police_wiring_probe`・`truth_unresolved`、
   2本目 `d7_upper_yard` に `window_changed_before_fire`（カタログは変えない）。6日目の台本の 05:10 の記事は入れない（7日目の4本目にまとめた）。
   一覧は6本だと枠より長く、縦に送って読む。
@@ -3521,6 +3521,22 @@ Day1の配達員の「同じ客へ3杯を1杯ずつ出す」専用のEvent列を
 - テスト：`tests/day7_script_test.gd`（データ・市場の並び・リンの5行の2つの道・モブが1〜4組の晩・余分の組・DM と阿強の2つの道・夜半のあとのDM・ニュースと印・
   閉店の場面と鍋が尽きた晩・閉店のあとに新しい DM・投稿が出ないこと・来なかった客の接客のあとの DM・投稿が出ないこと・ターニャ婆を断った晩・文の検査・
   7日目を結果の画面のタイトルまで本番の画面で通す）。day3_script・day4_script は、投稿の見え方を画面と同じ `phone_visits_done_today` で読むようにした。
+
+### 断った晩の「お待ち」と、来なかった客の投稿（UI準備AF・実装済み・2026-11-22。文の中身・判定・評判・乱数・経済は変えない。遊びの結果は v7 と同じ）
+
+- **椀を出すときの行**：客の列の `ADJUST` の「（味を調える）」（入力待ち）と `SERVE` の「「はいよ、お待ち。」」。複数杯の場面（阿強の3杯）は杯ごとの `adjust`・`serve` の文
+  （例：1日目の1杯目の `serve`＝「店主「ほら。熱いぞ」」）も同じ扱い。
+- **椀を出さなかった晩**（名前あり客を断る・モブの注文を0人で確定〔`group_decline`／`group_serve(0)`〕・鍋が尽きて ADJUST のまま閉店）：
+  - `SERVE` は会話枠にもログにも出さない（`PlaySession.is_unserved_serve`）。画面の「断る」「注文を断る」ボタンからは、その SERVE を飛ばしてすぐ反応へ進む
+    （`skip_unserved_serve`。セッションの `decline_customer`・`group_decline` 自体は今までどおり SERVE で止まる＝テスト・試遊の道具は変わらない）。
+  - `ADJUST` の行は、断るかを決める前の入力待ちなので会話枠には出る。椀を出さないと決まった時点で、会話ログからその1行を外す（`_drop_unserved_adjust_log`）。
+  - 断ったときの反応（`reactions.UNSERVED`）・断った晩の本文（`granny_03` の `body_unserved`）は今までどおり出す。
+- **来なかった客の、接客のあとの投稿・DM**：`requires.visited` の投稿と `after_visit` の DM は、前の日の分も、その日にその客が本当に来たときだけ見える・届く
+  （`Sns.came_on`＝来店記録 `customer_memory` の `visits` に、その日の来店がある。断った晩も来たことになる。新しく保存する状態は無い）。
+  時刻だけで見える投稿・`after_event` の投稿と DM は変えない。
+- テスト：`tests/ui_prep_af_test.gd`（提供した晩・常連を断った晩〔画面のボタン／セッション〕・モブの注文を断った晩・7日目のターニャ婆を断った晩・鍋が尽きて閉めた晩のログ／
+  4日目にリンが来なかった道と来た道・3日目のニカ・時刻だけの投稿と after_event・after_visit の DM）。「次の日は条件なしで見える」を確かめていた所は、
+  来た道と来なかった道で確かめる形に直した（sns_timeline・fire_day・day1_3_fix・day7_script）。
   7日目を「仮の文の日」として使っていたテストは、テストの中で差し込んだ仮の場面で確かめる形に直した（day2_script の officer_04・order_card の granny_03）。
   ほかに件数・日付の前提を直した（common_event・episode_data・market_talk・news_data・news_detail・sns_timeline・kinsoku_dialogue）。
 

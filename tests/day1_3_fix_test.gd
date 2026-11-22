@@ -131,6 +131,7 @@ func run(t: SceneTree) -> int:
 	GameState.reset_for_new_game()
 	GameState.day_count = 4
 	GameState.day_records.append({ "day": 3 })
+	GameState.customer_memory["streamer"] = { "favorite_known": false, "visits": [{ "day": 3, "served": 1, "grade": "GOOD" }], "facts": {}, "seen_episodes": [] }   # UI準備AF：3日目にニカが来た道（来ていないと 23:00 は次の日も見えない）
 	var game: UiGameRoot = load("res://scenes/game_root.tscn").instantiate()
 	t.root.add_child(game)
 	game.open_phone("sns")

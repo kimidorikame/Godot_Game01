@@ -46,7 +46,7 @@ var _items: Array = []   # いまのタブに並べている品目 [{ id, fresh,
 func _ready() -> void:
 	_serve.pressed.connect(_on_serve_pressed)
 	_discard.pressed.connect(func(): session.discard_bowl())
-	_decline.pressed.connect(func(): session.decline_customer())
+	_decline.pressed.connect(func(): session.decline_customer(); session.skip_unserved_serve())   # UI準備AF：椀を出さない SERVE は飛ばして反応へ
 	_group_serve.pressed.connect(_on_group_serve)
 	_group_retry.pressed.connect(_on_group_retry)
 	_group_decline.pressed.connect(_on_group_decline)
@@ -383,3 +383,4 @@ func _on_group_decline() -> void:
 	var group := session.mob_group_choice()
 	if not group.is_empty():
 		session.group_decline(int(group["ordered"]))
+		session.skip_unserved_serve()   # UI準備AF：椀を出さない SERVE は飛ばして反応へ

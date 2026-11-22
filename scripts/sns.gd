@@ -9,7 +9,7 @@ class_name Sns
 ##   posts … [ { id, account, day, time（"HH:MM"）, text, photo（任意。写真の説明の文字）, photo_kind（任意。"video" なら「［動画：…］」。中身Z2）, reply_to（任意。元の投稿の id）,
 ##              requires（任意。{ met:<客id> }＝その客の初来店の日の閉店のあとから／{ market_talk:<客id> }＝その日の昼の市場で、その客の
 ##              市場の会話〔今日の場面の market_talk〕が済んでから。中身X）／{ visited:<客id> }＝その日、その客の接客が済んで
-##              〔店を出て〕から。来なかった日は、その日のうちは見えない＝UI準備AE。次の日からは見える。中身Z）／{ after_event:<その日の共通イベントの id> }＝その日、その共通イベントを
+##              〔店を出て〕から。来なかった日は、その日のうちも、あとの日も見えない＝UI準備AE・UI準備AF。中身Z）／{ after_event:<その日の共通イベントの id> }＝その日、その共通イベントを
 ##              再生してから。次の日からは条件なし。UI準備AC）, truth（任意。書き手用。画面に出さない）,
 ##              corrected_by（任意。訂正の投稿の id。その訂正の投稿が見えているときだけ、この投稿の本文の前に「訂正あり」の印を出し、
 ##              押すと訂正の投稿へ移る。元の本文は消さない・書き換えない。UI準備AE）,
@@ -95,12 +95,21 @@ static func first_met_day(customer_id: String) -> int:
 	return int((visits[0] as Dictionary).get("day", -1)) if not visits.is_empty() else -1
 
 
+## UI準備AF：その客が、その日に本当に来たか（来店記録 customer_memory の visits に、その日の来店がある。断った晩も来たことになる）。
+static func came_on(customer_id: String, day: int) -> bool:
+	for visit in CustomerMemory.visits_of(customer_id):
+		if visit is Dictionary and int((visit as Dictionary).get("day", -1)) == day:
+			return true
+	return false
+
+
 ## 投稿が見えるか。today＝今日、limit＝今日の投稿が見える時刻の上限（場面ごと。LIMIT_*）。前の日までの投稿は全部見える。
 ## met（その客に会ったあと）は、初来店の日の閉店のあと（limit が LIMIT_DAY_END）から。
 ## market_talk（その客の昼の市場の会話のあと。中身X）は、今日の投稿なら、市場・準備より先の時刻（開店のあと）か、
 ## talked（今日の市場の会話が済んだ客の id。PlaySession.market_talks_done）にその客がいるときだけ。前の日の投稿は見える。
 ## visited（その日その客の接客が済んだあと。中身Z）は、今日の投稿なら、visited（今日の接客が済んだ客の id。PlaySession.phone_visits_done_today。
-## 閉店のあとは、その日ほんとうに来た客だけ＝UI準備AE。来なかった客の接客のあとの投稿は出ない）にその客がいるときだけ。前の日の投稿は見える。
+## 閉店のあとは、その日ほんとうに来た客だけ＝UI準備AE。来なかった客の接客のあとの投稿は出ない）にその客がいるときだけ。前の日の投稿は、
+## その日にその客が来ていれば見える（来店記録で決める。UI準備AF）。
 ## after_event（その日の共通イベントのあと。UI準備AC）は、今日の投稿なら、played（今日再生した共通イベントの id。PlaySession.played_events）に
 ## その id があるときだけ。前の日の投稿は見える。
 static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END, talked: Array = [], visited: Array = [], played: Array = []) -> bool:
@@ -111,8 +120,12 @@ static func is_visible(post: Dictionary, today: int, limit: int = LIMIT_DAY_END,
 	if requires is Dictionary and (requires as Dictionary).has("market_talk") and day == today:
 		if not (limit > LIMIT_MARKET or talked.has(str(requires["market_talk"]))):
 			return false
-	if requires is Dictionary and (requires as Dictionary).has("visited") and day == today:
-		if not visited.has(str(requires["visited"])):
+	if requires is Dictionary and (requires as Dictionary).has("visited"):
+		if day == today and not visited.has(str(requires["visited"])):
+			return false
+		# UI準備AF：前の日の投稿は、その日にその客が本当に来たか（来店記録 customer_memory の visits に、その日の来店がある）で決める。
+		# その日に来なかった客の接客のあとの投稿は、あとの日も見えない（新しく保存する状態は無い）
+		if day < today and not came_on(str(requires["visited"]), day):
 			return false
 	if requires is Dictionary and (requires as Dictionary).has("after_event") and day == today:
 		if not played.has(str(requires["after_event"])):

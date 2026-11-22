@@ -99,11 +99,14 @@ static func shown_line(item: Dictionary) -> String:
 	return "%s「%s」" % [str(item.get("from", "")), body_text(item).replace("\n", "　")]
 
 
-## 夜のDMが今届いているか（UI準備AC）。day が今日より前なら条件なし。今日は after_event が played（再生した共通イベントの id）に、
+## 夜のDMが今届いているか（UI準備AC）。day が今日より前なら条件なし（UI準備AF：after_visit だけは、その日にその客が来ていたときだけ）。今日は after_event が played（再生した共通イベントの id）に、
 ## after_visit が visited（今日の接客が済んだ客の id）にあるときだけ。朝のDMは常に true。
 static func night_gate_ok(item: Dictionary, day: int, played: Array, visited: Array) -> bool:
-	if not is_night(item) or day < GameState.day_count:
+	if not is_night(item):
 		return true
+	if day < GameState.day_count:
+		# UI準備AF：前の日の after_visit の DM は、その日にその客が本当に来たときだけ（来店記録で決める。after_event は条件なし）
+		return str(item.get("after_visit", "")) == "" or Sns.came_on(str(item["after_visit"]), day)
 	if str(item.get("after_event", "")) != "" and not played.has(str(item["after_event"])):
 		return false
 	if str(item.get("after_visit", "")) != "" and not visited.has(str(item["after_visit"])):

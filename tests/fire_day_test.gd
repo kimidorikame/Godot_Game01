@@ -100,7 +100,11 @@ func run(t: SceneTree) -> int:
 		not _ids(Dm.inbox(7, custom)).has("d7_dock_after_nika") and _ids(Dm.inbox(7, custom, [], ["streamer"])).has("d7_dock_after_nika")
 			and Dm.problems(custom).is_empty(), str(Dm.problems(custom)))
 	GameState.day_count = 8
-	c.check("after_visit：次の日は条件なし", _ids(Dm.inbox(7, custom)).has("d7_dock_after_nika"))
+	var next_unmet := _ids(Dm.inbox(7, custom)).has("d7_dock_after_nika")
+	GameState.customer_memory["streamer"] = { "favorite_known": false, "visits": [{ "day": 7, "served": 1, "grade": "GOOD" }], "facts": {}, "seen_episodes": [] }
+	c.check("after_visit：次の日は、その日にその客が来ていれば届き、来ていなければ届かない（来店記録で決める。UI準備AF）",
+		_ids(Dm.inbox(7, custom)).has("d7_dock_after_nika") and not next_unmet)
+	GameState.customer_memory.erase("streamer")
 
 	# --- 4. 受信箱の並び ---
 	var order_data: Dictionary = Dm.data().duplicate(true)

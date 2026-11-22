@@ -144,17 +144,20 @@ func run(t: SceneTree) -> int:
 	var nika23 := day3.filter(func(x): return str(x["account"]) == "exposure_test" and str(x["time"]) == "23:00")
 	c.check("3日目：ニカの 23:00 だけ requires.visited（streamer）。ほかの3日目の投稿に条件は無い",
 		nika23.size() == 1 and nika23[0]["requires"] == { "visited": "streamer" } and day3.filter(func(x): return x.has("requires")).size() == 1)
-	c.check("3日目：ニカの 23:00 は夜半に入っても、ニカの接客が済むまで見えない（済んだら・次の日は見える）",
+	var nika23_next_unmet := Sns.is_visible(nika23[0], 4, Sns.LIMIT_MORNING)
+	GameState.customer_memory["streamer"] = { "favorite_known": false, "visits": [{ "day": 3, "served": 1, "grade": "GOOD" }], "facts": {}, "seen_episodes": [] }   # UI準備AF：3日目にニカが来た道
+	c.check("3日目：ニカの 23:00 は夜半に入っても、ニカの接客が済むまで見えない（済んだら見える。次の日は、3日目にニカが来ていれば見え、来ていなければ見えない＝UI準備AF）",
 		not Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT) and not Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT, [], ["delivery_man"])
 			and Sns.is_visible(nika23[0], 3, Sns.LIMIT_MIDNIGHT, [], ["delivery_man", "streamer"])
 			and not Sns.is_visible(nika23[0], 3, Sns.LIMIT_EVENING, [], ["streamer"])
-			and Sns.is_visible(nika23[0], 4, Sns.LIMIT_MORNING))
+			and Sns.is_visible(nika23[0], 4, Sns.LIMIT_MORNING) and not nika23_next_unmet)
 	c.check("本番：Day3 の見える件数：朝54・市場・準備64・宵の口69・夜半（ニカの前）72・ニカのあと73・Day4 の朝に Day3 までの73件＋Day4 の朝の5件（累計）",
 		Sns.visible_ids(3, Sns.LIMIT_MORNING).size() == 54 and Sns.visible_ids(3, Sns.LIMIT_MARKET).size() == 64
 			and Sns.visible_ids(3, Sns.LIMIT_EVENING).size() == 69 and Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT).size() == 72
 			and Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT, {}, [], ["streamer"]).size() == 73 and Sns.visible_ids(4, Sns.LIMIT_MORNING).size() == 78,
 		"%d / %d / %d / %d" % [Sns.visible_ids(3, Sns.LIMIT_MORNING).size(), Sns.visible_ids(3, Sns.LIMIT_MARKET).size(),
 			Sns.visible_ids(3, Sns.LIMIT_EVENING).size(), Sns.visible_ids(3, Sns.LIMIT_MIDNIGHT).size()])
+	GameState.customer_memory.erase("streamer")
 	# --- 0d. 4日目（中身AA：4日目_タイムライン.md の24件）の確かめ a〜e ---
 	var day4 := Sns.posts().filter(func(x): return int(x["day"]) == 4)
 	c.check("4日目 a：新しいアカウントは無く、投稿のアカウントはどれもある（1〜3日目のアカウントだけ）・投稿の id は重ならない",
@@ -178,9 +181,12 @@ func run(t: SceneTree) -> int:
 			and lin4.all(func(x): return str(x["truth"]).contains("誰かへの報告") and not str(x["truth"]).contains("新興"))
 			and not lin4[0].has("requires") and lin4[1]["requires"] == { "visited": "officer" }
 			and day4.filter(func(x): return x.has("requires")).size() == 1)
-	c.check("4日目：リンの 21:25 は宵の口でも、リンの接客が済むまで見えない（済んだら・次の日は見える）",
+	var lin4_next_unmet := Sns.is_visible(lin4[1], 5, Sns.LIMIT_MORNING)
+	GameState.customer_memory["officer"] = { "favorite_known": false, "visits": [{ "day": 4, "served": 1, "grade": "GOOD" }], "facts": {}, "seen_episodes": [] }   # UI準備AF：4日目にリンが来た道
+	c.check("4日目：リンの 21:25 は宵の口でも、リンの接客が済むまで見えない（済んだら見える。次の日は、4日目にリンが来ていれば見え、来ていなければ見えない＝UI準備AF）",
 		not Sns.is_visible(lin4[1], 4, Sns.LIMIT_EVENING) and Sns.is_visible(lin4[1], 4, Sns.LIMIT_EVENING, [], ["officer"])
-			and Sns.is_visible(lin4[1], 5, Sns.LIMIT_MORNING))
+			and Sns.is_visible(lin4[1], 5, Sns.LIMIT_MORNING) and not lin4_next_unmet)
+	GameState.customer_memory.erase("officer")
 	c.check("4日目：写真の欄はニカの 23:00 が動画（photo_kind video）・阿強の 23:35 が写真",
 		day4.filter(func(x): return x.has("photo")).map(func(x): return "%s %s" % [x["time"], str(x.get("photo_kind", "photo"))]) == ["23:00 video", "23:35 photo"])
 	# --- 0e. 5日目（中身AB：5日目_タイムライン.md の24件）の確かめ a〜e ---

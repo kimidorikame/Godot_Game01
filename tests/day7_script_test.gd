@@ -301,10 +301,10 @@ func run(t: SceneTree) -> int:
 		if GameState.customer_memory.has(cid):
 			GameState.customer_memory[cid]["visits"] = (GameState.customer_memory[cid]["visits"] as Array).filter(func(v): return int(v.get("day", -1)) != 7)
 	var none_posts := Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, es.market_talks_done(), es.phone_visits_done_today(), es.played_events)
-	c.check("リンもニカも来なかった晩：閉店のあとも 21:25・23:30 の投稿と 00:10・00:12 の DM は出ない（次の日になれば前の日の投稿は見える）",
+	c.check("リンもニカも来なかった晩：閉店のあとも 21:25・23:30 の投稿と 00:10・00:12 の DM は出ない（次の日も見えない＝UI準備AF）",
 		not none_posts.has("d7_lin_alt_2125") and not none_posts.has("d7_exposure_test_2330") and es.phone_visits_done_today().is_empty()
 			and not _ids(es.dm_inbox()).has("d7_dock_0010") and not _ids(es.dm_inbox()).has("d7_dock_0012")
-			and Sns.is_visible(Sns.posts().filter(func(x): return str(x["id"]) == "d7_lin_alt_2125")[0], 8, Sns.LIMIT_MORNING), str(none_posts.slice(0, 6)))
+			and not Sns.is_visible(Sns.posts().filter(func(x): return str(x["id"]) == "d7_lin_alt_2125")[0], 8, Sns.LIMIT_MORNING), str(none_posts.slice(0, 6)))
 	p_early.free()
 	# ほかの日の requires.visited の投稿も同じ（3日目のニカ 23:00・4日目のリン 21:25 など）：Sns は渡された「来た客」だけを見る
 	var visited_posts := Sns.posts().filter(func(x): return (x.get("requires", {}) as Dictionary).has("visited"))
