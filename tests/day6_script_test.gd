@@ -97,14 +97,14 @@ func run(t: SceneTree) -> int:
 			and grade_of.call(["coconut_milk", "meat_ball"], ["MELLOW", "GENTLE"], "meat_ball") != "GREAT")
 	# 市場
 	var talk := ScheduleData.talk_data("day6_market")
-	var parts: Array = talk.get("parts", [])
+	var parts: Array = talk.get("parts", []).filter(func(p): return str(p.get("when", "")) != "shop" and str(p.get("speaker", "")) != "サミル")   # UI準備AG：店の会話（when:"shop"）・5日目のサミルは別に確かめる
 	var zhang_md := _md_lines("6日目_昼市場.md", "張記肉類加工", "海隆鮮貨")
 	var liang_md := _md_lines("6日目_昼市場.md", "共同水場", "実装メモ")
 	c.check("市場の場面：張姐（%d行。仕込む量の印の前は「で、今日はどれ位仕込む？」まで・あとに3行。必須情報の印は付けない）と梁伯（%d行。払う印なし）・海叔・ヨヨは入れない" % [zhang_md.size(), liang_md.size()],
 		parts.size() == 2 and parts[0]["lines"].filter(func(l): return l is String) == zhang_md and parts[0]["lines"][zhang_md.size() - 3] is Dictionary
 			and str(parts[0]["lines"][zhang_md.size() - 4]).ends_with("で、今日はどれ位仕込む？」") and not (parts[0] as Dictionary).has("must_info")
 			and str(parts[1]["when"]) == "exit" and parts[1]["lines"] == liang_md and Rules.day_overrides(6).get("market_scene", "") == "day6_market"
-			and not JSON.stringify(talk).contains("海叔「") and not JSON.stringify(talk).contains("ヨヨ「"))
+			and not JSON.stringify(parts).contains("海叔「") and not JSON.stringify(parts).contains("ヨヨ「"))
 	var before := Day1Events.prep_events({}, false)
 	var after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false)
 	var market_at := after.map(func(e): return str(e["type"])).find("MARKET")
@@ -307,7 +307,7 @@ func _play_day6(t: SceneTree, c: TestCheck) -> void:
 		if GameState.phase == GameState.Phase.OPEN and plan_slots.is_empty():
 			plan_slots = (GameState.today_plan["slots"] as Array).duplicate(true)
 			plan_mobs = (GameState.today_plan["mob_instances"] as Dictionary).duplicate(true)
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var ev = s.flow.runner.current()
 			var key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]

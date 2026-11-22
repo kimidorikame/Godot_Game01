@@ -143,7 +143,7 @@ func run(t: SceneTree) -> int:
 			and grade_of.call(["coconut_milk", "shrimp"], ["MELLOW", "BITE"], "shrimp") != "GREAT")
 	# 市場
 	var talk := ScheduleData.talk_data("day3_market")
-	var parts: Array = talk.get("parts", [])
+	var parts: Array = talk.get("parts", []).filter(func(p): return str(p.get("when", "")) != "shop" and str(p.get("speaker", "")) != "サミル")   # UI準備AG：店の会話（when:"shop"）・5日目のサミルは別に確かめる
 	var zhang_md := _md_lines("3日目_昼市場.md", "張記肉類加工", "福生豆腐麺房")
 	var liang_md := _md_lines("3日目_昼市場.md", "共同水場", "実装メモ")
 	c.check("市場の場面：張姐（着いたとき。%d行。仕込む量の印の前は「で、今日はどれ位仕込む？」まで・あとに2行。必須情報の印 new_window_cargo）と梁伯（出るとき。%d行。払う印なし）" % [zhang_md.size(), liang_md.size()],
@@ -319,7 +319,7 @@ func _play_day3(t: SceneTree, c: TestCheck, takeout: bool) -> void:
 				reactions.append({ "grade": str(s.open.current_bowl.get("result", "")), "text": s.current_reaction_text(),
 					"pool": ev.get("reactions", {}), "customer": str(ev.get("customer", "")) })
 		var name := str(line.get("speaker_name", ""))
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(line_key):
@@ -374,7 +374,7 @@ func _play_day3(t: SceneTree, c: TestCheck, takeout: bool) -> void:
 		or declined.has("delivery_man"))
 	var react_ok := true
 	for r in reactions:
-		var pool: Array = (r["pool"] as Dictionary).get(r["grade"], []).duplicate()
+		var pool: Array = (r["pool"] as Dictionary).get(r["grade"] if r["grade"] != "" else "UNSERVED", []).duplicate()   # UI準備AG：断った反応は UNSERVED
 		if r["grade"] == "OK" and (r["pool"] as Dictionary).get("OK_MISSING") is Dictionary:
 			for tag in r["pool"]["OK_MISSING"]:
 				pool.append_array(r["pool"]["OK_MISSING"][tag])

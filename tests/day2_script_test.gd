@@ -71,7 +71,7 @@ func run(t: SceneTree) -> int:
 				all_lines.append_array(ep["reactions"][grade])
 		c.check("%s：どの行も「名前「セリフ」」の形で、〔〕の印・行の終わりの空白を含まない" % ep["id"],
 			all_lines.all(func(x): return str(x).contains("「") and str(x).ends_with("」") and not str(x).contains("〔") and not str(x).ends_with(" ")))
-		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行・OK は外れた札で2通り（OK_MISSING。中身Z2）" % ep["id"], (ep["reactions"] as Dictionary).keys().size() == 5
+		c.check("%s：反応は4段（GREAT・GOOD・OK・BAD）各1行・OK は外れた札で2通り（OK_MISSING。中身Z2）" % ep["id"], (ep["reactions"] as Dictionary).keys().filter(func(k): return not ["HEARTY", "UNSERVED"].has(k)).size() == 5
 			and ["GREAT", "GOOD", "OK", "BAD"].all(func(g): return (ep["reactions"][g] as Array).size() == 1)
 			and (ep["reactions"]["OK_MISSING"] as Dictionary).size() == 2 and ep["reactions"]["OK_MISSING"].values().has(ep["reactions"]["OK"]))
 	c.check("元の文の行がそろっている：警官（市場27・来店と注文24・食後44）・レックス（17・27）・セティヤ（18・21）",
@@ -85,7 +85,7 @@ func run(t: SceneTree) -> int:
 	var talk := ScheduleData.talk_data("day2_market")
 	var zhang: Array = ScheduleData.spoken_lines(talk["parts"][0]["lines"])
 	c.check("市場の場面 day2_market：張姐の会話（着いたときだけ）8行・最後は仕込む量の問い・市場を出たあとの部分は無い",
-		(talk["parts"] as Array).size() == 1 and str(talk["parts"][0]["when"]) == "arrive" and zhang.size() == 8
+		(talk["parts"] as Array).filter(func(p): return str(p["when"]) != "shop").size() == 1 and str(talk["parts"][0]["when"]) == "arrive" and zhang.size() == 8
 			and str(zhang.back()).ends_with("で、今日はどれ位仕込む？」") and _md_spoken_count("2日目_昼市場.md", "張記肉類加工", "張記を出たところ") == 8
 			and ScheduleData.marker_problems(talk["parts"][0]["lines"], "day2_market").is_empty())
 	# 注文の札と好物（手がかりと合う。データのまま）
@@ -102,7 +102,7 @@ func run(t: SceneTree) -> int:
 		var conditional: Array = raw.filter(func(x): return x is Dictionary)
 		c.check("%s：2日目の文（挨拶%d行＋2杯以上の1行・反応 GOOD/OK/BAD 各1行・退店%d行）・注文の札はデータのまま %s" % [mob_id, mob_counts[mob_id][0], mob_counts[mob_id][2], str(mob_tags[mob_id])],
 			plain.size() == mob_counts[mob_id][0] and conditional.size() == mob_counts[mob_id][1] and int(conditional[0]["min_count"]) == 2
-				and (day2["reactions"] as Dictionary).keys().size() == 4 and not (day2["reactions"] as Dictionary).has("GREAT")
+				and (day2["reactions"] as Dictionary).keys().filter(func(k): return not ["HEARTY", "UNSERVED"].has(k)).size() == 4 and not (day2["reactions"] as Dictionary).has("GREAT")
 				and (day2["reactions"]["OK_MISSING"] as Dictionary).keys().all(func(k): return (mob_tags[mob_id] as Array).has(k))
 				and (day2["after_talk"] as Array).size() == mob_counts[mob_id][2] and day2["wanted_tags"] == mob_tags[mob_id]
 				and ScheduleData.marker_problems(plain + day2["after_talk"], mob_id).is_empty())
@@ -236,7 +236,7 @@ func run(t: SceneTree) -> int:
 		var name := str(line.get("speaker_name", ""))
 		if name != "" and not plate.has(name) and root.left.get_node("%NamePlate").visible:
 			plate[name] = str(root.left.get_node("%NameLabel").text)
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(line_key):
@@ -284,7 +284,7 @@ func run(t: SceneTree) -> int:
 			str(expected[first_diff]) if first_diff >= 0 and first_diff < expected.size() else "（無い）"])
 	var react_ok := true
 	for r in reactions:
-		var pool: Array = (r["pool"] as Dictionary).get(r["grade"], []).duplicate()
+		var pool: Array = (r["pool"] as Dictionary).get(r["grade"] if r["grade"] != "" else "UNSERVED", []).duplicate()   # UI準備AG：断った反応は UNSERVED
 		if r["grade"] == "OK" and (r["pool"] as Dictionary).get("OK_MISSING") is Dictionary:   # 中身Z2：外れた札の OK の文
 			for tag in r["pool"]["OK_MISSING"]:
 				pool.append_array(r["pool"]["OK_MISSING"][tag])

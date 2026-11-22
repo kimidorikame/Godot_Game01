@@ -362,5 +362,41 @@ func run(_t: SceneTree) -> int:
 	c.check("7日目の会話枠に出る文（%d本）のどれも、行の頭に禁則の文字が来ない" % texts7.size(), texts7.size() > 200 and bad7.is_empty(), str(bad7))
 	print("  7日目の会話枠の文：%d本・2ページ以上：%d本 %s" % [texts7.size(), multi7.size(), str(multi7)])
 
+	# --- 9. 店の会話・具だくさんと断ったときの一言（UI準備AG・中身AF） ---
+	var raw_ag := []
+	for day in range(2, 8):
+		for part in ScheduleData.talk_data("day%d_market" % day)["parts"]:
+			if str(part["when"]) == "shop" or str(part.get("speaker", "")) == "サミル":
+				raw_ag.append_array(ScheduleData.spoken_lines(part["lines"]))
+	for cid in ["delivery_man", "thug", "granny", "officer", "hooker", "streamer"]:
+		for eid in ScheduleData.customer_episode_ids(cid):
+			var ep := ScheduleData.episode_data(cid, eid)
+			var sources: Array = [ep.get("reactions", {})]
+			for cup in ep.get("cups", []):
+				sources.append(cup.get("reactions", {}))
+			for r in sources:
+				for key in ["HEARTY", "UNSERVED"]:
+					raw_ag.append_array((r as Dictionary).get(key, []))
+	for mob in ["dock_workers", "general_store_clerk", "inn_clerk", "laundry_night", "long_haul_driver", "market_porter", "security_guard", "street_cleaners"]:
+		for day in range(1, 8):
+			var form := ScheduleData.mob_data_for_day(mob, day)
+			for key in ["HEARTY", "UNSERVED"]:
+				raw_ag.append_array((form.get("reactions", {}) as Dictionary).get(key, []))
+	var texts_ag := []
+	for line in raw_ag:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts_ag.has(text):
+			texts_ag.append(text)
+	var bad_ag := {}
+	var multi_ag := []
+	for text in texts_ag:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad_ag[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi_ag.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
+	c.check("店の会話・具だくさんと断ったときの一言（%d本）のどれも、行の頭に禁則の文字が来ない" % texts_ag.size(), texts_ag.size() > 200 and bad_ag.is_empty(), str(bad_ag))
+	print("  店の会話・一言の文：%d本・2ページ以上：%d本 %s" % [texts_ag.size(), multi_ag.size(), str(multi_ag)])
+
 	ScheduleData.clear_cache()
 	return c.finish()

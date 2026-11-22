@@ -88,23 +88,25 @@ func run(t: SceneTree) -> int:
 			and grade_of.call(["pickled_lime", "rice_noodle"], ["SOUR", "BITE"], "rice_noodle") != "GREAT")
 	# 市場
 	var talk := ScheduleData.talk_data("day5_market")
-	var parts: Array = talk.get("parts", [])
+	var parts: Array = talk.get("parts", []).filter(func(p): return str(p.get("when", "")) != "shop" and str(p.get("speaker", "")) != "サミル")   # UI準備AG：店の会話（when:"shop"）・5日目のサミルは別に確かめる
 	var zhang_md := _md_lines("5日目_昼市場.md", "張記肉類加工", "炭屋")
 	var liang_md := _md_lines("5日目_昼市場.md", "共同水場", "実装メモ")
 	c.check("市場の場面：張姐（%d行。仕込む量の印の前は「で、今日はどれ位仕込む？」まで・あとに2行。必須情報の印 contract_shift）と梁伯（%d行。払う印なし）・サミル・羅文は入れない" % [zhang_md.size(), liang_md.size()],
 		parts.size() == 2 and parts[0]["lines"].filter(func(l): return l is String) == zhang_md and parts[0]["lines"][zhang_md.size() - 2] is Dictionary
 			and str(parts[0]["lines"][zhang_md.size() - 3]).ends_with("で、今日はどれ位仕込む？」") and parts[0]["must_info"] == ["contract_shift"]
 			and str(parts[1]["when"]) == "exit" and parts[1]["lines"] == liang_md and Rules.day_overrides(5).get("market_scene", "") == "day5_market"
-			and not _all_text(talk).contains("サミル「") and not _all_text(talk).contains("羅文「"))
+			and not _all_text({ "parts": parts }).contains("サミル「") and not _all_text({ "parts": parts }).contains("羅文「"))
 	var before := Day1Events.prep_events({}, false)
 	var after := Day1Events.prep_after_tier_events(Day1Events.prep_tier_by_id("medium"), false)
 	var types: Array = after.map(func(e): return str(e["type"]))
 	var market_at := types.find("MARKET")
-	c.check("市場の列：張姐 → 仕込む量 → 選んだあとの2行 → 鍋の素 → 市場 → 梁伯 → 「水を汲み、炭を買った（炭代−¥40・水代−¥35）。」。PAY は無い（払い方は今までどおり）",
+	var samir_md := _md_lines("5日目_昼市場.md", "炭屋", "南興乾貨行")   # UI準備AG：サミル（炭屋）は「市場を出る」のあと・梁伯の前（毎回）
+	c.check("市場の列：張姐 → 仕込む量 → 選んだあとの2行 → 鍋の素 → 市場 → サミル → 梁伯 → 「水を汲み、炭を買った（炭代−¥40・水代−¥35）。」。PAY は無い（払い方は今までどおり）",
 		before.map(func(e): return str(e["text"])) == zhang_md.slice(0, zhang_md.size() - 2) and str(before.back()["type"]) == "PREP_TIER"
 			and after.slice(0, 2).map(func(e): return str(e["text"])) == zhang_md.slice(zhang_md.size() - 2) and str(after[2]["type"]) == "ADD_ITEM" and market_at == 3
-			and after.slice(market_at + 1, market_at + 1 + liang_md.size()).map(func(e): return str(e["text"])) == liang_md
-			and str(after[market_at + 1 + liang_md.size()]["text"]) == "水を汲み、炭を買った（炭代−¥40・水代−¥35）。"
+			and after.slice(market_at + 1, market_at + 1 + samir_md.size()).map(func(e): return str(e["text"])) == samir_md
+			and after.slice(market_at + 1 + samir_md.size(), market_at + 1 + samir_md.size() + liang_md.size()).map(func(e): return str(e["text"])) == liang_md
+			and str(after[market_at + 1 + samir_md.size() + liang_md.size()]["text"]) == "水を汲み、炭を買った（炭代−¥40・水代−¥35）。"
 			and not (before + after).any(func(e): return str(e["type"]) == "PAY") and not Day1Events.market_exit_pays_in_scene())
 
 	# --- 3. モブ ---
@@ -275,7 +277,7 @@ func _play_day5(t: SceneTree, c: TestCheck) -> void:
 				reactions.append({ "grade": str(s.open.current_bowl.get("result", "")), "text": s.current_reaction_text(),
 					"pool": ev.get("reactions", {}), "customer": str(ev.get("customer", "")) })
 		var name := str(line.get("speaker_name", ""))
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(line_key):
@@ -289,7 +291,9 @@ func _play_day5(t: SceneTree, c: TestCheck) -> void:
 	c.check("会話枠に〔〕の文（〔ゲーム〕・実装メモ）が一度も出ない", bracket_shown.is_empty(), str(bracket_shown))
 	var talk: Array = ScheduleData.talk_data("day5_market")["parts"]
 	var expected: Array = (talk[0]["lines"] as Array).filter(func(l): return l is String)
-	expected.append_array(talk[1]["lines"])
+	for part in talk:   # UI準備AG：市場を出るときの部分を順に（サミル → 梁伯）
+		if str(part["when"]) == "exit":
+			expected.append_array(part["lines"])
 	var declined := {}
 	for rec in served_at_close:
 		if bool(rec.get("declined", false)) or int(rec.get("servings", 0)) <= 0:
@@ -324,7 +328,7 @@ func _play_day5(t: SceneTree, c: TestCheck) -> void:
 			str(expected[first_diff]) if first_diff >= 0 and first_diff < expected.size() else "（無い）"])
 	var react_ok := true
 	for r in reactions:
-		var pool: Array = (r["pool"] as Dictionary).get(r["grade"], []).duplicate()
+		var pool: Array = (r["pool"] as Dictionary).get(r["grade"] if r["grade"] != "" else "UNSERVED", []).duplicate()   # UI準備AG：断った反応は UNSERVED
 		if r["grade"] == "OK" and (r["pool"] as Dictionary).get("OK_MISSING") is Dictionary:
 			for tag in r["pool"]["OK_MISSING"]:
 				pool.append_array(r["pool"]["OK_MISSING"][tag])

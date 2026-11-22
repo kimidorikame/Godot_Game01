@@ -241,7 +241,7 @@ func run(t: SceneTree) -> int:
 		var name := str(line.get("speaker_name", ""))
 		if name != "" and not plate.has(name) and root.left.get_node("%NamePlate").visible:
 			plate[name] = [str(root.left.get_node("%NameLabel").text), box_text.substr(0, 1)]
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT":
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(line_key):

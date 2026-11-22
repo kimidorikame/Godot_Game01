@@ -98,14 +98,15 @@ func run(t: SceneTree) -> int:
 		str(_before_close_talk(p3)))
 	p3.free()
 
-	# --- 4. 現行の21場面（UNSERVEDも本文も無い）は、従来の閉店と同一（何も足さない） ---
+	# --- 4. 実データ（UI準備AG：断ったときの一言 UNSERVED が入った。本文〔body_unserved〕は無い）：理由 → 断ったときの一言 → 閉店の語り ---
 	ScheduleData.clear_cache()
 	var p4 = _setup(t)
 	p4.session.close_shop()
-	c.check("実データ：CLOSEの先頭は理由だけ（従来どおり）",
-		_before_close_talk(p4) == [["TEXT", "", "（今日はここで店じまいにする。）"]], str(_before_close_talk(p4)))
-	c.check("実データ：CLOSEのイベント数は 理由1＋閉店の語り（従来と同じ）",
-		p4.session.flow.runner.events.size() == 1 + Day1Events.close_events().size())
+	var unserved4: Array = ScheduleData.episode_data("thug", "thug_02")["reactions"]["UNSERVED"]
+	c.check("実データ：CLOSEの先頭は理由と、断ったときの一言（UNSERVED の1行）だけ",
+		_before_close_talk(p4) == [["TEXT", "", "（今日はここで店じまいにする。）"], ["GREET", "reaction", str(unserved4[0])]], str(_before_close_talk(p4)))
+	c.check("実データ：CLOSEのイベント数は 理由1＋断ったときの一言1＋閉店の語り",
+		p4.session.flow.runner.events.size() == 2 + Day1Events.close_events().size())
 	p4.free()
 
 	# --- 5. すでに提供した客・来店記録の無い客は積まない ---

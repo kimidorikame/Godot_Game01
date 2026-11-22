@@ -32,7 +32,7 @@ const FIXTURE_PATH := "res://tests/fixtures/customer_events_4_3.json"
 const EPISODE_KEYS := ["customer", "greet", "id", "reactions", "servings"]
 # 任意のキー（あれば型を検査する）。market_talk＝昼の市場の会話（システム整理A。officer_01だけが持つ）。
 const OPTIONAL_KEYS := ["market_talk", "pre_order", "body", "body_unserved", "choices", "closing",
-	"sets_facts", "must_info", "cups", "source", "order"]
+	"sets_facts", "must_info", "cups", "source", "order", "unserved_reveal_name"]   # UI準備AG：断ったときの一言で名乗る名前（2日目のリン）
 # 中身U1：1日目の本番の文を持つ場面。食後の本文（body）・元の文の場所（source）を持つ（中身U2で場所代のあとの会話 after_bill は body にまとめた）。
 # 文が変わったので、customer_events() は4-3の記録と文（GREET）だけが違う＝判定・売上・支払いに効く値（REACT・PAY・
 # ADJUST・SERVE の並び、注文の札・好物・杯数・売上・支払いの額と種類）は記録と同じことを確かめる。
