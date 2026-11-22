@@ -30,8 +30,9 @@ export const BASELINES = {
   v5: 'playthrough_baseline_v5.json',            // 中身X：レックスの2日目の注文を まろやか＋スタミナ に（2026-11-14。3シード×13方針。コミット 44e7c4d）
   v6: 'playthrough_baseline_v6.json',            // 中身Z：阿強・セティヤの3日目の注文（今日の頼み。2026-11-15。3シード×13方針。コミット 61fde74）
   v7: 'playthrough_baseline_v7.json',            // 中身AB：5日目の本番の文と、自動試遊が part の無い食後の行でも鍋を直さない直し（2026-11-21。3シード×13方針。コミット 1387446）
+  v8: 'playthrough_baseline_v8.json',            // UI準備AG：1日目の阿強は、途中の杯を断ったらそこで帰る（bare_broth の断る回数 12→10。2026-11-22。3シード×13方針。コミット a4966a7）
 };
-export const CURRENT_BASELINE = 'v7';
+export const CURRENT_BASELINE = 'v8';
 
 const DIR = new URL('./', import.meta.url);
 const load = (name) => JSON.parse(fs.readFileSync(new URL(name, DIR), 'utf8'));
