@@ -1,6 +1,6 @@
 {
   "id": "week7",
-  "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。 中身AE：1〜7日目のDMの本文は、どれも本番の文になった（provisional が残るのは来店予告の laundry_night だけ）。",
+  "provisional_note": "本文はすべて仮（provisional）。チャット側で差し替える。差し替えるときは text だけ直せばよい。形・条件・hint は変えない（変えるときはデータのテストが矛盾を弾く）。 中身AE：1〜7日目のDMの本文は、どれも本番の文になった（来店予告の laundry_night の provisional も外した。DM のデータに provisional: true は無い）。",
   "hints": {
 	"many": { "demand_word": "多め" },
 	"few": { "demand_word": "少ない" }
@@ -64,7 +64,7 @@
 	  { "id": "d6_hooker_0236", "from": "セティヤ", "from_kind": "customer", "requires": { "customer": "hooker" }, "time": "02:36", "after_event": "d6_fire",
 		"text": "無理にこっちへ来なくていいからね。今夜の「あとでね」、まだ使えそうにないわ。", "hint": "none", "provisional": false },
 	  { "id": "d6_dock_0305", "from": "港湾労働者", "from_kind": "npc", "time": "03:05", "after_event": "d6_dawn",
-		"text": "これ、見た？　さすがに放火はねえだろって思うんだけど。窓口が替わって、上に門までできて、この時に燃えるのかよ。誰か知ってる？\n（転送）露出調整中「旧倉庫の火事、事故で片づけないでほしい。新しい窓口の担当者と、この組の幹部が会っていた。新名義の依頼が出始めた時期に、旧倉庫への搬入も増えている。火をつけるところを見た人がいるって話も来てる。仕事を新しい契約へ移して得をするこの人が、焼かせたんだ。」", "photo": "事務所の前で話す二人。顔はぼかし。赤茶と金の上着は見える", "hint": "none", "provisional": false },
+		"text": "これ、見た？　さすがに放火はねえだろって思うんだけど。窓口が替わって、上に門までできて、この時に燃えるのかよ。誰か知ってる？\n（転送）露出調整中「旧倉庫の火事、事故で片づけないでほしい。新しい窓口の担当者と、この組の幹部が会っていた。新名義の依頼が出始めた時期に、旧倉庫への搬入も増えている。火をつけるところを見た人がいるって話も来てる。仕事を新しい契約へ移して得をするこの人が、焼かせたんだ。」", "photo": "事務所の前の二人。顔はぼかし。赤茶と金の上着", "hint": "none", "provisional": false },
 	  { "id": "d6_dock_0312", "from": "港湾労働者", "from_kind": "npc", "time": "03:12", "after_event": "d6_dawn",
 		"text": "班の連絡は「立入禁止」だけ来た。俺、明日どこへ行けばいいのかも分かんねえ。卵、買っといてよかった。", "hint": "none", "provisional": false },
 	  { "id": "d6_hai_0340", "from": "海隆鮮貨", "from_kind": "npc", "time": "03:40", "after_event": "d6_dawn",
@@ -123,7 +123,7 @@
 		"texts": ["店番の合間に寄る予定。{hint}のが好きでね", "夜、覗きに行くかもしれん。{hint}ものが食いたい気分だ"] },
 	  "inn_clerk": { "from": "安宿の夜勤受付", "from_kind": "mob", "time": "4:15", "tag_hint": "MELLOW", "provisional": false,
 		"texts": ["受付が空いたら寄る予定です。{hint}なものが飲みたいです", "夜、顔を出すかもしれません。{hint}なのをお願いします"] },
-	  "laundry_night": { "from": "港のホテルの夜番", "from_kind": "mob", "time": "4:10", "tag_hint": "GENTLE", "provisional": true,
+	  "laundry_night": { "from": "港のホテルの夜番", "from_kind": "mob", "time": "4:10", "tag_hint": "GENTLE", "provisional": false,
 		"texts": ["お客が寝静まったら寄る予定です。{hint}のを一杯", "夜、呼び出しが途切れたら顔を出すかも。{hint}なのがいいな"] },
 	  "long_haul_driver": { "from": "長距離運転手の仲間", "from_kind": "mob", "time": "4:10", "tag_hint": "TREAT", "provisional": false,
 		"texts": ["走り終えたら寄る予定だ。たまには{hint}っぽいのが食いたい", "夜に顔を出すかもな。{hint}を頼むかもしれん"] },

@@ -214,7 +214,7 @@ func _play_day4(t: SceneTree, c: TestCheck) -> void:
 			plan_slots = (GameState.today_plan["slots"] as Array).duplicate(true)
 			plan_mobs = (GameState.today_plan["mob_instances"] as Dictionary).duplicate(true)
 		if GameState.phase == GameState.Phase.PREP or GameState.phase == GameState.Phase.OPEN:
-			var visible := Sns.visible_ids(4, s.timeline_limit(), {}, s.market_talks_done(), s.visits_done_today()).has("d4_lin_alt_2125")
+			var visible := Sns.visible_ids(4, s.timeline_limit(), {}, s.market_talks_done(), s.phone_visits_done_today()).has("d4_lin_alt_2125")
 			var cur := str(s.open.current_customer()) if s.open != null else ""
 			if visible and (GameState.phase == GameState.Phase.PREP or cur == "officer"):
 				lin_before = true

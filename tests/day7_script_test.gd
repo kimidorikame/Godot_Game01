@@ -77,7 +77,7 @@ func run(t: SceneTree) -> int:
 	for sc in scenes:
 		var ep := ScheduleData.episode_data(sc[0], sc[1])
 		var lines: Array = ep["greet"] + _flat(ep["body"])
-		var md := _md_lines(sc[2], "本編", "14:30の端末投稿用" if sc[0] == "streamer" else "実装メモ")
+		var md := _md_lines(sc[2], "本編", "14:30の端末投稿用" if sc[0] == "streamer" else ("断った晩" if sc[0] == "granny" else "実装メモ"))
 		c.check("%s：場面データの形・印に問題が無い・元の文の行（%d行）がそのまま・OK は2通り・今日の頼み無し・注文と好物はデータのまま %s" % [sc[1], md.size(), str(sc[3])],
 			ScheduleData.scene_problems(ep).is_empty() and lines == md and _ok_two_ways(ep["reactions"], sc[3])
 				and ScheduleData.episode_today_request(sc[0], sc[1]).is_empty() and ScheduleData.customer_profile(sc[0])["wanted_tags"] == sc[3]
@@ -97,6 +97,22 @@ func run(t: SceneTree) -> int:
 	c.check("ターニャ婆：瓶の受け渡しは会話だけ（売り買い・在庫・臨時の収入の印は無い）・出来で分けない（本文は1通り）",
 		not granny_ep.has("pre_order") and not granny_ep.has("choices") and not granny_ep.has("closing") and not granny_ep.has("sets_facts")
 			and (granny_ep["body"] as Array).all(func(l): return l is String) and (granny_ep["body"] as Array).has("店主「いいよ。瓶、出すぞ」"))
+	# 中身AE の続き：断った晩（料理を出さなかったとき）。7日目のターニャ婆だけ、4行 → 瓶 → 退店（会計は無し）
+	var refuse_md := _md_lines("7日目_老婆.md", "断った晩", "実装メモ")
+	var main_md := _md_lines("7日目_老婆.md", "本編", "断った晩")
+	var bottle_at := main_md.find("ターニャ婆「うん。口も欠けてない。よく乾いてる」")
+	GameState.reset_for_new_game()
+	GameState.day_count = 7
+	var refused := _texts(Day1Events.after_serve_events("granny", "granny_03", { "served": false, "grade": "" }))
+	var refused_exit := _texts(Day1Events.unserved_exit_events("granny", "granny_03"))
+	c.check("ターニャ婆を断った晩：断った晩の4行 → 瓶（「うん。口も欠けてない…」から）→ 退店。会計の2行（「ごちそうさん。勘定は…」「いいよ。瓶、出すぞ」）と食事の行は出ない・鍋が尽きて退店した晩も同じ",
+		refuse_md.size() == 4 and bottle_at > 0 and refused == refuse_md + main_md.slice(bottle_at) and refused_exit == refused
+			and not refused.has("ターニャ婆「ごちそうさん。勘定は、これでいいかい」") and not refused.has("店主「いいよ。瓶、出すぞ」")
+			and ScheduleData.episode_must_info("granny", "granny_03").is_empty(), "%d / %d" % [refused.size(), refuse_md.size() + main_md.size() - bottle_at])
+	c.check("断った晩の本文を持つのは7日目のターニャ婆だけ（ほかの客・ほかの日は、断った晩に本文を出さないまま）",
+		ScheduleData.customer_episode_ids("granny").all(func(e): return (e == "granny_03") != ScheduleData.episode_body_unserved("granny", e).is_empty())
+			and ["delivery_man", "thug", "officer", "hooker", "streamer"].all(func(cid): return ScheduleData.customer_episode_ids(cid).all(func(e): return ScheduleData.episode_body_unserved(cid, e).is_empty()))
+			and _texts(Day1Events.after_serve_events("officer", "officer_04", { "served": false, "grade": "" })).is_empty())
 	GameState.set_soup("bone_broth", ["meaty"], 10, 3, 2)
 	var grade_of := func(additions: Array, wanted: Array, favorite: String) -> String: return str(Judge.grade({ "additions": additions }, GameState.soup, { "wanted_tags": wanted, "favorite": favorite })["grade"])
 	c.check("手がかりと札：リンの GREAT＝塩漬けライム＋歯ごたえの具＋米麺・ニカの GREAT＝ココナッツミルク＋歯ごたえの具＋海老・ターニャ婆の GREAT＝薬膳ナンプラーだれ＋腹もちの具＋モツ（モツは腹もちの代わりにならない）",
@@ -273,7 +289,32 @@ func run(t: SceneTree) -> int:
 	c.check("鍋が尽きて早く閉めた晩（ニカが来ていない）：閉店のあとも、ニカの退店のあとの DM 2通は届かない（DM は来た客で決める。UI準備AE）",
 		not _ids(p_early.session.dm_inbox()).has("d7_dock_0010") and not _ids(p_early.session.dm_inbox()).has("d7_dock_0012")
 			and p_early.session.visits_done_today().has("streamer"))
+	# 中身AE の続き：接客のあとの投稿（requires.visited）も、閉店のあとは今日ほんとうに来た客で決める（来なかった客も済んだ扱い〔visits_done_today〕は変えない）
+	var es = p_early.session
+	var arrived: Array = es.phone_visits_done_today()
+	var early_posts := Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, es.market_talks_done(), arrived, es.played_events)
+	c.check("鍋が尽きて早く閉めた晩（ニカが来ていない）：ニカ 23:30 の投稿は出ない。リン 21:25 は、リンが来ていれば出る（この晩に来た客 %s）" % str(arrived),
+		not early_posts.has("d7_exposure_test_2330") and early_posts.has("d7_lin_alt_2125") == arrived.has("officer")
+			and _ids(es.sns_timeline()[0]["posts"]).has("d7_lin_alt_2125") == arrived.has("officer")
+			and not arrived.has("streamer") and not arrived.has("granny") and es.visits_done_today().has("officer"), str(early_posts.slice(0, 6)))
+	for cid in ["officer", "streamer", "granny"]:   # リンも来なかった晩にする（今日の来店記録を外す）
+		if GameState.customer_memory.has(cid):
+			GameState.customer_memory[cid]["visits"] = (GameState.customer_memory[cid]["visits"] as Array).filter(func(v): return int(v.get("day", -1)) != 7)
+	var none_posts := Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, es.market_talks_done(), es.phone_visits_done_today(), es.played_events)
+	c.check("リンもニカも来なかった晩：閉店のあとも 21:25・23:30 の投稿と 00:10・00:12 の DM は出ない（次の日になれば前の日の投稿は見える）",
+		not none_posts.has("d7_lin_alt_2125") and not none_posts.has("d7_exposure_test_2330") and es.phone_visits_done_today().is_empty()
+			and not _ids(es.dm_inbox()).has("d7_dock_0010") and not _ids(es.dm_inbox()).has("d7_dock_0012")
+			and Sns.is_visible(Sns.posts().filter(func(x): return str(x["id"]) == "d7_lin_alt_2125")[0], 8, Sns.LIMIT_MORNING), str(none_posts.slice(0, 6)))
 	p_early.free()
+	# ほかの日の requires.visited の投稿も同じ（3日目のニカ 23:00・4日目のリン 21:25 など）：Sns は渡された「来た客」だけを見る
+	var visited_posts := Sns.posts().filter(func(x): return (x.get("requires", {}) as Dictionary).has("visited"))
+	var gate_ok := true
+	for x in visited_posts:
+		gate_ok = gate_ok and not Sns.is_visible(x, int(x["day"]), Sns.LIMIT_DAY_END, [], [], []) and Sns.is_visible(x, int(x["day"]), Sns.LIMIT_DAY_END, [], [str(x["requires"]["visited"])], ["d6_fire"])
+	c.check("requires.visited の投稿（%d件。3日目のニカ 23:00・4日目のリン 21:25 を含む）は、その日その客が来ていなければ、閉店のあとでも見えない" % visited_posts.size(),
+		visited_posts.size() >= 3 and gate_ok
+			and visited_posts.any(func(x): return int(x["day"]) == 3 and str(x["time"]) == "23:00") and visited_posts.any(func(x): return int(x["day"]) == 4 and str(x["time"]) == "21:25"),
+		str(visited_posts.map(func(x): return "%d %s" % [x["day"], x["time"]])))
 
 	# --- 6. 文の検査 ---
 	var all7 := JSON.stringify(talk) + JSON.stringify(News.day_entry(7)) + JSON.stringify(Dm.items_for_day(7))
@@ -357,7 +398,7 @@ func _play_day7(t: SceneTree, c: TestCheck) -> void:
 				shown.append({ "text": str(line.get("speaker_name", "")) + str(line.get("text", "")), "part": str(line.get("part", "")), "type": str(line.get("type", "")) })
 		if GameState.phase == GameState.Phase.CLOSE and inbox_at_close.is_empty():
 			inbox_at_close = _ids(s.dm_inbox())
-			timeline_at_close = Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, s.market_talks_done(), s.visits_done_today(), s.played_events)
+			timeline_at_close = Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, s.market_talks_done(), s.phone_visits_done_today(), s.played_events)
 			expected_common = News.event_texts(News.day_entry(7)["events"][0], 7)
 		if play.step() == "":
 			break
@@ -379,7 +420,7 @@ func _play_day7(t: SceneTree, c: TestCheck) -> void:
 	c.check("リンの5行：6日目に夜勤警備員へ出した道なら出る・出していない道なら出ない（この通しでは6日目に夜勤警備員%s）" % ("あり" if guard_on_day6 else "なし"),
 		guard_lines.size() == (1 if guard_on_day6 else 0))
 	c.check("閉店のあと（結果の画面まで）に、新しい DM・投稿は出ない",
-		_ids(s.dm_inbox()) == inbox_at_close and Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, s.market_talks_done(), s.visits_done_today(), s.played_events) == timeline_at_close
+		_ids(s.dm_inbox()) == inbox_at_close and Sns.visible_ids(7, Sns.LIMIT_DAY_END, {}, s.market_talks_done(), s.phone_visits_done_today(), s.played_events) == timeline_at_close
 			and inbox_at_close.has("d7_dock_0010"))
 	var card: Control = root.full_result.get_node("TitleCard")
 	c.check("週の終わり：結果の画面に入ると、まず「夜湯」のタイトルが1枚（画面いっぱい）", card.visible and (card.get_node("TitleText") as Label).text == "夜湯"

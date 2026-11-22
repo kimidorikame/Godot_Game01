@@ -44,7 +44,7 @@ const DAY1_SCRIPT_EPISODES := { "delivery_man_01": [], "thug_01": ["body"], "gra
 	"officer_02": ["body"], "delivery_man_03": ["body"], "granny_02": ["body"],   # 中身AA：4日目
 	"hooker_03": ["body"], "streamer_02": ["body"], "officer_03": ["body"],   # 中身AB：5日目
 	"hooker_04": ["body"], "streamer_03": ["body"], "thug_03": ["body"],   # 中身AD：6日目
-	"officer_04": ["body"], "streamer_04": ["body"], "granny_03": ["body"] }   # 中身AE：7日目
+	"officer_04": ["body"], "streamer_04": ["body"], "granny_03": ["body", "body_unserved"] }   # 中身AE：7日目（ターニャ婆は断った晩の本文も持つ）
 const DAY1_SCRIPT_DIFFS := ["1:delivery_man", "1:thug", "1:granny", "2:officer", "2:thug", "2:hooker",
 	"3:delivery_man", "3:streamer", "3:hooker", "4:officer", "4:delivery_man", "4:granny", "5:hooker", "5:streamer", "5:officer", "6:hooker", "6:streamer", "6:thug",
 	"7:officer", "7:streamer", "7:granny"]

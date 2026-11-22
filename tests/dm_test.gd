@@ -37,9 +37,10 @@ func run(t: SceneTree) -> int:
 	c.check("本番の hint:few は無い（中身Z：3日目の仮のDMを外した）", not all_items.any(func(x): return str(x["hint"]) == "few"))
 	c.check("客でない差出人（npc）は条件なしで届く（requires を持たない）",
 		all_items.filter(func(x): return str(x["from_kind"]) == "npc").all(func(x): return not x.has("requires")))
-	# 中身AD：仮の文の日を前提にしない形に。本番の文を入れた日（2〜6日目）の DM に provisional は無い（まだ仮の日が残っていれば、その日の分だけ仮）
-	c.check("本番の文を入れた日（2〜6日目）のDMに provisional は無い（中身X・中身Z・中身AA・中身AB・中身AD）",
-		all_items.filter(func(x): return int(x["day"]) <= 6).all(func(x): return not bool(x.get("provisional", false))))
+	# 中身AE：1〜7日目とも本番の文。DM と来店予告のどこにも provisional は無い（来店予告の laundry_night の印も外した）
+	var preview_pools: Dictionary = (Dm.data().get("previews", {}) as Dictionary).get("pools", {})
+	c.check("1〜7日目のDMと来店予告に provisional は無い（中身X・中身Z・中身AA・中身AB・中身AD・中身AE）",
+		all_items.all(func(x): return not bool(x.get("provisional", false))) and preview_pools.values().all(func(x): return not bool(x.get("provisional", false))))
 	c.check("2日目のDM（中身X）：張姐 6:40・阿強 5:50・レックス 4:40・4:42 の4通（阿強の「また夜に寄るよ」は外した）",
 		Dm.items_for_day(2).map(func(x): return "%s %s" % [x["from"], x["time"]]) == ["張姐 6:40", "阿強 5:50", "レックス 4:40", "レックス 4:42"]
 			and not Dm.items_for_day(2).any(func(x): return str(x["text"]).contains("また夜に寄る")))

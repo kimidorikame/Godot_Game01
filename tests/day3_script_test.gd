@@ -304,7 +304,7 @@ func _play_day3(t: SceneTree, c: TestCheck, takeout: bool) -> void:
 			plan_slots = (GameState.today_plan["slots"] as Array).duplicate(true)
 			plan_mobs = (GameState.today_plan["mob_instances"] as Dictionary).duplicate(true)
 		if GameState.phase == GameState.Phase.OPEN and s.open != null:
-			var visible := Sns.visible_ids(3, s.timeline_limit(), {}, s.market_talks_done(), s.visits_done_today()).has("d3_exposure_test_2300")
+			var visible := Sns.visible_ids(3, s.timeline_limit(), {}, s.market_talks_done(), s.phone_visits_done_today()).has("d3_exposure_test_2300")
 			var cur := str(s.open.current_customer())
 			var slot_name := s.open.current_slot_name()
 			if (slot_name == "宵の口" or cur == "streamer") and visible:
