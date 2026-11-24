@@ -1,0 +1,5 @@
+# UI準備AH・中身AH のスクリーンショット（tools/ui_screens_AH.gd が書き出す）
+01_akiang_cup1_react.png  1日目の阿強の1杯目（ナムプリックパオ＋肉団子・濃さ5）：反応は減点の前の評価の文
+02_akiang_cup1_strong.png  1日目の阿強の1杯目：そのあとに濃いの一言
+03_mob_inn_react.png  モブ1組（3日目の安宿の夜勤受付・濃さ1）：反応は減点の前の評価の文
+04_mob_inn_weak.png  モブ1組：そのあとに薄いの一言（組で1行）
