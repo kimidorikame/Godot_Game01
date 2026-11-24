@@ -450,6 +450,8 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 								problems.append("%sreactions.OK_MISSING の札 %s が、その杯の注文 %s に無い" % [where, str(tag), str(cup["tags"])])
 							if not _is_lines(cup["reactions"][key][tag]) or (cup["reactions"][key][tag] as Array).is_empty():
 								problems.append("%sreactions.OK_MISSING.%s が空でない文字列の配列でない" % [where, str(tag)])
+				elif str(key) == PENALTY_KEY:
+					problems.append_array(penalty_problems(cup["reactions"][key], where))
 				elif not _REACTION_KEYS.has(key):
 					problems.append("%sreactions に未知のキー %s" % [where, str(key)])
 				elif not (cup["reactions"][key] is Array):
@@ -469,7 +471,23 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 
 
 ## UI準備AG：HEARTY＝具だくさんの一言（具だくさんのチップが付いた提供のとき、反応のあとに1行）。UNSERVED＝断ったときの一言。
+## UI準備AH：PENALTY＝理由の一言 { STRONG（濃い）, WEAK（薄い）, SPOILED（傷んだ具） }（_penalty_problems）。
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED", "HEARTY"]
+const PENALTY_KEY := "PENALTY"
+const PENALTY_KINDS := ["STRONG", "WEAK", "SPOILED"]
+
+
+## UI準備AH：reactions.PENALTY の形の問題（辞書・キーは STRONG／WEAK／SPOILED・値は空でない文字列の配列）。
+static func penalty_problems(value, where: String) -> Array:
+	if not (value is Dictionary):
+		return ["%sreactions.PENALTY が辞書でない" % where]
+	var problems := []
+	for key in value:
+		if not PENALTY_KINDS.has(str(key)):
+			problems.append("%sreactions.PENALTY に未知のキー %s" % [where, str(key)])
+		elif not _is_lines(value[key]) or (value[key] as Array).is_empty():
+			problems.append("%sreactions.PENALTY.%s が空でない文字列の配列でない" % [where, str(key)])
+	return problems
 ## OK の反応を、外れた札で分ける（中身U1でモブに作った形を、中身Zで常連の場面にも）：reactions.OK_MISSING.<札>＝その札だけが
 ## 外れたときの文。札が2つとも外れた・減点で OK になったときは、今までどおり reactions.OK（PlaySession.current_reaction_text）。
 const OK_MISSING_KEY := "OK_MISSING"
@@ -560,7 +578,8 @@ static func _reveal_problems(ep: Dictionary) -> Array:
 
 ## 場面データ1つの形の検査（データ検証テストと、将来の脚本の取り込みが使う）。問題の説明の
 ## 配列を返す（空なら問題なし）。検査するのは新しいキーと反応のキーだけ：
-##   reactions … 4段階＋UNSERVED（断ったときの一言）＋HEARTY（具だくさんの一言。UI準備AG）。値は文字列の配列
+##   reactions … 4段階＋UNSERVED（断ったときの一言）＋HEARTY（具だくさんの一言。UI準備AG）。値は文字列の配列。
+##               PENALTY（理由の一言。UI準備AH）だけは { STRONG|WEAK|SPOILED: 文字列の配列 }
 ##   unserved_reveal_name … 断ったときの一言で名乗る名前（UI準備AG。2日目のリン）。名前あり客の場面だけ。空でない文字列
 ##   market_talk / pre_order / body / body_unserved … 空でない文字列の配列
 ##   行の印（中身U1）… 〔ゲーム〕の行は持たない。〔演出〕は行の頭だけ（会話の行の配列の中。反応の行には持たない）
@@ -626,6 +645,8 @@ static func scene_problems(ep: Dictionary) -> Array:
 			for key in reactions:
 				if str(key) == OK_MISSING_KEY:
 					problems.append_array(_ok_missing_problems(reactions[key], ep))
+				elif str(key) == PENALTY_KEY:
+					problems.append_array(penalty_problems(reactions[key], ""))
 				elif not _REACTION_KEYS.has(key):
 					problems.append("reactions に未知のキー %s" % str(key))
 				elif not (reactions[key] is Array):

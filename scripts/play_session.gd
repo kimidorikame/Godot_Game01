@@ -468,6 +468,9 @@ var _adjust_log_text := ""
 var shop_talk_queue: Array = []
 var shop_talks_done: Dictionary = {}   # "<日>|<店の id>" -> true
 
+## UI準備AH：いまの客（モブの組）の椀で出た減点の種類（"STRONG"／"WEAK"／"SPOILED"。組で1回だけ理由の一言を出すため）。客が替わるたび空にする。
+var group_penalty_kinds: Array = []
+
 # --- ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6。モブ客の団体オーダーだけが対象） ---
 # モブ客のADJUST中に選んだ具材を、在庫を引かずに一時記録するリスト（{"id":String,
 # "damaged":bool}の配列）。人数が確定した瞬間（_serve_mob_partial）まで在庫消費を遅らせる
@@ -668,6 +671,7 @@ static func unserved_display(record: Dictionary) -> Dictionary:
 ## いま接客中の客の Event 列を flow.runner に載せる。
 ## 客がいなければ空 runner（＝即 DONE）にして、OPEN を CLOSE へ進められる状態にする。
 func load_current_customer() -> void:
+	group_penalty_kinds = []   # UI準備AH
 	bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	reset_mob_group_state()   # ②拒否と部分提供：客が替わるたび選択中の具材・確認状態を破棄
 	mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
@@ -1080,6 +1084,8 @@ func _serve_customer(ev: Dictionary) -> void:
 		# flush_visit_tally() が退店の瞬間に1回だけ確定させる。
 		_add_to_visit_tally(customer_id, judged, sale, servings, result, raw_favorite, -1, tip, hearty)
 		_insert_hearty_line(ev, hearty)
+		if judged:
+			_insert_penalty_lines(ev, bowl_penalty_kinds())   # UI準備AH
 		return
 	if judged and raw_favorite != "" and GameState.FAVORITE_REVEAL == "first_serve":
 		GameState.mark_favorite_known(customer_id)   # 好物を知る（favorite_reveal が "memo" なら、閉店のあとメモを足したとき。UI準備O2）
@@ -1097,6 +1103,7 @@ func _serve_customer(ev: Dictionary) -> void:
 		Ledger.record("sale", sale, customer_id, servings)
 	_insert_after_serve_events(ev, true, result)
 	_insert_hearty_line(ev, hearty)
+	_insert_penalty_lines(ev, bowl_penalty_kinds())   # UI準備AH：理由の一言（反応のすぐあと・具だくさんの一言の前）
 
 
 ## _pending_decline経由でREACTに到達したときの処理。判定（judge_bowl）を呼ばない・
@@ -1347,6 +1354,9 @@ func current_reaction_text() -> String:
 	if not (cur is Dictionary) or cur.get("type", "") != "REACT":
 		return ""
 	var result: String = str(open.current_bowl.get("result", ""))
+	# UI準備AH：反応の文は、減点（鍋の濃さ・傷んだ具）の前の評価で選ぶ（理由は、そのあとの一言で言う）。表示する評価・売上・チップは result のまま
+	if result != "":
+		result = str(open.current_bowl.get("base_result", result))
 	var reactions: Dictionary = cur.get("reactions", {})
 	var pool: Array = reactions.get(result, [])
 	if result == "" and declined_now:
@@ -1644,6 +1654,9 @@ func _apply_mob_recipe(ev: Dictionary, actual: int) -> void:
 	var result := ""
 	if open != null:
 		result = open.judge_bowl(ev.get("wanted_tags", []), str(ev.get("favorite", "")))
+		for kind in bowl_penalty_kinds():   # UI準備AH：組で1回だけ理由の一言を出すために積む
+			if not group_penalty_kinds.has(kind):
+				group_penalty_kinds.append(kind)
 	for pick in mob_picks:
 		if bool(pick["damaged"]):
 			GameState.remove_inventory_damaged(str(pick["id"]), actual)
@@ -1680,6 +1693,8 @@ func _serve_mob_partial(ev: Dictionary, actual: int, ordered: int, reason: Strin
 		for i in range(lines.size()):
 			flow.runner.events.insert(flow.runner.index + 1 + i, lines[i])
 	_insert_hearty_line(ev, group_hearty)   # UI準備AG：具だくさんの一言（組ごとに1行。反応のすぐあと）
+	if served_any:
+		_insert_penalty_lines(ev, group_penalty_kinds)   # UI準備AH：理由の一言（組で1回だけ。具だくさんの一言の前）
 
 
 ## 「挑戦する」を選んだ場合の処理：レシピ1（achievable人分）をその場で確定・積算し、
@@ -3485,6 +3500,43 @@ func current_line() -> Dictionary:
 	var split := split_speaker(text)
 	return { "type": type, "speaker": speaker, "speaker_name": dm_speaker_name(ev, str(split["name"])), "text": str(split["text"]),
 		"part": str(ev.get("part", "")) }
+
+
+## UI準備AH：いまの椀の減点の種類（理由の一言を出す順）。鍋の濃さの減点＝判定のときの濃さが上限なら "STRONG"、下限なら "WEAK"。
+## 傷んだ具の減点＝最後の評価が BAD のときだけ "SPOILED"（GREAT・GOOD・OK の椀には言わない）。状態を読むだけ。
+func bowl_penalty_kinds() -> Array:
+	var kinds := []
+	if open == null:
+		return kinds
+	var bowl: Dictionary = open.current_bowl
+	if bool(bowl.get("penalty_strength", false)):
+		kinds.append("STRONG" if int(bowl.get("strength_at_judge", 3)) >= GameState.STRENGTH_MAX else "WEAK")
+	if bool(bowl.get("penalty_spoiled", false)) and str(bowl.get("result", "")) == "BAD":
+		kinds.append("SPOILED")
+	return kinds
+
+
+## UI準備AH：理由の一言（reactions.PENALTY.<種類> の1行）を、反応（REACT）のすぐあとに、濃さ → 傷みの順で差す。
+## 名前あり客は REACT の reactions（場面・杯）、モブは職種のファイルの一番上の reactions.PENALTY（日ごとの文には持たない）。
+## 文の無い客・種類は何も差さない。料金・評判・鍋には触れない。
+func _insert_penalty_lines(ev: Dictionary, kinds: Array) -> void:
+	if kinds.is_empty() or flow.runner == null:
+		return
+	var penalty = (ev.get("reactions", {}) as Dictionary).get("PENALTY", {}) if ev.get("reactions", {}) is Dictionary else {}
+	var customer := str(ev.get("customer", ""))
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	if instances.has(customer):
+		var base_reactions = ScheduleData.mob_data(str((instances[customer] as Dictionary).get("type", ""))).get("reactions", {})
+		penalty = (base_reactions as Dictionary).get("PENALTY", {}) if base_reactions is Dictionary else {}
+	if not (penalty is Dictionary):
+		return
+	var lines := []
+	for kind in ["STRONG", "WEAK", "SPOILED"]:
+		var pool = (penalty as Dictionary).get(kind, [])
+		if kinds.has(kind) and pool is Array and not (pool as Array).is_empty() and str(pool[0]) != "":
+			lines.append({ "type": "GREET", "customer": customer, "text": str(pool[0]), "part": "penalty" })
+	for i in range(lines.size()):
+		flow.runner.events.insert(flow.runner.index + 1 + i, lines[i])
 
 
 ## UI準備AG：具だくさんのチップが付いた提供（hearty>0）のとき、反応（REACT）のすぐあとに具だくさんの一言（reactions.HEARTY の1行）を差す。
