@@ -398,5 +398,36 @@ func run(_t: SceneTree) -> int:
 	c.check("店の会話・具だくさんと断ったときの一言（%d本）のどれも、行の頭に禁則の文字が来ない" % texts_ag.size(), texts_ag.size() > 200 and bad_ag.is_empty(), str(bad_ag))
 	print("  店の会話・一言の文：%d本・2ページ以上：%d本 %s" % [texts_ag.size(), multi_ag.size(), str(multi_ag)])
 
+	# --- 10. 理由の一言（濃い・薄い・傷んだ具。UI準備AH・中身AH） ---
+	var raw_ah := []
+	for cid in ["delivery_man", "thug", "granny", "officer", "hooker", "streamer"]:
+		for eid in ScheduleData.customer_episode_ids(cid):
+			var ep := ScheduleData.episode_data(cid, eid)
+			var sources: Array = [ep.get("reactions", {})]
+			for cup in ep.get("cups", []):
+				sources.append(cup.get("reactions", {}))
+			for r in sources:
+				for v in ((r as Dictionary).get("PENALTY", {}) as Dictionary).values():
+					raw_ah.append_array(v)
+	for mob in ["dock_workers", "general_store_clerk", "inn_clerk", "laundry_night", "long_haul_driver", "market_porter", "security_guard", "street_cleaners"]:
+		for v in ((ScheduleData.mob_data(mob)["reactions"] as Dictionary).get("PENALTY", {}) as Dictionary).values():
+			raw_ah.append_array(v)
+	var texts_ah := []
+	for line in raw_ah:
+		var text := str(PlaySession.split_speaker(str(line))["text"])
+		if not texts_ah.has(text):
+			texts_ah.append(text)
+	var bad_ah := {}
+	var multi_ah := []
+	for text in texts_ah:
+		var b := _bad_heads(text)
+		if not b.is_empty():
+			bad_ah[text] = b
+		if UiLeftSide.paginate(text).size() > 1:
+			multi_ah.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
+	c.check("理由の一言（%d本）のどれも、行の頭に禁則の文字が来ない・〔〕が無い" % texts_ah.size(), texts_ah.size() == 45 and bad_ah.is_empty()
+		and not texts_ah.any(func(x): return str(x).contains("〔")), str(bad_ah))
+	print("  理由の一言：%d本・2ページ以上：%d本 %s" % [texts_ah.size(), multi_ah.size(), str(multi_ah)])
+
 	ScheduleData.clear_cache()
 	return c.finish()

@@ -225,10 +225,10 @@ func _play_day4(t: SceneTree, c: TestCheck) -> void:
 			if not reacted.has(key):
 				reacted[key] = true
 				var ev: Dictionary = s.flow.runner.current()
-				reactions.append({ "grade": str(s.open.current_bowl.get("result", "")), "text": s.current_reaction_text(),
+				reactions.append({ "grade": str(s.open.current_bowl.get("base_result", s.open.current_bowl.get("result", ""))) if str(s.open.current_bowl.get("result", "")) != "" else "", "text": s.current_reaction_text(),
 					"pool": ev.get("reactions", {}), "customer": str(ev.get("customer", "")) })
 		var name := str(line.get("speaker_name", ""))
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty", "penalty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var line_key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(line_key):

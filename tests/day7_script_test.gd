@@ -390,7 +390,7 @@ func _play_day7(t: SceneTree, c: TestCheck) -> void:
 		var line := s.current_line()
 		if GameState.phase == GameState.Phase.OPEN and plan_slots.is_empty():
 			plan_slots = (GameState.today_plan["slots"] as Array).duplicate(true)
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty", "penalty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
 			if not shown_keys.has(key):

@@ -307,7 +307,7 @@ func _play_day6(t: SceneTree, c: TestCheck) -> void:
 		if GameState.phase == GameState.Phase.OPEN and plan_slots.is_empty():
 			plan_slots = (GameState.today_plan["slots"] as Array).duplicate(true)
 			plan_mobs = (GameState.today_plan["mob_instances"] as Dictionary).duplicate(true)
-		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
+		if s.flow.runner != null and str(line.get("text", "")) != "" and str(line.get("type", "")) != "REACT" and not ["shop_talk", "hearty", "penalty"].has(str(line.get("part", ""))):   # UI準備AG：店の会話・具だくさんの一言は別に確かめる
 			var ev = s.flow.runner.current()
 			var key := "%d|%d|%d|%d|%s" % [GameState.phase, s.open.slot_index if s.open != null else -1, s.open.index if s.open != null else -1,
 				s.flow.runner.index, str(line.get("text", ""))]
