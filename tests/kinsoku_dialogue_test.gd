@@ -425,7 +425,7 @@ func run(_t: SceneTree) -> int:
 			bad_ah[text] = b
 		if UiLeftSide.paginate(text).size() > 1:
 			multi_ah.append("%d：%s" % [UiLeftSide.paginate(text).size(), text.substr(0, 16)])
-	c.check("理由の一言（%d本）のどれも、行の頭に禁則の文字が来ない・〔〕が無い" % texts_ah.size(), texts_ah.size() == 45 and bad_ah.is_empty()
+	c.check("理由の一言（%d本）のどれも、行の頭に禁則の文字が来ない・〔〕が無い" % texts_ah.size(), texts_ah.size() == 48 and bad_ah.is_empty()
 		and not texts_ah.any(func(x): return str(x).contains("〔")), str(bad_ah))
 	print("  理由の一言：%d本・2ページ以上：%d本 %s" % [texts_ah.size(), multi_ah.size(), str(multi_ah)])
 

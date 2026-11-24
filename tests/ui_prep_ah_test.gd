@@ -162,12 +162,40 @@ func run(t: SceneTree) -> int:
 			var ep := ScheduleData.episode_data(cid, eid)
 			all_regular = all_regular and ScheduleData.scene_problems(ep).is_empty()
 			for r in ([ep.get("reactions", {})] if not ep.has("cups") else (ep["cups"] as Array).map(func(cup): return cup.get("reactions", {}))):
-				all_regular = all_regular and (r as Dictionary).has("PENALTY") and ((r as Dictionary)["PENALTY"] as Dictionary).keys().size() == 3
+				all_regular = all_regular and (r as Dictionary).has("PENALTY") and ["STRONG", "WEAK", "SPOILED"].all(func(k): return ((r as Dictionary)["PENALTY"] as Dictionary).has(k))
 	var all_mobs := ["dock_workers", "general_store_clerk", "inn_clerk", "laundry_night", "long_haul_driver", "market_porter", "security_guard", "street_cleaners"].all(
 		func(m): return (ScheduleData.mob_data(m)["reactions"] as Dictionary).has("PENALTY"))
 	c.check("2日目の新人警官の理由の一言は名前が「警官」（3日目以降はリン）・常連の全場面（阿強の1日目は杯ごと）とモブの全職種に濃い・薄い・傷みの3つ",
 		(officer1.values() as Array).all(func(v): return str(v[0]).begins_with("警官「")) and str(ScheduleData.episode_data("officer", "officer_02")["reactions"]["PENALTY"]["STRONG"][0]).begins_with("リン「")
 			and all_regular and all_mobs)
+	# 12. UI準備AI：1日目の阿強の2杯目で、1杯目と同じ理由の一言が続いたときは <種類>_AGAIN の文
+	var cup2: Dictionary = cups[1]["reactions"]["PENALTY"]
+	var cup1p: Dictionary = cups[0]["reactions"]["PENALTY"]
+	var cases := [
+		["1・2杯目とも濃い → 2杯目は「……やっぱ水もちょうだい」", 5, 5, [], [], ["penalty:" + str(cup1p["STRONG"][0])], ["penalty:" + str(cup2["STRONG_AGAIN"][0])]],
+		["1杯目は減点なし・2杯目だけ濃い → いつもの濃いの一言", 3, 5, [], [], [], ["penalty:" + str(cup2["STRONG"][0])]],
+		["1杯目が濃い・2杯目が薄い → いつもの薄いの一言", 5, 1, [], [], ["penalty:" + str(cup1p["STRONG"][0])], ["penalty:" + str(cup2["WEAK"][0])]],
+		["1・2杯目とも薄い → 「……これも薄いじゃん。…」", 1, 1, [], [], ["penalty:" + str(cup1p["WEAK"][0])], ["penalty:" + str(cup2["WEAK_AGAIN"][0])]],
+		["1・2杯目とも傷んだ具で BAD → 「……また昨日のやつ？」", 3, 3, ["nam_prik_pao", "tofu"], ["nam_prik_pao", "tofu"], ["penalty:" + str(cup1p["SPOILED"][0])], ["penalty:" + str(cup2["SPOILED_AGAIN"][0])]],
+		["1杯目は傷んだ具でも BAD でない（一言なし）・2杯目だけ BAD → いつもの傷みの一言", 3, 3, ["nam_prik_pao", "meat_ball"], ["nam_prik_pao", "tofu"], [], ["penalty:" + str(cup2["SPOILED"][0])]],
+	]
+	for cs in cases:
+		root = _open(t, ["delivery_man"], 1, int(cs[1]), {}, true)
+		GameState.perishable_batches["meat_ball"].push_front({ "day": GameState.day_count - 2, "count": 2, "unit_price": 8 })   # 傷んだ肉団子2個
+		GameState.inventory["meat_ball"] = int(GameState.inventory["meat_ball"]) + 2
+		s = root.session
+		_to_adjust(s)
+		var picks1: Array = cs[3] if not (cs[3] as Array).is_empty() else ["nam_prik_pao", "meat_ball"]
+		var first := _serve(s, picks1, ["tofu", "meat_ball"] if not (cs[3] as Array).is_empty() else [])
+		s.next_event()
+		_to_adjust(s)
+		GameState.soup["strength"] = int(cs[2])
+		var picks2: Array = cs[4] if not (cs[4] as Array).is_empty() else ["nam_prik_pao", "meat_ball"]
+		var second := _serve(s, picks2, ["tofu"] if not (cs[4] as Array).is_empty() else [])
+		c.check("阿強の1日目：" + str(cs[0]), first[1] == cs[5] and second[1] == cs[6], "%s / %s" % [str(first[1]), str(second[1])])
+		root.free()
+	c.check("3杯目（持ち帰り）には _AGAIN の文が無い（続いても持ち帰りの文）・ほかの客にも無い",
+		not (cups[2]["reactions"]["PENALTY"] as Dictionary).has("STRONG_AGAIN") and not (thug3["PENALTY"] as Dictionary).has("STRONG_AGAIN"))
 	var bad := ScheduleData.penalty_problems({ "STRONG": [], "HOT": ["x"] }, "")
 	c.check("データの検査：PENALTY の空の文・未知のキーを弾く", bad.size() == 2, str(bad))
 
