@@ -472,9 +472,10 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 
 ## UI準備AG：HEARTY＝具だくさんの一言（具だくさんのチップが付いた提供のとき、反応のあとに1行）。UNSERVED＝断ったときの一言。
 ## UI準備AH：PENALTY＝理由の一言 { STRONG（濃い）, WEAK（薄い）, SPOILED（傷んだ具） }（_penalty_problems）。
+## UI準備AI：<種類>_AGAIN＝同じ来店で同じ理由の一言をもう出したときの文（任意。1日目の阿強の2杯目）。
 const _REACTION_KEYS := ["GREAT", "GOOD", "OK", "BAD", "UNSERVED", "HEARTY"]
 const PENALTY_KEY := "PENALTY"
-const PENALTY_KINDS := ["STRONG", "WEAK", "SPOILED"]
+const PENALTY_KINDS := ["STRONG", "WEAK", "SPOILED", "STRONG_AGAIN", "WEAK_AGAIN", "SPOILED_AGAIN"]   # _AGAIN＝同じ理由が続いたとき（UI準備AI）
 
 
 ## UI準備AH：reactions.PENALTY の形の問題（辞書・キーは STRONG／WEAK／SPOILED・値は空でない文字列の配列）。

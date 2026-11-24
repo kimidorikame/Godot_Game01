@@ -470,6 +470,8 @@ var shop_talks_done: Dictionary = {}   # "<日>|<店の id>" -> true
 
 ## UI準備AH：いまの客（モブの組）の椀で出た減点の種類（"STRONG"／"WEAK"／"SPOILED"。組で1回だけ理由の一言を出すため）。客が替わるたび空にする。
 var group_penalty_kinds: Array = []
+## UI準備AI：いまの客に、この来店で実際に出した理由の一言の種類（同じ理由が続いたら、その杯の PENALTY.<種類>_AGAIN があればそちらを出す）。
+var penalty_kinds_said: Array = []
 
 # --- ②拒否と部分提供（BALANCE_REDESIGN_PLAN.md §6。モブ客の団体オーダーだけが対象） ---
 # モブ客のADJUST中に選んだ具材を、在庫を引かずに一時記録するリスト（{"id":String,
@@ -672,6 +674,7 @@ static func unserved_display(record: Dictionary) -> Dictionary:
 ## 客がいなければ空 runner（＝即 DONE）にして、OPEN を CLOSE へ進められる状態にする。
 func load_current_customer() -> void:
 	group_penalty_kinds = []   # UI準備AH
+	penalty_kinds_said = []   # UI準備AI
 	bowl_discard_count = 0   # 新しい客ごとにリセット（廃棄回数は客をまたがない）
 	reset_mob_group_state()   # ②拒否と部分提供：客が替わるたび選択中の具材・確認状態を破棄
 	mob_original_ordered = -1   # 団体客の分割提供：新しい客ごとにレシピ状態も破棄
@@ -3533,8 +3536,14 @@ func _insert_penalty_lines(ev: Dictionary, kinds: Array) -> void:
 	var lines := []
 	for kind in ["STRONG", "WEAK", "SPOILED"]:
 		var pool = (penalty as Dictionary).get(kind, [])
+		# UI準備AI：この来店で同じ理由の一言をもう出していて、<種類>_AGAIN の文があればそちらを出す（1日目の阿強の2杯目）
+		var again = (penalty as Dictionary).get(kind + "_AGAIN", [])
+		if penalty_kinds_said.has(kind) and again is Array and not (again as Array).is_empty() and str(again[0]) != "":
+			pool = again
 		if kinds.has(kind) and pool is Array and not (pool as Array).is_empty() and str(pool[0]) != "":
 			lines.append({ "type": "GREET", "customer": customer, "text": str(pool[0]), "part": "penalty" })
+			if not penalty_kinds_said.has(kind):
+				penalty_kinds_said.append(kind)
 	for i in range(lines.size()):
 		flow.runner.events.insert(flow.runner.index + 1 + i, lines[i])
 
