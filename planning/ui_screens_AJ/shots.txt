@@ -1,0 +1,6 @@
+# UI準備AJ・中身AJ のスクリーンショット（tools/ui_screens_AJ.gd が書き出す）
+01_inn_clerk_d1_page1.png  1日目の安宿の夜勤受付：具を選ぶ間の注文の行（1ページ目）
+02_inn_clerk_d1_page2.png  1日目の安宿の夜勤受付：会話枠のクリックで2ページ目（列は進まない）
+03_officer_d2.png  2日目の警官：店主の行（「酸っぱい汁。あと、ちゃんと噛めるもの」）が入る注文の行
+04_streamer_d3_page1.png  3日目のニカ：注文の行（1ページ目）
+05_streamer_d3_page2.png  3日目のニカ：2ページ目
