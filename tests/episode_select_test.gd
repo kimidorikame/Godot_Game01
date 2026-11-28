@@ -60,9 +60,15 @@ func run(_t: SceneTree) -> int:
 			var ep := ScheduleData.episode_data(str(slot["regular"]), str(slot["episode_id"]))
 			for key in ["requires", "order", "callback"]:
 				if ep.has(key):
-					bad_keys.append("%s:%s" % [slot["episode_id"], key])
-	c.check("実データの21場面は requires・order・callback を持たない（中身X・中身Z：2日目のレックス・3日目の阿強とセティヤの order〔今日の頼み〕だけ）",
-		bad_keys == ["thug_02:order", "delivery_man_02:order", "hooker_02:order"], str(bad_keys))
+					if key == "order" and ep[key] is Dictionary:
+						# 中身AJ：order.reask（具を選ぶ間に出す注文の行）は全場面にある。今日の頼み（today_request）だけを数える
+						for order_key in ep[key]:
+							if str(order_key) != "reask":
+								bad_keys.append("%s:order.%s" % [slot["episode_id"], str(order_key)])
+					else:
+						bad_keys.append("%s:%s" % [slot["episode_id"], key])
+	c.check("実データの21場面は requires・order・callback を持たない（中身X・中身Z：2日目のレックス・3日目の阿強とセティヤの order〔今日の頼み〕だけ。中身AJ の order.reask は除く）",
+		bad_keys == ["thug_02:order.today_request", "delivery_man_02:order.today_request", "hooker_02:order.today_request"], str(bad_keys))
 	GameState.reset_for_new_game()
 
 	# --- 2. 実データのDayPlan：全日の枠が today_request を持つ（空）。episode_idは4-4aと同じ ---
