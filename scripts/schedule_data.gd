@@ -397,7 +397,8 @@ static func episode_sets_facts(customer_id: String, episode_id: String) -> Dicti
 ##   sets_facts … その杯を出したとき（判定の結果に関係なく）に来店記録の facts へ書く事実（中身Z。1日目の阿強の3杯目＝
 ##                持ち帰りを出したか。断った杯には書かない＝事実が無い＝偽）。値は真偽・数・文字列、キーは2個まで
 ## 杯数は cups の数（各杯 servings:1）。場面の greet が来店〜1杯目の注文。
-const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk", "sets_facts"]
+##   reask … UI準備AJ：その杯の具を選ぶ間に会話枠へ出す、注文を言った行（来店の会話・前の杯の after_talk の行と同じ文）
+const _CUP_KEYS := ["tags", "favorite", "adjust", "serve", "reactions", "after_talk", "sets_facts", "reask"]
 ## 複数杯の場面で使えない場面のキー（黙って無視される書き間違いを作らないため scene_problems が弾く）。
 const _CUPS_FORBIDDEN_KEYS := ["reactions", "order", "callback", "pre_order", "body", "body_unserved",
 	"choices", "closing", "sets_facts", "card_today"]
@@ -458,6 +459,8 @@ static func _cup_problems(cup: Dictionary, where: String) -> Array:
 					problems.append("%sreactions.%s が配列でない" % [where, str(key)])
 	if cup.has("after_talk") and not _is_lines(cup["after_talk"]):
 		problems.append("%safter_talk が文字列の配列でない" % where)
+	if cup.has("reask") and not _is_plain_lines(cup["reask"]):
+		problems.append("%sreask が空でない文字列の配列でない" % where)
 	if cup.has("sets_facts"):
 		if not (cup["sets_facts"] is Dictionary) or (cup["sets_facts"] as Dictionary).is_empty() \
 				or (cup["sets_facts"] as Dictionary).size() > _MAX_FACT_KEYS:
@@ -752,7 +755,76 @@ static func scene_problems(ep: Dictionary) -> Array:
 					problems.append("closing のキー %s が choices にも request_honored にも対応しない" % str(key))
 	if _is_lines(ep.get("must_info", [])) and not (ep.get("must_info", []) as Array).is_empty() 			and _is_lines(ep.get("body", [])) and not (ep.get("body", []) as Array).is_empty() 			and (not _is_lines(ep.get("body_unserved", [])) or (ep.get("body_unserved", []) as Array).is_empty()):
 		problems.append("must_info と body があるのに body_unserved が無い")
+	problems.append_array(reask_problems(ep))
 	return problems
+
+
+## UI準備AJ：注文の行（場面の order.reask・杯の cups[i].reask）の検査。空でない文字列の配列で、どの行も、その場面の来店の会話（greet）か
+## 前の杯のあとの会話（cups[<i].after_talk）に一字一句同じ行があること（言い直しの文を持たない）。
+static func reask_problems(ep: Dictionary) -> Array:
+	var problems := []
+	var said := _plain_lines_of(ep.get("greet", []))
+	var order = ep.get("order", {})
+	if order is Dictionary and (order as Dictionary).has("reask"):
+		problems.append_array(_reask_line_problems(order["reask"], said, "order.reask"))
+	var cups = ep.get("cups", [])
+	if cups is Array:
+		for i in range((cups as Array).size()):
+			if not (cups[i] is Dictionary):
+				continue
+			if (cups[i] as Dictionary).has("reask"):
+				problems.append_array(_reask_line_problems(cups[i]["reask"], said, "cups[%d].reask" % i))
+			said.append_array(_plain_lines_of((cups[i] as Dictionary).get("after_talk", [])))
+	return problems
+
+
+## UI準備AJ：モブ1種の注文の行（days.<日>.reask・spare_reask）の検査。reask はその日の greet、spare_reask は spare_greet に同じ行があること。
+static func mob_reask_problems(id: String) -> Array:
+	var problems := []
+	var days = mob_data(id).get("days", {})
+	if not (days is Dictionary):
+		return problems
+	for day in days:
+		var form = days[day]
+		if not (form is Dictionary):
+			continue
+		for pair in [["reask", "greet"], ["spare_reask", "spare_greet"]]:
+			if (form as Dictionary).has(pair[0]):
+				problems.append_array(_reask_line_problems(form[pair[0]], _plain_lines_of(form.get(pair[1], [])),
+					"%s days.%s.%s" % [id, str(day), pair[0]]))
+	return problems
+
+
+static func _reask_line_problems(value, said: Array, where: String) -> Array:
+	if not _is_plain_lines(value):
+		return ["%s が空でない文字列の配列でない" % where]
+	var problems := []
+	for line in value:
+		if not said.has(line):
+			problems.append("%s の行が来店の会話に無い「%s」" % [where, str(line)])
+	return problems
+
+
+## 空でない文字列だけの、空でない配列か（条件付きの行・名乗りの印は持たない）。
+static func _is_plain_lines(value) -> bool:
+	if not (value is Array) or (value as Array).is_empty():
+		return false
+	for line in value:
+		if not (line is String) or line == "":
+			return false
+	return true
+
+
+## 行の配列の、文字列の行（条件付きの行のまとまりの中の行も含む）。
+static func _plain_lines_of(value) -> Array:
+	var out := []
+	if value is Array:
+		for line in value:
+			if line is String:
+				out.append(line)
+			elif is_condition_group(line):
+				out.append_array(_plain_lines_of(line["lines"]))
+	return out
 
 
 ## その客の場面の候補（場面の置き場の<客>/*.jsonのid。id順）。置き場が無ければ空配列。
@@ -799,7 +871,9 @@ static func mob_data(id: String) -> Dictionary:
 ## spare_greet … 同じ晩に同じ職種の2組目が来たとき、greet の代わりに出す行（中身Z「四組目が来る晩の、予備の一言」。
 ##               予備の一言と注文の行。反応は1組目と同じ。Day1Events._customer_flavor）。日をまたぐ文には無い。
 ## spare_farewell … その2組目の退店の文（中身Z2。after_talk の代わり。Day1Events.mob_after_talk_events）。日をまたぐ文には無い。
-const MOB_DAY_KEYS := ["greet", "reactions", "after_talk", "spare_greet", "spare_farewell"]
+## reask … UI準備AJ：具を選ぶ間に会話枠へ出す、注文を言った行（greet の行と同じ文）。spare_reask … 予備の一言で来た2組目の分（spare_greet の行と同じ文）。
+##         2組目は spare_reask が無ければ、reask の行が全部 spare_greet にあるときだけ reask を出す（Day1Events.order_reask_lines）。
+const MOB_DAY_KEYS := ["greet", "reactions", "after_talk", "spare_greet", "spare_farewell", "reask", "spare_reask"]
 
 
 static func mob_data_for_day(id: String, day: int) -> Dictionary:

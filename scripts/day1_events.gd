@@ -1238,6 +1238,50 @@ static func is_repeat_mob_group(customer_id: String) -> bool:
 	return false
 
 
+## UI準備AJ：具を選んでいる間（ADJUST の入力待ち）に会話枠へ出す、客が注文を言った行（来店の会話・前の杯のあとの会話の行と同じ文）。
+##   名前あり客：場面の order.reask。複数杯の場面（1日目の阿強）は杯ごとの cups[cup_index].reask。
+##   モブ：その日の文（days.<日>.reask）。同じ晩の同じ職種の2組目（予備の一言 spare_greet で来た組）は、spare_reask があればそれ、
+##         無ければ reask の行が全部 spare_greet の中にあるときだけ reask（2組目が言っていない行は出さない）。
+## 無い客は空配列（会話枠は今までどおり ADJUST の文）。状態を読むだけ（料金・評判・判定には使わない）。
+static func order_reask_lines(customer_id: String, cup_index: int = 0) -> Array:
+	var instances: Dictionary = GameState.today_plan.get("mob_instances", {})
+	if instances.has(customer_id):
+		var inst: Dictionary = instances[customer_id]
+		var mob := ScheduleData.mob_data_for_day(str(inst.get("type", "")), GameState.day_count)
+		var count := int(inst.get("count", 0))
+		var lines: Array = ScheduleData.spoken_lines(mob.get("reask", []))
+		if is_repeat_mob_group(customer_id) and not ScheduleData.spoken_lines(mob.get("spare_greet", [])).is_empty():
+			var spare_reask: Array = ScheduleData.spoken_lines(mob.get("spare_reask", []))
+			if not spare_reask.is_empty():
+				lines = spare_reask
+			else:
+				var spare_greet := ScheduleData.spoken_lines(ScheduleData.mob_lines_for_count(mob["spare_greet"], count))
+				for line in lines:
+					if not spare_greet.has(line):
+						return []
+		var out := []
+		for line in lines:
+			out.append(_format_mob_greet(str(line), count))
+		return out
+	if is_mob_customer(customer_id):
+		return []
+	var scene_id := episode_id_of(customer_id)
+	if scene_id == "":
+		return []
+	var raw = []
+	var cups := ScheduleData.episode_cups(customer_id, scene_id)
+	if not cups.is_empty():
+		if cup_index >= 0 and cup_index < cups.size():
+			raw = (cups[cup_index] as Dictionary).get("reask", [])
+	else:
+		var order = ScheduleData.episode_data(customer_id, scene_id).get("order", {})
+		if order is Dictionary:
+			raw = (order as Dictionary).get("reask", [])
+	if not (raw is Array):
+		return []
+	return CustomerMemory.resolve_lines(raw, customer_id).filter(func(line): return line is String and line != "")
+
+
 ## モブのgreet 1行を仕上げる（旧_format_dock_greetを改名。dock_workers専用ではなく
 ## 全モブ種で使う）。"%d"を含む行だけ人数を埋め込み、含まない行（素の台詞）はそのまま
 ## 返す（GDScriptの % 演算子はプレースホルダの無い文字列に値を渡すと実行時エラーに

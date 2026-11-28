@@ -1205,6 +1205,29 @@ func adjust_customer_id() -> String:
 	return customer_id
 
 
+## UI準備AJ：具を選んでいる間（ADJUST の入力待ち）に会話枠へ出す注文の行：{ customer（話し手の枠の客 id）, lines（行の配列） }。
+## 名前あり客・1日目の阿強の杯ごと・モブの組（2杯目以降の ADJUST〔new_bowl〕も同じ客の行）。行の無い客・ADJUST の入力待ちでないときは空辞書。
+## 杯の番号は、列のいまの位置までに出た、その客の ADJUST の数で数える。状態を読むだけ（ログには足さない。来店の会話で一度出ているため）。
+func adjust_order_lines() -> Dictionary:
+	if open == null or flow.runner == null or flow.runner.status != EventRunner.Status.WAITING_INPUT:
+		return {}
+	var cur = flow.runner.current()
+	if not (cur is Dictionary) or str(cur.get("type", "")) != "ADJUST":
+		return {}
+	var customer_id := str(cur.get("customer", ""))
+	if customer_id == "":
+		return {}
+	var cup_index := -1
+	for i in range(mini(flow.runner.index, flow.runner.events.size() - 1) + 1):
+		var ev = flow.runner.events[i]
+		if ev is Dictionary and str(ev.get("type", "")) == "ADJUST" and str(ev.get("customer", "")) == customer_id:
+			cup_index += 1
+	var lines := Day1Events.order_reask_lines(customer_id, maxi(cup_index, 0))
+	if lines.is_empty():
+		return {}
+	return { "customer": customer_id, "lines": lines }
+
+
 ## いま ADJUST で3枠を選んでいる最中か（options を持つ WAITING_INPUT）。
 ## 鍋モードに入れるかの判定に使う（調理の途中で鍋をいじらせない）。
 func is_choosing_ingredients() -> bool:

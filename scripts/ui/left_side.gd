@@ -112,6 +112,11 @@ func _display() -> Dictionary:
 		for l in session.reask_lines:
 			lines.append(str(l))
 		return { "speaker": session.reask_customer_id, "text": "\n".join(lines) }
+	# UI準備AJ：具を選んでいる間は、ADJUST の文（「（味を調える）」）の代わりに、その客が注文を言った行（行の頭の名前は行のとおり）。
+	# 話し手の枠はその客。ログには足さない（ADJUST の文のログは今のまま）
+	var order := session.adjust_order_lines()
+	if not order.is_empty():
+		return { "speaker": str(order["customer"]), "text": "\n".join(PackedStringArray(order["lines"])), "order_lines": true }
 	var line := session.current_line()
 	if line.is_empty():
 		# 列を読み終えた画面（閉店など）：会話枠を空にせず、最後に出した行を残す（話し手の枠は出さない）
@@ -238,6 +243,12 @@ func advance() -> void:
 	if _page < _pages.size() - 1:
 		_page += 1
 		_show_page()
+		return
+	# UI準備AJ：注文の行を出している間（具を選ぶ入力待ち）は、最後のページのあと1ページ目に戻る（列は進めない）
+	if not session.adjust_order_lines().is_empty():
+		if _page != 0:
+			_page = 0
+			_show_page()
 		return
 	if session.has_shop_talk():   # UI準備AG：市場の店の会話を1行送る
 		session.advance_shop_talk()
