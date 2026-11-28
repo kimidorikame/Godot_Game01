@@ -141,9 +141,43 @@ func run(t: SceneTree) -> int:
 	root.free()
 	root = _open(t, ["mob#0", "mob#1"], 7, { "mob#0": { "type": "inn_clerk", "count": 1 }, "mob#1": { "type": "inn_clerk", "count": 1 } })
 	s = root.session
-	c.check("7日目の安宿の受付の2組目：spare_greet に注文の行が無い → 出さない（「（味を調える）」）。1組目は出す",
-		Day1Events.order_reask_lines("mob#1").is_empty() and not Day1Events.order_reask_lines("mob#0").is_empty())
+	c.check("7日目の安宿の受付：1組目は reask、2組目は spare_reask（中身AJ2）",
+		Day1Events.order_reask_lines("mob#0") == ScheduleData.mob_data("inn_clerk")["days"]["7"]["reask"]
+			and Day1Events.order_reask_lines("mob#1") == ScheduleData.mob_data("inn_clerk")["days"]["7"]["spare_reask"])
 	root.free()
+
+	# --- 6b. 中身AJ2：2組目の注文の行（spare_reask）の7日分。2組目の ADJUST で会話枠に出る・2ページ以内 ---
+	var spare_days := [["long_haul_driver", 4], ["laundry_night", 4], ["security_guard", 5], ["dock_workers", 5],
+		["street_cleaners", 6], ["inn_clerk", 7], ["market_porter", 7]]
+	var spare_bad := []
+	for pair in spare_days:
+		var type_id := str(pair[0])
+		var day := int(pair[1])
+		var spare_lines: Array = ScheduleData.mob_data(type_id)["days"][str(day)].get("spare_reask", [])
+		root = _open(t, ["mob#1"], day, { "mob#0": { "type": type_id, "count": 1 }, "mob#1": { "type": type_id, "count": 1 } })
+		s = root.session
+		_to_adjust(s)
+		var shown := _shown(root)
+		if spare_lines.is_empty() or not s.is_choosing_ingredients() or shown != "\n".join(PackedStringArray(spare_lines)) \
+				or str(root.left._display().get("speaker", "")) != "mob#1" or root.left._pages.size() > 2:
+			spare_bad.append("%s %d: %s" % [type_id, day, shown])
+		root.free()
+	c.check("2組目の ADJUST で spare_reask の行が会話枠に出る（7日分・どれも2ページ以内）", spare_bad.is_empty(), str(spare_bad))
+	var spare_total := 0
+	var spare_shown := 0
+	for id in ["dock_workers", "general_store_clerk", "inn_clerk", "laundry_night", "long_haul_driver", "market_porter", "security_guard", "street_cleaners"]:
+		var days: Dictionary = ScheduleData.mob_data(id).get("days", {})
+		for day in days:
+			if ScheduleData.spoken_lines((days[day] as Dictionary).get("spare_greet", [])).is_empty():
+				continue
+			spare_total += 1
+			GameState.reset_for_new_game()
+			GameState.day_count = int(day)
+			GameState.today_plan["mob_instances"]["mob#0"] = { "type": id, "count": 1 }
+			GameState.today_plan["mob_instances"]["mob#1"] = { "type": id, "count": 1 }
+			if not Day1Events.order_reask_lines("mob#1").is_empty():
+				spare_shown += 1
+	c.check("spare_greet を持つ14の日は、どれも2組目に注文の行が出る", spare_total == 14 and spare_shown == 14, "%d / %d" % [spare_shown, spare_total])
 
 	# --- 7. データ：常連21場面（阿強の1日目は杯ごと3通り）とモブ19の日に注文の行。どれも来店の会話の行と同じ・2ページ以内 ---
 	var missing := []
@@ -177,6 +211,9 @@ func run(t: SceneTree) -> int:
 				missing.append("%s days.%s" % [id, str(day)])
 			elif UiLeftSide.paginate("\n".join(PackedStringArray(lines))).size() > 2:
 				over.append("%s days.%s" % [id, str(day)])
+			var spare: Array = (days[day] as Dictionary).get("spare_reask", [])
+			if UiLeftSide.paginate("\n".join(PackedStringArray(spare))).size() > 2:
+				over.append("%s days.%s spare_reask" % [id, str(day)])
 	c.check("常連21場面・モブ19の日のどれにも注文の行がある", scene_count == 21 and mob_days == 19 and missing.is_empty(),
 		"%d %d %s" % [scene_count, mob_days, str(missing)])
 	c.check("注文の行は、その場面の来店の会話（greet）・前の杯の after_talk の行と一字一句同じ", problems.is_empty(), str(problems))
